@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── users/{uid} ──────────────────────────────────────────────────────────
+    // Each user can only read and write their own profile document.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── chats/{threadId} ─────────────────────────────────────────────────────
+    // A thread is readable/writable only by the user who owns it (userId field).
+    match /chats/{threadId} {
+      allow read, update, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+
+      // On create, the incoming userId must match the authenticated user.
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+
+      // ── chats/{threadId}/messages/{messageId} ────────────────────────────
+      // Messages inherit access from their parent thread.
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/chats/$(threadId)).data.userId
+             == request.auth.uid;
+      }
+    }
+
+    // ── products/{productId} ─────────────────────────────────────────────────
+    // Products are public read-only; writes are done via Firebase Console / Admin SDK.
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
