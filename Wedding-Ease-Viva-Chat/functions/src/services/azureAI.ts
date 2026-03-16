@@ -1,6 +1,15 @@
 import { AzureOpenAI } from 'openai'
 import type { HistoryMessage } from '../types'
 
+export interface AIResult {
+  text: string
+  usage: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+}
+
 function getClient(): AzureOpenAI {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_API_KEY
@@ -21,8 +30,9 @@ function getClient(): AzureOpenAI {
 export async function callAzureAI(
   history: HistoryMessage[],
   userMessage: string,
-  systemPrompt: string
-): Promise<string> {
+  systemPrompt: string,
+  maxTokens = 800
+): Promise<AIResult> {
   const client = getClient()
 
   const completion = await client.chat.completions.create({
@@ -32,9 +42,16 @@ export async function callAzureAI(
       ...history,
       { role: 'user', content: userMessage },
     ],
-    max_tokens: 800,
+    max_tokens: maxTokens,
     temperature: 0.7,
   })
 
-  return completion.choices[0]?.message?.content ?? ''
+  return {
+    text: completion.choices[0]?.message?.content ?? '',
+    usage: {
+      promptTokens: completion.usage?.prompt_tokens ?? 0,
+      completionTokens: completion.usage?.completion_tokens ?? 0,
+      totalTokens: completion.usage?.total_tokens ?? 0,
+    },
+  }
 }

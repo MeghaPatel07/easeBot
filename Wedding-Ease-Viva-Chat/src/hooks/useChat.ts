@@ -11,8 +11,8 @@ import {
   toggleLikeMessage,
   type NewMessage,
 } from '@/services/chatService'
-import { sendChatMessage } from '@/services/functionsService'
-import type { ChatThread, ChatMessage, Mode } from '@/types'
+import { sendChatMessage, generateImage, addCalendarEvent } from '@/services/functionsService'
+import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc } from '@/types'
 
 export interface Message {
   id: string
@@ -22,7 +22,10 @@ export interface Message {
   mode?: Mode
   liked?: boolean
   audioUrl?: string | null
-  threadId?: string   // set on liked messages for cross-thread navigation
+  imageUrl?: string | null
+  calendarEvent?: CalendarEvent | null
+  calendarAdded?: boolean   // true once successfully added to Google Calendar
+  threadId?: string
 }
 
 export interface UseChatResult {
@@ -31,6 +34,7 @@ export interface UseChatResult {
   activeThreadId: string | null
   isTyping: boolean
   allLikedMessages: Message[]
+  calendarEvents: CalendarEventDoc[]
   sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string) => Promise<void>
   stopGeneration: () => void
   loadChat: (threadId: string) => Promise<void>
@@ -42,13 +46,14 @@ export interface UseChatResult {
 }
 
 export function useChat(): UseChatResult {
-  const { user } = useAuth()
+  const { user, googleCalendarToken } = useAuth()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [threads, setThreads] = useState<ChatThread[]>([])
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
   const [allLikedMessages, setAllLikedMessages] = useState<Message[]>([])
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEventDoc[]>([])
 
   // Keep refs so callbacks always see latest values without needing them as deps
   const messagesRef = useRef<Message[]>(messages)
@@ -104,6 +109,35 @@ export function useChat(): UseChatResult {
     fetchLiked()
   }, [user?.uid])
 
+  // ── Fetch calendar events from Firestore ──────────────────────────────────
+  useEffect(() => {
+    if (!user) { setCalendarEvents([]); return }
+    const fetchCalendarEvents = async () => {
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, 'users', user.uid, 'calendarEvents'),
+            orderBy('date', 'asc')
+          )
+        )
+        setCalendarEvents(
+          snap.docs.map(d => ({
+            id: d.id,
+            title: d.data().title,
+            date: d.data().date,
+            time: d.data().time ?? null,
+            description: d.data().description ?? null,
+            htmlLink: d.data().htmlLink,
+            createdAt: d.data().createdAt?.toDate?.() ?? new Date(),
+          }))
+        )
+      } catch (err) {
+        console.error('[useChat] fetchCalendarEvents error:', err)
+      }
+    }
+    fetchCalendarEvents()
+  }, [user?.uid])
+
   // ── Clear state on logout ─────────────────────────────────────────────────
   useEffect(() => {
     if (!user) {
@@ -111,6 +145,10 @@ export function useChat(): UseChatResult {
       setActiveThreadId(null)
     }
   }, [user])
+
+  // ── Image intent detection (mirrors backend regex) ────────────────────────
+  const IMAGE_INTENT_RE =
+    /\b(generate|create|make|show|draw|design|visualize|render)\b.{0,60}\b(images?|pictures?|photos?|visuals?|illustrations?|mockups?|renders?|sketches?)\b/i
 
   // ── Send message ───────────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text: string, audioBase64?: string, mode?: Mode, language?: string) => {
@@ -149,10 +187,34 @@ export function useChat(): UseChatResult {
           liked: false,
         } as NewMessage)
 
-        const result = await sendChatMessage(
-          { message: text, threadId, audioBase64, mode, language },
-          controller.signal
-        )
+        const isImgReq = IMAGE_INTENT_RE.test(text)
+        const [result, imgResult] = await Promise.all([
+          sendChatMessage({ message: text, threadId, audioBase64, mode, language }, controller.signal),
+          isImgReq ? generateImage(text).catch(() => null) : Promise.resolve(null),
+        ])
+
+        const imageUrl = (imgResult as any)?.imageUrl ?? result.imageUrl ?? null
+
+        // Auto-add to Google Calendar if planner mode returned an event
+        let calendarAdded = false
+        if (result.calendarEvent && googleCalendarToken) {
+          try {
+            const calRes = await addCalendarEvent(googleCalendarToken, result.calendarEvent)
+            calendarAdded = true
+            // Optimistically append to local list
+            setCalendarEvents(prev => [...prev, {
+              id: calRes.eventId,
+              title: result.calendarEvent!.title,
+              date: result.calendarEvent!.date,
+              time: result.calendarEvent!.time ?? null,
+              description: result.calendarEvent!.description ?? null,
+              htmlLink: calRes.htmlLink,
+              createdAt: new Date(),
+            }].sort((a, b) => a.date.localeCompare(b.date)))
+          } catch (err) {
+            console.error('[useChat] calendar add failed:', err)
+          }
+        }
 
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
@@ -162,6 +224,9 @@ export function useChat(): UseChatResult {
           mode: result.mode,
           liked: false,
           audioUrl: result.audioUrl,
+          imageUrl,
+          calendarEvent: result.calendarEvent ?? null,
+          calendarAdded,
         }
         setMessages((prev) => [...prev, aiMsg])
 
@@ -180,10 +245,13 @@ export function useChat(): UseChatResult {
           content: m.text,
         }))
 
-        const result = await sendChatMessage(
-          { message: text, threadId: null, audioBase64, history, mode, language },
-          controller.signal
-        )
+        const isImgReq = IMAGE_INTENT_RE.test(text)
+        const [result, imgResult] = await Promise.all([
+          sendChatMessage({ message: text, threadId: null, audioBase64, history, mode, language }, controller.signal),
+          isImgReq ? generateImage(text).catch(() => null) : Promise.resolve(null),
+        ])
+
+        const imageUrl = (imgResult as any)?.imageUrl ?? result.imageUrl ?? null
 
         setMessages((prev) => [
           ...prev,
@@ -195,6 +263,9 @@ export function useChat(): UseChatResult {
             mode: result.mode,
             liked: false,
             audioUrl: result.audioUrl,
+            imageUrl,
+            calendarEvent: result.calendarEvent ?? null,
+            calendarAdded: false,
           },
         ])
       }
@@ -318,6 +389,7 @@ export function useChat(): UseChatResult {
     activeThreadId,
     isTyping,
     allLikedMessages,
+    calendarEvents,
     sendMessage,
     stopGeneration,
     loadChat,

@@ -9,9 +9,19 @@ export interface ChatPayload {
   history?: HistoryMessage[]
 }
 
+export interface CalendarEvent {
+  title: string
+  date: string
+  time?: string
+  description?: string
+  reminderMinutes?: number
+}
+
 export interface ChatResponse {
   text: string
   audioUrl: string | null
+  imageUrl: string | null
+  calendarEvent: CalendarEvent | null
   mode: Mode
   detectedLanguage: string
 }

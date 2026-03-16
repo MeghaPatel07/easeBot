@@ -189,8 +189,9 @@ export async function signInWithEmail(email: string, password: string) {
 
 // ── Google OAuth (authflow.md §4) ─────────────────────────────────────────────
 
-export async function signInWithGoogleAuth(allowSignUp = true) {
+export async function signInWithGoogleAuth(allowSignUp = true): Promise<{ user: import('firebase/auth').User, googleAccessToken: string | null }> {
   const provider = new GoogleAuthProvider()
+  provider.addScope('https://www.googleapis.com/auth/calendar')
   let credential
   try {
     credential = await signInWithPopup(auth, provider)
@@ -201,6 +202,9 @@ export async function signInWithGoogleAuth(allowSignUp = true) {
     }
     throw makeAuthError(err.code ?? err.message)
   }
+
+  const googleCred = GoogleAuthProvider.credentialFromResult(credential)
+  const googleAccessToken = googleCred?.accessToken ?? null
 
   const user = credential.user
   const profileSnap = await getDoc(doc(db, 'users', user.uid))
@@ -226,7 +230,7 @@ export async function signInWithGoogleAuth(allowSignUp = true) {
     })
   }
 
-  return user
+  return { user, googleAccessToken }
 }
 
 // ── Phone OTP (authflow.md §5) ────────────────────────────────────────────────

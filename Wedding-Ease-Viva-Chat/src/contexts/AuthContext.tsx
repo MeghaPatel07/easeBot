@@ -26,7 +26,7 @@ interface AuthContextValue {
   user: User | null
   profile: UserProfile | null
   loading: boolean
-  // isHandlingAuth guards onAuthStateChanged from interrupting mid-flow (race condition)
+  googleCalendarToken: string | null
   isHandlingAuth: React.MutableRefObject<boolean>
   signUp: (name: string, email: string, phone: string | null, password: string) => Promise<{ uid: string; email: string; name: string; phone: string | null }>
   signIn: (email: string, password: string) => Promise<User>
@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [googleCalendarToken, setGoogleCalendarToken] = useState<string | null>(null)
   const isHandlingAuth = useRef(false)
 
   useEffect(() => {
@@ -132,10 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleGoogleSignIn = async (allowSignUp = true) => {
     isHandlingAuth.current = true
     try {
-      const firebaseUser = await signInWithGoogleAuth(allowSignUp)
+      const { user: firebaseUser, googleAccessToken } = await signInWithGoogleAuth(allowSignUp)
       const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
       if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
       setUser(firebaseUser)
+      if (googleAccessToken) setGoogleCalendarToken(googleAccessToken)
       return firebaseUser
     } finally {
       isHandlingAuth.current = false
@@ -146,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOutUser(user?.uid)
     setUser(null)
     setProfile(null)
+    setGoogleCalendarToken(null)
   }
 
   const handleSendOtp = (phone: string, verifier: RecaptchaVerifier) =>
@@ -168,6 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         profile,
         loading,
+        googleCalendarToken,
         isHandlingAuth,
         signUp: handleSignUp,
         signIn: handleSignIn,

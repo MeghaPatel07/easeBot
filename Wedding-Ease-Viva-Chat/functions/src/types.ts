@@ -12,6 +12,7 @@ export interface ChatPayload {
 export interface ChatResponse {
   text: string
   audioUrl: string | null
+  imageUrl: string | null
   mode: Mode
   detectedLanguage: string
 }

@@ -70,9 +70,29 @@ export interface ChatFunctionPayload {
   history?: { role: 'user' | 'assistant'; content: string }[]
 }
 
+export interface CalendarEvent {
+  title: string
+  date: string
+  time?: string
+  description?: string
+  reminderMinutes?: number
+}
+
+export interface CalendarEventDoc {
+  id: string
+  title: string
+  date: string
+  time: string | null
+  description: string | null
+  htmlLink: string
+  createdAt: Date
+}
+
 export interface ChatFunctionResponse {
   text: string
   audioUrl: string | null
+  imageUrl: string | null
+  calendarEvent: CalendarEvent | null
   mode: Mode
   detectedLanguage: string
 }

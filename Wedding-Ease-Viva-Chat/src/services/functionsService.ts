@@ -1,6 +1,6 @@
 import { httpsCallable } from 'firebase/functions'
 import { auth, functions } from '@/lib/firebase'
-import type { ChatFunctionPayload, ChatFunctionResponse } from '@/types'
+import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@/types'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
 
@@ -70,5 +70,16 @@ export async function transcribeViaFunctions(
 // ── Active exports — swap to switch between backends ─────────────────────────
 // Currently: backend REST API (supports AbortSignal / stop generation)
 // To switch to Firebase Functions: replace with chatViaFunctions / transcribeViaFunctions
+export async function generateImage(prompt: string): Promise<{ imageUrl: string }> {
+  return post<{ imageUrl: string }>('/api/generate-image', { prompt })
+}
+
+export async function addCalendarEvent(
+  googleAccessToken: string,
+  event: CalendarEvent
+): Promise<{ eventId: string; htmlLink: string }> {
+  return post('/api/calendar/add-event', { googleAccessToken, event })
+}
+
 export const sendChatMessage = chatViaBackend
 export const transcribeAudio = transcribeViaBackend

@@ -3,6 +3,8 @@ import { Request, Response } from 'express'
 import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
 import { callAzureAI } from '../services/azureAI'
+import { trackTokens } from '../services/tokenTracker'
+import { isImageRequest, generateImage } from '../services/imageGeneration'
 import { getRelevantProducts, formatProductsContext } from '../services/products'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
@@ -11,6 +13,7 @@ import { getTherapistPrompt } from '../prompts/therapist'
 import { getKnowledgePrompt } from '../prompts/knowledge'
 import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
+import { getGuestPrompt } from '../prompts/guest'
 import type { ChatPayload, ChatResponse, HistoryMessage, Mode } from '../types'
 
 const db = admin.firestore()
@@ -37,11 +40,13 @@ const LANGUAGE_NAMES: Record<string, string> = {
 function buildLanguageRule(detectedLanguage: string): string {
   const name = LANGUAGE_NAMES[detectedLanguage]
   if (name) {
-    return `\n\nLANGUAGE RULE: The user is writing in ${name}. You MUST respond entirely in ${name}. Do not switch to English or any other language under any circumstances.`
+    return ` Reply in ${name} only.`
   }
-  // Fallback — instruct GPT-4o to self-detect from the message
-  return `\n\nLANGUAGE RULE: Detect the language the user has written their message in and respond in that exact same language. Never switch to a different language.`
+  return ` Reply in the same language the user wrote in.`
 }
+
+const IMAGE_CAPABILITY_NOTE =
+  ` CRITICAL RULE — IMAGE GENERATION: You CAN generate images. When the user asks for an image, picture, or visual, respond with enthusiasm, confirm you are generating it, and briefly describe what it will look like. The image will appear automatically below your reply. NEVER say you cannot create or generate images. This is a hard rule with no exceptions.`
 
 async function buildSystemPrompt(mode: Mode, userMessage: string, detectedLanguage: string): Promise<string> {
   let base: string
@@ -88,6 +93,9 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     return
   }
 
+  const uid: string | null = req.user?.uid ?? null
+  const isLoggedIn = uid !== null
+
   try {
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, language)
     const mode: Mode = requestedMode ?? detectMode(englishText)
@@ -97,11 +105,31 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       ? await getChatHistory(threadId)
       : (clientHistory ?? [])
 
-    const systemPrompt = await buildSystemPrompt(mode, englishText, detectedLanguage)
-    const aiEnglishText = await callAzureAI(history, englishText, systemPrompt)
-    const { text: finalText, audioUrl } = await processOutbound(aiEnglishText, detectedLanguage)
+    // Logged-in users get full mode-specific prompts (max 800 tokens).
+    // Guests get a compact prompt and capped at 300 tokens to minimise cost.
+    const systemPrompt = isLoggedIn
+      ? await buildSystemPrompt(mode, englishText, detectedLanguage) + IMAGE_CAPABILITY_NOTE
+      : getGuestPrompt() + buildLanguageRule(detectedLanguage) + IMAGE_CAPABILITY_NOTE
 
-    const response: ChatResponse = { text: finalText, audioUrl, mode, detectedLanguage }
+    const maxTokens = isLoggedIn ? 800 : 300
+
+    const aiResult = await callAzureAI(history, englishText, systemPrompt, maxTokens)
+    const { text: finalText, audioUrl } = await processOutbound(aiResult.text, detectedLanguage)
+
+    // Track token usage in Firestore for logged-in users (fire-and-forget)
+    if (isLoggedIn) {
+      trackTokens(uid, aiResult.usage).catch(err =>
+        console.error('[chatController] token tracking failed:', err)
+      )
+    }
+
+    // Generate image via Nano Banana if the user asked for one
+    let imageUrl: string | null = null
+    if (isImageRequest(englishText)) {
+      imageUrl = await generateImage(englishText)
+    }
+
+    const response: ChatResponse = { text: finalText, audioUrl, imageUrl, mode, detectedLanguage }
     res.status(200).json(response)
   } catch (err: any) {
     console.error('[chatController] error:', err)

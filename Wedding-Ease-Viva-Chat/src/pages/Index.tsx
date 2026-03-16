@@ -168,18 +168,32 @@ const InputBar = ({
         </div>
 
         {/* Mic button */}
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onMicClick}
-          title={isRecording ? 'Stop recording' : 'Record voice message'}
-          className={`h-11 w-11 rounded-2xl flex-shrink-0 flex items-center justify-center transition-all duration-200 ${isRecording
-            ? 'bg-red-50 text-red-500 hover:bg-red-100 animate-pulse'
-            : 'bg-white/70 text-gray-400 hover:text-primary hover:bg-white border border-gray-200'
-            }`}
-        >
-          {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </Button>
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onMicClick}
+            title={isRecording ? 'Stop recording' : 'Record voice message'}
+            className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 ${isRecording
+              ? 'bg-red-50 text-red-500 hover:bg-red-100'
+              : 'bg-white/70 text-gray-400 hover:text-primary hover:bg-white border border-gray-200'
+              }`}
+          >
+            {isRecording ? (
+              <span className="relative flex items-center justify-center">
+                <span className="absolute inline-flex h-7 w-7 rounded-full bg-red-400 opacity-40 animate-ping" />
+                <MicOff className="h-4 w-4 relative z-10" />
+              </span>
+            ) : (
+              <Mic className="h-4 w-4" />
+            )}
+          </Button>
+          {isRecording && (
+            <span className="text-[10px] font-semibold text-red-500 animate-pulse tracking-wide leading-none">
+              Recording...
+            </span>
+          )}
+        </div>
 
         {/* Mode dropdown */}
         <DropdownMenu>
@@ -252,6 +266,7 @@ const Index = () => {
     activeThreadId,
     isTyping,
     allLikedMessages,
+    calendarEvents,
     sendMessage,
     stopGeneration,
     loadChat,
@@ -276,7 +291,7 @@ const Index = () => {
   const [inlineEditText, setInlineEditText] = useState('');
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [sidebarView, setSidebarView] = useState<'history' | 'liked'>('history');
+  const [sidebarView, setSidebarView] = useState<'history' | 'liked' | 'reminders'>('history');
   const [pendingScrollToId, setPendingScrollToId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [preferredLang, setPreferredLang] = useState<string>(() => profile?.preferredLanguage ?? 'auto');
@@ -468,6 +483,19 @@ const Index = () => {
                 </span>
               )}
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setSidebarView('reminders')}
+              className="w-full justify-start text-xs py-1.5 h-auto font-medium"
+            >
+              <Calendar className="mr-2 h-3 w-3 text-primary" />
+              Upcoming & Reminders
+              {calendarEvents.length > 0 && (
+                <span className="ml-auto text-[10px] bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-semibold">
+                  {calendarEvents.length}
+                </span>
+              )}
+            </Button>
             {([{ icon: Bookmark, label: 'Saved Items' }, { icon: Image, label: 'Moodboard' }, { icon: CheckSquare, label: 'Checklist' }, { icon: ShoppingCart, label: 'Shopping Lists' }, { icon: DollarSign, label: 'Budgets' }] as const).map(({ icon: Icon, label }) => (
               <Button key={label} variant="ghost" className="w-full justify-start text-xs py-1.5 h-auto font-medium"><Icon className="mr-2 h-3 w-3" />{label}</Button>
             ))}
@@ -475,7 +503,45 @@ const Index = () => {
         </Collapsible>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          {sidebarView === 'liked' ? (
+          {sidebarView === 'reminders' ? (
+            <>
+              <div className="flex items-center gap-2 mb-3 px-1 flex-shrink-0">
+                <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-6 w-6 p-0 rounded-lg">
+                  <ArrowLeft className="h-3.5 w-3.5 text-gray-500" />
+                </Button>
+                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-primary" />Upcoming & Reminders
+                </h3>
+              </div>
+              <div className="flex-1 overflow-y-auto -mr-3 pr-3 space-y-2">
+                {calendarEvents.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-6 px-2">No reminders yet.<br />Ask Viva in <span className="font-semibold text-primary">Planner mode</span> to set a date.</p>
+                ) : (
+                  calendarEvents.map((ev) => {
+                    const isPast = new Date(ev.date) < new Date(new Date().toDateString())
+                    return (
+                      <a
+                        key={ev.id}
+                        href={ev.htmlLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`block w-full text-left rounded-xl border px-3 py-2.5 space-y-0.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-gray-50/60 border-gray-200 opacity-60' : 'bg-white/60 border-[#a2b29d]/40 hover:bg-white/80 hover:border-primary/30'}`}
+                      >
+                        <p className="text-xs font-semibold text-gray-800 leading-snug">{ev.title}</p>
+                        <p className="text-[10px] text-primary font-medium">
+                          {ev.date}{ev.time ? ` · ${ev.time}` : ''}
+                        </p>
+                        {ev.description && (
+                          <p className="text-[10px] text-gray-400 line-clamp-2">{ev.description}</p>
+                        )}
+                        {isPast && <p className="text-[9px] text-gray-400 italic">Past event</p>}
+                      </a>
+                    )
+                  })
+                )}
+              </div>
+            </>
+          ) : sidebarView === 'liked' ? (
             <>
               <div className="flex items-center gap-2 mb-3 px-1 flex-shrink-0">
                 <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-6 w-6 p-0 rounded-lg">
@@ -767,6 +833,45 @@ const Index = () => {
                       src={message.audioUrl}
                       className="mt-1 mb-2 w-full max-w-xs rounded-xl h-8"
                     />
+                  )}
+                  {message.imageUrl && (
+                    <img
+                      src={message.imageUrl}
+                      alt="Generated"
+                      className="mt-2 mb-2 rounded-xl max-w-xs w-full object-cover shadow-md"
+                    />
+                  )}
+                  {message.calendarEvent && message.calendarAdded && (
+                    <div className="mt-2 mb-1 flex items-center gap-2 text-xs px-3 py-2 rounded-lg w-fit bg-green-50 text-green-700 border border-green-200">
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      <span>Added to Google Calendar</span>
+                      <span className="font-medium">· {message.calendarEvent.date}</span>
+                    </div>
+                  )}
+                  {message.calendarEvent && !message.calendarAdded && !user && (
+                    <div className="mt-2 mb-1 rounded-xl border border-primary/20 bg-white/70 px-3 py-2.5 space-y-2">
+                      <p className="text-xs text-gray-600 flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3 text-primary flex-shrink-0" />
+                        <span>Save <strong>{message.calendarEvent.title}</strong> to your Google Calendar</span>
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs gap-1.5 flex-1"
+                          onClick={() => setShowSignInModal(true)}
+                        >
+                          <LogIn className="h-3 w-3" /> Login with Google
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs gap-1.5 flex-1"
+                          onClick={() => setShowSignUpModal(true)}
+                        >
+                          <UserPlus className="h-3 w-3" /> Sign up
+                        </Button>
+                      </div>
+                    </div>
                   )}
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Copy"><Copy className="h-4 w-4 text-gray-500" /></Button>

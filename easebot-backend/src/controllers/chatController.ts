@@ -4,6 +4,7 @@ import { Request, Response } from 'express'
 import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
 import { callAzureAI } from '../services/azureAI'
+import { isImageRequest, generateImage } from '../services/imageGeneration'
 import { getRelevantProducts, formatProductsContext } from '../services/products'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
@@ -12,7 +13,7 @@ import { getTherapistPrompt } from '../prompts/therapist'
 import { getKnowledgePrompt } from '../prompts/knowledge'
 import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
-import type { ChatPayload, ChatResponse, HistoryMessage, Mode } from '../types'
+import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode } from '../types'
 
 async function buildSystemPrompt(mode: Mode, userMessage: string): Promise<string> {
   if (mode === 'stylist') {
@@ -65,9 +66,29 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const mode: Mode = requestedMode ?? detectMode(englishText)
     const history = await getChatHistory(threadId, providedHistory)
     const systemPrompt = await buildSystemPrompt(mode, englishText)
-    const aiEnglishText = await callAzureAI(history, englishText, systemPrompt)
-    const { text: finalText, audioUrl } = await processOutbound(aiEnglishText, detectedLanguage)
-    const response: ChatResponse = { text: finalText, audioUrl, mode, detectedLanguage }
+    const [aiEnglishText, imageUrl] = await Promise.all([
+      callAzureAI(history, englishText, systemPrompt),
+      isImageRequest(englishText) ? generateImage(englishText) : Promise.resolve(null),
+    ])
+
+    // Extract CALENDAR_EVENT JSON block if present (planner mode)
+    let calendarEvent: CalendarEvent | null = null
+    let cleanedText = aiEnglishText
+    const calendarMatch = aiEnglishText.match(/CALENDAR_EVENT:(\{[\s\S]*?\})\s*$/)
+    if (calendarMatch) {
+      try {
+        calendarEvent = JSON.parse(calendarMatch[1]) as CalendarEvent
+        // Strip the entire CALENDAR_EVENT line + any trailing whitespace/text after it
+        cleanedText = aiEnglishText.slice(0, calendarMatch.index).trimEnd()
+      } catch {
+        // If JSON parse fails, still strip the raw line so it doesn't show in chat
+        cleanedText = aiEnglishText.slice(0, calendarMatch.index).trimEnd()
+        console.warn('[chatController] Failed to parse CALENDAR_EVENT JSON')
+      }
+    }
+
+    const { text: finalText, audioUrl } = await processOutbound(cleanedText, detectedLanguage)
+    const response: ChatResponse = { text: finalText, audioUrl, imageUrl, calendarEvent, mode, detectedLanguage }
     res.status(200).json(response)
   } catch (err: any) {
     console.error('[chatController]', err)
