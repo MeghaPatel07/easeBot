@@ -18,6 +18,7 @@ interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSwitchToSignIn: () => void
+  initialEmail?: string
 }
 
 const GoogleIcon = () => (
@@ -31,11 +32,11 @@ const GoogleIcon = () => (
 
 const initialForm = { name: '', email: '', phone: '', password: '', confirmPassword: '', terms: false }
 
-export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn }: Props) {
+export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, initialEmail }: Props) {
   const { signUp, signInWithGoogle } = useAuth()
 
   const [step, setStep] = useState<Step>('form')
-  const [form, setForm] = useState(initialForm)
+  const [form, setForm] = useState(() => ({ ...initialForm, email: initialEmail ?? '' }))
   const [errors, setErrors] = useState<Partial<typeof initialForm>>({})
   const [authError, setAuthError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -71,7 +72,13 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn }: Pr
       setSignedUpName(result.name)
       setStep('verifying')
     } catch (err: any) {
-      setAuthError(mapAuthError(err.code ?? err.message))
+      if (err.code === 'auth/email-already-in-use') {
+        reset()
+        onOpenChange(false)
+        onSwitchToSignIn()
+      } else {
+        setAuthError(mapAuthError(err.code ?? err.message))
+      }
     } finally {
       setLoading(false)
     }

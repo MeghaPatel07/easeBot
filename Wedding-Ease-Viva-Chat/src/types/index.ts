@@ -10,6 +10,14 @@ export type Mode =
 
 export type MessageRole = 'user' | 'assistant'
 
+export interface TokenUsage {
+  totalPromptTokens: number
+  totalCompletionTokens: number
+  totalTokens: number
+  requestCount: number
+  lastUpdatedAt: Timestamp | null
+}
+
 // Matches authflow.md §12 + WeddingEase fields
 export interface UserProfile {
   uid: string
@@ -24,9 +32,29 @@ export interface UserProfile {
   budget: number | null
   partnerName: string | null
   preferredLanguage: string
+  isPremium: boolean
+  role: string | null
+  usage: TokenUsage | null
   createdAt: Timestamp
   lastLoginAt: Timestamp | null
   forgotPasswordOtp: number | null
+}
+
+// ── Checklist types ───────────────────────────────────────────────────────────
+export interface ChecklistItem {
+  id: string
+  text: string
+  completed: boolean
+  vendorRef: string | null  // product URL if linked to a vendor
+}
+
+export interface Checklist {
+  id: string
+  userId: string
+  title: string
+  items: ChecklistItem[]
+  createdAt: Timestamp
+  updatedAt: Timestamp
 }
 
 export interface ChatThread {
@@ -88,11 +116,18 @@ export interface CalendarEventDoc {
   createdAt: Date
 }
 
+export interface ToolAction {
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder'
+  checklistId?: string
+  itemId?: string
+}
+
 export interface ChatFunctionResponse {
   text: string
   audioUrl: string | null
   imageUrl: string | null
   calendarEvent: CalendarEvent | null
+  toolActions: ToolAction[]
   mode: Mode
   detectedLanguage: string
 }

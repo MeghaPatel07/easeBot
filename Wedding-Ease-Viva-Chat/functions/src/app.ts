@@ -3,6 +3,7 @@ import cors from 'cors'
 import chatRouter from './routes/chat'
 import transcribeRouter from './routes/transcribe'
 import imageRouter from './routes/image'
+import checklistsRouter from './routes/checklists'
 
 const app = express()
 
@@ -14,6 +15,7 @@ app.use(express.json({ limit: '10mb' }))  // 10mb for audio base64 payloads
 app.use('/api/chat', chatRouter)
 app.use('/api/transcribe', transcribeRouter)
 app.use('/api/generate-image', imageRouter)
+app.use('/api/checklists', checklistsRouter)
 
 // Health check
 app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }))

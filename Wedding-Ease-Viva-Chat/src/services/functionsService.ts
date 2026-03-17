@@ -9,7 +9,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
 async function getAuthToken(): Promise<string | null> {
   const user = auth.currentUser
   if (!user) return null
-  return user.getIdToken()
+  const token = await user.getIdToken()
+  // Expose on window so checklistService can read it for direct PATCH calls
+  ;(window as any).__firebaseToken = token
+  return token
 }
 
 async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
@@ -75,10 +78,68 @@ export async function generateImage(prompt: string): Promise<{ imageUrl: string 
 }
 
 export async function addCalendarEvent(
-  googleAccessToken: string,
+  googleAccessToken: string | null,
   event: CalendarEvent
 ): Promise<{ eventId: string; htmlLink: string }> {
   return post('/api/calendar/add-event', { googleAccessToken, event })
+}
+
+// ── Streaming chat (SSE) ───────────────────────────────────────────────────────
+
+export interface StreamChunkEvent { t: 'c'; v: string }
+export interface StreamDoneEvent {
+  t: 'd'
+  text: string
+  calendarEvent: CalendarEvent | null
+  toolActions: { tool: string; checklistId?: string; itemId?: string }[]
+  mode: string
+  detectedLanguage: string
+  audioUrl: string | null
+  imageUrl: string | null
+}
+export interface StreamErrorEvent { t: 'e'; msg: string }
+export type StreamSSEEvent = StreamChunkEvent | StreamDoneEvent | StreamErrorEvent
+
+export async function* streamChatMessage(
+  payload: ChatFunctionPayload,
+  signal?: AbortSignal
+): AsyncGenerator<StreamSSEEvent> {
+  const token = await getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'text/event-stream',
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${API_BASE}/api/chat/stream`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+    signal,
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as any).error ?? `Stream failed: ${res.status}`)
+  }
+
+  const reader = res.body!.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop()!
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const raw = line.slice(6).trim()
+      if (!raw) continue
+      try { yield JSON.parse(raw) as StreamSSEEvent } catch { /* skip malformed */ }
+    }
+  }
 }
 
 export const sendChatMessage = chatViaBackend

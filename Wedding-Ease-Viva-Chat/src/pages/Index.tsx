@@ -5,7 +5,7 @@ import {
   Search, ChevronDown, ChevronRight, Bookmark, Image, CheckSquare,
   ShoppingCart, DollarSign, Copy, Download, ThumbsUp, Edit3, Lock,
   MoreHorizontal, Pencil, Trash2, StopCircle, RefreshCw, ArrowLeft,
-  Mic, MicOff, Globe,
+  Mic, Globe, Check, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +21,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import SignUpModal from '@/components/auth/SignUpModal';
 import SignInModal from '@/components/auth/SignInModal';
 import { useChat, type Message } from '@/hooks/useChat';
+import type { ToolAction } from '@/types';
 import { useVoice } from '@/hooks/useVoice';
 import { updatePreferredLanguage } from '@/services/authService';
+import PlannerView from '@/components/PlannerView';
+import ChecklistDetail from '@/components/ChecklistDetail';
 import type { ChatThread, Mode } from '@/types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -126,12 +129,13 @@ interface InputBarProps {
   selectedMode: ModeOrAuto;
   onModeChange: (mode: ModeOrAuto) => void;
   isRecording: boolean;
+  voiceState: 'idle' | 'recording' | 'transcribing';
   onMicClick: () => void;
 }
 
 const InputBar = ({
   inputText, onInputChange, onSend, onStop, isTyping, placeholder,
-  selectedMode, onModeChange, isRecording, onMicClick,
+  selectedMode, onModeChange, isRecording, voiceState, onMicClick,
 }: InputBarProps) => {
   const cfg = modeConfig(selectedMode);
   const ModeIcon = cfg.icon;
@@ -162,7 +166,7 @@ const InputBar = ({
             placeholder={placeholder}
             rows={1}
             className="w-full pr-10 bg-white/70 border border-primary/20 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-base py-3 px-4 resize-none overflow-hidden leading-relaxed"
-            style={{ minHeight: '48px', maxHeight: '200px' }}
+            style={{ minHeight: '44px', maxHeight: '200px' }}
           />
           <Sparkles className="absolute right-3 top-3 w-4 h-4 text-primary/40 pointer-events-none" />
         </div>
@@ -173,25 +177,32 @@ const InputBar = ({
             type="button"
             variant="ghost"
             onClick={onMicClick}
-            title={isRecording ? 'Stop recording' : 'Record voice message'}
-            className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 ${isRecording
-              ? 'bg-red-50 text-red-500 hover:bg-red-100'
-              : 'bg-white/70 text-gray-400 hover:text-primary hover:bg-white border border-gray-200'
-              }`}
+            disabled={voiceState === 'transcribing'}
+            title={voiceState === 'recording' ? 'Stop recording' : voiceState === 'transcribing' ? 'Transcribing…' : 'Record voice message'}
+            className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 ${
+              voiceState === 'recording'
+                ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                : voiceState === 'transcribing'
+                  ? 'bg-amber-50 text-amber-500'
+                  : 'bg-white/70 text-gray-400 hover:text-primary hover:bg-white border border-gray-200'
+            }`}
           >
-            {isRecording ? (
+            {voiceState === 'recording' ? (
               <span className="relative flex items-center justify-center">
                 <span className="absolute inline-flex h-7 w-7 rounded-full bg-red-400 opacity-40 animate-ping" />
-                <MicOff className="h-4 w-4 relative z-10" />
+                <StopCircle className="h-4 w-4 relative z-10" />
               </span>
+            ) : voiceState === 'transcribing' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Mic className="h-4 w-4" />
             )}
           </Button>
-          {isRecording && (
-            <span className="text-[10px] font-semibold text-red-500 animate-pulse tracking-wide leading-none">
-              Recording...
-            </span>
+          {voiceState === 'recording' && (
+            <span className="text-[10px] font-semibold text-red-500 animate-pulse tracking-wide leading-none">Recording…</span>
+          )}
+          {voiceState === 'transcribing' && (
+            <span className="text-[10px] font-semibold text-amber-500 tracking-wide leading-none">Transcribing…</span>
           )}
         </div>
 
@@ -267,6 +278,7 @@ const Index = () => {
     isTyping,
     allLikedMessages,
     calendarEvents,
+    lastToolActions,
     sendMessage,
     stopGeneration,
     loadChat,
@@ -276,6 +288,23 @@ const Index = () => {
     truncateMessages,
     toggleLike,
   } = useChat();
+
+  // When AI marks an item as done, flash the checkbox for 2s
+  useEffect(() => {
+    const doneActions = lastToolActions.filter(a => a.tool === 'mark_as_done' && a.itemId)
+    if (doneActions.length > 0) {
+      const ids = doneActions.map(a => a.itemId!)
+      setRecentlyToggledItemIds(ids)
+      const t = setTimeout(() => setRecentlyToggledItemIds([]), 2000)
+      return () => clearTimeout(t)
+    }
+    // Auto-open newly created checklist in the detail panel
+    const created = lastToolActions.find(a => a.tool === 'create_checklist' && a.checklistId)
+    if (created?.checklistId) {
+      setSidebarView('planner')
+      setSelectedChecklistId(created.checklistId)
+    }
+  }, [lastToolActions]);
 
   const isExpanded = messages.length > 0;
 
@@ -291,12 +320,16 @@ const Index = () => {
   const [inlineEditText, setInlineEditText] = useState('');
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [sidebarView, setSidebarView] = useState<'history' | 'liked' | 'reminders'>('history');
+  const [sidebarView, setSidebarView] = useState<'history' | 'liked' | 'reminders' | 'planner' | 'saved-items' | 'moodboard' | 'shopping' | 'budgets'>('history');
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  const [signUpPrefillEmail, setSignUpPrefillEmail] = useState<string | undefined>(undefined);
+  const [recentlyToggledItemIds, setRecentlyToggledItemIds] = useState<string[]>([]);
+  const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
   const [pendingScrollToId, setPendingScrollToId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [preferredLang, setPreferredLang] = useState<string>(() => profile?.preferredLanguage ?? 'auto');
 
-  const { isRecording, startRecording, stopRecording } = useVoice()
+  const { voiceState, isRecording, startRecording, stopRecording } = useVoice()
   const [voiceLanguage, setVoiceLanguage] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -342,17 +375,17 @@ const Index = () => {
   };
 
   const handleMicClick = async () => {
-    if (isRecording) {
-      const result = await stopRecording();
-      if (result) {
-        setVoiceLanguage(result.detectedLanguage);
-        // inputText already has final text from live updates
-      }
-    } else {
-      const err = await startRecording((interim) => setInputText(interim));
-      if (err) {
-        alert(`Microphone error: ${err}`);
-      }
+    if (voiceState === 'recording') {
+      // Stop and transcribe — result arrives async, UI shows spinner
+      stopRecording().then(result => {
+        if (result?.text) {
+          setInputText(result.text);
+          setVoiceLanguage(result.detectedLanguage);
+        }
+      });
+    } else if (voiceState === 'idle') {
+      const err = await startRecording();
+      if (err) alert(`Microphone error: ${err}`);
     }
   };
 
@@ -403,11 +436,28 @@ const Index = () => {
     setRenamingThreadId(null);
   };
 
-  const handleNewChat = () => { startNewChat(); setInputText(''); };
+  const handleNewChat = () => { startNewChat(); setInputText(''); setSidebarView('history'); setSelectedChecklistId(null); };
 
   const handleLoadChat = (threadId: string) => loadChat(threadId);
 
-  const copyMessage = async (text: string) => { try { await navigator.clipboard.writeText(text); } catch { } };
+  const copyMessage = async (text: string, msgId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMsgId(msgId);
+      setTimeout(() => setCopiedMsgId(null), 1500);
+    } catch { }
+  };
+
+  const handleConvertToTable = async (message: Message) => {
+    if (!user) return;
+    // Ask the AI to convert in-context by triggering a planner mode message
+    const prompt = `Convert the following response into a Markdown table and save it as a page in my planner:\n\n${message.text}`;
+    setSelectedMode('planner');
+    setInputText(prompt);
+    // Switch to planner tab so user sees the result
+    setSidebarView('planner');
+  };
+
   const downloadMessage = (text: string, id: string) => {
     const el = document.createElement('a');
     el.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
@@ -450,7 +500,7 @@ const Index = () => {
   // ── Shared JSX fragments (inlined, not inner components) ──────────────────
   const sidebarJSX = (
     <div className={`fixed left-0 top-0 h-full bg-white/45 backdrop-blur-sm border-r border-white/20 shadow-lg transition-all duration-300 z-30 font-['Lato',sans-serif] ${isSidebarOpen ? 'w-72' : 'w-0'} overflow-hidden`}>
-      <div className="p-3 h-full flex flex-col mt-14">
+      <div className="p-3 pt-14 h-full flex flex-col overflow-y-auto">
         <Button onClick={handleNewChat} className="w-full mb-3 text-gray-800 rounded-xl border border-[#a2b29d]/50 shadow-sm hover:shadow-md transition-all duration-200 text-sm font-medium" style={{ background: '#a2b29d' }}>
           <Plus className="mr-2 h-3 w-3" />New Chat
         </Button>
@@ -470,114 +520,44 @@ const Index = () => {
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-2 space-y-1">
-            <Button
-              variant="ghost"
-              onClick={() => setSidebarView('liked')}
-              className="w-full justify-start text-xs py-1.5 h-auto font-medium"
-            >
-              <ThumbsUp className="mr-2 h-3 w-3 text-primary" />
-              Liked Messages
-              {allLikedMessages.length > 0 && (
-                <span className="ml-auto text-[10px] bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-semibold">
-                  {allLikedMessages.length}
-                </span>
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setSidebarView('reminders')}
-              className="w-full justify-start text-xs py-1.5 h-auto font-medium"
-            >
-              <Calendar className="mr-2 h-3 w-3 text-primary" />
-              Upcoming & Reminders
-              {calendarEvents.length > 0 && (
-                <span className="ml-auto text-[10px] bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-semibold">
-                  {calendarEvents.length}
-                </span>
-              )}
-            </Button>
-            {([{ icon: Bookmark, label: 'Saved Items' }, { icon: Image, label: 'Moodboard' }, { icon: CheckSquare, label: 'Checklist' }, { icon: ShoppingCart, label: 'Shopping Lists' }, { icon: DollarSign, label: 'Budgets' }] as const).map(({ icon: Icon, label }) => (
-              <Button key={label} variant="ghost" className="w-full justify-start text-xs py-1.5 h-auto font-medium"><Icon className="mr-2 h-3 w-3" />{label}</Button>
-            ))}
+            {([
+              { view: 'liked', icon: ThumbsUp, label: 'Liked Messages', badge: allLikedMessages.length },
+              { view: 'reminders', icon: Calendar, label: 'Upcoming & Reminders', badge: calendarEvents.length },
+              { view: 'planner', icon: CheckSquare, label: 'My Planner', badge: 0, authOnly: true },
+              { view: 'saved-items', icon: Bookmark, label: 'Saved Items', badge: 0 },
+              { view: 'moodboard', icon: Image, label: 'Moodboard', badge: 0 },
+              { view: 'shopping', icon: ShoppingCart, label: 'Shopping Lists', badge: 0 },
+              { view: 'budgets', icon: DollarSign, label: 'Budgets', badge: 0 },
+            ] as const).map(({ view, icon: Icon, label, badge, authOnly }) => {
+              if (authOnly && !user) return null;
+              const isActive = sidebarView === view;
+              return (
+                <Button
+                  key={view}
+                  variant="ghost"
+                  onClick={() => { setSidebarView(view as any); setIsAssetsOpen(false); }}
+                  className={`w-full flex items-center justify-start text-xs py-1.5 h-6 px-2 font-medium transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:text-gray-900 hover:bg-white/60'}`}
+                >
+                  <Icon className={`mr-2 h-3 w-3 ${isActive ? 'text-primary' : 'text-gray-400'}`} />
+                  {label}
+                  {badge > 0 && (
+                    <span className="ml-auto text-[10px] bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-semibold">{badge}</span>
+                  )}
+                </Button>
+              );
+            })}
           </CollapsibleContent>
         </Collapsible>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          {sidebarView === 'reminders' ? (
-            <>
-              <div className="flex items-center gap-2 mb-3 px-1 flex-shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-6 w-6 p-0 rounded-lg">
-                  <ArrowLeft className="h-3.5 w-3.5 text-gray-500" />
-                </Button>
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-primary" />Upcoming & Reminders
-                </h3>
-              </div>
-              <div className="flex-1 overflow-y-auto -mr-3 pr-3 space-y-2">
-                {calendarEvents.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-6 px-2">No reminders yet.<br />Ask Viva in <span className="font-semibold text-primary">Planner mode</span> to set a date.</p>
-                ) : (
-                  calendarEvents.map((ev) => {
-                    const isPast = new Date(ev.date) < new Date(new Date().toDateString())
-                    return (
-                      <a
-                        key={ev.id}
-                        href={ev.htmlLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`block w-full text-left rounded-xl border px-3 py-2.5 space-y-0.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-gray-50/60 border-gray-200 opacity-60' : 'bg-white/60 border-[#a2b29d]/40 hover:bg-white/80 hover:border-primary/30'}`}
-                      >
-                        <p className="text-xs font-semibold text-gray-800 leading-snug">{ev.title}</p>
-                        <p className="text-[10px] text-primary font-medium">
-                          {ev.date}{ev.time ? ` · ${ev.time}` : ''}
-                        </p>
-                        {ev.description && (
-                          <p className="text-[10px] text-gray-400 line-clamp-2">{ev.description}</p>
-                        )}
-                        {isPast && <p className="text-[9px] text-gray-400 italic">Past event</p>}
-                      </a>
-                    )
-                  })
-                )}
-              </div>
-            </>
-          ) : sidebarView === 'liked' ? (
-            <>
-              <div className="flex items-center gap-2 mb-3 px-1 flex-shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-6 w-6 p-0 rounded-lg">
-                  <ArrowLeft className="h-3.5 w-3.5 text-gray-500" />
-                </Button>
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                  <ThumbsUp className="h-3.5 w-3.5 text-primary" />Liked Messages
-                </h3>
-              </div>
-              <div className="flex-1 overflow-y-auto -mr-3 pr-3 space-y-2">
-                {allLikedMessages.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-6 px-2">No liked messages yet.<br />Click the <ThumbsUp className="inline h-3 w-3 mx-0.5" /> on any AI response.</p>
-                ) : (
-                  allLikedMessages
-                    .slice()
-                    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-                    .map((msg) => (
-                      <button
-                        key={msg.id}
-                        onClick={() => handleLikedMessageClick(msg)}
-                        className="w-full text-left rounded-xl bg-white/60 border border-[#a2b29d]/40 px-3 py-2.5 space-y-1 hover:bg-white/80 hover:border-primary/30 hover:shadow-sm transition-all duration-150"
-                      >
-                        {msg.mode && (
-                          <span className="inline-block text-[9px] uppercase tracking-wider font-semibold text-primary/70 bg-primary/8 rounded-full px-1.5 py-0.5">
-                            {msg.mode}
-                          </span>
-                        )}
-                        <p className="text-xs text-gray-700 leading-relaxed line-clamp-4">{msg.text}</p>
-                        <p className="text-[9px] text-gray-400">
-                          {msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </p>
-                      </button>
-                    ))
-                )}
-              </div>
-            </>
+          {sidebarView === 'planner' && user ? (
+            <PlannerView
+              userId={user.uid}
+              isPremium={profile?.isPremium ?? false}
+              onBack={() => { setSidebarView('history'); setSelectedChecklistId(null) }}
+              selectedChecklistId={selectedChecklistId}
+              onSelectChecklist={setSelectedChecklistId}
+            />
           ) : user ? (
             <>
               <h3 className="text-base font-semibold text-gray-800 mb-3 px-2 flex-shrink-0">Chat History</h3>
@@ -634,26 +614,27 @@ const Index = () => {
                 ))}
               </div>
             </>
-          ) : (
-            <div className="flex-1 flex flex-col justify-end pb-2">
-              <div className="rounded-2xl bg-white/60 border border-[#a2b29d]/40 p-4 space-y-3">
-                <div className="flex items-center gap-2 text-gray-700">
-                  <Lock className="h-4 w-4 text-primary flex-shrink-0" />
-                  <p className="text-sm font-medium">Save your conversations</p>
-                </div>
-                <p className="text-xs text-gray-500 leading-relaxed">Sign in to save your wedding planning chats and access them from any device.</p>
-                <div className="flex flex-col gap-2">
-                  <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-white text-xs rounded-xl" onClick={() => setShowSignInModal(true)}>
-                    <LogIn className="mr-1.5 h-3 w-3" />Sign In
-                  </Button>
-                  <Button size="sm" variant="outline" className="w-full text-xs rounded-xl border-primary/30 text-primary hover:bg-primary/5" onClick={() => setShowSignUpModal(true)}>
-                    <UserPlus className="mr-1.5 h-3 w-3" />Create Account
-                  </Button>
-                </div>
+          ) : null}
+        </div>
+        {!user && (
+          <div className="flex-shrink-0 pt-2 mt-auto">
+            <div className="rounded-2xl bg-white/60 border border-[#a2b29d]/40 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-gray-700">
+                <Lock className="h-4 w-4 text-primary flex-shrink-0" />
+                <p className="text-sm font-medium">Save your conversations</p>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">Sign in to save your wedding planning chats and access them from any device.</p>
+              <div className="flex flex-col gap-2">
+                <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-white text-xs rounded-xl" onClick={() => setShowSignInModal(true)}>
+                  <LogIn className="mr-1.5 h-3 w-3" />Sign In
+                </Button>
+                <Button size="sm" variant="outline" className="w-full text-xs rounded-xl border-primary/30 text-primary hover:bg-primary/5" onClick={() => setShowSignUpModal(true)}>
+                  <UserPlus className="mr-1.5 h-3 w-3" />Create Account
+                </Button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -725,10 +706,120 @@ const Index = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <SignInModal open={showSignInModal} onOpenChange={setShowSignInModal} onSwitchToSignUp={() => setShowSignUpModal(true)} />
-      <SignUpModal open={showSignUpModal} onOpenChange={setShowSignUpModal} onSwitchToSignIn={() => setShowSignInModal(true)} />
+      <SignInModal open={showSignInModal} onOpenChange={setShowSignInModal} onSwitchToSignUp={(email) => { setSignUpPrefillEmail(email); setShowSignUpModal(true); }} />
+      <SignUpModal open={showSignUpModal} onOpenChange={setShowSignUpModal} onSwitchToSignIn={() => setShowSignInModal(true)} initialEmail={signUpPrefillEmail} />
     </>
   );
+
+  // ── Planner detail view (full right panel) ────────────────────────────────
+  if (sidebarView === 'planner' && selectedChecklistId && user) {
+    return (
+      <div className={`gradient-bg-expanded flex flex-col h-screen transition-all duration-300 ${isSidebarOpen ? 'pl-72' : 'pl-0'}`}>
+        {sidebarJSX}
+        {sidebarToggleJSX}
+        {profileIconJSX}
+        <div className="flex-1 overflow-hidden p-6 pt-16">
+          <ChecklistDetail
+            userId={user.uid}
+            checklistId={selectedChecklistId}
+            favourites={profile?.favourites ?? []}
+            recentlyToggledItemIds={recentlyToggledItemIds}
+            onClose={() => setSelectedChecklistId(null)}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // ── Helper: main-area shell (sidebar + toggle + profile + content) ──────────
+  const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
+    <div className={`gradient-bg-expanded flex flex-col h-screen transition-all duration-300 ${isSidebarOpen ? 'pl-72' : 'pl-0'}`}>
+      {sidebarJSX}
+      {sidebarToggleJSX}
+      {profileIconJSX}
+      <div className="flex-1 overflow-hidden flex flex-col p-6 pt-16 max-w-4xl mx-auto w-full">
+        <div className="flex items-center gap-3 mb-6 flex-shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-8 w-8 p-0 rounded-xl">
+            <ArrowLeft className="h-4 w-4 text-gray-500" />
+          </Button>
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">{icon}{title}</h2>
+        </div>
+        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+
+  // ── Liked messages main-area view ─────────────────────────────────────────
+  if (sidebarView === 'liked') {
+    return mainAreaShell('Liked Messages', <ThumbsUp className="h-5 w-5 text-primary" />,
+      allLikedMessages.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+          <ThumbsUp className="h-12 w-12 mb-3 opacity-20" />
+          <p className="text-sm">No liked messages yet.</p>
+          <p className="text-xs mt-1">Click the <ThumbsUp className="inline h-3 w-3 mx-0.5" /> on any AI response.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
+            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)}
+              className="text-left rounded-2xl bg-white/70 border border-[#a2b29d]/40 px-4 py-3.5 space-y-2 hover:bg-white/90 hover:border-primary/30 hover:shadow-sm transition-all duration-150">
+              {msg.mode && <span className="inline-block text-[9px] uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
+              <p className="text-sm text-gray-700 leading-relaxed line-clamp-5">{msg.text}</p>
+              <p className="text-[10px] text-gray-400">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            </button>
+          ))}
+        </div>
+      )
+    )
+  }
+
+  // ── Reminders main-area view ──────────────────────────────────────────────
+  if (sidebarView === 'reminders') {
+    return mainAreaShell('Upcoming & Reminders', <Calendar className="h-5 w-5 text-primary" />,
+      calendarEvents.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+          <Calendar className="h-12 w-12 mb-3 opacity-20" />
+          <p className="text-sm">No reminders yet.</p>
+          <p className="text-xs mt-1">Ask Viva in <span className="font-semibold text-primary">Planner mode</span> to save a date.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {calendarEvents.map((ev) => {
+            const isPast = new Date(ev.date) < new Date(new Date().toDateString())
+            return (
+              <a key={ev.id} href={ev.htmlLink || '#'} target="_blank" rel="noopener noreferrer"
+                className={`block rounded-2xl border px-4 py-3.5 space-y-1.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-gray-50/60 border-gray-200 opacity-60' : 'bg-white/70 border-[#a2b29d]/40 hover:bg-white/90 hover:border-primary/30'}`}>
+                <p className="text-sm font-semibold text-gray-800">{ev.title}</p>
+                <p className="text-xs text-primary font-medium">{ev.date}{ev.time ? ` · ${ev.time}` : ''}</p>
+                {ev.description && <p className="text-xs text-gray-400 line-clamp-2">{ev.description}</p>}
+                {isPast && <p className="text-[10px] text-gray-400 italic">Past event</p>}
+              </a>
+            )
+          })}
+        </div>
+      )
+    )
+  }
+
+  // ── Coming soon views ─────────────────────────────────────────────────────
+  const comingSoonViews: Record<string, { title: string; icon: React.ReactNode; desc: string }> = {
+    'saved-items': { title: 'Saved Items', icon: <Bookmark className="h-5 w-5 text-primary" />, desc: 'Bookmark AI responses and vendor recommendations here.' },
+    'moodboard': { title: 'Moodboard', icon: <Image className="h-5 w-5 text-primary" />, desc: 'Collect inspiration images for your wedding aesthetic.' },
+    'shopping': { title: 'Shopping Lists', icon: <ShoppingCart className="h-5 w-5 text-primary" />, desc: 'Track vendors, items, and purchases in one place.' },
+    'budgets': { title: 'Budgets', icon: <DollarSign className="h-5 w-5 text-primary" />, desc: 'Plan and track your wedding budget with smart breakdowns.' },
+  }
+  if (sidebarView in comingSoonViews) {
+    const cs = comingSoonViews[sidebarView]
+    return mainAreaShell(cs.title, cs.icon,
+      <div className="flex flex-col items-center justify-center py-32 text-center text-gray-400 space-y-3">
+        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-2">{cs.icon}</div>
+        <p className="text-base font-semibold text-gray-600">Coming Soon</p>
+        <p className="text-sm max-w-xs leading-relaxed">{cs.desc}</p>
+      </div>
+    )
+  }
 
   // ── Expanded chat view ─────────────────────────────────────────────────────
   if (isExpanded) {
@@ -789,9 +880,8 @@ const Index = () => {
                         <p className="text-sm leading-relaxed">{message.text}</p>
                       </div>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
-                        <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 px-2 py-0 text-xs text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg flex items-center" title="Edit and Regenerate">
-                          <Edit3 className="h-3 w-3 mr-1" />
-                          Edit & Regenerate
+                        <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 w-6 p-0 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg" title="Edit & resend">
+                          <Edit3 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -873,8 +963,21 @@ const Index = () => {
                       </div>
                     </div>
                   )}
+                  {message.convertToTable && user && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 mb-1 h-7 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                      onClick={() => handleConvertToTable(message)}
+                    >
+                      <CheckSquare className="h-3 w-3" />
+                      Save as Table in Planner
+                    </Button>
+                  )}
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Copy"><Copy className="h-4 w-4 text-gray-500" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Copy">
+                      {copiedMsgId === message.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-gray-500" />}
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Download"><Download className="h-4 w-4 text-gray-500" /></Button>
                     <Button variant="ghost" size="sm" onClick={() => toggleLike(message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Like"><ThumbsUp className={`h-4 w-4 ${message.liked ? 'text-primary fill-current' : 'text-gray-500'}`} /></Button>
                     <Button variant="ghost" size="sm" onClick={() => handleRegenerateMessage(message)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Regenerate"><RefreshCw className="h-4 w-4 text-gray-500" /></Button>
@@ -907,6 +1010,7 @@ const Index = () => {
             selectedMode={selectedMode}
             onModeChange={setSelectedMode}
             isRecording={isRecording}
+            voiceState={voiceState}
             onMicClick={handleMicClick}
           />
         </div>
@@ -916,7 +1020,7 @@ const Index = () => {
 
   // ── Landing page ───────────────────────────────────────────────────────────
   return (
-    <div className={`gradient-bg min-h-screen flex items-center justify-center p-6 transition-all duration-300 ${isSidebarOpen ? 'pl-72' : 'pl-0'}`}>
+    <div className={`gradient-bg min-h-screen flex ${sidebarView === 'planner' && selectedChecklistId ? 'items-stretch' : 'items-center justify-center'} p-6 transition-all duration-300 ${isSidebarOpen ? 'pl-72' : 'pl-0'}`}>
       {sidebarJSX}
       {sidebarToggleJSX}
       {profileIconJSX}
@@ -951,6 +1055,7 @@ const Index = () => {
             selectedMode={selectedMode}
             onModeChange={setSelectedMode}
             isRecording={isRecording}
+            voiceState={voiceState}
             onMicClick={handleMicClick}
           />
         </div>

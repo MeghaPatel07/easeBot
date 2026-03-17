@@ -10,16 +10,39 @@ export interface ProductResult {
   vendor: string
   tags: string[]
   productUrl: string
+  imageUrl: string
+  rating: number
 }
 
 // Keywords that suggest the user is looking for a product category
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  dress:   ['dress', 'gown', 'lehenga', 'bridal wear', 'outfit', 'attire', 'wear', 'clothing'],
-  rings:   ['ring', 'rings', 'band', 'engagement', 'jewelry', 'jewellery'],
-  venue:   ['venue', 'hall', 'banquet', 'location', 'place', 'garden', 'resort'],
-  florist: ['flower', 'floral', 'bouquet', 'centerpiece', 'decoration', 'decor'],
-  cake:    ['cake', 'dessert', 'sweet', 'bakery'],
-  photo:   ['photo', 'photograph', 'camera', 'videograph', 'film'],
+  dress:   ['dress', 'gown', 'lehenga', 'bridal wear', 'outfit', 'attire', 'wear', 'clothing',
+            'haldi', 'mehndi', 'sangeet', 'reception', 'saree', 'sari', 'sharara', 'anarkali',
+            'sherwani', 'kurta', 'dupatta', 'blouse', 'bridesmaid', 'groomsmen'],
+  rings:   ['ring', 'rings', 'band', 'engagement', 'jewelry', 'jewellery', 'necklace', 'earring',
+            'mangalsutra', 'bangles', 'choker', 'maang tikka'],
+  venue:   ['venue', 'hall', 'banquet', 'location', 'place', 'garden', 'resort', 'farmhouse',
+            'palace', 'rooftop', 'destination'],
+  florist: ['flower', 'floral', 'bouquet', 'centerpiece', 'decoration', 'decor', 'garland',
+            'marigold', 'mandap', 'flowerwork'],
+  cake:    ['cake', 'dessert', 'sweet', 'bakery', 'mithai', 'ladoo', 'barfi'],
+  photo:   ['photo', 'photograph', 'camera', 'videograph', 'film', 'cinemat', 'candid', 'reel'],
+}
+
+function toProduct(d: any): ProductResult {
+  const data = d.data()
+  return {
+    uid: d.id,
+    name: data.name ?? '',
+    category: data.category ?? '',
+    price: data.price ?? 0,
+    currency: data.currency ?? 'INR',
+    vendor: data.vendor ?? '',
+    tags: data.tags ?? [],
+    productUrl: `https://weddingease.ai/product-detail/${d.id}`,
+    imageUrl: data.imageUrl ?? '',
+    rating: data.rating ?? 0,
+  }
 }
 
 function extractCategories(userMessage: string): string[] {
@@ -33,11 +56,17 @@ function extractCategories(userMessage: string): string[] {
 export async function getRelevantProducts(userMessage: string): Promise<ProductResult[]> {
   const categories = extractCategories(userMessage)
 
-  const q = categories.length > 0
-    ? query(collection(db, 'products'), where('category', '==', categories[0]), limit(5))
-    : query(collection(db, 'products'), limit(5))
+  if (categories.length > 0) {
+    const categorySnap = await getDocs(
+      query(collection(db, 'products'), where('category', '==', categories[0]), limit(5))
+    )
+    // If category-specific query has results, use them; otherwise fall back to any products
+    if (categorySnap.docs.length > 0) {
+      return categorySnap.docs.map(d => toProduct(d))
+    }
+  }
 
-  const snap = await getDocs(q)
+  const snap = await getDocs(query(collection(db, 'products'), limit(5)))
 
   return snap.docs.map(d => {
     const data = d.data()
@@ -50,6 +79,8 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
       vendor: data.vendor ?? '',
       tags: data.tags ?? [],
       productUrl: `https://weddingease.ai/product-detail/${d.id}`,
+      imageUrl: data.imageUrl ?? '',
+      rating: data.rating ?? 0,
     }
   })
 }
@@ -59,8 +90,8 @@ export function formatProductsContext(products: ProductResult[]): string {
   if (products.length === 0) return ''
 
   const lines = products.map(
-    p => `- [${p.name}](${p.productUrl}) by ${p.vendor} — ${p.currency} ${p.price.toLocaleString()}`
+    p => `- ![${p.name}](${p.imageUrl}) [${p.name}](${p.productUrl}) by ${p.vendor} — ${p.currency} ${p.price.toLocaleString()} (${p.rating}★)`
   )
 
-  return `\n\nAvailable products from WeddingEase catalogue:\n${lines.join('\n')}\n\nIMPORTANT: Only recommend products from the list above. Use the exact links provided. Never invent or hallucinate product links.`
+  return `\n\nAvailable products from WeddingEase catalogue:\n${lines.join('\n')}\n\nIMPORTANT: Only recommend products from the list above. Use the exact links and image URLs provided. Never invent or hallucinate product details.`
 }

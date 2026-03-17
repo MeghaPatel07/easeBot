@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin'
 import { Request, Response } from 'express'
 import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
-import { callAzureAI } from '../services/azureAI'
+import { callAzureAI, callAzureAIWithToolResults } from '../services/azureAI'
 import { trackTokens } from '../services/tokenTracker'
 import { isImageRequest, generateImage } from '../services/imageGeneration'
 import { getRelevantProducts, formatProductsContext } from '../services/products'
@@ -14,7 +14,8 @@ import { getKnowledgePrompt } from '../prompts/knowledge'
 import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
 import { getGuestPrompt } from '../prompts/guest'
-import type { ChatPayload, ChatResponse, HistoryMessage, Mode } from '../types'
+import { PLANNER_TOOLS, executeToolCall } from '../services/plannerTools'
+import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction } from '../types'
 
 const db = admin.firestore()
 
@@ -48,7 +49,12 @@ function buildLanguageRule(detectedLanguage: string): string {
 const IMAGE_CAPABILITY_NOTE =
   ` CRITICAL RULE — IMAGE GENERATION: You CAN generate images. When the user asks for an image, picture, or visual, respond with enthusiasm, confirm you are generating it, and briefly describe what it will look like. The image will appear automatically below your reply. NEVER say you cannot create or generate images. This is a hard rule with no exceptions.`
 
-async function buildSystemPrompt(mode: Mode, userMessage: string, detectedLanguage: string): Promise<string> {
+async function buildSystemPrompt(
+  mode: Mode,
+  userMessage: string,
+  detectedLanguage: string,
+  userRole?: string | null
+): Promise<string> {
   let base: string
 
   if (mode === 'stylist') {
@@ -61,7 +67,7 @@ async function buildSystemPrompt(mode: Mode, userMessage: string, detectedLangua
     }
   } else {
     switch (mode) {
-      case 'planner':    base = getPlannerPrompt();    break
+      case 'planner':    base = getPlannerPrompt(userRole);    break
       case 'therapist':  base = getTherapistPrompt();  break
       case 'knowledge':  base = getKnowledgePrompt();  break
       case 'consultant': base = getConsultantPrompt(); break
@@ -100,6 +106,18 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, language)
     const mode: Mode = requestedMode ?? detectMode(englishText)
 
+    // Fetch user profile for planner context (isPremium, role)
+    let isPremium = false
+    let userRole: string | null = null
+    if (isLoggedIn) {
+      const profileSnap = await db.collection('users').doc(uid).get()
+      if (profileSnap.exists) {
+        const profile = profileSnap.data()!
+        isPremium = profile.isPremium ?? false
+        userRole = profile.role ?? null
+      }
+    }
+
     // Guest mode (threadId null): use client-supplied history. Logged-in: fetch from Firestore.
     const history: HistoryMessage[] = threadId
       ? await getChatHistory(threadId)
@@ -108,13 +126,71 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // Logged-in users get full mode-specific prompts (max 800 tokens).
     // Guests get a compact prompt and capped at 300 tokens to minimise cost.
     const systemPrompt = isLoggedIn
-      ? await buildSystemPrompt(mode, englishText, detectedLanguage) + IMAGE_CAPABILITY_NOTE
+      ? await buildSystemPrompt(mode, englishText, detectedLanguage, userRole) + IMAGE_CAPABILITY_NOTE
       : getGuestPrompt() + buildLanguageRule(detectedLanguage) + IMAGE_CAPABILITY_NOTE
 
     const maxTokens = isLoggedIn ? 800 : 300
 
-    const aiResult = await callAzureAI(history, englishText, systemPrompt, maxTokens)
-    const { text: finalText, audioUrl } = await processOutbound(aiResult.text, detectedLanguage)
+    // For planner mode (logged-in only), enable function calling
+    const tools = (isLoggedIn && mode === 'planner') ? PLANNER_TOOLS : undefined
+
+    const aiResult = await callAzureAI(history, englishText, systemPrompt, maxTokens, tools)
+
+    // Execute any tool calls the LLM requested
+    const toolActions: ToolAction[] = []
+    let finalAiText = aiResult.text
+
+    if (aiResult.toolCalls.length > 0 && isLoggedIn) {
+      const toolCallResultsRaw: { id: string; name: string; result: string }[] = []
+
+      for (const tc of aiResult.toolCalls as any[]) {
+        // Storage governance guard
+        if (tc.name === 'create_checklist' && !isPremium) {
+          // executeToolCall handles the limit check internally
+        }
+        const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium)
+        toolActions.push(outcome.action)
+
+        if (outcome.result === 'STORAGE_LIMIT_REACHED') {
+          finalAiText = "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!"
+          const { text: translated } = await processOutbound(finalAiText, detectedLanguage)
+          const response: ChatResponse = {
+            text: translated,
+            audioUrl: null,
+            imageUrl: null,
+            toolActions,
+            mode,
+            detectedLanguage,
+          }
+          res.status(200).json(response)
+          return
+        }
+
+        toolCallResultsRaw.push({ id: tc.id, name: tc.name, result: outcome.result })
+      }
+
+      // Second LLM call with tool results to get final user-facing response
+      const secondResult = await callAzureAIWithToolResults(
+        history,
+        englishText,
+        systemPrompt,
+        toolCallResultsRaw,
+        (aiResult as any).rawToolCalls ?? aiResult.toolCalls.map((tc: any, i: number) => ({
+          id: tc.id ?? `call_${i}`,
+          type: 'function',
+          function: { name: tc.name, arguments: JSON.stringify(tc.args) },
+        })),
+        maxTokens
+      )
+      finalAiText = secondResult.text
+
+      // Accumulate token usage
+      aiResult.usage.promptTokens += secondResult.usage.promptTokens
+      aiResult.usage.completionTokens += secondResult.usage.completionTokens
+      aiResult.usage.totalTokens += secondResult.usage.totalTokens
+    }
+
+    const { text: finalText, audioUrl } = await processOutbound(finalAiText, detectedLanguage)
 
     // Track token usage in Firestore for logged-in users (fire-and-forget)
     if (isLoggedIn) {
@@ -129,7 +205,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       imageUrl = await generateImage(englishText)
     }
 
-    const response: ChatResponse = { text: finalText, audioUrl, imageUrl, mode, detectedLanguage }
+    const response: ChatResponse = { text: finalText, audioUrl, imageUrl, toolActions, mode, detectedLanguage }
     res.status(200).json(response)
   } catch (err: any) {
     console.error('[chatController] error:', err)

@@ -11,8 +11,8 @@ import {
   toggleLikeMessage,
   type NewMessage,
 } from '@/services/chatService'
-import { sendChatMessage, generateImage, addCalendarEvent } from '@/services/functionsService'
-import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc } from '@/types'
+import { streamChatMessage, generateImage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
+import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc, ToolAction } from '@/types'
 
 export interface Message {
   id: string
@@ -25,6 +25,7 @@ export interface Message {
   imageUrl?: string | null
   calendarEvent?: CalendarEvent | null
   calendarAdded?: boolean   // true once successfully added to Google Calendar
+  convertToTable?: boolean  // true when AI returned a budget/guest list
   threadId?: string
 }
 
@@ -35,6 +36,7 @@ export interface UseChatResult {
   isTyping: boolean
   allLikedMessages: Message[]
   calendarEvents: CalendarEventDoc[]
+  lastToolActions: ToolAction[]
   sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string) => Promise<void>
   stopGeneration: () => void
   loadChat: (threadId: string) => Promise<void>
@@ -54,6 +56,7 @@ export function useChat(): UseChatResult {
   const [isTyping, setIsTyping] = useState(false)
   const [allLikedMessages, setAllLikedMessages] = useState<Message[]>([])
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventDoc[]>([])
+  const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
 
   // Keep refs so callbacks always see latest values without needing them as deps
   const messagesRef = useRef<Message[]>(messages)
@@ -150,6 +153,10 @@ export function useChat(): UseChatResult {
   const IMAGE_INTENT_RE =
     /\b(generate|create|make|show|draw|design|visualize|render)\b.{0,60}\b(images?|pictures?|photos?|visuals?|illustrations?|mockups?|renders?|sketches?)\b/i
 
+  // ── Smart Blocks: detect budget breakdowns and guest lists ────────────────
+  const TABLE_CONTENT_RE =
+    /(\bbudget\b.*(\d+%|\₹|\$|cost|spend|allocat))|(\bguest\s*list\b.*\d+)|(category\s*\|.*\|)|(item\s*\|.*amount)/i
+
   // ── Send message ───────────────────────────────────────────────────────────
   const sendMessage = useCallback(async (text: string, audioBase64?: string, mode?: Mode, language?: string) => {
     if (!text.trim() && !audioBase64) return
@@ -170,6 +177,18 @@ export function useChat(): UseChatResult {
     let threadId = activeThreadIdRef.current
 
     try {
+      const aiMsgId = (Date.now() + 1).toString()
+
+      // Add an empty placeholder AI message immediately so streaming text appears
+      setMessages(prev => [...prev, {
+        id: aiMsgId,
+        text: '',
+        sender: 'ai',
+        timestamp: new Date(),
+        mode,
+        liked: false,
+      } as Message])
+
       if (user) {
         if (!threadId) {
           threadId = await createThread(user.uid, text)
@@ -186,88 +205,90 @@ export function useChat(): UseChatResult {
           audioUrl: null,
           liked: false,
         } as NewMessage)
+      }
 
-        const isImgReq = IMAGE_INTENT_RE.test(text)
-        const [result, imgResult] = await Promise.all([
-          sendChatMessage({ message: text, threadId, audioBase64, mode, language }, controller.signal),
-          isImgReq ? generateImage(text).catch(() => null) : Promise.resolve(null),
-        ])
+      // ── Stream the response ───────────────────────────────────────────────
+      const isImgReq = IMAGE_INTENT_RE.test(text)
+      const history = user ? undefined : messagesRef.current.map(m => ({
+        role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: m.text,
+      }))
 
-        const imageUrl = (imgResult as any)?.imageUrl ?? result.imageUrl ?? null
+      let streamedText = ''
+      let finalMeta: StreamDoneEvent | null = null
 
-        // Auto-add to Google Calendar if planner mode returned an event
-        let calendarAdded = false
-        if (result.calendarEvent && googleCalendarToken) {
-          try {
-            const calRes = await addCalendarEvent(googleCalendarToken, result.calendarEvent)
-            calendarAdded = true
-            // Optimistically append to local list
-            setCalendarEvents(prev => [...prev, {
-              id: calRes.eventId,
-              title: result.calendarEvent!.title,
-              date: result.calendarEvent!.date,
-              time: result.calendarEvent!.time ?? null,
-              description: result.calendarEvent!.description ?? null,
-              htmlLink: calRes.htmlLink,
-              createdAt: new Date(),
-            }].sort((a, b) => a.date.localeCompare(b.date)))
-          } catch (err) {
-            console.error('[useChat] calendar add failed:', err)
+      const [, imgResult] = await Promise.all([
+        (async () => {
+          for await (const event of streamChatMessage(
+            { message: text, threadId: threadId ?? null, audioBase64, history, mode, language },
+            controller.signal
+          )) {
+            if (event.t === 'c') {
+              streamedText += event.v
+              setMessages(prev => prev.map(m =>
+                m.id === aiMsgId ? { ...m, text: streamedText } : m
+              ))
+            } else if (event.t === 'd') {
+              finalMeta = event
+            } else if (event.t === 'e') {
+              throw new Error(event.msg)
+            }
           }
-        }
+        })(),
+        isImgReq ? generateImage(text).catch(() => null) : Promise.resolve(null),
+      ])
 
-        const aiMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          text: result.text,
-          sender: 'ai',
-          timestamp: new Date(),
-          mode: result.mode,
-          liked: false,
-          audioUrl: result.audioUrl,
-          imageUrl,
-          calendarEvent: result.calendarEvent ?? null,
-          calendarAdded,
-        }
-        setMessages((prev) => [...prev, aiMsg])
+      if (!finalMeta) return
 
+      const imageUrl = (imgResult as any)?.imageUrl ?? finalMeta.imageUrl ?? null
+
+      // Handle calendar event
+      let calendarAdded = false
+      if (finalMeta.calendarEvent && user) {
+        try {
+          const calRes = await addCalendarEvent(googleCalendarToken, finalMeta.calendarEvent)
+          calendarAdded = true
+          setCalendarEvents(prev => [...prev, {
+            id: calRes.eventId,
+            title: finalMeta!.calendarEvent!.title,
+            date: finalMeta!.calendarEvent!.date,
+            time: finalMeta!.calendarEvent!.time ?? null,
+            description: finalMeta!.calendarEvent!.description ?? null,
+            htmlLink: calRes.htmlLink,
+            createdAt: new Date(),
+          }].sort((a, b) => a.date.localeCompare(b.date)))
+        } catch (err) {
+          console.error('[useChat] calendar add failed:', err)
+        }
+      }
+
+      if (finalMeta.toolActions?.length) {
+        setLastToolActions(finalMeta.toolActions as ToolAction[])
+      }
+
+      // Finalize the message with clean text + metadata
+      setMessages(prev => prev.map(m => m.id === aiMsgId ? {
+        ...m,
+        text: finalMeta!.text || streamedText,
+        mode: finalMeta!.mode as Mode,
+        audioUrl: finalMeta!.audioUrl,
+        imageUrl,
+        calendarEvent: finalMeta!.calendarEvent ?? null,
+        calendarAdded,
+        convertToTable: TABLE_CONTENT_RE.test(finalMeta!.text || streamedText),
+      } : m))
+
+      // Persist assistant message to Firestore
+      if (user && threadId) {
         await addMessage(threadId, {
           role: 'assistant',
-          content: result.text,
+          content: finalMeta.text || streamedText,
           originalContent: null,
-          mode: result.mode,
-          language: result.detectedLanguage,
-          audioUrl: result.audioUrl,
+          mode: finalMeta.mode as Mode,
+          language: finalMeta.detectedLanguage,
+          audioUrl: finalMeta.audioUrl,
           liked: false,
         } as NewMessage)
-      } else {
-        const history = messagesRef.current.map((m) => ({
-          role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          content: m.text,
-        }))
-
-        const isImgReq = IMAGE_INTENT_RE.test(text)
-        const [result, imgResult] = await Promise.all([
-          sendChatMessage({ message: text, threadId: null, audioBase64, history, mode, language }, controller.signal),
-          isImgReq ? generateImage(text).catch(() => null) : Promise.resolve(null),
-        ])
-
-        const imageUrl = (imgResult as any)?.imageUrl ?? result.imageUrl ?? null
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            text: result.text,
-            sender: 'ai',
-            timestamp: new Date(),
-            mode: result.mode,
-            liked: false,
-            audioUrl: result.audioUrl,
-            imageUrl,
-            calendarEvent: result.calendarEvent ?? null,
-            calendarAdded: false,
-          },
-        ])
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return
@@ -390,6 +411,7 @@ export function useChat(): UseChatResult {
     isTyping,
     allLikedMessages,
     calendarEvents,
+    lastToolActions,
     sendMessage,
     stopGeneration,
     loadChat,

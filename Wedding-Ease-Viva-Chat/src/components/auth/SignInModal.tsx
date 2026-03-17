@@ -21,7 +21,7 @@ type View = 'default' | 'forgot' | 'unverified'
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSwitchToSignUp: () => void
+  onSwitchToSignUp: (prefillEmail?: string) => void
 }
 
 const GoogleIcon = () => (
@@ -100,10 +100,10 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     onOpenChange(val)
   }
 
-  function switchToSignUp() {
+  function switchToSignUp(prefillEmail?: string) {
     reset()
     onOpenChange(false)
-    onSwitchToSignUp()
+    onSwitchToSignUp(prefillEmail)
   }
 
   // ── Email sign-in ─────────────────────────────────────────────────────────
@@ -122,6 +122,15 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
       if (err.code === 'UNVERIFIED_ACCOUNT') {
         setUnverifiedUser({ uid: err.uid, email: err.email, name: err.name, phone: err.phone })
         setView('unverified')
+      } else if (
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/wrong-password'
+      ) {
+        // No account found — redirect to sign up with email pre-filled
+        reset()
+        onOpenChange(false)
+        onSwitchToSignUp(email)
       } else {
         const msg = mapAuthError(err.code ?? err.message)
         if (msg) setError(msg)
@@ -457,7 +466,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
             {/* Switch to sign up */}
             <p className="text-center text-sm pt-1">
               <span className="text-muted-foreground">Don't have an account? </span>
-              <Button variant="link" className="p-0 h-auto font-semibold" onClick={switchToSignUp}>
+              <Button variant="link" className="p-0 h-auto font-semibold" onClick={() => switchToSignUp()}>
                 Sign up
               </Button>
             </p>
