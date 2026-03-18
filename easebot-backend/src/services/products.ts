@@ -4,6 +4,7 @@ import { db } from '../lib/firebase'
 export interface ProductResult {
   uid: string
   name: string
+  description: string
   category: string
   price: number
   currency: string
@@ -17,7 +18,7 @@ export interface ProductResult {
 // Keywords that suggest the user is looking for a product category
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   dress:   ['dress', 'gown', 'lehenga', 'bridal wear', 'outfit', 'attire', 'wear', 'clothing',
-            'haldi', 'mehndi', 'sangeet', 'reception', 'saree', 'sari', 'sharara', 'anarkali',
+            'haldi', 'mehndi', 'mehandi', 'mehendi', 'sangeet', 'reception', 'saree', 'sari', 'sharara', 'anarkali',
             'sherwani', 'kurta', 'dupatta', 'blouse', 'bridesmaid', 'groomsmen'],
   rings:   ['ring', 'rings', 'band', 'engagement', 'jewelry', 'jewellery', 'necklace', 'earring',
             'mangalsutra', 'bangles', 'choker', 'maang tikka'],
@@ -34,6 +35,7 @@ function toProduct(d: any): ProductResult {
   return {
     uid: d.id,
     name: data.name ?? '',
+    description: data.description ?? '',
     category: data.category ?? '',
     price: data.price ?? 0,
     currency: data.currency ?? 'INR',
@@ -73,6 +75,7 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
     return {
       uid: d.id,
       name: data.name ?? '',
+      description: data.description ?? '',
       category: data.category ?? '',
       price: data.price ?? 0,
       currency: data.currency ?? 'INR',
@@ -89,9 +92,11 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
 export function formatProductsContext(products: ProductResult[]): string {
   if (products.length === 0) return ''
 
-  const lines = products.map(
-    p => `- ![${p.name}](${p.imageUrl}) [${p.name}](${p.productUrl}) by ${p.vendor} — ${p.currency} ${p.price.toLocaleString()} (${p.rating}★)`
-  )
+  const lines = products.map(p => {
+    const imgTag = p.imageUrl ? `![${p.name}](${p.imageUrl}) ` : ''
+    const desc = p.description ? p.description.slice(0, 120).replace(/\n/g, ' ') : ''
+    return `- ${imgTag}[${p.name}](${p.productUrl})||${desc}`
+  })
 
-  return `\n\nAvailable products from WeddingEase catalogue:\n${lines.join('\n')}\n\nIMPORTANT: Only recommend products from the list above. Use the exact links and image URLs provided. Never invent or hallucinate product details.`
+  return `\n\nAvailable products from WeddingEase catalogue (copy these lines verbatim — do not reformat):\n${lines.join('\n')}\n`
 }

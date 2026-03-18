@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Sparkles, Heart, MessageSquare, Calendar, Lightbulb,
   User, LogIn, UserPlus, Smartphone, LogOut, PanelLeft, Plus,
@@ -17,6 +17,11 @@ import {
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from '@/contexts/AuthContext';
 import SignUpModal from '@/components/auth/SignUpModal';
 import SignInModal from '@/components/auth/SignInModal';
@@ -151,9 +156,10 @@ const InputBar = ({
 
   return (
     <div className="bg-white/60 backdrop-blur-sm rounded-3xl p-4 shadow-xl border border-white/20 max-w-4xl mx-auto w-full">
-      <div className="flex items-end gap-2">
+      <div className="flex gap-2">
         <div className="flex-1 relative">
           <textarea
+          
             ref={textareaRef}
             value={inputText}
             onChange={e => onInputChange(e.target.value)}
@@ -165,7 +171,7 @@ const InputBar = ({
             }}
             placeholder={placeholder}
             rows={1}
-            className="w-full pr-10 bg-white/70 border border-primary/20 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-base py-3 px-4 resize-none overflow-hidden leading-relaxed"
+            className="w-full pr-10 bg-white/70 border border-primary/20 rounded-2xl focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-base py-[10px] px-4 resize-none overflow-hidden leading-normal"
             style={{ minHeight: '44px', maxHeight: '200px' }}
           />
           <Sparkles className="absolute right-3 top-3 w-4 h-4 text-primary/40 pointer-events-none" />
@@ -179,13 +185,12 @@ const InputBar = ({
             onClick={onMicClick}
             disabled={voiceState === 'transcribing'}
             title={voiceState === 'recording' ? 'Stop recording' : voiceState === 'transcribing' ? 'Transcribing…' : 'Record voice message'}
-            className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 ${
-              voiceState === 'recording'
+            className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 ${voiceState === 'recording'
                 ? 'bg-red-50 text-red-500 hover:bg-red-100'
                 : voiceState === 'transcribing'
                   ? 'bg-amber-50 text-amber-500'
                   : 'bg-white/70 text-gray-400 hover:text-primary hover:bg-white border border-gray-200'
-            }`}
+              }`}
           >
             {voiceState === 'recording' ? (
               <span className="relative flex items-center justify-center">
@@ -199,10 +204,10 @@ const InputBar = ({
             )}
           </Button>
           {voiceState === 'recording' && (
-            <span className="text-[10px] font-semibold text-red-500 animate-pulse tracking-wide leading-none">Recording…</span>
+            <span className="text-[10px] font-semibold text-red-500 animate-pulse tracking-wide leading-none">Listening…</span>
           )}
           {voiceState === 'transcribing' && (
-            <span className="text-[10px] font-semibold text-amber-500 tracking-wide leading-none">Transcribing…</span>
+            <span className="text-[10px] font-semibold text-amber-500 tracking-wide leading-none">Processing…</span>
           )}
         </div>
 
@@ -329,7 +334,7 @@ const Index = () => {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [preferredLang, setPreferredLang] = useState<string>(() => profile?.preferredLanguage ?? 'auto');
 
-  const { voiceState, isRecording, startRecording, stopRecording } = useVoice()
+  const { voiceState, isRecording, interimText, startRecording, stopRecording, cancelRecording } = useVoice()
   const [voiceLanguage, setVoiceLanguage] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -880,9 +885,16 @@ const Index = () => {
                         <p className="text-sm leading-relaxed">{message.text}</p>
                       </div>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
-                        <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 w-6 p-0 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg" title="Edit & resend">
-                          <Edit3 className="h-3 w-3" />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 w-6 p-0 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg">
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <p>Edit & resend</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
                   )}
@@ -908,10 +920,58 @@ const Index = () => {
                       remarkPlugins={[remarkGfm]}
                       components={{
                         a: ({ href, children }) => (
-                          <a href={href} target="_blank" rel="noopener noreferrer">
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#B8860B] hover:text-[#DAA520] underline underline-offset-2 font-medium transition-colors">
                             {children}
                           </a>
                         ),
+                        img: ({ src, alt }) => (
+                          <img
+                            src={src}
+                            alt={alt ?? ''}
+                            className="w-[200px] h-[200px] object-cover rounded-xl shadow-sm flex-shrink-0"
+                          />
+                        ),
+                        li: ({ children }) => {
+                          const flat = (nodes: React.ReactNode): React.ReactNode[] =>
+                            React.Children.toArray(nodes).flatMap(n =>
+                              React.isValidElement(n) && (n.type === 'p' || n.type === 'span')
+                                ? flat((n.props as { children?: React.ReactNode }).children)
+                                : [n]
+                            )
+                          const kids = flat(children)
+
+                          // Detect by props (n.type is our custom component fn, not 'img'/'a' string)
+                          const imgNode = kids.find(n => React.isValidElement(n) && 'src' in (n.props as object)) as React.ReactElement<{ src: string; alt?: string }> | undefined
+                          const anchorNode = kids.find(n => React.isValidElement(n) && 'href' in (n.props as object)) as React.ReactElement<{ href: string; children: React.ReactNode }> | undefined
+
+                          if (imgNode && anchorNode) {
+                            const textNodes = kids.filter(n => typeof n === 'string') as string[]
+                            const rawMeta = textNodes.join('').replace(/^\|/, '')
+                            const description = rawMeta.split('|').slice(1).join('|').trim()
+
+                            const href = anchorNode.props.href ?? '#'
+                            const title = anchorNode.props.children
+
+                            return (
+                              <li className="list-none mb-3 not-prose">
+                                <a href={href} target="_blank" rel="noopener noreferrer" className="block no-underline">
+                                  <div className="flex flex-row gap-3 items-center p-3 rounded-2xl border border-[#a2b29d]/30 bg-white/60 shadow-sm hover:shadow-md hover:border-[#B8860B]/40 transition-all duration-200">
+                                    <img
+                                      src={imgNode.props.src}
+                                      alt={imgNode.props.alt ?? ''}
+                                      className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0"
+                                    />
+                                    <div className="flex flex-col gap-0.5 min-w-0">
+                                      <span className="text-sm font-semibold text-gray-800 leading-snug line-clamp-1">{title}</span>
+                                      {description && <span className="text-xs text-gray-500 leading-relaxed line-clamp-2">{description}</span>}
+                                    </div>
+                                  </div>
+                                </a>
+                              </li>
+                            )
+                          }
+                          return <li>{children}</li>
+                        },
                       }}
                     >
                       {message.text}
@@ -963,6 +1023,7 @@ const Index = () => {
                       </div>
                     </div>
                   )}
+
                   {message.convertToTable && user && (
                     <Button
                       size="sm"
@@ -975,12 +1036,49 @@ const Index = () => {
                     </Button>
                   )}
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Copy">
-                      {copiedMsgId === message.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-gray-500" />}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Download"><Download className="h-4 w-4 text-gray-500" /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => toggleLike(message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Like"><ThumbsUp className={`h-4 w-4 ${message.liked ? 'text-primary fill-current' : 'text-gray-500'}`} /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleRegenerateMessage(message)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg" title="Regenerate"><RefreshCw className="h-4 w-4 text-gray-500" /></Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg">
+                          {copiedMsgId === message.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-gray-500" />}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>{copiedMsgId === message.id ? 'Copied!' : 'Copy message'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg">
+                          <Download className="h-4 w-4 text-gray-500" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Download as text</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={() => toggleLike(message.id)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg">
+                          <ThumbsUp className={`h-4 w-4 ${message.liked ? 'text-primary fill-current' : 'text-gray-500'}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>{message.liked ? 'Unlike' : 'Like message'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={() => handleRegenerateMessage(message)} className="h-8 w-8 p-0 hover:bg-gray-100/30 rounded-lg">
+                          <RefreshCw className="h-4 w-4 text-gray-500" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Regenerate response</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               )}
@@ -1001,7 +1099,7 @@ const Index = () => {
 
         <div className="backdrop-blur-md p-4 flex-shrink-0">
           <InputBar
-            inputText={inputText}
+            inputText={voiceState === 'recording' ? interimText : inputText}
             onInputChange={setInputText}
             onSend={handleSendMessage}
             onStop={stopGeneration}
@@ -1046,7 +1144,7 @@ const Index = () => {
           </div>
 
           <InputBar
-            inputText={inputText}
+            inputText={voiceState === 'recording' ? interimText : inputText}
             onInputChange={setInputText}
             onSend={handleSendMessage}
             onStop={stopGeneration}

@@ -42,11 +42,21 @@ export async function processInbound(
     }
   }
 
+  // If text contains a non-Latin script (Gujarati, Devanagari, Arabic, Tamil, CJK, etc.)
+  // force translation even when language detection failed and defaulted to 'en'.
+  // Narrow ranges exclude accented Latin and emojis to avoid false positives.
+  const hasNonLatinScript = /[\u0600-\u06FF\u0900-\u0DFF\u0E00-\u0FFF\u3000-\u9FFF\uAC00-\uD7AF]/.test(rawText)
+  const shouldTranslate = detectedLanguage !== 'en' || hasNonLatinScript
+
   // Step 3 — Translate to English via Azure Translator
   let englishText = rawText
-  if (detectedLanguage !== 'en') {
+  if (shouldTranslate) {
     try {
       englishText = await translateText(rawText, 'en')
+      // If detection had defaulted to 'en' but script is non-Latin, update language
+      if (hasNonLatinScript && detectedLanguage === 'en') {
+        detectedLanguage = 'hi' // best-effort fallback; outbound TTS uses this
+      }
     } catch (err) {
       console.warn('[inbound] Translation to English failed, using raw text:', err)
     }

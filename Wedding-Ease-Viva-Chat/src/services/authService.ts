@@ -85,6 +85,7 @@ function buildNewUserDoc(
     createdAt: serverTimestamp(),
     lastLoginAt: null,
     forgotPasswordOtp: null,
+    googleCalendarToken: null,
   }
 }
 
@@ -221,12 +222,14 @@ export async function signInWithGoogleAuth(allowSignUp = true): Promise<{ user: 
       isVerified: true,
       isValidated: true,
       verifiedAt: serverTimestamp(),
+      googleCalendarToken: googleAccessToken,
     })
   } else {
     await updateDoc(doc(db, 'users', user.uid), {
       isVerified: true,
       isValidated: true,
       lastLoginAt: serverTimestamp(),
+      googleCalendarToken: googleAccessToken,
     })
   }
 

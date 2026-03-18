@@ -5,7 +5,7 @@ import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
 import { callAzureAI, callAzureAIWithToolResults, streamCallAzureAI, streamCallAzureAIWithToolResults } from '../services/azureAI'
 import { isImageRequest, generateImage } from '../services/imageGeneration'
-import { getRelevantProducts, formatProductsContext } from '../services/products'
+import { getRelevantProductsViaAlgolia, formatProductsContext } from '../services/algoliaProducts'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
 import { getStylistPrompt } from '../prompts/stylist'
@@ -14,6 +14,7 @@ import { getKnowledgePrompt } from '../prompts/knowledge'
 import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
 import { PLANNER_TOOLS, executeToolCall } from '../services/plannerTools'
+import { incrementUserUsage } from '../services/usageService'
 import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode, ToolAction } from '../types'
 
 async function buildSystemPrompt(
@@ -23,7 +24,7 @@ async function buildSystemPrompt(
 ): Promise<string> {
   if (mode === 'stylist') {
     try {
-      const products = await getRelevantProducts(userMessage)
+      const products = await getRelevantProductsViaAlgolia(userMessage)
       const context = formatProductsContext(products)
       return getStylistPrompt(context)
     } catch {
@@ -97,6 +98,16 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       callAzureAI(history, englishText, systemPrompt, tools),
       isImageRequest(englishText) ? generateImage(englishText).catch(() => null) : Promise.resolve(null),
     ])
+
+    // Store token usage for logged-in users
+    console.log(`[chatController] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, aiResult.usage)
+    if (isLoggedIn && uid && aiResult.usage) {
+      incrementUserUsage(uid, aiResult.usage).catch(err =>
+        console.error('[chatController] usage write failed', err)
+      )
+    } else {
+      console.warn(`[chatController] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!aiResult.usage}`)
+    }
 
     const toolActions: ToolAction[] = []
     let finalAiText = aiResult.text
@@ -205,6 +216,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     // ── Stream first LLM call ────────────────────────────────────────────────
     let firstPassToolCalls: { id: string; name: string; args: Record<string, any> }[] = []
+    let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
 
     for await (const event of streamCallAzureAI(history, englishText, systemPrompt, tools)) {
       if (event.type === 'chunk') {
@@ -212,7 +224,18 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
         fullText += event.text
       } else {
         firstPassToolCalls = event.toolCalls
+        streamUsage = event.usage
       }
+    }
+
+    // Store token usage for logged-in users
+    console.log(`[chatController:stream] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, streamUsage)
+    if (isLoggedIn && uid && streamUsage) {
+      incrementUserUsage(uid, streamUsage).catch(err =>
+        console.error('[chatController:stream] usage write failed', err)
+      )
+    } else {
+      console.warn(`[chatController:stream] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!streamUsage}`)
     }
 
     // ── Execute tool calls and stream second pass ────────────────────────────

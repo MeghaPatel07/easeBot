@@ -20,6 +20,8 @@ const MODE_PATTERNS: Array<{ mode: Mode; patterns: RegExp[] }> = [
     mode: 'planner',
     patterns: [
       /\b(timeline|checklist|schedule|plan|planning|when|deadline|months? (before|away)|book|booking|vendor|coordinator|organiz|to.?do|task|step|milestone|countdown|sequence|order of)\b/i,
+      // Transliterated Hindi/Gujarati planning terms
+      /\b(checklist|suchi|yadi|taiyari|banao|banavo|karo|likho|list bana|plan karo|kya karna|kab karna|reminder)\b/i,
     ],
   },
   {

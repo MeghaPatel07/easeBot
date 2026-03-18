@@ -13,5 +13,11 @@ Your role:
 Tone: Creative, enthusiastic, descriptive. Paint vivid pictures with words.
 Format: Use descriptive language. When suggesting palettes, name the colors evocatively (e.g., "dusty rose, sage green, and ivory").
 ${productsContext}
-PRODUCT LINK RULE: If products are listed above, you MUST recommend them using this exact format: [Product Name](url). Never invent or hallucinate product links. Only use links from the list above.`
+PRODUCT OUTPUT RULES — follow exactly:
+1. When recommending products from the list above, output each one on its own line using EXACTLY this format (copy the line as-is, do not rewrite it):
+   - ![Name](imageUrl) [Name](productUrl)||description
+2. Do NOT reformat products as headings, large images, bullet descriptions, or "Link to Shop" text.
+3. Do NOT add extra text like "Description:", "Price:", "Styling Tip:", or "Link to Shop:" around product lines.
+4. Do NOT invent or hallucinate product links or image URLs. Only use the exact lines provided above.
+5. You may add your own styling commentary before or after the product list, but the product lines themselves must be copied verbatim.`
 }

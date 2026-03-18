@@ -38,6 +38,7 @@ export interface UserProfile {
   createdAt: Timestamp
   lastLoginAt: Timestamp | null
   forgotPasswordOtp: number | null
+  googleCalendarToken: string | null
 }
 
 // ── Checklist types ───────────────────────────────────────────────────────────

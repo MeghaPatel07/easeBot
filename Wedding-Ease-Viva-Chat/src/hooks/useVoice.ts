@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import * as SpeechSDK from 'microsoft-cognitiveservices-speech-sdk'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
 
@@ -7,55 +8,89 @@ export type VoiceState = 'idle' | 'recording' | 'transcribing'
 export interface UseVoiceResult {
   voiceState: VoiceState
   isRecording: boolean
+  interimText: string                  // live text shown as user speaks
   startRecording: () => Promise<string | null>
   stopRecording: () => Promise<{ text: string; detectedLanguage: string } | null>
   cancelRecording: () => void
   error: string | null
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string
-      resolve(dataUrl.split(',')[1])
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
+async function fetchSpeechToken(): Promise<{ token: string; region: string }> {
+  const res = await fetch(`${API_BASE}/api/speech-token`)
+  if (!res.ok) throw new Error('Failed to fetch speech token')
+  return res.json()
 }
 
 export function useVoice(): UseVoiceResult {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
+  const [interimText, setInterimText] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-  const streamRef = useRef<MediaStream | null>(null)
+  const recognizerRef = useRef<SpeechSDK.SpeechRecognizer | null>(null)
+  const finalTextRef = useRef<string>('')
+  const resolveStopRef = useRef<((result: { text: string; detectedLanguage: string } | null) => void) | null>(null)
+  const detectedLangRef = useRef<string>('en-US')
 
   const startRecording = useCallback(async (): Promise<string | null> => {
     if (voiceState !== 'idle') return null
     setError(null)
-    chunksRef.current = []
+    setInterimText('')
+    finalTextRef.current = ''
+    detectedLangRef.current = 'en-US'
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
+      const { token, region } = await fetchSpeechToken()
 
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-          ? 'audio/webm'
-          : 'audio/mp4'
+      const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region)
+      speechConfig.speechRecognitionLanguage = 'en-US'
 
-      const recorder = new MediaRecorder(stream, { mimeType })
-      mediaRecorderRef.current = recorder
+      // Auto-detect language (up to 4)
+      const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages([
+        'en-US', 'hi-IN', 'gu-IN', 'es-ES',
+      ])
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data)
+      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput()
+      const recognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechConfig, autoDetect, audioConfig)
+      recognizerRef.current = recognizer
+
+      // Interim results — shown live in the input box
+      recognizer.recognizing = (_s, e) => {
+        if (e.result.reason === SpeechSDK.ResultReason.RecognizingSpeech) {
+          setInterimText(finalTextRef.current + e.result.text)
+        }
       }
 
-      recorder.start(100) // collect chunks every 100ms
+      // Final result for a phrase — append to accumulated text
+      recognizer.recognized = (_s, e) => {
+        if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech && e.result.text) {
+          finalTextRef.current += (finalTextRef.current ? ' ' : '') + e.result.text
+          setInterimText(finalTextRef.current)
+
+          // Capture detected language from first recognized phrase
+          const langResult = SpeechSDK.AutoDetectSourceLanguageResult.fromResult(e.result)
+          if (langResult.language) detectedLangRef.current = langResult.language
+        }
+      }
+
+      recognizer.canceled = (_s, e) => {
+        if (e.reason === SpeechSDK.CancellationReason.Error) {
+          setError(`Speech error: ${e.errorDetails}`)
+        }
+        cleanup()
+        resolveStopRef.current?.({ text: finalTextRef.current, detectedLanguage: detectedLangRef.current })
+        resolveStopRef.current = null
+      }
+
+      recognizer.sessionStopped = () => {
+        cleanup()
+        resolveStopRef.current?.({ text: finalTextRef.current, detectedLanguage: detectedLangRef.current })
+        resolveStopRef.current = null
+      }
+
+      await new Promise<void>((res, rej) =>
+        recognizer.startContinuousRecognitionAsync(res, rej)
+      )
+
       setVoiceState('recording')
       return null
     } catch (err: any) {
@@ -65,63 +100,56 @@ export function useVoice(): UseVoiceResult {
     }
   }, [voiceState])
 
-  const stopRecording = useCallback(async (): Promise<{ text: string; detectedLanguage: string } | null> => {
-    const recorder = mediaRecorderRef.current
-    if (!recorder || voiceState !== 'recording') return null
+  const stopRecording = useCallback((): Promise<{ text: string; detectedLanguage: string } | null> => {
+    const recognizer = recognizerRef.current
+    if (!recognizer || voiceState !== 'recording') {
+      return Promise.resolve(null)
+    }
 
     setVoiceState('transcribing')
 
     return new Promise((resolve) => {
-      recorder.onstop = async () => {
-        // Stop all mic tracks
-        streamRef.current?.getTracks().forEach(t => t.stop())
-        streamRef.current = null
-        mediaRecorderRef.current = null
-
-        try {
-          const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
-          chunksRef.current = []
-
-          const audioBase64 = await blobToBase64(blob)
-
-          const res = await fetch(`${API_BASE}/api/transcribe`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audioBase64 }),
-          })
-
-          if (!res.ok) throw new Error('Transcription failed')
-          const data = await res.json() as { text: string; detectedLanguage: string }
-          setVoiceState('idle')
-          resolve(data)
-        } catch (err: any) {
-          setError(err.message ?? 'Transcription failed')
-          setVoiceState('idle')
-          resolve(null)
-        }
+      resolveStopRef.current = (result) => {
+        setVoiceState('idle')
+        setInterimText('')
+        resolve(result)
       }
 
-      recorder.stop()
+      recognizer.stopContinuousRecognitionAsync(
+        () => {},
+        (err) => {
+          setError(`Stop error: ${err}`)
+          setVoiceState('idle')
+          setInterimText('')
+          resolve({ text: finalTextRef.current, detectedLanguage: detectedLangRef.current })
+        }
+      )
     })
   }, [voiceState])
 
   const cancelRecording = useCallback(() => {
-    const recorder = mediaRecorderRef.current
-    if (recorder) {
-      recorder.ondataavailable = null
-      recorder.onstop = null
-      try { recorder.stop() } catch {}
-      mediaRecorderRef.current = null
+    const recognizer = recognizerRef.current
+    if (recognizer) {
+      resolveStopRef.current = null
+      recognizer.stopContinuousRecognitionAsync(
+        () => { recognizer.close(); recognizerRef.current = null },
+        () => { try { recognizer.close() } catch {} recognizerRef.current = null }
+      )
     }
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
-    chunksRef.current = []
+    finalTextRef.current = ''
+    setInterimText('')
     setVoiceState('idle')
   }, [])
+
+  function cleanup() {
+    try { recognizerRef.current?.close() } catch {}
+    recognizerRef.current = null
+  }
 
   return {
     voiceState,
     isRecording: voiceState === 'recording',
+    interimText,
     startRecording,
     stopRecording,
     cancelRecording,

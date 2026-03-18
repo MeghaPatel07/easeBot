@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             setUser(firebaseUser)
             setProfile(profileData)
+            if (profileData.googleCalendarToken) setGoogleCalendarToken(profileData.googleCalendarToken)
           }
         }
       } else {
@@ -135,7 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user: firebaseUser, googleAccessToken } = await signInWithGoogleAuth(allowSignUp)
       const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
-      if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
+      if (profileSnap.exists()) {
+        const profileData = profileSnap.data() as UserProfile
+        setProfile(profileData)
+        if (profileData.googleCalendarToken) setGoogleCalendarToken(profileData.googleCalendarToken)
+      }
       setUser(firebaseUser)
       if (googleAccessToken) setGoogleCalendarToken(googleAccessToken)
       return firebaseUser

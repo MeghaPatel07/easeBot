@@ -5,6 +5,7 @@ import type { HistoryMessage } from '../types'
 export interface AIResult {
   text: string
   toolCalls: { id: string; name: string; args: Record<string, any> }[]
+  usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null
 }
 
 function getClient(): AzureOpenAI {
@@ -53,14 +54,20 @@ export async function callAzureAI(
     args: JSON.parse(tc.function.arguments || '{}'),
   }))
 
-  return { text: message?.content ?? '', toolCalls }
+  const usage = completion.usage ? {
+    promptTokens: completion.usage.prompt_tokens,
+    completionTokens: completion.usage.completion_tokens,
+    totalTokens: completion.usage.total_tokens,
+  } : null
+
+  return { text: message?.content ?? '', toolCalls, usage }
 }
 
 // ── Streaming variants ────────────────────────────────────────────────────────
 
 export type StreamEvent =
   | { type: 'chunk'; text: string }
-  | { type: 'done'; toolCalls: { id: string; name: string; args: Record<string, any> }[] }
+  | { type: 'done'; toolCalls: { id: string; name: string; args: Record<string, any> }[]; usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null }
 
 /**
  * Stream the first LLM call. Yields text chunks as they arrive.
@@ -86,10 +93,12 @@ export async function* streamCallAzureAI(
     max_tokens: 2000,
     temperature: 0.7,
     stream: true,
+    stream_options: { include_usage: true },
     ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
   })
 
   const tcMap: Record<number, { id: string; name: string; arguments: string }> = {}
+  let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
 
   for await (const raw of stream) {
     const delta = raw.choices[0]?.delta
@@ -104,6 +113,13 @@ export async function* streamCallAzureAI(
         if (tc.function?.arguments) tcMap[tc.index].arguments += tc.function.arguments
       }
     }
+    if (raw.usage) {
+      streamUsage = {
+        promptTokens: raw.usage.prompt_tokens,
+        completionTokens: raw.usage.completion_tokens,
+        totalTokens: raw.usage.total_tokens,
+      }
+    }
   }
 
   const toolCalls = Object.values(tcMap).map(tc => ({
@@ -112,7 +128,7 @@ export async function* streamCallAzureAI(
     args: (() => { try { return JSON.parse(tc.arguments) } catch { return {} } })(),
   }))
 
-  yield { type: 'done', toolCalls }
+  yield { type: 'done', toolCalls, usage: streamUsage }
 }
 
 /**
