@@ -49,6 +49,12 @@ export default function PlannerView({
       {/* Kanban stats */}
       {checklists.length > 0 && (
         <div className="mb-3 flex gap-2 flex-shrink-0">
+          {stats.overdue > 0 && (
+            <div className="flex-1 rounded-xl bg-red-50 border border-red-200 px-2 py-1.5 text-center">
+              <p className="text-base font-bold text-red-600">{stats.overdue}</p>
+              <p className="text-[9px] text-red-500 font-medium">⚠ Overdue</p>
+            </div>
+          )}
           <div className="flex-1 rounded-xl bg-amber-50 border border-amber-100 px-2 py-1.5 text-center">
             <p className="text-base font-bold text-amber-600">{stats.todo}</p>
             <p className="text-[9px] text-amber-500 font-medium">📋 To-Do</p>

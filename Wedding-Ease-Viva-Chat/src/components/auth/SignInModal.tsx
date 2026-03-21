@@ -233,245 +233,260 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md bg-white/95 backdrop-blur-sm border border-white/20">
+      <DialogContent className="w-[95vw] sm:max-w-[480px] glass-panel rounded-[2rem] p-0 border border-white/60 shadow-[0_32px_64px_-12px_rgba(44,46,42,0.1)] overflow-hidden">
         <div id="recaptcha-container" />
+        {/* Decorative blurs */}
+        <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* ── Forgot Password view ── */}
-        {view === 'forgot' && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="elegant-heading">Reset Password</DialogTitle>
-              <DialogDescription>
-                {fpStep === 'email-input'
-                  ? 'Enter your email and we\'ll send a reset link.'
-                  : 'Check your inbox for the reset link.'}
-              </DialogDescription>
-            </DialogHeader>
+        <div className="max-h-[90dvh] overflow-y-auto custom-scrollbar p-6 md:p-10">
+          {/* ── Forgot Password view ── */}
+          {view === 'forgot' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="elegant-heading">Reset Password</DialogTitle>
+                <DialogDescription>
+                  {fpStep === 'email-input'
+                    ? 'Enter your email and we\'ll send a reset link.'
+                    : 'Check your inbox for the reset link.'}
+                </DialogDescription>
+              </DialogHeader>
 
-            {fpStep === 'email-input' ? (
-              <div className="space-y-4 py-2">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Email</label>
-                  <Input
-                    type="email"
-                    value={fpEmail}
-                    onChange={e => setFpEmail(e.target.value)}
-                    placeholder="jane@example.com"
-                    className="bg-white/70"
-                  />
-                </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleForgotPassword} disabled={loading}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                  Send Reset Link
-                </Button>
-                <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError('') }}>
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
-                </Button>
-              </div>
-            ) : (
-              <div className="py-6 space-y-4 text-center">
-                <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                <p className="text-sm text-muted-foreground">
-                  A password reset link was sent to <span className="font-medium text-gray-700">{fpEmail}</span>.
-                  Check your inbox.
-                </p>
-                <Button className="w-full bg-primary hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email-input'); setFpEmail('') }}>
-                  Back to Sign In
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ── Unverified account recovery (authflow.md §7) ── */}
-        {view === 'unverified' && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="elegant-heading">Verify Your Account</DialogTitle>
-              <DialogDescription>
-                Your account hasn't been verified yet. Resend the verification email below.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              {!resendSent ? (
-                <>
-                  <p className="text-sm text-gray-600">
-                    Account: <span className="font-medium">{unverifiedUser?.email}</span>
-                  </p>
+              {fpStep === 'email-input' ? (
+                <div className="space-y-4 py-2">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium">Password (to confirm it's you)</label>
+                    <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Email</label>
                     <Input
-                      type="password"
-                      value={resendPassword}
-                      onChange={e => setResendPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="bg-white/70"
+                      type="email"
+                      value={fpEmail}
+                      onChange={e => setFpEmail(e.target.value)}
+                      placeholder="jane@example.com"
+                      className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400"
                     />
                   </div>
                   {error && <p className="text-sm text-red-500">{error}</p>}
-                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleResendVerification} disabled={loading}>
+                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleForgotPassword} disabled={loading}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                    Resend Verification Email
+                    Send Reset Link
                   </Button>
-                </>
+                  <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError('') }}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
+                  </Button>
+                </div>
               ) : (
-                <div className="text-center space-y-3 py-2">
-                  <CheckCircle className="h-10 w-10 text-green-500 mx-auto" />
+                <div className="py-6 space-y-4 text-center">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
                   <p className="text-sm text-muted-foreground">
-                    Verification email resent to <span className="font-medium">{unverifiedUser?.email}</span>.
-                    After verifying, sign in again.
+                    A password reset link was sent to <span className="font-medium text-gray-700">{fpEmail}</span>.
+                    Check your inbox.
                   </p>
+                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email-input'); setFpEmail('') }}>
+                    Back to Sign In
+                  </Button>
                 </div>
               )}
-              <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError(''); setResendSent(false) }}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
-              </Button>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {/* ── Default sign-in view ── */}
-        {view === 'default' && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="elegant-heading">Welcome Back</DialogTitle>
-              <DialogDescription>Sign in to continue planning your perfect wedding.</DialogDescription>
-            </DialogHeader>
-
-            {/* Google */}
-            <Button variant="outline" className="w-full flex items-center gap-2 mt-2" onClick={handleGoogle} disabled={loading}>
-              <GoogleIcon /> Continue with Google
-            </Button>
-
-            <div className="relative my-1">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-muted-foreground">Or</span>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-3">
-              {(['email', 'phone'] as Tab[]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => { setTab(t); setError('') }}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${tab === t ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
-                </button>
-              ))}
-            </div>
-
-            {/* Email tab */}
-            {tab === 'email' && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Email</label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="bg-white/70" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">Password</label>
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto text-xs text-primary"
-                      onClick={() => { setView('forgot'); setFpEmail(email); setError('') }}
-                    >
-                      Forgot password?
+          {/* ── Unverified account recovery (authflow.md §7) ── */}
+          {view === 'unverified' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="elegant-heading">Verify Your Account</DialogTitle>
+                <DialogDescription>
+                  Your account hasn't been verified yet. Resend the verification email below.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                {!resendSent ? (
+                  <>
+                    <p className="text-sm text-gray-600">
+                      Account: <span className="font-medium">{unverifiedUser?.email}</span>
+                    </p>
+                    <div className="space-y-1">
+                      <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Password (to confirm it's you)</label>
+                      <Input
+                        type="password"
+                        value={resendPassword}
+                        onChange={e => setResendPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400"
+                      />
+                    </div>
+                    {error && <p className="text-sm text-red-500">{error}</p>}
+                    <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleResendVerification} disabled={loading}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                      Resend Verification Email
                     </Button>
+                  </>
+                ) : (
+                  <div className="text-center space-y-3 py-2">
+                    <CheckCircle className="h-10 w-10 text-green-500 mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      Verification email resent to <span className="font-medium">{unverifiedUser?.email}</span>.
+                      After verifying, sign in again.
+                    </p>
                   </div>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleEmailSignIn()}
-                    placeholder="••••••••"
-                    className="bg-white/70"
-                  />
-                </div>
-
-                {/* Remember me */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    checked={rememberMe}
-                    onChange={e => setRememberMe(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  <label htmlFor="remember" className="text-sm text-muted-foreground">Remember me</label>
-                </div>
-
-                {error && <p className="text-sm text-red-500">{error}</p>}
-
-                <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleEmailSignIn} disabled={loading}>
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                  Sign In with Email
+                )}
+                <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError(''); setResendSent(false) }}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
                 </Button>
               </div>
-            )}
+            </>
+          )}
 
-            {/* Phone tab */}
-            {tab === 'phone' && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Phone Number</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="tel"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      placeholder="+1 555 123 4567"
-                      className="bg-white/70 flex-1"
-                      disabled={otpSent}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={otpSent ? handleSendOtp : handleSendOtp}
-                      disabled={loading || (otpSent && otpTimer > 0)}
-                      className="whitespace-nowrap"
-                    >
-                      {loading && !otpSent ? <Loader2 className="h-4 w-4 animate-spin" /> : otpSent ? (otpTimer > 0 ? `Resend (${otpTimer}s)` : 'Resend') : 'Send OTP'}
-                    </Button>
-                  </div>
+          {/* ── Default sign-in view ── */}
+          {view === 'default' && (
+            <>
+              <DialogHeader className="text-center space-y-4">
+                {/* Viva Logo */}
+                <div className="flex flex-col items-center">
+                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
+                  <div className="font-label uppercase tracking-[0.2em] text-[10px] text-stone-400">Digital Concierge</div>
                 </div>
+                <DialogTitle className="font-headline text-3xl tracking-tight">Welcome back</DialogTitle>
+                <DialogDescription className="text-stone-500 text-sm">Your wedding planning journey continues here.</DialogDescription>
+              </DialogHeader>
 
-                {otpSent && (
+              {/* Google */}
+              <button
+                onClick={handleGoogle}
+                disabled={loading}
+                className="w-full h-14 rounded-xl bg-white border border-stone-200 flex items-center justify-center gap-3 text-stone-800 font-medium hover:bg-stone-50 hover:border-stone-300 transition-all mt-2 disabled:opacity-50"
+              >
+                <GoogleIcon /> Continue with Google
+              </button>
+
+              <div className="flex items-center gap-4 my-6">
+                <div className="h-[1px] flex-1 bg-stone-200"></div>
+                <span className="font-label uppercase tracking-widest text-[10px] text-stone-400">or</span>
+                <div className="h-[1px] flex-1 bg-stone-200"></div>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex bg-[#EBE4D9] p-1 rounded-full gap-1 mb-4">
+                {(['email', 'phone'] as Tab[]).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { setTab(t); setError('') }}
+                    className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${tab === t ? 'bg-primary text-white shadow-sm' : 'text-stone-600 hover:bg-white/50'}`}
+                  >
+                    {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
+                  </button>
+                ))}
+              </div>
+
+              {/* Email tab */}
+              {tab === 'email' && (
+                <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium">Verification Code</label>
+                    <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Email</label>
+                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Password</label>
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto text-xs text-primary"
+                        onClick={() => { setView('forgot'); setFpEmail(email); setError('') }}
+                      >
+                        Forgot password?
+                      </Button>
+                    </div>
                     <Input
-                      value={otp}
-                      onChange={e => setOtp(e.target.value)}
-                      placeholder="6-digit code"
-                      maxLength={6}
-                      className="bg-white/70 text-center tracking-widest text-lg"
-                      onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleEmailSignIn()}
+                      placeholder="••••••••"
+                      className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400"
                     />
                   </div>
-                )}
 
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                  {/* Remember me */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="remember"
+                      checked={rememberMe}
+                      onChange={e => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <label htmlFor="remember" className="text-sm text-muted-foreground">Remember me</label>
+                  </div>
 
-                {otpSent && (
-                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleVerifyOtp} disabled={loading || otp.length < 6}>
+                  {error && <p className="text-sm text-red-500">{error}</p>}
+
+                  <Button className="w-full h-14 rounded-xl bg-primary text-white font-semibold tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleEmailSignIn} disabled={loading}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Verify & Sign In
+                    Sign in
                   </Button>
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* Switch to sign up */}
-            <p className="text-center text-sm pt-1">
-              <span className="text-muted-foreground">Don't have an account? </span>
-              <Button variant="link" className="p-0 h-auto font-semibold" onClick={() => switchToSignUp()}>
-                Sign up
-              </Button>
-            </p>
-          </>
-        )}
+              {/* Phone tab */}
+              {tab === 'phone' && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Phone Number</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="tel"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        placeholder="+1 555 123 4567"
+                        className="bg-white/70 flex-1"
+                        disabled={otpSent}
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={otpSent ? handleSendOtp : handleSendOtp}
+                        disabled={loading || (otpSent && otpTimer > 0)}
+                        className="whitespace-nowrap"
+                      >
+                        {loading && !otpSent ? <Loader2 className="h-4 w-4 animate-spin" /> : otpSent ? (otpTimer > 0 ? `Resend (${otpTimer}s)` : 'Resend') : 'Send OTP'}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {otpSent && (
+                    <div className="space-y-1">
+                      <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Verification Code</label>
+                      <Input
+                        value={otp}
+                        onChange={e => setOtp(e.target.value)}
+                        placeholder="6-digit code"
+                        maxLength={6}
+                        className="bg-white/70 text-center tracking-widest text-lg"
+                        onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
+                      />
+                    </div>
+                  )}
+
+                  {error && <p className="text-sm text-red-500">{error}</p>}
+
+                  {otpSent && (
+                    <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleVerifyOtp} disabled={loading || otp.length < 6}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Verify & Sign In
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Switch to sign up */}
+              <div className="mt-8 text-center">
+                <p className="text-stone-500 text-sm">
+                  Don't have an account?{' '}
+                  <button className="text-primary font-bold ml-1 hover:underline" onClick={() => switchToSignUp()}>
+                    Sign up
+                  </button>
+                </p>
+              </div>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

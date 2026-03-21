@@ -47,6 +47,7 @@ export interface ChecklistItem {
   text: string
   completed: boolean
   vendorRef: string | null  // product URL if linked to a vendor
+  dueDate: string | null    // ISO date string (YYYY-MM-DD)
 }
 
 export interface Checklist {
@@ -62,6 +63,9 @@ export interface ChatThread {
   id: string
   userId: string
   title: string
+  pinned: boolean
+  archived: boolean
+  tags: string[]
   createdAt: Timestamp
   updatedAt: Timestamp
   activeMode: Mode
@@ -118,9 +122,10 @@ export interface CalendarEventDoc {
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'web_search'
   checklistId?: string
   itemId?: string
+  searchQuery?: string
 }
 
 export interface ChatFunctionResponse {

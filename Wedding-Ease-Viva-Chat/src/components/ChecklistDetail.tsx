@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { CheckSquare, X, Pencil, Trash2, Plus, Check } from 'lucide-react'
+import { CheckSquare, X, Pencil, Trash2, Plus, Check, Calendar, AlertTriangle } from 'lucide-react'
 import {
   subscribeToChecklists,
   toggleItemDone,
   updateChecklistItem,
   addChecklistItem,
   deleteChecklistItem,
+  updateItemDueDate,
 } from '@/services/checklistService'
-import type { Checklist } from '@/types'
+import type { Checklist, ChecklistItem } from '@/types'
 
 function renderItemText(text: string, favourites: string[]): React.ReactNode {
   const parts = text.split(/(\[\[Vendor:[^\]]+\]\])/g)
@@ -50,7 +51,9 @@ export default function ChecklistDetail({
   const [editText, setEditText] = useState('')
   const [newItemText, setNewItemText] = useState('')
   const [showAddInput, setShowAddInput] = useState(false)
+  const [editingDueDateId, setEditingDueDateId] = useState<string | null>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
+  const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
     const unsub = subscribeToChecklists(userId, setChecklists)
@@ -72,8 +75,25 @@ export default function ChecklistDetail({
     )
   }
 
+  // Sort: overdue first, then by due date, then items without due dates
+  const sortedItems = [...checklist.items].sort((a, b) => {
+    // Completed items go last
+    if (a.completed !== b.completed) return a.completed ? 1 : -1
+    // Overdue items first
+    const aOverdue = !a.completed && a.dueDate && a.dueDate < today
+    const bOverdue = !b.completed && b.dueDate && b.dueDate < today
+    if (aOverdue && !bOverdue) return -1
+    if (!aOverdue && bOverdue) return 1
+    // Then by due date (earliest first)
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate)
+    if (a.dueDate && !b.dueDate) return -1
+    if (!a.dueDate && b.dueDate) return 1
+    return 0
+  })
+
   const done = checklist.items.filter(i => i.completed).length
   const total = checklist.items.length
+  const overdue = checklist.items.filter(i => !i.completed && i.dueDate && i.dueDate < today).length
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   async function handleToggle(itemId: string) {
@@ -100,6 +120,11 @@ export default function ChecklistDetail({
     await deleteChecklistItem(userId, checklist!.id, itemId)
   }
 
+  async function handleDueDateChange(itemId: string, date: string) {
+    await updateItemDueDate(userId, checklist!.id, itemId, date || null)
+    setEditingDueDateId(null)
+  }
+
   return (
     <div className="flex flex-col h-full bg-white/60 backdrop-blur-sm rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
 
@@ -111,7 +136,10 @@ export default function ChecklistDetail({
           </div>
           <div>
             <h2 className="text-base font-semibold text-gray-800">{checklist.title}</h2>
-            <p className="text-xs text-gray-400">{done} of {total} tasks completed</p>
+            <p className="text-xs text-gray-400">
+              {done} of {total} completed
+              {overdue > 0 && <span className="ml-1.5 text-red-500 font-medium">· {overdue} overdue</span>}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -174,7 +202,7 @@ export default function ChecklistDetail({
 
       {/* Items list */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {checklist.items.length === 0 ? (
+        {sortedItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-400">
             <CheckSquare className="h-8 w-8 mb-2 opacity-20" />
             <p className="text-sm">No items yet.</p>
@@ -186,92 +214,135 @@ export default function ChecklistDetail({
             </button>
           </div>
         ) : (
-          checklist.items.map((item, idx) => {
+          sortedItems.map((item, idx) => {
             const justToggled = recentlyToggledItemIds.includes(item.id)
             const isEditing = editingItemId === item.id
+            const isOverdue = !item.completed && item.dueDate && item.dueDate < today
 
             return (
               <div
                 key={item.id}
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 group ${
-                  item.completed
+                className={`flex flex-col gap-1 p-3 rounded-xl border transition-all duration-200 group ${
+                  isOverdue
+                    ? 'bg-red-50/50 border-red-200'
+                    : item.completed
                     ? 'bg-emerald-50/50 border-emerald-100'
                     : 'bg-white/70 border-gray-100 hover:border-blue-100 hover:bg-white/90'
                 } ${justToggled ? 'ring-2 ring-blue-300 ring-offset-1' : ''}`}
               >
-                {/* Number badge */}
-                <span className={`flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  item.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-50 text-blue-400'
-                }`}>
-                  {item.completed ? '✓' : idx + 1}
-                </span>
-
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={item.completed}
-                  onChange={() => handleToggle(item.id)}
-                  className="h-4 w-4 rounded accent-blue-500 flex-shrink-0 cursor-pointer"
-                />
-
-                {/* Text / edit input */}
-                {isEditing ? (
-                  <input
-                    autoFocus
-                    value={editText}
-                    onChange={e => setEditText(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') submitEdit(item.id)
-                      if (e.key === 'Escape') { setEditingItemId(null); setEditText('') }
-                    }}
-                    onBlur={() => submitEdit(item.id)}
-                    className="flex-1 text-sm bg-white border border-blue-200 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-300"
-                  />
-                ) : (
-                  <span
-                    className={`flex-1 text-sm leading-snug ${
-                      item.completed ? 'line-through text-gray-400' : 'text-gray-700'
-                    }`}
-                  >
-                    {renderItemText(item.text, favourites)}
+                <div className="flex items-center gap-3">
+                  {/* Number badge */}
+                  <span className={`flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    isOverdue ? 'bg-red-100 text-red-600' : item.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-50 text-blue-400'
+                  }`}>
+                    {isOverdue ? '!' : item.completed ? '✓' : idx + 1}
                   </span>
-                )}
 
-                {/* Action buttons — always visible on mobile, hover on desktop */}
-                {!isEditing && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    <button
-                      onClick={() => { setEditingItemId(item.id); setEditText(item.text) }}
-                      className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
-                      title="Edit"
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={item.completed}
+                    onChange={() => handleToggle(item.id)}
+                    className="h-4 w-4 rounded accent-blue-500 flex-shrink-0 cursor-pointer"
+                  />
+
+                  {/* Text / edit input */}
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      value={editText}
+                      onChange={e => setEditText(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') submitEdit(item.id)
+                        if (e.key === 'Escape') { setEditingItemId(null); setEditText('') }
+                      }}
+                      onBlur={() => submitEdit(item.id)}
+                      className="flex-1 text-sm bg-white border border-blue-200 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-300"
+                    />
+                  ) : (
+                    <span
+                      className={`flex-1 text-sm leading-snug ${
+                        item.completed ? 'line-through text-gray-400' : 'text-gray-700'
+                      }`}
                     >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                      {renderItemText(item.text, favourites)}
+                    </span>
+                  )}
+
+                  {/* Action buttons — always visible on mobile, hover on desktop */}
+                  {!isEditing && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <button
+                        onClick={() => setEditingDueDateId(editingDueDateId === item.id ? null : item.id)}
+                        className={`h-7 w-7 flex items-center justify-center rounded-lg transition-colors ${
+                          item.dueDate ? 'text-blue-400 hover:text-blue-700 hover:bg-blue-70' : 'text-gray-500 hover:text-blue-500 hover:bg-blue-50'
+                        }`}
+                        title="Set due date"
+                      >
+                        <Calendar className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => { setEditingItemId(item.id); setEditText(item.text) }}
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-50 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Confirm / cancel while editing */}
+                  {isEditing && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => submitEdit(item.id)}
+                        className="h-6 w-6 flex items-center justify-center rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                      >
+                        <Check className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => { setEditingItemId(null); setEditText('') }}
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Due date row */}
+                {editingDueDateId === item.id && (
+                  <div className="flex items-center gap-2 ml-12 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <input
+                      type="date"
+                      value={item.dueDate ?? ''}
+                      onChange={e => handleDueDateChange(item.id, e.target.value)}
+                      className="text-xs border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 bg-white"
+                    />
+                    {item.dueDate && (
+                      <button
+                        onClick={() => handleDueDateChange(item.id, '')}
+                        className="text-[10px] text-gray-400 hover:text-red-400 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </div>
                 )}
-
-                {/* Confirm / cancel while editing */}
-                {isEditing && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => submitEdit(item.id)}
-                      className="h-6 w-6 flex items-center justify-center rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                    >
-                      <Check className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => { setEditingItemId(null); setEditText('') }}
-                      className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                {item.dueDate && editingDueDateId !== item.id && (
+                  <div className={`ml-12 text-[10px] font-medium flex items-center gap-1 ${
+                    isOverdue ? 'text-red-500' : 'text-gray-400'
+                  }`}>
+                    {isOverdue && <AlertTriangle className="h-2.5 w-2.5" />}
+                    Due {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {isOverdue && ' — Overdue'}
                   </div>
                 )}
               </div>
@@ -288,6 +359,7 @@ export default function ChecklistDetail({
             : `${total - done} task${total - done !== 1 ? 's' : ''} remaining`}
         </p>
         <div className="flex gap-3 text-[10px] font-medium">
+          {overdue > 0 && <span className="text-red-500">⚠ {overdue} Overdue</span>}
           <span className="text-amber-500">📋 {total - done} To-Do</span>
           <span className="text-emerald-500">✅ {done} Done</span>
         </div>

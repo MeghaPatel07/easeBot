@@ -18,6 +18,11 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				headline: ['Noto Serif', 'serif'],
+				body: ['Inter', 'sans-serif'],
+				label: ['Inter', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -25,12 +30,14 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#a2b29d',
-					foreground: 'hsl(var(--primary-foreground))'
+					DEFAULT: '#A2B29D',
+					foreground: 'hsl(var(--primary-foreground))',
+					container: '#DDE6C7',
 				},
 				secondary: {
-					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))'
+					DEFAULT: '#4A5568',
+					foreground: 'hsl(var(--secondary-foreground))',
+					container: '#E2E8F0',
 				},
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
@@ -61,12 +68,33 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Surface tokens (Stitch M3 style)
+				surface: {
+					DEFAULT: 'hsl(var(--surface))',
+					container: 'hsl(var(--surface-container))',
+					'container-low': 'hsl(var(--surface-container-low))',
+					'container-high': 'hsl(var(--surface-container-high))',
+					'container-highest': 'hsl(var(--surface-container-highest))',
+				},
+				outline: {
+					DEFAULT: 'hsl(var(--outline))',
+					variant: 'hsl(var(--outline-variant))',
+				},
+				// Mode colors (Stitch palette)
+				'mode-auto': '#71717A',
+				'mode-planner': '#A2B29D',
+				'mode-stylist': '#D4AF37',
+				'mode-therapist': '#64748B',
+				'mode-knowledge': '#334155',
+				'mode-consultant': '#A87C33',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				sm: 'calc(var(--radius) - 4px)',
+				'2xl': '1rem',
+				'3xl': '1.5rem',
 			},
 			keyframes: {
 				'accordion-down': {

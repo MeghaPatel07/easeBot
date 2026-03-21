@@ -76,7 +76,7 @@ async function hitToProduct(hit: AlgoliaVariantHit): Promise<ProductResult | nul
     currency: 'INR',
     vendor: '',
     tags: [],
-    productUrl: `https://weddingease.ai/product-detail/${productDocId}`,
+    productUrl: `https://migration-testshiv97.web.app/product-detail/${productDocId}`,
     imageUrl,
     rating: 0,
   }

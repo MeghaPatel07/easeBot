@@ -14,7 +14,7 @@ import { getKnowledgePrompt } from '../prompts/knowledge'
 import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
 import { getGuestPrompt } from '../prompts/guest'
-import { PLANNER_TOOLS, executeToolCall } from '../services/plannerTools'
+import { PLANNER_TOOLS, WEB_SEARCH_TOOL, executeToolCall } from '../services/plannerTools'
 import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction } from '../types'
 
 const db = admin.firestore()
@@ -48,6 +48,9 @@ function buildLanguageRule(detectedLanguage: string): string {
 
 const IMAGE_CAPABILITY_NOTE =
   ` CRITICAL RULE — IMAGE GENERATION: You CAN generate images. When the user asks for an image, picture, or visual, respond with enthusiasm, confirm you are generating it, and briefly describe what it will look like. The image will appear automatically below your reply. NEVER say you cannot create or generate images. This is a hard rule with no exceptions.`
+
+const WEB_SEARCH_CAPABILITY_NOTE =
+  ` WEB SEARCH: You have a web_search tool to find real-time information. USE IT when the user asks about: current prices, local vendors/venues/services, availability, reviews, "near me" queries, recent wedding trends, or anything where up-to-date data matters. After searching, synthesize the results into a helpful answer and include source links as inline citations like [Source](url). Do NOT guess prices or availability — search first.`
 
 async function buildSystemPrompt(
   mode: Mode,
@@ -126,13 +129,15 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // Logged-in users get full mode-specific prompts (max 800 tokens).
     // Guests get a compact prompt and capped at 300 tokens to minimise cost.
     const systemPrompt = isLoggedIn
-      ? await buildSystemPrompt(mode, englishText, detectedLanguage, userRole) + IMAGE_CAPABILITY_NOTE
+      ? await buildSystemPrompt(mode, englishText, detectedLanguage, userRole) + IMAGE_CAPABILITY_NOTE + WEB_SEARCH_CAPABILITY_NOTE
       : getGuestPrompt() + buildLanguageRule(detectedLanguage) + IMAGE_CAPABILITY_NOTE
 
     const maxTokens = isLoggedIn ? 800 : 300
 
-    // For planner mode (logged-in only), enable function calling
-    const tools = (isLoggedIn && mode === 'planner') ? PLANNER_TOOLS : undefined
+    // For logged-in users: planner gets full tools + web search; other modes get web search only
+    const tools = isLoggedIn
+      ? (mode === 'planner' ? [...PLANNER_TOOLS, WEB_SEARCH_TOOL] : [WEB_SEARCH_TOOL])
+      : undefined
 
     const aiResult = await callAzureAI(history, englishText, systemPrompt, maxTokens, tools)
 

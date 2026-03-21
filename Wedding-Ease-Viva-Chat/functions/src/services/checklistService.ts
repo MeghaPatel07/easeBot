@@ -8,6 +8,7 @@ export interface ChecklistItem {
   text: string
   completed: boolean
   vendorRef: string | null
+  dueDate: string | null  // ISO date string (YYYY-MM-DD)
 }
 
 export interface Checklist {
@@ -32,15 +33,17 @@ function checklistsRef(userId: string) {
 export async function createChecklist(
   userId: string,
   title: string,
-  itemTexts: string[]
+  itemTexts: string[],
+  dueDates?: (string | null)[]
 ): Promise<Checklist> {
   const id = uuid()
   const now = admin.firestore.Timestamp.now()
-  const items: ChecklistItem[] = itemTexts.map(text => ({
+  const items: ChecklistItem[] = itemTexts.map((text, i) => ({
     id: uuid(),
     text,
     completed: false,
     vendorRef: null,
+    dueDate: dueDates?.[i] ?? null,
   }))
 
   const doc: Checklist = { id, userId, title, items, createdAt: now, updatedAt: now }

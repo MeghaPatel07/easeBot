@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(curl -s https://en.wikipedia.org/wiki/ChatGPT)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(echo \"EXIT: $?\")"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { collection, query, orderBy, where, getDocs } from 'firebase/firestore'
+import { collection, query, orderBy, where, getDocs, DocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -9,6 +9,11 @@ import {
   updateThreadTitle,
   deleteThread as deleteThreadDoc,
   toggleLikeMessage,
+  togglePinThread,
+  archiveThread as archiveThreadDoc,
+  updateThreadTags as updateThreadTagsDoc,
+  loadLatestMessages,
+  loadOlderMessages,
   type NewMessage,
 } from '@/services/chatService'
 import { streamChatMessage, generateImage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
@@ -26,6 +31,8 @@ export interface Message {
   calendarEvent?: CalendarEvent | null
   calendarAdded?: boolean   // true once successfully added to Google Calendar
   convertToTable?: boolean  // true when AI returned a budget/guest list
+  truncated?: boolean       // true when response appears cut off (token limit)
+  language?: string         // detected response language (BCP-47)
   threadId?: string
 }
 
@@ -37,6 +44,7 @@ export interface UseChatResult {
   allLikedMessages: Message[]
   calendarEvents: CalendarEventDoc[]
   lastToolActions: ToolAction[]
+  hasMoreMessages: boolean
   sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string) => Promise<void>
   stopGeneration: () => void
   loadChat: (threadId: string) => Promise<void>
@@ -44,7 +52,12 @@ export interface UseChatResult {
   deleteThread: (threadId: string) => Promise<void>
   renameThread: (threadId: string, title: string) => Promise<void>
   truncateMessages: (toIndex: number) => void
+  restoreMessages: (msgs: Message[]) => void
   toggleLike: (messageId: string) => Promise<void>
+  pinThread: (threadId: string, pinned: boolean) => Promise<void>
+  archiveThread: (threadId: string, archived: boolean) => Promise<void>
+  updateThreadTags: (threadId: string, tags: string[]) => Promise<void>
+  loadMoreMessages: () => Promise<void>
 }
 
 export function useChat(): UseChatResult {
@@ -57,6 +70,8 @@ export function useChat(): UseChatResult {
   const [allLikedMessages, setAllLikedMessages] = useState<Message[]>([])
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventDoc[]>([])
   const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
+  const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const firstDocRef = useRef<DocumentSnapshot | null>(null)
 
   // Keep refs so callbacks always see latest values without needing them as deps
   const messagesRef = useRef<Message[]>(messages)
@@ -152,6 +167,26 @@ export function useChat(): UseChatResult {
   // ── Image intent detection (mirrors backend regex) ────────────────────────
   const IMAGE_INTENT_RE =
     /\b(generate|create|make|show|draw|design|visualize|render)\b.{0,60}\b(images?|pictures?|photos?|visuals?|illustrations?|mockups?|renders?|sketches?)\b/i
+
+  // ── Truncation detection (response ends mid-sentence) ────────────────────
+  const isTruncated = (text: string): boolean => {
+    const trimmed = text.trim()
+    if (!trimmed || trimmed.length < 100) return false
+    
+    // Check if user explicitly stopped the generation
+    if (trimmed.includes('*You stopped this response*')) return true
+    
+    const lastChar = trimmed[trimmed.length - 1]
+    // Ends with sentence-ending punctuation or quote/bracket → not truncated
+    if (/[.!?)\]}"']/.test(lastChar)) return false
+    
+    // Ends with colon (common in structured responses) → not truncated
+    if (lastChar === ':') return false
+    
+    // Ends mid-word or mid-sentence without clear completion marker → likely truncated
+    // But be conservative - only mark as truncated if it looks like incomplete text
+    return /[a-zA-Z0-9]$/.test(trimmed) && !trimmed.endsWith('...') && trimmed.split('\n').length === 1
+  }
 
   // ── Smart Blocks: detect budget breakdowns and guest lists ────────────────
   const TABLE_CONTENT_RE =
@@ -276,6 +311,8 @@ export function useChat(): UseChatResult {
         calendarEvent: finalMeta!.calendarEvent ?? null,
         calendarAdded,
         convertToTable: TABLE_CONTENT_RE.test(finalMeta!.text || streamedText),
+        truncated: isTruncated(finalMeta!.text || streamedText),
+        language: finalMeta!.detectedLanguage || 'en',
       } : m))
 
       // Persist assistant message to Firestore
@@ -291,7 +328,35 @@ export function useChat(): UseChatResult {
         } as NewMessage)
       }
     } catch (err: any) {
-      if (err.name === 'AbortError') return
+      if (err.name === 'AbortError') {
+        // Mark the partial AI message as stopped
+        const last = messagesRef.current[messagesRef.current.length - 1]
+        const stoppedText = last && last.sender === 'ai'
+          ? (last.text ? last.text + '\n\n---\n*You stopped this response*' : '*You stopped this response*')
+          : '*You stopped this response*'
+
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1]
+          if (lastMsg && lastMsg.sender === 'ai') {
+            return [...prev.slice(0, -1), { ...lastMsg, text: stoppedText }]
+          }
+          return prev
+        })
+
+        // Persist stopped response to Firestore
+        if (user && threadId) {
+          addMessage(threadId, {
+            role: 'assistant',
+            content: stoppedText,
+            originalContent: null,
+            mode: (mode ?? 'assistant') as Mode,
+            language: 'en',
+            audioUrl: null,
+            liked: false,
+          } as NewMessage).catch(e => console.error('[useChat] persist stopped msg error:', e))
+        }
+        return
+      }
       console.error('[useChat] sendMessage error:', err)
       setMessages((prev) => [
         ...prev,
@@ -347,33 +412,55 @@ export function useChat(): UseChatResult {
     abortControllerRef.current?.abort()
   }, [])
 
-  // ── Load a thread from Firestore ───────────────────────────────────────────
+  // ── Load a thread from Firestore (paginated — latest 30) ──────────────────
   const loadChat = useCallback(async (threadId: string) => {
     if (threadId === activeThreadIdRef.current) return
     setActiveThreadId(threadId)
     activeThreadIdRef.current = threadId
     try {
-      const snap = await getDocs(
-        query(collection(db, 'chats', threadId, 'messages'), orderBy('timestamp', 'asc'))
-      )
+      const result = await loadLatestMessages(threadId)
+      setHasMoreMessages(result.hasMore)
+      firstDocRef.current = result.firstDoc
       setMessages(
-        snap.docs.map((d) => {
-          const data = d.data() as ChatMessage
-          return {
-            id: d.id,
-            text: data.content,
-            sender: data.role === 'user' ? 'user' : 'ai',
-            timestamp: data.timestamp?.toDate?.() ?? new Date(),
-            mode: data.mode,
-            liked: data.liked ?? false,
-            audioUrl: data.audioUrl ?? null,
-          }
-        })
+        result.messages.map((data) => ({
+          id: data.id,
+          text: data.content,
+          sender: data.role === 'user' ? 'user' : 'ai',
+          timestamp: data.timestamp?.toDate?.() ?? new Date(),
+          mode: data.mode,
+          liked: data.liked ?? false,
+          audioUrl: data.audioUrl ?? null,
+          language: data.language || 'en',
+        } as Message))
       )
     } catch (err) {
       console.error('[useChat] loadChat error:', err)
     }
   }, [])
+
+  // ── Load older messages (pagination) ────────────────────────────────────────
+  const loadMoreMessages = useCallback(async () => {
+    const threadId = activeThreadIdRef.current
+    if (!threadId || !firstDocRef.current || !hasMoreMessages) return
+    try {
+      const result = await loadOlderMessages(threadId, firstDocRef.current)
+      setHasMoreMessages(result.hasMore)
+      firstDocRef.current = result.firstDoc
+      const older: Message[] = result.messages.map((data) => ({
+        id: data.id,
+        text: data.content,
+        sender: data.role === 'user' ? 'user' : 'ai',
+        timestamp: data.timestamp?.toDate?.() ?? new Date(),
+        mode: data.mode,
+        liked: data.liked ?? false,
+        audioUrl: data.audioUrl ?? null,
+        language: data.language || 'en',
+      }))
+      setMessages(prev => [...older, ...prev])
+    } catch (err) {
+      console.error('[useChat] loadMoreMessages error:', err)
+    }
+  }, [hasMoreMessages])
 
   // ── New chat ───────────────────────────────────────────────────────────────
   const startNewChat = useCallback(() => {
@@ -399,9 +486,29 @@ export function useChat(): UseChatResult {
     await updateThreadTitle(threadId, title)
   }, [])
 
+  // ── Pin / unpin thread ────────────────────────────────────────────────────
+  const pinThread = useCallback(async (threadId: string, pinned: boolean) => {
+    await togglePinThread(threadId, pinned)
+  }, [])
+
+  // ── Archive / unarchive thread ──────────────────────────────────────────
+  const archiveThread = useCallback(async (threadId: string, archived: boolean) => {
+    await archiveThreadDoc(threadId, archived)
+  }, [])
+
+  // ── Update thread tags ─────────────────────────────────────────────────
+  const updateThreadTags = useCallback(async (threadId: string, tags: string[]) => {
+    await updateThreadTagsDoc(threadId, tags)
+  }, [])
+
   // ── Truncate messages (for edit / regenerate flows in UI) ─────────────────
   const truncateMessages = useCallback((toIndex: number) => {
     setMessages((prev) => prev.slice(0, toIndex))
+  }, [])
+
+  // ── Restore messages (for branch switching) ────────────────────────────────
+  const restoreMessages = useCallback((msgs: Message[]) => {
+    setMessages(msgs)
   }, [])
 
   return {
@@ -412,6 +519,7 @@ export function useChat(): UseChatResult {
     allLikedMessages,
     calendarEvents,
     lastToolActions,
+    hasMoreMessages,
     sendMessage,
     stopGeneration,
     loadChat,
@@ -419,6 +527,11 @@ export function useChat(): UseChatResult {
     deleteThread,
     renameThread,
     truncateMessages,
+    restoreMessages,
     toggleLike,
+    pinThread,
+    archiveThread,
+    updateThreadTags,
+    loadMoreMessages,
   }
 }
