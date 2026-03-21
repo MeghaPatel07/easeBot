@@ -306,14 +306,8 @@ Run through these steps for a fast overall verification:
 7. **Archive** it → verify it moves to Archived section → Unarchive
 8. **Share** the thread → open link in incognito → verify read-only view
 9. **Planner** sidebar → check checklist with due dates → set one overdue
-10. **Budget** sidebar → set total $50K → add category → add line item → toggle paid
-11. **Shopping** sidebar → create list → add items → mark purchased
 12. **Saved** sidebar → add a bookmark → change category → filter
 13. **Timeline** sidebar → verify timeline entries from checklists/events
-14. **Progress** sidebar → verify readiness score and suggestions
-15. **Alerts** sidebar → verify overdue notifications generated
-16. **Collaborate** sidebar → invite a test email → verify pending status
-17. **Keyboard** → press `Ctrl+/` → overlay appears → `Escape` closes
 18. **Search** → type a word from a message → verify message-level results
 19. **Edit message** → change it → navigate branches with arrows
 20. **TTS** → hover AI message → click play → hear speech

@@ -1052,7 +1052,7 @@ const Index = () => {
                   </h3>
                   <div className="space-y-0.5 px-1">
                     {pinnedThreads.map(thread => (
-                      <div key={thread.id} className="group relative flex items-start gap-1 rounded-xl overflow-hidden py-1 px-2">
+                      <div key={thread.id} className="group relative flex items-start gap-1 rounded-md overflow-hidden py-1 px-2">
                         {renamingThreadId === thread.id ? (
                           <input
                             autoFocus
@@ -1130,7 +1130,7 @@ const Index = () => {
                     <h4 className="mb-2.5 px-3 uppercase tracking-[0.15em] text-[10px] text-stone-600 font-bold">{dateKey}</h4>
                     <div className="space-y-0.5">
                       {groupedThreads[dateKey].map(thread => (
-                        <div key={thread.id} className="group relative flex items-start gap-1 rounded-xl overflow-hidden py-1 px-2">
+                        <div key={thread.id} className="group relative flex items-start gap-1 rounded-md overflow-hidden py-1 px-2">
                           {renamingThreadId === thread.id ? (
                             <input
                               autoFocus
@@ -1147,9 +1147,9 @@ const Index = () => {
                             <>
                               <button
                                 onClick={() => { handleLoadChat(thread.id); setSidebarView('history'); }}
-                                className={`flex-1 text-left text-sm rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'bg-white text-[#A2B29D] font-bold shadow-md border border-[#A2B29D]/10' : 'text-stone-600 hover:text-[#A2B29D] hover:bg-white/60 hover:shadow-sm'}`}
+                                className={`flex-1 text-left text-sm rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'p-2 bg-white text-[#A2B29D] shadow-md border border-[#A2B29D]/10' : 'p-1 text-stone-600 hover:text-[#A2B29D] hover:bg-white/60 hover:shadow-sm'}`}
                               >
-                                <span className="truncate block">{thread.title}</span>
+                                <span className=" truncate block">{thread.title}</span>
                                 {(thread.tags ?? []).length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {thread.tags.map(tag => (
