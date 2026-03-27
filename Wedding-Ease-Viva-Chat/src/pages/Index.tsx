@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Sparkles, Heart, MessageSquare, Calendar, Lightbulb,
-  User, LogIn, UserPlus, Smartphone, LogOut, PanelLeft, Plus,
+  User, LogIn, UserPlus, Smartphone, LogOut, PanelLeft, Plus, SquarePen,
   Search, ChevronDown, ChevronRight, Bookmark, Image, CheckSquare,
   ShoppingCart, DollarSign, Copy, Download, ThumbsUp, Edit3, Lock,
   MoreHorizontal, Pencil, Trash2, StopCircle, RefreshCw, ArrowLeft,
@@ -934,75 +934,20 @@ const Index = () => {
   ];
 
   const sidebarJSX = (
-    <aside className={`fixed left-0 top-0 h-full flex flex-col bg-[#f4f4ed] border-r border-[#EBE4D9] shadow-[4px_0_12px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out z-30 font-body ${isSidebarOpen ? 'w-[280px]' : 'w-0'} overflow-hidden`}>
-      <div className="flex flex-col h-full">
-        {/* Compact Header */}
-        <div className="px-3 pt-4 pb-2 flex-shrink-0 flex items-center justify-between gap-2">
-          <h1 className="font-headline text-lg font-bold text-stone-800">Viva</h1>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsSearchVisible(!isSearchVisible)}
-              className={`p-1.5 rounded-lg transition-all ${isSearchVisible ? 'text-[#A2B29D] bg-white' : 'text-stone-400 hover:text-[#A2B29D] hover:bg-white/50'}`}
-              title="Search"
-            >
-              <Search className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-1.5 text-stone-400 hover:text-[#A2B29D] rounded-lg transition-all"
-              title="Collapse"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-          </div>
+    <div className={`fixed left-0 top-0 h-full bg-white/45 backdrop-blur-sm border-r border-white/20 shadow-lg transition-all duration-300 z-30 font-['Lato',sans-serif] ${isSidebarOpen ? 'w-72' : 'w-0'} overflow-hidden`}>
+      <div className="p-3 h-full flex flex-col overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="Close sidebar">
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+          <Button onClick={handleNewChat} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="New Chat">
+            <SquarePen className="h-4 w-4" />
+          </Button>
         </div>
-
-        {/* New Chat Button - Compact */}
-        <div className="px-3 pb-2 flex-shrink-0">
-          <button
-            onClick={handleNewChat}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-white border border-[#A2B29D]/20 hover:border-[#A2B29D]/50 hover:bg-white shadow-sm transition-all"
-          >
-            <SquarePen className="h-4 w-4 text-[#A2B29D]" />
-            <span className="text-sm font-semibold text-stone-700">New chat</span>
-          </button>
-        </div>
-
-        {/* Search Bar */}
-        {isSearchVisible && (
-          <div className="px-3 pb-2 flex-shrink-0 animate-in fade-in slide-in-from-top-1 duration-200">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-              <Input
-                autoFocus
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9 bg-white border-[#A2B29D]/10 text-stone-700 rounded-lg text-xs focus:ring-[#A2B29D]/30 h-9 w-full shadow-sm"
-              />
-            </div>
-            {/* Search results */}
-            {searchQuery.length >= 2 && (
-              <div className="mt-2 space-y-0.5 max-h-40 overflow-y-auto text-xs">
-                {isSearching && <div className="text-stone-400 px-3 py-1">Searching...</div>}
-                {!isSearching && searchResults.length > 0 && (
-                  searchResults.slice(0, 5).map((r, i) => (
-                    <button
-                      key={`${r.threadId}-${r.messageId}-${i}`}
-                      onClick={() => {
-                        handleLoadChat(r.threadId);
-                        setPendingScrollToId(r.messageId);
-                        setSidebarView('history');
-                      }}
-                      className="w-full text-left px-2 py-1 rounded hover:bg-white/60 transition-colors"
-                    >
-                      <p className="text-[10px] font-medium text-stone-700 truncate">{r.threadTitle}</p>
-                      <p className="text-[9px] text-stone-400 truncate">{r.snippet}</p>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
+        {user && (
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+            <Input placeholder="Search chats..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 bg-white/70 border-gray-200 rounded-xl text-sm" />
           </div>
         )}
 
@@ -1279,15 +1224,16 @@ const Index = () => {
     </aside>
   );
 
-  const sidebarToggleJSX = !isSidebarOpen && (
-    <Button
-      onClick={() => setIsSidebarOpen(true)}
-      variant="ghost"
-      className="fixed top-4 left-4 z-40 h-10 w-10 rounded-xl bg-white/80 backdrop-blur-md hover:bg-white border border-stone-200 shadow-xl transition-all duration-300 animate-in fade-in zoom-in-95"
-    >
-      <Menu className="h-6 w-6 text-stone-600" />
-    </Button>
-  );
+  const sidebarToggleJSX = !isSidebarOpen ? (
+    <div className="fixed top-4 left-4 z-40 flex items-center gap-1">
+      <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white/90 border border-white/20 shadow-lg">
+        <PanelLeft className="h-4 w-4" />
+      </Button>
+      <Button onClick={handleNewChat} variant="ghost" className="h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white/90 border border-white/20 shadow-lg" title="New Chat">
+        <SquarePen className="h-4 w-4" />
+      </Button>
+    </div>
+  ) : null;
 
   const shortcutsOverlayJSX = showShortcuts && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
