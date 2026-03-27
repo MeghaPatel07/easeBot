@@ -34,6 +34,7 @@ export async function createChecklist(
     text,
     completed: false,
     vendorRef: null,
+    dueDate: null,
   }))
 
   const checklist = { id, userId, title, items, createdAt: now, updatedAt: now }
@@ -79,7 +80,7 @@ export async function addChecklistItem(
   const snap = await getDoc(ref)
   if (!snap.exists()) return
   const items = snap.data().items as ChecklistItem[]
-  items.push({ id: crypto.randomUUID(), text, completed: false, vendorRef: null })
+  items.push({ id: crypto.randomUUID(), text, completed: false, vendorRef: null, dueDate: null })
   await updateDoc(ref, { items, updatedAt: serverTimestamp() })
 }
 
@@ -92,6 +93,21 @@ export async function deleteChecklistItem(
   const snap = await getDoc(ref)
   if (!snap.exists()) return
   const items = (snap.data().items as ChecklistItem[]).filter(i => i.id !== itemId)
+  await updateDoc(ref, { items, updatedAt: serverTimestamp() })
+}
+
+export async function updateItemDueDate(
+  userId: string,
+  checklistId: string,
+  itemId: string,
+  dueDate: string | null
+): Promise<void> {
+  const ref = checklistDoc(userId, checklistId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const items = (snap.data().items as ChecklistItem[]).map(item =>
+    item.id === itemId ? { ...item, dueDate } : item
+  )
   await updateDoc(ref, { items, updatedAt: serverTimestamp() })
 }
 
@@ -123,14 +139,19 @@ export function subscribeToChecklists(
 
 // ── Stats (client-side) ───────────────────────────────────────────────────────
 
-export function computeStats(checklists: Checklist[]): { todo: number; completed: number } {
+export function computeStats(checklists: Checklist[]): { todo: number; completed: number; overdue: number } {
   let todo = 0
   let completed = 0
+  let overdue = 0
+  const today = new Date().toISOString().slice(0, 10)
   checklists.forEach(cl => {
     cl.items.forEach(item => {
       if (item.completed) completed++
-      else todo++
+      else {
+        todo++
+        if (item.dueDate && item.dueDate < today) overdue++
+      }
     })
   })
-  return { todo, completed }
+  return { todo, completed, overdue }
 }

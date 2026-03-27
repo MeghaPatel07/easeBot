@@ -37,7 +37,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   const [step, setStep] = useState<Step>('form')
   const [form, setForm] = useState(() => ({ ...initialForm, email: initialEmail ?? '' }))
-  const [errors, setErrors] = useState<Partial<typeof initialForm>>({})
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof initialForm, string>>>({})
   const [authError, setAuthError] = useState('')
   const [loading, setLoading] = useState(false)
   const [signedUpEmail, setSignedUpEmail] = useState('')
@@ -47,7 +47,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     setForm(f => ({ ...f, [field]: field === 'terms' ? e.target.checked : e.target.value }))
 
   function validate(): boolean {
-    const e: Partial<typeof initialForm> = {}
+    const e: Partial<Record<keyof typeof initialForm, string>> = {}
     if (!form.name.trim()) e.name = 'Full name is required'
     if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Valid email is required'
     if (form.password.length < 6) e.password = 'Password must be at least 6 characters'
@@ -121,155 +121,158 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md bg-white/95 backdrop-blur-sm border border-white/20">
-
-        {/* ── Step: form ── */}
-        {step === 'form' && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="elegant-heading">Create Your Account</DialogTitle>
-              <DialogDescription>
-                Join thousands of couples planning their perfect wedding with Viva.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2">
-              {/* Google */}
-              <Button
-                variant="outline"
-                className="w-full flex items-center gap-2"
-                onClick={handleGoogle}
-                disabled={loading}
-              >
-                <GoogleIcon /> Continue with Google
-              </Button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-muted-foreground">Or sign up with email</span>
+      <DialogContent className="w-[95vw] sm:max-w-[480px] glass-panel rounded-[2rem] p-0 border border-white/60 shadow-[0_32px_64px_-12px_rgba(44,46,42,0.1)] overflow-hidden">
+        <div className="max-h-[90dvh] overflow-y-auto custom-scrollbar p-6 md:p-10">
+          {/* ── Step: form ── */}
+          {step === 'form' && (
+            <>
+              <DialogHeader className="text-center space-y-4">
+                <div className="flex flex-col items-center">
+                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
+                  <div className="font-label uppercase tracking-[0.2em] text-[10px] text-stone-400">Digital Concierge</div>
                 </div>
-              </div>
+                <DialogTitle className="font-headline text-3xl tracking-tight">Create Your Account</DialogTitle>
+                <DialogDescription className="text-stone-500 text-sm">
+                  Join thousands of couples planning their perfect wedding with Viva.
+                </DialogDescription>
+              </DialogHeader>
 
-              {/* Full name */}
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Full Name</label>
-                <Input value={form.name} onChange={set('name')} placeholder="Jane Smith" className="bg-white/70" />
-                {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-              </div>
+              <div className="space-y-3 py-2">
+                {/* Google */}
+                <button
+                  onClick={handleGoogle}
+                  disabled={loading}
+                  className="w-full h-14 rounded-xl bg-white border border-stone-200 flex items-center justify-center gap-3 text-stone-800 font-medium hover:bg-stone-50 hover:border-stone-300 transition-all disabled:opacity-50"
+                >
+                  <GoogleIcon /> Continue with Google
+                </button>
 
-              {/* Email */}
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Email</label>
-                <Input type="email" value={form.email} onChange={set('email')} placeholder="jane@example.com" className="bg-white/70" />
-                {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
-              </div>
+                <div className="flex items-center gap-4 my-4">
+                  <div className="h-[1px] flex-1 bg-stone-200"></div>
+                  <span className="font-label uppercase tracking-widest text-[10px] text-stone-400">or sign up with email</span>
+                  <div className="h-[1px] flex-1 bg-stone-200"></div>
+                </div>
 
-              {/* Phone (optional) */}
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Phone <span className="text-muted-foreground font-normal">(optional)</span></label>
-                <Input type="tel" value={form.phone} onChange={set('phone')} placeholder="+1 555 123 4567" className="bg-white/70" />
-              </div>
+                {/* Full name */}
+                <div className="space-y-1">
+                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Full Name</label>
+                  <Input value={form.name} onChange={set('name')} placeholder="Jane Smith" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+                </div>
 
-              {/* Password */}
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Password</label>
-                <Input type="password" value={form.password} onChange={set('password')} placeholder="Min 6 characters" className="bg-white/70" />
-                {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
-              </div>
+                {/* Email */}
+                <div className="space-y-1">
+                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Email</label>
+                  <Input type="email" value={form.email} onChange={set('email')} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
+                </div>
 
-              {/* Confirm */}
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Confirm Password</label>
-                <Input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} placeholder="••••••••" className="bg-white/70" />
-                {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
-              </div>
+                {/* Phone (optional) */}
+                <div className="space-y-1">
+                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Phone <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <Input type="tel" value={form.phone} onChange={set('phone')} placeholder="+1 555 123 4567" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                </div>
 
-              {/* Terms */}
-              <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  id="terms"
-                  checked={form.terms}
-                  onChange={set('terms')}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300"
-                />
-                <label htmlFor="terms" className="text-xs text-muted-foreground">
-                  I agree to the <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>
-                </label>
-              </div>
-              {errors.terms && <p className="text-xs text-red-500">{errors.terms}</p>}
+                {/* Password */}
+                <div className="space-y-1">
+                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Password</label>
+                  <Input type="password" value={form.password} onChange={set('password')} placeholder="Min 6 characters" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+                </div>
 
-              {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
+                {/* Confirm */}
+                <div className="space-y-1">
+                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Confirm Password</label>
+                  <Input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} placeholder="••••••••" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+                </div>
 
-              <Button
-                className="w-full bg-primary hover:bg-primary/90"
-                onClick={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                Create Account
-              </Button>
+                {/* Terms */}
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    checked={form.terms}
+                    onChange={set('terms')}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                  />
+                  <label htmlFor="terms" className="text-xs text-muted-foreground">
+                    I agree to the <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>
+                  </label>
+                </div>
+                {errors.terms && <p className="text-xs text-red-500">{errors.terms}</p>}
 
-              <p className="text-center text-sm">
-                <span className="text-muted-foreground">Already have an account? </span>
-                <Button variant="link" className="p-0 h-auto font-semibold" onClick={switchToSignIn}>
-                  Sign in
+                {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
+
+                <Button
+                  className="w-full bg-primary hover:bg-primary/90"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                >
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                  Create Account
                 </Button>
-              </p>
-            </div>
-          </>
-        )}
 
-        {/* ── Step: verifying ── */}
-        {step === 'verifying' && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="elegant-heading">Verify Your Email</DialogTitle>
-            </DialogHeader>
-            <div className="py-6 space-y-4 text-center">
-              <div className="flex justify-center">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Mail className="h-8 w-8 text-primary" />
+                <p className="text-center text-sm">
+                  <span className="text-muted-foreground">Already have an account? </span>
+                  <Button variant="link" className="p-0 h-auto font-semibold" onClick={switchToSignIn}>
+                    Sign in
+                  </Button>
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* ── Step: verifying ── */}
+          {step === 'verifying' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="elegant-heading">Verify Your Email</DialogTitle>
+              </DialogHeader>
+              <div className="py-6 space-y-4 text-center">
+                <div className="flex justify-center">
+                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Mail className="h-8 w-8 text-primary" />
+                  </div>
                 </div>
+                <div>
+                  <p className="font-medium text-gray-800">Check your inbox</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    We sent a verification link to <span className="font-medium text-gray-700">{signedUpEmail}</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Click the link in the email to activate your account, then sign in.
+                  </p>
+                </div>
+                <Button
+                  className="w-full bg-primary hover:bg-primary/90"
+                  onClick={switchToSignIn}
+                >
+                  Go to Sign In
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Didn't receive it?{' '}
+                  <Button variant="link" className="p-0 h-auto text-xs" onClick={() => setStep('form')}>
+                    Go back and try again
+                  </Button>
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* ── Step: success (Google sign-up) ── */}
+          {step === 'success' && (
+            <div className="py-8 space-y-4 text-center">
+              <div className="flex justify-center">
+                <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               <div>
-                <p className="font-medium text-gray-800">Check your inbox</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  We sent a verification link to <span className="font-medium text-gray-700">{signedUpEmail}</span>
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Click the link in the email to activate your account, then sign in.
-                </p>
+                <p className="text-xl font-semibold elegant-heading">Welcome to WeddingEase!</p>
+                <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'} 👋</p>
               </div>
-              <Button
-                className="w-full bg-primary hover:bg-primary/90"
-                onClick={switchToSignIn}
-              >
-                Go to Sign In
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Didn't receive it?{' '}
-                <Button variant="link" className="p-0 h-auto text-xs" onClick={() => setStep('form')}>
-                  Go back and try again
-                </Button>
-              </p>
             </div>
-          </>
-        )}
-
-        {/* ── Step: success (Google sign-up) ── */}
-        {step === 'success' && (
-          <div className="py-8 space-y-4 text-center">
-            <div className="flex justify-center">
-              <CheckCircle className="h-16 w-16 text-green-500" />
-            </div>
-            <div>
-              <p className="text-xl font-semibold elegant-heading">Welcome to WeddingEase!</p>
-              <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'} 👋</p>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -10,14 +10,39 @@ import {
   getChecklistStats,
   getChecklistCount,
 } from './checklistService'
+import { webSearch, formatSearchResults } from './webSearch'
 import type { ToolAction } from '../types'
+
+// ── Web search tool (available to all modes) ─────────────────────────────────
+
+export const WEB_SEARCH_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'web_search',
+    description:
+      'Search the web for real-time, up-to-date information. Use this when the user asks about: current vendor prices, local wedding venues/vendors/services, availability, recent trends, reviews, "near me" queries, or any question where current data would improve the answer. Always prefer searching over guessing when the answer might have changed recently.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'The search query. Be specific — include location, budget range, or wedding-specific keywords for best results.',
+        },
+      },
+      required: ['query'],
+    },
+  },
+}
+
+// ── Planner-specific tools ────────────────────────────────────────────────────
 
 export const PLANNER_TOOLS: ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
       name: 'create_checklist',
-      description: 'Save a checklist to the user\'s planner. Call this when the user says "save this", "create a checklist", or asks you to persist a list of tasks.',
+      description: 'Save a checklist to the user\'s planner. Call this when the user says "save this", "create a checklist", or asks you to persist a list of tasks. Include due dates when mentioned or when reasonable deadlines can be inferred (e.g. "Book venue by June 15").',
       parameters: {
         type: 'object',
         properties: {
@@ -26,6 +51,11 @@ export const PLANNER_TOOLS: ChatCompletionTool[] = [
             type: 'array',
             items: { type: 'string' },
             description: 'List of task strings to save',
+          },
+          due_dates: {
+            type: 'array',
+            items: { type: ['string', 'null'] },
+            description: 'Optional array of ISO date strings (YYYY-MM-DD) for each item. Use null for items without a deadline. Must be same length as items array.',
           },
         },
         required: ['title', 'items'],
@@ -106,7 +136,7 @@ export async function executeToolCall(
           }
         }
       }
-      const checklist = await createChecklist(uid, args.title, args.items)
+      const checklist = await createChecklist(uid, args.title, args.items, args.due_dates)
       return {
         toolName,
         result: `Checklist "${checklist.title}" created with ${checklist.items.length} items. ID: ${checklist.id}`,
@@ -138,6 +168,15 @@ export async function executeToolCall(
         toolName,
         result: `Planning stats: ${stats.todo} To-Do, ${stats.completed} Completed, ${stats.total} total tasks.`,
         action: { tool: 'get_checklist_stats' },
+      }
+    }
+
+    case 'web_search': {
+      const results = await webSearch(args.query)
+      return {
+        toolName,
+        result: formatSearchResults(results),
+        action: { tool: 'web_search', searchQuery: args.query },
       }
     }
 

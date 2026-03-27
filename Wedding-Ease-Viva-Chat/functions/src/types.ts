@@ -10,9 +10,10 @@ export interface ChatPayload {
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'web_search'
   checklistId?: string
   itemId?: string
+  searchQuery?: string
 }
 
 export interface ChatResponse {
