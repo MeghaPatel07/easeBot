@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Sparkles, Heart, MessageSquare, Calendar, Lightbulb,
-  User, LogIn, UserPlus, Smartphone, LogOut, PanelLeft, Plus,
+  User, LogIn, UserPlus, Smartphone, LogOut, PanelLeft, Plus, SquarePen,
   Search, ChevronDown, ChevronRight, Bookmark, Image, CheckSquare,
   ShoppingCart, DollarSign, Copy, Download, ThumbsUp, Edit3, Lock,
   MoreHorizontal, Pencil, Trash2, StopCircle, RefreshCw, ArrowLeft,
@@ -505,11 +505,15 @@ const Index = () => {
   // ── Shared JSX fragments (inlined, not inner components) ──────────────────
   const sidebarJSX = (
     <div className={`fixed left-0 top-0 h-full bg-white/45 backdrop-blur-sm border-r border-white/20 shadow-lg transition-all duration-300 z-30 font-['Lato',sans-serif] ${isSidebarOpen ? 'w-72' : 'w-0'} overflow-hidden`}>
-      <div className="p-3 pt-14 h-full flex flex-col overflow-y-auto">
-        <Button onClick={handleNewChat} className="w-full mb-3 text-gray-800 rounded-xl border border-[#a2b29d]/50 shadow-sm hover:shadow-md transition-all duration-200 text-sm font-medium" style={{ background: '#a2b29d' }}>
-          <Plus className="mr-2 h-3 w-3" />New Chat
-        </Button>
-
+      <div className="p-3 h-full flex flex-col overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="Close sidebar">
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+          <Button onClick={handleNewChat} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="New Chat">
+            <SquarePen className="h-4 w-4" />
+          </Button>
+        </div>
         {user && (
           <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
@@ -644,11 +648,16 @@ const Index = () => {
     </div>
   );
 
-  const sidebarToggleJSX = (
-    <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="fixed top-4 left-4 z-40 h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white/90 border border-white/20 shadow-lg">
-      <PanelLeft className="h-4 w-4" />
-    </Button>
-  );
+  const sidebarToggleJSX = !isSidebarOpen ? (
+    <div className="fixed top-4 left-4 z-40 flex items-center gap-1">
+      <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white/90 border border-white/20 shadow-lg">
+        <PanelLeft className="h-4 w-4" />
+      </Button>
+      <Button onClick={handleNewChat} variant="ghost" className="h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white/90 border border-white/20 shadow-lg" title="New Chat">
+        <SquarePen className="h-4 w-4" />
+      </Button>
+    </div>
+  ) : null;
 
   const profileIconJSX = (
     <>
