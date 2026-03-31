@@ -18,6 +18,25 @@ export interface TokenUsage {
   lastUpdatedAt: Timestamp | null
 }
 
+export interface ToneSettings {
+  warm: number          // 0–100
+  analytical: number    // 0–100
+  friendly: number      // 0–100
+  professional: number  // 0–100
+  enthusiastic: number  // 0–100
+  concise: number       // 0–100 (message length)
+  quirky: number        // 0–100
+  candid: number        // 0–100
+  emojis: number        // 0–100 (emoji usage)
+  headers: number       // 0–100 (use headers/lists)
+}
+
+export interface UserPersonalization {
+  nickname?: string
+  voiceId?: string       // browser SpeechSynthesis voice name
+  toneSettings?: ToneSettings
+}
+
 // Matches authflow.md §12 + WeddingEase fields
 export interface UserProfile {
   uid: string
@@ -39,6 +58,9 @@ export interface UserProfile {
   lastLoginAt: Timestamp | null
   forgotPasswordOtp: number | null
   googleCalendarToken: string | null
+  nickname?: string
+  voiceId?: string
+  toneSettings?: ToneSettings
 }
 
 // ── Checklist types ───────────────────────────────────────────────────────────
@@ -101,6 +123,7 @@ export interface ChatFunctionPayload {
   language?: string
   mode?: Mode
   history?: { role: 'user' | 'assistant'; content: string }[]
+  userPersonalization?: UserPersonalization
 }
 
 export interface CalendarEvent {

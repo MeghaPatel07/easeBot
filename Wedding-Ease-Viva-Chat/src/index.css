@@ -150,15 +150,13 @@
 }
 
 .gradient-bg {
-  background: radial-gradient(circle at top left, #F0F0E6 0%, #E3E3D2 100%);
-  background-attachment: fixed;
+  background: url('./assets/images/chatbot background.avif') center/cover no-repeat fixed;
   position: relative;
   overflow: hidden;
 }
 
 .gradient-bg-expanded {
-  background: radial-gradient(circle at top left, #F0F0E6 0%, #E3E3D2 100%);
-  background-attachment: fixed;
+  background: url('./assets/images/chatbot background.avif') center/cover no-repeat fixed;
   position: relative;
   overflow: hidden;
 }
@@ -186,4 +184,4 @@
 /* Custom thin scrollbar (Stitch style) */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #E0D8CC; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--surface-container-highest)); border-radius: 10px; }

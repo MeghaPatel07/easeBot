@@ -1,5 +1,24 @@
 export type Mode = 'planner' | 'stylist' | 'therapist' | 'knowledge' | 'consultant' | 'assistant'
 
+export interface ToneSettings {
+  warm?: number
+  analytical?: number
+  friendly?: number
+  professional?: number
+  enthusiastic?: number
+  concise?: number
+  quirky?: number
+  candid?: number
+  emojis?: number
+  headers?: number
+}
+
+export interface UserPersonalization {
+  nickname?: string
+  voiceId?: string
+  toneSettings?: ToneSettings
+}
+
 export interface ChatPayload {
   message: string
   threadId: string
@@ -7,6 +26,7 @@ export interface ChatPayload {
   language?: string
   mode?: Mode
   history?: HistoryMessage[]
+  userPersonalization?: UserPersonalization
 }
 
 export interface CalendarEvent {

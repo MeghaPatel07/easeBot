@@ -129,7 +129,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
               <DialogHeader className="text-center space-y-4">
                 <div className="flex flex-col items-center">
                   <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
-                  <div className="font-label uppercase tracking-[0.2em] text-[10px] text-stone-400">Digital Concierge</div>
+                  <div className="font-label uppercase tracking-[0.2em] text-2xs text-stone-400">Digital Concierge</div>
                 </div>
                 <DialogTitle className="font-headline text-3xl tracking-tight">Create Your Account</DialogTitle>
                 <DialogDescription className="text-stone-500 text-sm">
@@ -149,41 +149,41 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
                 <div className="flex items-center gap-4 my-4">
                   <div className="h-[1px] flex-1 bg-stone-200"></div>
-                  <span className="font-label uppercase tracking-widest text-[10px] text-stone-400">or sign up with email</span>
+                  <span className="font-label uppercase tracking-widest text-2xs text-stone-400">or sign up with email</span>
                   <div className="h-[1px] flex-1 bg-stone-200"></div>
                 </div>
 
                 {/* Full name */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Full Name</label>
-                  <Input value={form.name} onChange={set('name')} placeholder="Jane Smith" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Full Name</label>
+                  <Input value={form.name} onChange={set('name')} placeholder="Jane Smith" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
                   {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                 </div>
 
                 {/* Email */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Email</label>
-                  <Input type="email" value={form.email} onChange={set('email')} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Email</label>
+                  <Input type="email" value={form.email} onChange={set('email')} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
                   {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                 </div>
 
                 {/* Phone (optional) */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Phone <span className="text-muted-foreground font-normal">(optional)</span></label>
-                  <Input type="tel" value={form.phone} onChange={set('phone')} placeholder="+1 555 123 4567" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Phone <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <Input type="tel" value={form.phone} onChange={set('phone')} placeholder="+1 555 123 4567" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
                 </div>
 
                 {/* Password */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Password</label>
-                  <Input type="password" value={form.password} onChange={set('password')} placeholder="Min 6 characters" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Password</label>
+                  <Input type="password" value={form.password} onChange={set('password')} placeholder="Min 6 characters" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
                   {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
                 </div>
 
                 {/* Confirm */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Confirm Password</label>
-                  <Input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} placeholder="••••••••" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Confirm Password</label>
+                  <Input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} placeholder="••••••••" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
                   {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
                 </div>
 
@@ -194,7 +194,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                     id="terms"
                     checked={form.terms}
                     onChange={set('terms')}
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                    className="mt-0.5 h-4 w-4 rounded border-stone-300"
                   />
                   <label htmlFor="terms" className="text-xs text-muted-foreground">
                     I agree to the <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>
@@ -236,9 +236,9 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                   </div>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-800">Check your inbox</p>
+                  <p className="font-medium text-stone-800">Check your inbox</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    We sent a verification link to <span className="font-medium text-gray-700">{signedUpEmail}</span>
+                    We sent a verification link to <span className="font-medium text-stone-700">{signedUpEmail}</span>
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
                     Click the link in the email to activate your account, then sign in.
@@ -267,7 +267,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               <div>
-                <p className="text-xl font-semibold elegant-heading">Welcome to WeddingEase!</p>
+                <p className="text-xl font-semibold elegant-heading">Welcome to Wedding Ease! ✨</p>
                 <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'} 👋</p>
               </div>
             </div>

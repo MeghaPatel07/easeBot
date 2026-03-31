@@ -17,7 +17,7 @@ import {
   type NewMessage,
 } from '@/services/chatService'
 import { streamChatMessage, generateImage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
-import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc, ToolAction } from '@/types'
+import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc, ToolAction, UserPersonalization } from '@/types'
 
 export interface Message {
   id: string
@@ -61,7 +61,7 @@ export interface UseChatResult {
 }
 
 export function useChat(): UseChatResult {
-  const { user, googleCalendarToken } = useAuth()
+  const { user, profile, googleCalendarToken } = useAuth()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [threads, setThreads] = useState<ChatThread[]>([])
@@ -254,8 +254,14 @@ export function useChat(): UseChatResult {
 
       const [, imgResult] = await Promise.all([
         (async () => {
+          const userPersonalization: UserPersonalization | undefined = profile ? {
+            nickname: profile.nickname,
+            voiceId: profile.voiceId,
+            toneSettings: profile.toneSettings,
+          } : undefined
+
           for await (const event of streamChatMessage(
-            { message: text, threadId: threadId ?? null, audioBase64, history, mode, language },
+            { message: text, threadId: threadId ?? null, audioBase64, history, mode, language, userPersonalization },
             controller.signal
           )) {
             if (event.t === 'c') {
@@ -372,7 +378,7 @@ export function useChat(): UseChatResult {
       setIsTyping(false)
       abortControllerRef.current = null
     }
-  }, [user])
+  }, [user, profile])
 
   // ── Toggle like ────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (messageId: string) => {

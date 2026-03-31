@@ -6,7 +6,27 @@
       "Bash(curl -s https://en.wikipedia.org/wiki/ChatGPT)",
       "WebSearch",
       "Bash(npm install:*)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "WebFetch(domain:blog.google)",
+      "WebFetch(domain:docs.cloud.google.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.engadget.com)",
+      "WebFetch(domain:www.alibaba.com)",
+      "WebFetch(domain:support.google.com)",
+      "WebFetch(domain:www.androidauthority.com)",
+      "WebFetch(domain:deepmind.google)",
+      "WebFetch(domain:www.videosdk.live)",
+      "WebFetch(domain:www.enovaigroup.com)",
+      "WebFetch(domain:9to5google.com)",
+      "WebFetch(domain:voicewave.xyz)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:aitoolanalysis.com)",
+      "Bash(grep -hE \"\\\\[#[0-9a-fA-F]{3,6}\\\\]|text-\\\\[1[0-9]px\\\\]|text-\\\\[9px\\\\]|bg-stone-|text-stone-|text-gray-|border-stone-|border-gray-\" /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/pages/Index.tsx /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/*.tsx /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/auth/*.tsx)",
+      "Bash(grep -oE '\\(bg|text|border|ring|fill\\)-\\\\[#[0-9a-fA-F]{3,6}\\\\]|text-\\\\[[0-9]+px\\\\]|text-\\(stone|gray\\)-[0-9]+|border-\\(stone|gray\\)-[0-9]+|bg-\\(stone|gray\\)-[0-9]+')",
+      "Bash(sed \"s|.*/src/||\")",
+      "Bash(grep -rn text-[[0-9]+px] /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/pages/ /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/)",
+      "Bash(grep -E '\\\\.\\(ts|js\\)$')",
+      "Bash(find /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src -not -path */node_modules/* -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))"
     ]
   }
 }

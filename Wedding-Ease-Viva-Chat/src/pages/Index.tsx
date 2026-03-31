@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Sparkles, Heart, MessageSquare, Calendar, Lightbulb,
-  User, LogIn, UserPlus, Smartphone, LogOut, PanelLeft, Plus, SquarePen,
+  User, LogIn, UserPlus, LogOut, PanelLeft, Plus,
   Search, ChevronDown, ChevronRight, Bookmark, Image, CheckSquare,
   ShoppingCart, DollarSign, Copy, Download, ThumbsUp, Edit3, Lock,
   MoreHorizontal, Pencil, Trash2, StopCircle, RefreshCw, ArrowLeft,
@@ -51,9 +51,13 @@ import TimelineView from '@/components/TimelineView';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
 import InvitePartner from '@/components/InvitePartner';
+import { SettingsModal } from '@/components/SettingsModal';
+import { AudioPlayer } from '@/components/AudioPlayer';
+import { requestTTS } from '@/services/ttsService';
 import { subscribeToChecklists, computeStats } from '@/services/checklistService';
 import { subscribeToBudget, type BudgetData } from '@/services/budgetService';
 import { addSavedItem } from '@/services/savedItemsService';
+import { getVoicePreset, resolveVoiceForPreset } from '@/services/voicePresets';
 import type { ChatThread, Mode, Checklist } from '@/types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -83,6 +87,7 @@ type ModeOrAuto = Mode | 'auto'
 interface ModeConfig {
   key: ModeOrAuto
   label: string
+  description: string
   icon: React.ElementType
   pill: string       // pill badge on AI messages
   active: string     // selector button when selected
@@ -93,48 +98,54 @@ const MODE_CONFIG: ModeConfig[] = [
   {
     key: 'auto',
     label: 'Auto',
+    description: 'Let Viva choose the best approach for you',
     icon: Sparkles,
-    pill: 'bg-[#71717A]/10 text-[#71717A]',
+    pill: 'bg-mode-auto/10 text-mode-auto',
     active: 'bg-mode-auto text-white shadow-sm',
     inactive: 'text-stone-600 hover:bg-white/50',
   },
   {
     key: 'planner',
     label: 'Planner',
+    description: 'Create timelines, tasks, and organize your wedding',
     icon: Calendar,
-    pill: 'bg-[#8A9A5B]/10 text-[#8A9A5B]',
+    pill: 'bg-primary-muted/10 text-primary-muted',
     active: 'bg-mode-planner text-white shadow-sm',
     inactive: 'text-stone-600 hover:bg-white/50',
   },
   {
     key: 'stylist',
     label: 'Stylist',
+    description: 'Get aesthetic advice and design inspiration',
     icon: Heart,
-    pill: 'bg-[#D4AF37]/10 text-[#D4AF37]',
+    pill: 'bg-mode-stylist/10 text-mode-stylist',
     active: 'bg-mode-stylist text-white shadow-sm',
     inactive: 'text-stone-600 hover:bg-white/50',
   },
   {
     key: 'therapist',
     label: 'Therapist',
+    description: 'Talk through wedding stress and emotions',
     icon: MessageSquare,
-    pill: 'bg-[#64748B]/10 text-[#64748B]',
+    pill: 'bg-mode-therapist/10 text-mode-therapist',
     active: 'bg-mode-therapist text-white shadow-sm',
     inactive: 'text-stone-600 hover:bg-white/50',
   },
   {
     key: 'knowledge',
     label: 'Knowledge',
+    description: 'Get answers to wedding etiquette and planning questions',
     icon: Lightbulb,
-    pill: 'bg-[#334155]/10 text-[#334155]',
+    pill: 'bg-mode-knowledge/10 text-mode-knowledge',
     active: 'bg-mode-knowledge text-white shadow-sm',
     inactive: 'text-stone-600 hover:bg-white/50',
   },
   {
     key: 'consultant',
     label: 'Consultant',
+    description: 'Expert advice on vendors, venues, and logistics',
     icon: DollarSign,
-    pill: 'bg-[#A87C33]/10 text-[#A87C33]',
+    pill: 'bg-mode-consultant/10 text-mode-consultant',
     active: 'bg-mode-consultant text-white shadow-sm',
     inactive: 'text-stone-600 hover:bg-white/50',
   },
@@ -169,36 +180,36 @@ const markdownToHtml = (markdown: string): string => {
         .replace(/^\- (.*?)$/gm, '<li>$1</li>')
         // Blockquotes
         .replace(/^> (.*?)$/gm, '<blockquote style="border-left: 3px solid #ccc; padding-left: 10px; margin: 10px 0; color: #666;">$1</blockquote>')
-      
+
       // Wrap list items in ul tags
       if (block.includes('<li>')) {
         block = '<ul style="margin: 10px 0; padding-left: 20px;">' + block + '</ul>'
       }
-      
+
       // Wrap non-wrapped blocks in paragraphs
       if (block && !block.match(/^<[hp]/)) {
         block = '<p style="margin: 10px 0; line-height: 1.5;">' + block + '</p>'
       }
-      
+
       return block
     })
     .join('')
-  
+
   return `<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6;">${html}</body></html>`
 }
 // Tag presets for conversation organization
 // ─────────────────────────────────────────────────────────────────────────────
 const TAG_PRESETS = [
-  { name: 'Venue',      color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { name: 'Catering',   color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { name: 'Budget',     color: 'bg-green-100 text-green-700 border-green-200' },
-  { name: 'Style',      color: 'bg-pink-100 text-pink-700 border-pink-200' },
-  { name: 'Attire',     color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  { name: 'Music',      color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-  { name: 'Flowers',    color: 'bg-rose-100 text-rose-700 border-rose-200' },
-  { name: 'Photo',      color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  { name: 'Venue', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { name: 'Catering', color: 'bg-orange-100 text-orange-700 border-orange-200' },
+  { name: 'Budget', color: 'bg-green-100 text-green-700 border-green-200' },
+  { name: 'Style', color: 'bg-pink-100 text-pink-700 border-pink-200' },
+  { name: 'Attire', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+  { name: 'Music', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+  { name: 'Flowers', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+  { name: 'Photo', color: 'bg-amber-100 text-amber-700 border-amber-200' },
   { name: 'Guest List', color: 'bg-teal-100 text-teal-700 border-teal-200' },
-  { name: 'Other',      color: 'bg-stone-100 text-stone-700 border-stone-200' },
+  { name: 'Other', color: 'bg-stone-100 text-stone-700 border-stone-200' },
 ]
 
 const getTagStyle = (tagName: string) =>
@@ -220,22 +231,57 @@ interface InputBarProps {
   onMicClick: () => void;
 }
 
+const COLLAPSED_MAX = 120;  // ~5 lines — normal state
+const EXPANDED_MAX = 400;  // ~16 lines — after user expands
+const MOBILE_MAX = 36;     // single line on mobile (< 640px)
+
 const InputBar = ({
   inputText, onInputChange, onSend, onStop, isTyping, placeholder,
   isRecording, voiceState, onMicClick,
 }: InputBarProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
 
-  // Auto-resize: reset to auto then set to scrollHeight (capped at 200px)
+  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 640;
+  const maxHeight = isMobileViewport ? MOBILE_MAX : isExpanded ? EXPANDED_MAX : COLLAPSED_MAX;
+
+  // Auto-resize up to the active max-height; track overflow for expand button
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+    const sh = el.scrollHeight;
+    el.style.height = `${Math.min(sh, maxHeight)}px`;
+    setIsOverflowing(sh > COLLAPSED_MAX);
+  }, [inputText, maxHeight]);
+
+  // Collapse back when input is cleared
+  useEffect(() => {
+    if (!inputText) setIsExpanded(false);
   }, [inputText]);
 
   return (
-    <div className="bg-white rounded-2xl p-1.5 shadow-md shadow-stone-200/30 border border-[#EBE4D9] max-w-3xl mx-auto w-full">
+    <div className="bg-white rounded-2xl p-1.5 shadow-md shadow-stone-200/30 border border-border max-w-3xl mx-auto w-full">
+
+      {/* Expand / collapse toggle — appears only when content overflows collapsed height */}
+      {(isOverflowing || isExpanded) && (
+        <div className="flex justify-end px-2 pt-1">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(v => !v)}
+            title={isExpanded ? 'Collapse input' : 'Expand input'}
+            className="flex items-center gap-1 text-2xs text-stone-400 hover:text-stone-600 transition-colors"
+          >
+            {isExpanded ? (
+              <><ChevronDown className="h-3 w-3" /><span>Collapse</span></>
+            ) : (
+              <><ChevronUp className="h-3 w-3" /><span>Expand</span></>
+            )}
+          </button>
+        </div>
+      )}
+
       <div className="flex items-end gap-1">
         {/* Textarea */}
         <textarea
@@ -250,8 +296,8 @@ const InputBar = ({
           }}
           placeholder={placeholder}
           rows={1}
-          className="flex-1 bg-transparent border-none text-stone-800 py-2 px-3 custom-scrollbar resize-none text-sm max-h-32 placeholder-stone-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
-          style={{ minHeight: '36px', maxHeight: '160px' }}
+          className="flex-1 bg-transparent border-none text-stone-800 py-2 px-3 custom-scrollbar resize-none text-base sm:text-sm placeholder-stone-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+          style={{ minHeight: '36px', maxHeight: `${maxHeight}px` }}
         />
 
         {/* Right side: mic + send/stop */}
@@ -261,7 +307,7 @@ const InputBar = ({
             onClick={onMicClick}
             disabled={voiceState === 'transcribing'}
             title={voiceState === 'recording' ? 'Stop recording' : voiceState === 'transcribing' ? 'Transcribing…' : 'Record voice message'}
-            className={`p-2 transition-colors rounded-lg ${voiceState === 'recording'
+            className={`p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center transition-colors rounded-lg ${voiceState === 'recording'
               ? 'text-red-500'
               : voiceState === 'transcribing'
                 ? 'text-amber-500'
@@ -281,21 +327,21 @@ const InputBar = ({
           </button>
 
           {isTyping && onStop ? (
-            <button onClick={onStop} className="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 active:scale-95 transition-all">
+            <button onClick={onStop} className="p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center bg-red-500 text-white rounded-xl hover:bg-red-600 active:scale-95 transition-all">
               <StopCircle className="w-4 h-4" />
             </button>
           ) : (
-            <button onClick={onSend} disabled={!inputText.trim()} className="p-2 bg-primary text-white rounded-xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40">
+            <button onClick={onSend} disabled={!inputText.trim()} className="p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center bg-primary text-white rounded-xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40">
               <Send className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
       {voiceState === 'recording' && (
-        <p className="text-[9px] font-semibold text-red-500 animate-pulse tracking-wide pl-3 pb-0.5">Listening…</p>
+        <p className="text-3xs font-semibold text-red-500 animate-pulse tracking-wide pl-3 pb-0.5">Listening…</p>
       )}
       {voiceState === 'transcribing' && (
-        <p className="text-[9px] font-semibold text-amber-500 tracking-wide pl-3 pb-0.5">Processing…</p>
+        <p className="text-3xs font-semibold text-amber-500 tracking-wide pl-3 pb-0.5">Processing…</p>
       )}
     </div>
   );
@@ -373,9 +419,11 @@ const Index = () => {
   const [inputText, setInputText] = useState('');
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showSignUpModal, setShowSignUpModal] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [isAssetsOpen, setIsAssetsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [selectedMode, setSelectedMode] = useState<ModeOrAuto>('auto');
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState('');
@@ -384,18 +432,26 @@ const Index = () => {
   const [sidebarView, setSidebarView] = useState<'history' | 'liked' | 'reminders' | 'planner' | 'saved-items' | 'moodboard' | 'shopping' | 'budget' | 'timeline' | 'progress' | 'notifications' | 'collaborate'>('history');
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [ttsState, setTtsState] = useState<{ msgId: string; status: 'speaking' | 'paused' } | null>(null);
+  const [ttsLoadingId, setTtsLoadingId] = useState<string | null>(null);
+  const [ttsActiveId, setTtsActiveId] = useState<string | null>(null);
+  const [ttsAudioUrls, setTtsAudioUrls] = useState<Record<string, string>>({});
   const [savedProductIds, setSavedProductIds] = useState<Set<string>>(new Set());
   const [signUpPrefillEmail, setSignUpPrefillEmail] = useState<string | undefined>(undefined);
   const [recentlyToggledItemIds, setRecentlyToggledItemIds] = useState<string[]>([]);
   const [selectedChecklistId, setSelectedChecklistId] = useState<string | null>(null);
   const [pendingScrollToId, setPendingScrollToId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [preferredLang, setPreferredLang] = useState<string>(() => profile?.preferredLanguage ?? 'auto');
+  const [preferredLang, setPreferredLang] = useState<string>('auto');
+
+  // Sync language from Firestore profile whenever it loads or changes
+  useEffect(() => {
+    if (profile?.preferredLanguage) {
+      setPreferredLang(profile.preferredLanguage);
+    }
+  }, [profile?.preferredLanguage]);
 
   const { voiceState, isRecording, interimText, startRecording, stopRecording, cancelRecording } = useVoice()
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -699,20 +755,20 @@ const Index = () => {
   const copyMessage = async (text: string, msgId: string) => {
     try {
       const html = markdownToHtml(text);
-      
+
       // Create blob for HTML format
       const htmlBlob = new Blob([html], { type: 'text/html' });
       const textBlob = new Blob([text], { type: 'text/plain' });
-      
+
       // Write both formats to clipboard
       const items: Record<string, Blob> = {
         'text/html': htmlBlob,
         'text/plain': textBlob,
       };
-      
+
       const clipboardItem = new ClipboardItem(items);
       await navigator.clipboard.write([clipboardItem]);
-      
+
       setCopiedMsgId(msgId);
       setTimeout(() => setCopiedMsgId(null), 1500);
     } catch (err) {
@@ -756,12 +812,12 @@ const Index = () => {
 
   const handleSaveProduct = async (productTitle: string, productUrl: string, imageUrl: string) => {
     if (!user) return;
-    
+
     // Create unique product ID
     const productId = `${productTitle}-${productUrl}`.toLowerCase().replace(/\s+/g, '-');
-    
+
     if (savedProductIds.has(productId)) return; // Already saved
-    
+
     try {
       // Store product metadata as JSON for clean display
       const productData = {
@@ -769,7 +825,7 @@ const Index = () => {
         url: productUrl,
         image: imageUrl,
       };
-      
+
       await addSavedItem(user.uid, {
         text: productTitle,
         category: 'Vendor',
@@ -790,90 +846,117 @@ const Index = () => {
     ko: 'ko-KR', ru: 'ru-RU', it: 'it-IT',
   };
 
-  const handleTtsPlay = (message: { id: string; text: string; language?: string }) => {
-    window.speechSynthesis.cancel();
+  const handleTtsPlay = async (message: { id: string; text: string; language?: string }) => {
+    // Close any active player first and revoke its blob URL
+    if (ttsActiveId && ttsActiveId !== message.id) {
+      const old = ttsAudioUrls[ttsActiveId]
+      if (old) URL.revokeObjectURL(old)
+      setTtsAudioUrls(prev => { const n = { ...prev }; delete n[ttsActiveId!]; return n })
+      setTtsActiveId(null)
+    }
+    // Toggle off if already active
+    if (ttsActiveId === message.id) {
+      const old = ttsAudioUrls[message.id]
+      if (old) URL.revokeObjectURL(old)
+      setTtsAudioUrls(prev => { const n = { ...prev }; delete n[message.id]; return n })
+      setTtsActiveId(null)
+      return
+    }
+    // If already loaded, just show it
+    if (ttsAudioUrls[message.id]) { setTtsActiveId(message.id); return }
 
-    // Strip markdown symbols for cleaner speech
-    let plainText = message.text
-      .replace(/```[\s\S]*?```/g, ' ... code block ... ')   // replace code blocks
-      .replace(/`([^`]+)`/g, '$1')                           // inline code → just text
-      .replace(/#{1,6}\s*/g, '')                              // headings
-      .replace(/\*\*([^*]+)\*\*/g, '$1')                     // bold
-      .replace(/\*([^*]+)\*/g, '$1')                          // italic
-      .replace(/[_~`>|[\]()]/g, '')                           // remaining markdown chars
-      .replace(/^\s*[-•]\s+/gm, ', ')                         // bullet points → comma pause
-      .replace(/^\s*\d+\.\s+/gm, ', ')                        // numbered lists → comma pause
-      .replace(/([.!?])\s*\n/g, '$1 ... ')                    // paragraph breaks → long pause
-      .replace(/\n{2,}/g, ' ... ')                             // double newlines → pause
-      .replace(/\n/g, ', ')                                    // single newlines → short pause
-      .replace(/\s{2,}/g, ' ')                                 // collapse whitespace
-      .trim();
+    setTtsLoadingId(message.id)
+    try {
+      const preset = profile?.voiceId ? getVoicePreset(profile.voiceId) : undefined
+      const voiceName = preset?.geminiVoiceName
+      const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en')
+      const audioUrl = await requestTTS({ text: message.text, voiceName, language: activeLang })
+      setTtsAudioUrls(prev => ({ ...prev, [message.id]: audioUrl }))
+      setTtsActiveId(message.id)
+    } catch (err) {
+      console.error('[TTS]', err)
+    } finally {
+      setTtsLoadingId(null)
+    }
 
-    if (!plainText) return;
+    // ── legacy speechSynthesis path removed — kept only as dead-code marker ──
+    if (false) {
 
-    const lang = message.language || 'en';
-    const locale = langToVoiceLocale[lang] || lang;
+      // Strip markdown symbols for cleaner speech
+      let plainText = message.text
+        .replace(/```[\s\S]*?```/g, ' ... code block ... ')   // replace code blocks
+        .replace(/`([^`]+)`/g, '$1')                           // inline code → just text
+        .replace(/#{1,6}\s*/g, '')                              // headings
+        .replace(/\*\*([^*]+)\*\*/g, '$1')                     // bold
+        .replace(/\*([^*]+)\*/g, '$1')                          // italic
+        .replace(/[_~`>|[\]()]/g, '')                           // remaining markdown chars
+        .replace(/^\s*[-•]\s+/gm, ', ')                         // bullet points → comma pause
+        .replace(/^\s*\d+\.\s+/gm, ', ')                        // numbered lists → comma pause
+        .replace(/([.!?])\s*\n/g, '$1 ... ')                    // paragraph breaks → long pause
+        .replace(/\n{2,}/g, ' ... ')                             // double newlines → pause
+        .replace(/\n/g, ', ')                                    // single newlines → short pause
+        .replace(/\s{2,}/g, ' ')                                 // collapse whitespace
+        .trim();
 
-    // Pick the best female voice — strongly prefer soft, natural-sounding women's voices
-    const voices = window.speechSynthesis.getVoices();
-    const langVoices = voices.filter(v => v.lang.startsWith(lang));
-    const enVoices = voices.filter(v => v.lang.startsWith('en'));
-    const candidates = langVoices.length ? langVoices : enVoices;
+      if (!plainText) return;
 
-    // Known soft female voice names across platforms (Windows, macOS, Chrome, Edge)
-    const softFemaleNames = [
-      'jenny', 'aria', 'sonia', 'zira', 'hazel', 'susan', 'linda',   // Microsoft
-      'samantha', 'karen', 'moira', 'tessa', 'fiona', 'victoria',     // macOS
-      'google us english', 'google uk english female',                  // Chrome
-    ];
+      // Use header language selection; fall back to detected message language
+      const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en');
+      const locale = langToVoiceLocale[activeLang] || activeLang;
 
-    const isFemaleVoice = (v: SpeechSynthesisVoice) =>
-      softFemaleNames.some(n => v.name.toLowerCase().includes(n)) ||
-      /female/i.test(v.name);
+      // Pick the best female voice — strongly prefer soft, natural-sounding women's voices
+      const voices = window.speechSynthesis.getVoices();
+      const langVoices = voices.filter(v => v.lang.startsWith(activeLang));
+      const enVoices = voices.filter(v => v.lang.startsWith('en'));
+      const candidates = langVoices.length ? langVoices : enVoices;
 
-    // Priority: natural/neural female > any female > neural any > Google > cloud > first
-    const preferredVoice =
-      candidates.find(v => /natural|neural|online/i.test(v.name) && isFemaleVoice(v)) ||
-      candidates.find(v => isFemaleVoice(v)) ||
-      candidates.find(v => /natural|neural|online/i.test(v.name)) ||
-      candidates.find(v => /google/i.test(v.name)) ||
-      candidates.find(v => !v.localService) ||
-      candidates[0] ||
-      null;
+      // Known soft female voice names across platforms (Windows, macOS, Chrome, Edge)
+      const softFemaleNames = [
+        'jenny', 'aria', 'sonia', 'zira', 'hazel', 'susan', 'linda',   // Microsoft
+        'samantha', 'karen', 'moira', 'tessa', 'fiona', 'victoria',     // macOS
+        'google us english', 'google uk english female',                  // Chrome
+      ];
 
-    const utterance = new SpeechSynthesisUtterance(plainText);
-    utterance.lang = locale;
-    utterance.rate = 0.88;    // slower, gentler pace
-    utterance.pitch = 1.15;   // higher pitch for soft feminine tone
-    utterance.volume = 0.75;  // softer volume
+      const isFemaleVoice = (v: SpeechSynthesisVoice) =>
+        softFemaleNames.some(n => v.name.toLowerCase().includes(n)) ||
+        /female/i.test(v.name);
 
-    if (preferredVoice) utterance.voice = preferredVoice;
+      // Resolve voice and speech parameters from saved preset or fallback
+      const userVoiceId = profile?.voiceId
+      const preset = userVoiceId ? getVoicePreset(userVoiceId) : undefined
 
-    utterance.onend = () => setTtsState(null);
-    utterance.onerror = () => setTtsState(null);
+      // If a non-English language is active, prefer a voice in that language over the preset's English candidates
+      const usingNonEnglish = activeLang !== 'en' && langVoices.length > 0;
+      const preferredVoice = (preset && !usingNonEnglish)
+        ? resolveVoiceForPreset(preset)
+        : (candidates.find(v => /natural|neural|online/i.test(v.name) && isFemaleVoice(v)) ||
+          candidates.find(v => isFemaleVoice(v)) ||
+          candidates.find(v => /natural|neural|online/i.test(v.name)) ||
+          candidates[0] ||
+          null);
 
-    setTtsState({ msgId: message.id, status: 'speaking' });
-    window.speechSynthesis.speak(utterance);
+      const utterance = new SpeechSynthesisUtterance(plainText);
+      // Always use the active locale (header language takes priority over preset locale)
+      utterance.lang = locale;
+      utterance.rate = preset ? preset.rate : 0.88;
+      utterance.pitch = preset ? preset.pitch : 1.15;
+      utterance.volume = preset ? preset.volume : 0.75;
+
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+    } // end if(false) legacy block
   };
 
-  const handleTtsPause = () => {
-    window.speechSynthesis.pause();
-    setTtsState(prev => prev ? { ...prev, status: 'paused' } : null);
-  };
+  const handleTtsClose = (msgId: string) => {
+    const url = ttsAudioUrls[msgId]
+    if (url) URL.revokeObjectURL(url)
+    setTtsAudioUrls(prev => { const n = { ...prev }; delete n[msgId]; return n })
+    setTtsActiveId(null)
+  }
 
-  const handleTtsResume = () => {
-    window.speechSynthesis.resume();
-    setTtsState(prev => prev ? { ...prev, status: 'speaking' } : null);
-  };
-
-  const handleTtsStop = (msgId: string) => {
-    window.speechSynthesis.cancel();
-    setTtsState(null);
-  };
-
-  // Cleanup speech on unmount
+  // Revoke all blob URLs on unmount
   useEffect(() => {
-    return () => { window.speechSynthesis.cancel(); };
+    return () => { Object.values(ttsAudioUrls).forEach(u => URL.revokeObjectURL(u)) }
   }, []);
 
   const actionButtons = [
@@ -895,7 +978,7 @@ const Index = () => {
     return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date);
   };
 
-  
+
   const filteredThreads = threads
     .filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .filter(t => !t.archived)
@@ -923,68 +1006,64 @@ const Index = () => {
     { view: 'liked' as const, icon: ThumbsUp, label: 'Liked', badge: allLikedMessages.length },
     { view: 'reminders' as const, icon: Calendar, label: 'Reminders', badge: calendarEvents.length },
     { view: 'planner' as const, icon: CheckSquare, label: 'Planner', badge: overdueCount, authOnly: true },
-    // { view: 'budget' as const, icon: DollarSign, label: 'Budget', badge: 0, authOnly: true },
-    // { view: 'shopping' as const, icon: ShoppingCart, label: 'Shopping', badge: 0, authOnly: true },
+    { view: 'budget' as const, icon: DollarSign, label: 'Budget', badge: 0, authOnly: true },
+    { view: 'shopping' as const, icon: ShoppingCart, label: 'Shopping', badge: 0, authOnly: true },
     { view: 'saved-items' as const, icon: Bookmark, label: 'Saved', badge: 0, authOnly: true },
     { view: 'timeline' as const, icon: Clock, label: 'Timeline', badge: 0, authOnly: true },
-    // { view: 'progress' as const, icon: BarChart3, label: 'Progress', badge: 0, authOnly: true },
-    // { view: 'notifications' as const, icon: Bell, label: 'Alerts', badge: 0, authOnly: true },
-    // { view: 'collaborate' as const, icon: Users, label: 'Collaborate', badge: 0, authOnly: true },
-    // { view: 'moodboard' as const, icon: Image, label: 'Moodboard', badge: 0 },
+    { view: 'progress' as const, icon: BarChart3, label: 'Progress', badge: 0, authOnly: true },
+    { view: 'notifications' as const, icon: Bell, label: 'Alerts', badge: 0, authOnly: true },
+    { view: 'collaborate' as const, icon: Users, label: 'Collaborate', badge: 0, authOnly: true },
   ];
 
   const sidebarJSX = (
-    <div className={`fixed left-0 top-0 h-full bg-white/45 backdrop-blur-sm border-r border-white/20 shadow-lg transition-all duration-300 z-30 font-['Lato',sans-serif] ${isSidebarOpen ? 'w-72' : 'w-0'} overflow-hidden`}>
+    <div className={`fixed left-0 top-0 h-full bg-white/45 backdrop-blur-sm border-r border-white/20 shadow-lg transition-all duration-300 z-30 font-['Lato',sans-serif] ${isSidebarOpen ? 'w-72' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="p-3 h-full flex flex-col overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
           <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="Close sidebar">
             <PanelLeft className="h-4 w-4" />
           </Button>
-          <Button onClick={handleNewChat} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="New Chat">
-            <SquarePen className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {user && (
+              <Button onClick={() => { setShowSearch(v => !v); if (showSearch) setSearchQuery(''); }} variant="ghost" className={`h-9 w-9 rounded-full hover:bg-white/70 ${showSearch ? 'bg-white/70' : ''}`} title="Search chats">
+                <Search className="h-4 w-4" />
+              </Button>
+            )}
+            <Button onClick={handleNewChat} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="New Chat">
+              <SquarePen className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        {user && (
+        {user && showSearch && (
           <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
-            <Input placeholder="Search chats..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 bg-white/70 border-gray-200 rounded-xl text-sm" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-stone-400" />
+            <Input placeholder="Search chats..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 bg-white/70 border-stone-200 rounded-xl text-sm" autoFocus />
           </div>
         )}
 
         {/* Main Navigation */}
         <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2 space-y-1 min-h-0">
           {/* Quick Actions */}
-          <Collapsible open={isQuickActionsOpen} onOpenChange={setIsQuickActionsOpen}>
-            <CollapsibleTrigger asChild>
-              <button className="w-full flex items-center justify-between px-3 mb-2 hover:bg-white/80 rounded-lg py-2 transition-all group/title shadow-sm border border-transparent hover:border-white/40">
-                <h3 className="uppercase font-label tracking-widest text-[11px] text-stone-600 font-extrabold group-hover/title:text-[#A2B29D] transition-colors">Quick Actions</h3>
-                <div className="p-0.5 rounded-md transition-all text-stone-400 group-hover/title:text-[#A2B29D]">
-                  {isQuickActionsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </div>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-1 px-1 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-              {quickActions.map(({ view, icon: Icon, label, badge, authOnly }) => {
-                if (authOnly && !user) return null;
-                const isActive = sidebarView === view;
-                return (
-                  <button
-                    key={view}
-                    onClick={() => setSidebarView(view as any)}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm ${isActive ? 'bg-white text-[#A2B29D] font-bold shadow-lg border border-[#A2B29D]/10 scale-[1.02]' : 'text-stone-600 hover:text-[#A2B29D] hover:bg-white/90 hover:shadow-md'}`}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span>{label}</span>
-                    {badge > 0 && (
-                      <span className={`ml-auto text-[10px] rounded-full px-2 py-0.5 font-bold ${
-                        view === 'planner' ? (isActive ? 'bg-red-400/30 text-white' : 'bg-red-100 text-red-600') : (isActive ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary')
+          <div className="md:px-3 mb-2 py-1"><h3 className="uppercase font-label tracking-widest text-label text-stone-500 font-extrabold">Quick Actions</h3></div>
+          <div className="space-y-1 px-1">
+            {quickActions.map(({ view, icon: Icon, label, badge, authOnly }) => {
+              if (authOnly && !user) return null;
+              const isActive = sidebarView === view;
+              return (
+                <button
+                  key={view}
+                  onClick={() => setSidebarView(view as any)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm ${isActive ? 'bg-white text-primary font-bold shadow-lg border border-primary/10 scale-[1.02]' : 'text-stone-600 hover:text-primary hover:bg-white/90 hover:shadow-md'}`}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span>{label}</span>
+                  {badge > 0 && (
+                    <span className={`ml-auto text-2xs rounded-full px-2 py-0.5 font-bold ${view === 'planner' ? (isActive ? 'bg-red-400/30 text-white' : 'bg-red-100 text-red-600') : (isActive ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary')
                       }`}>{badge}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </CollapsibleContent>
-          </Collapsible>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Threads */}
           {user && sidebarView !== 'planner' && (
@@ -992,7 +1071,7 @@ const Index = () => {
               {/* Pinned Threads */}
               {pinnedThreads.length > 0 && (
                 <div className="mb-4">
-                  <h3 className="uppercase font-label tracking-widest text-[10px] text-stone-500 mb-3 px-3 font-semibold flex items-center gap-1.5">
+                  <h3 className="uppercase font-label tracking-widest text-2xs text-stone-500 mb-3 px-3 font-semibold flex items-center gap-1.5">
                     <Pin className="h-3 w-3" />Pinned
                   </h3>
                   <div className="space-y-0.5 px-1">
@@ -1014,7 +1093,7 @@ const Index = () => {
                           <>
                             <button
                               onClick={() => { handleLoadChat(thread.id); setSidebarView('history'); }}
-                              className={`flex-1 text-left text-sm  rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'bg-white text-[#A2B29D] font-bold shadow-md border border-[#A2B29D]/10' : 'text-stone-600 hover:text-[#A2B29D] hover:bg-white/60 hover:shadow-sm'}`}
+                              className={`flex-1 text-left text-sm  rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'bg-white text-primary font-bold shadow-md border border-primary/10' : 'text-stone-600 hover:text-primary hover:bg-white/60 hover:shadow-sm'}`}
                             >
                               <div className="flex items-center gap-1.5">
                                 <Pin className="h-3 w-3 text-primary/50 flex-shrink-0" />
@@ -1065,14 +1144,14 @@ const Index = () => {
               )}
 
               {/* Recent Threads */}
-              <h3 className="uppercase font-label tracking-widest text-[10px] text-stone-500 mb-3 px-3 font-semibold">Recent Threads</h3>
+              <h3 className="uppercase font-label tracking-widest text-2xs text-stone-500 mb-3 px-3 font-semibold">Recent Threads</h3>
 
               <div className="space-y-4 px-1">
-                {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-[11px] text-stone-400 text-center py-6 px-4 bg-white/40 rounded-2xl border border-[#EBE4D9] italic">Your conversations will appear here.</p>}
+                {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-label text-stone-400 text-center py-6 px-4 bg-white/40 rounded-2xl border border-border italic">Your conversations will appear here.</p>}
                 {sortedGroupKeys.length === 0 && searchQuery && <p className="text-xs text-stone-500 text-center py-4">No chats found for "{searchQuery}"</p>}
                 {sortedGroupKeys.map(dateKey => (
                   <div key={dateKey}>
-                    <h4 className="mb-2.5 px-3 uppercase tracking-[0.15em] text-[10px] text-stone-600 font-bold">{dateKey}</h4>
+                    <h4 className="mb-2.5 px-3 uppercase tracking-[0.15em] text-2xs text-stone-600 font-bold">{dateKey}</h4>
                     <div className="space-y-0.5">
                       {groupedThreads[dateKey].map(thread => (
                         <div key={thread.id} className="group relative flex items-start gap-1 rounded-md overflow-hidden py-1 px-2">
@@ -1092,7 +1171,7 @@ const Index = () => {
                             <>
                               <button
                                 onClick={() => { handleLoadChat(thread.id); setSidebarView('history'); }}
-                                className={`flex-1 text-left text-sm rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'p-2 bg-white text-[#A2B29D] shadow-md border border-[#A2B29D]/10' : 'p-1 text-stone-600 hover:text-[#A2B29D] hover:bg-white/60 hover:shadow-sm'}`}
+                                className={`flex-1 text-left text-sm rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'p-2 bg-white text-primary shadow-md border border-primary/10' : 'p-1 text-stone-600 hover:text-primary hover:bg-white/60 hover:shadow-sm'}`}
                               >
                                 <span className=" truncate block">{thread.title}</span>
                                 {(thread.tags ?? []).length > 0 && (
@@ -1141,71 +1220,70 @@ const Index = () => {
                 ))}
               </div>
 
-            {/* Tag filter bar */}
-            {allUsedTags.length > 0 && (
-              <div className="mt-4 px-2">
-                <h3 className="uppercase font-label tracking-widest text-[10px] text-stone-500 mb-2 px-1 font-semibold flex items-center gap-1.5">
-                  <Tag className="h-3 w-3" />Filter by Tag
-                </h3>
-                <div className="flex flex-wrap gap-1">
-                  {allUsedTags.map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
-                      className={`text-[9px] px-2 py-0.5 rounded-full border font-medium transition-all ${
-                        selectedTagFilter === tag
+              {/* Tag filter bar */}
+              {allUsedTags.length > 0 && (
+                <div className="mt-4 px-2">
+                  <h3 className="uppercase font-label tracking-widest text-2xs text-stone-500 mb-2 px-1 font-semibold flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" />Filter by Tag
+                  </h3>
+                  <div className="flex flex-wrap gap-1">
+                    {allUsedTags.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
+                        className={`text-3xs px-2 py-0.5 rounded-full border font-medium transition-all ${selectedTagFilter === tag
                           ? getTagStyle(tag) + ' ring-1 ring-offset-1'
                           : 'bg-white/60 text-stone-400 border-stone-200 hover:bg-white'
-                      }`}
-                    >{tag}</button>
-                  ))}
-                  {selectedTagFilter && (
-                    <button
-                      onClick={() => setSelectedTagFilter(null)}
-                      className="text-[9px] px-2 py-0.5 rounded-full border border-stone-300 bg-white text-stone-500 hover:bg-stone-50 flex items-center gap-0.5"
-                    ><X className="h-2.5 w-2.5" />Clear</button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Archived Threads */}
-            {archivedThreads.length > 0 && (
-              <Collapsible open={showArchived} onOpenChange={setShowArchived} className="mt-2">
-                <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider text-stone-500 hover:text-stone-700">
-                  {showArchived ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                  <Archive className="h-3 w-3" />
-                  Archived
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-0.5 animate-in fade-in duration-200 mt-1">
-                  {archivedThreads.map(thread => (
-                    <div key={thread.id} className="px-3">
+                          }`}
+                      >{tag}</button>
+                    ))}
+                    {selectedTagFilter && (
                       <button
-                        onClick={() => handleLoadChat(thread.id)}
-                        className="w-full text-left text-xs px-2 py-1 rounded text-stone-500 hover:text-stone-700 hover:bg-white/50 truncate opacity-70 hover:opacity-100 transition-all"
-                        title={thread.title}
-                      >
-                        {thread.title}
-                      </button>
-                    </div>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
-            )}
+                        onClick={() => setSelectedTagFilter(null)}
+                        className="text-3xs px-2 py-0.5 rounded-full border border-stone-300 bg-white text-stone-500 hover:bg-stone-50 flex items-center gap-0.5"
+                      ><X className="h-2.5 w-2.5" />Clear</button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Archived Threads */}
+              {archivedThreads.length > 0 && (
+                <Collapsible open={showArchived} onOpenChange={setShowArchived} className="mt-2">
+                  <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-2 py-1.5 text-3xs font-bold uppercase tracking-wider text-stone-500 hover:text-stone-700">
+                    {showArchived ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    <Archive className="h-3 w-3" />
+                    Archived
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-0.5 animate-in fade-in duration-200 mt-1">
+                    {archivedThreads.map(thread => (
+                      <div key={thread.id} className="px-3">
+                        <button
+                          onClick={() => handleLoadChat(thread.id)}
+                          className="w-full text-left text-xs px-2 py-1 rounded text-stone-500 hover:text-stone-700 hover:bg-white/50 truncate opacity-70 hover:opacity-100 transition-all"
+                          title={thread.title}
+                        >
+                          {thread.title}
+                        </button>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
             </div>
           )}
         </nav>
 
         {/* User Profile Footer */}
-        <div className="flex-shrink-0 border-t border-[#EBE4D9] px-2 py-2">
+        <div className="flex-shrink-0 border-t border-border px-2 py-2" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}>
           {user && profile ? (
             <div className="flex items-center justify-between gap-1">
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-stone-700 truncate">{profile.name || 'User'}</p>
-                <p className="text-[10px] text-stone-400 truncate">{profile.email}</p>
+                <p className="text-2xs text-stone-400 truncate">{profile.email}</p>
               </div>
               <div className="flex gap-0.5 flex-shrink-0">
-                <button className="p-1.5 text-stone-400 hover:text-primary hover:bg-white/50 rounded transition-all" title="Settings">
+                <button className="p-1.5 text-stone-400 hover:text-primary hover:bg-white/50 rounded transition-all" title="Settings" onClick={() => setShowSettingsModal(true)}>
                   <Settings className="h-3.5 w-3.5" />
                 </button>
                 <button className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50/50 rounded transition-all" title="Sign out" onClick={() => signOut()}>
@@ -1214,30 +1292,30 @@ const Index = () => {
               </div>
             </div>
           ) : (
-            <button className="w-full text-left px-3 py-2 rounded-lg bg-white border border-[#A2B29D]/20 hover:border-[#A2B29D]/50 hover:bg-white transition-all text-xs font-semibold text-stone-700 flex items-center gap-2" onClick={() => setShowSignInModal(true)}>
-              <LogIn className="h-3.5 w-3.5 text-[#A2B29D]" />
+            <button className="w-full text-left px-3 py-2 rounded-lg bg-white border border-primary/20 hover:border-primary/50 hover:bg-white transition-all text-xs font-semibold text-stone-700 flex items-center gap-2" onClick={() => setShowSignInModal(true)}>
+              <LogIn className="h-3.5 w-3.5 text-primary" />
               Sign in
             </button>
           )}
         </div>
       </div>
-    </aside>
+    </div>
   );
 
   const sidebarToggleJSX = !isSidebarOpen ? (
-    <div className="fixed top-4 left-4 z-40 flex items-center gap-1">
-      <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white/90 border border-white/20 shadow-lg">
-        <PanelLeft className="h-4 w-4" />
+    <div className="flex items-center gap-0.5 flex-shrink-0">
+      <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-stone-100" title="Open sidebar">
+        <PanelLeft className="h-4 w-4 text-stone-500" />
       </Button>
-      <Button onClick={handleNewChat} variant="ghost" className="h-10 w-10 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white/90 border border-white/20 shadow-lg" title="New Chat">
-        <SquarePen className="h-4 w-4" />
+      <Button onClick={handleNewChat} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-stone-100" title="New Chat">
+        <SquarePen className="h-4 w-4 text-stone-500" />
       </Button>
     </div>
   ) : null;
 
   const shortcutsOverlayJSX = showShortcuts && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
-      <div className="bg-white rounded-2xl shadow-2xl border border-[#EBE4D9] p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl border border-border p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-headline text-lg text-stone-800 flex items-center gap-2">
             <Keyboard className="h-4 w-4 text-primary" />Keyboard Shortcuts
@@ -1253,11 +1331,11 @@ const Index = () => {
           ].map(({ keys, desc }) => (
             <div key={keys} className="flex items-center justify-between">
               <span className="text-xs text-stone-600">{desc}</span>
-              <kbd className="text-[10px] font-mono bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200">{keys}</kbd>
+              <kbd className="text-2xs font-mono bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200">{keys}</kbd>
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-stone-400 mt-4 text-center">Press <kbd className="font-mono bg-stone-100 px-1 rounded text-[9px]">Ctrl + /</kbd> anytime to toggle</p>
+        <p className="text-2xs text-stone-400 mt-4 text-center">Press <kbd className="font-mono bg-stone-100 px-1 rounded text-3xs">Ctrl + /</kbd> anytime to toggle</p>
       </div>
     </div>
   );
@@ -1278,11 +1356,10 @@ const Index = () => {
               <button
                 key={tag.name}
                 onClick={() => handleToggleTag(tagPickerThreadId!, tag.name)}
-                className={`py-3 px-4 rounded-xl border-2 font-medium transition-all text-sm ${
-                  isActive
-                    ? tag.color + ' border-opacity-80 ring-2 ring-offset-2'
-                    : 'bg-white/60 text-stone-400 border-stone-200 hover:bg-white hover:border-stone-300'
-                }`}
+                className={`py-3 px-4 rounded-xl border-2 font-medium transition-all text-sm ${isActive
+                  ? tag.color + ' border-opacity-80 ring-2 ring-offset-2'
+                  : 'bg-white/60 text-stone-400 border-stone-200 hover:bg-white hover:border-stone-300'
+                  }`}
               >
                 {tag.name}
               </button>
@@ -1313,16 +1390,16 @@ const Index = () => {
       <div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="h-8 w-8 rounded-full border border-[#EBE4D9] bg-white/80 hover:bg-white flex items-center justify-center transition-colors">
+            <button className="h-8 w-8 rounded-full border border-border bg-white/80 hover:bg-white flex items-center justify-center transition-colors">
               <Avatar className="h-6 w-6">
                 <AvatarImage src="" alt="Profile" />
-                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                <AvatarFallback className="bg-primary/10 text-primary text-2xs font-semibold">
                   {profile?.name ? profile.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : <User className="h-3 w-3" />}
                 </AvatarFallback>
               </Avatar>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 bg-white/95 backdrop-blur-sm border border-[#EBE4D9]" align="end" forceMount>
+          <DropdownMenuContent className="w-56 bg-white/95 backdrop-blur-sm border border-border" align="end" forceMount>
             {profile ? (
               <>
                 <DropdownMenuLabel className="font-normal">
@@ -1332,7 +1409,7 @@ const Index = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="font-normal text-xs text-gray-400 flex items-center gap-1.5 pb-1">
+                <DropdownMenuLabel className="font-normal text-xs text-stone-400 flex items-center gap-1.5 pb-1">
                   <Globe className="h-3 w-3" />Response language
                 </DropdownMenuLabel>
                 {SUPPORTED_LANGUAGES.map(({ code, label }) => (
@@ -1345,6 +1422,9 @@ const Index = () => {
                     {preferredLang === code && <span className="text-primary font-bold">✓</span>}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={() => setShowShortcuts(true)}>
+                  <Keyboard className="mr-2 h-4 w-4" /><span>Keyboard Shortcuts</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={() => signOut()}>
                   <LogOut className="mr-2 h-4 w-4" /><span>Sign Out</span>
@@ -1361,9 +1441,22 @@ const Index = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSignInModal(true)}><LogIn className="mr-2 h-4 w-4" /><span>Sign In</span></DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSignUpModal(true)}><UserPlus className="mr-2 h-4 w-4" /><span>Create Account</span></DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" onClick={() => setShowSignInModal(true)}><Smartphone className="mr-2 h-4 w-4" /><span>Phone Sign In</span></DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Continue as Guest</span></DropdownMenuItem>
+                <DropdownMenuSeparator className="sm:hidden" />
+                <DropdownMenuLabel className="font-normal text-xs text-stone-400 flex items-center gap-1.5 pb-1 sm:hidden">
+                  <Globe className="h-3 w-3" />Response Language
+                </DropdownMenuLabel>
+                {SUPPORTED_LANGUAGES.map(({ code, label }) => (
+                  <DropdownMenuItem key={`guest-lang-${code}`} className="cursor-pointer text-xs py-1.5 sm:hidden" onClick={() => handleLanguageChange(code)}>
+                    <span className="flex-1">{label}</span>
+                    {preferredLang === code && <span className="text-primary font-bold">✓</span>}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator className="sm:hidden" />
+                <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={() => setShowShortcuts(true)}>
+                  <Keyboard className="mr-2 h-4 w-4" /><span>Keyboard Shortcuts</span>
+                </DropdownMenuItem>
               </>
             )}
           </DropdownMenuContent>
@@ -1371,19 +1464,21 @@ const Index = () => {
       </div>
       <SignInModal open={showSignInModal} onOpenChange={setShowSignInModal} onSwitchToSignUp={(email) => { setSignUpPrefillEmail(email); setShowSignUpModal(true); }} />
       <SignUpModal open={showSignUpModal} onOpenChange={setShowSignUpModal} onSwitchToSignIn={() => setShowSignInModal(true)} initialEmail={signUpPrefillEmail} />
+      <SettingsModal open={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
     </>
   );
 
   // ── Planner detail view (full right panel) ────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
-      <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'pl-[280px]' : 'pl-0'}`}>
+      <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
         {shortcutsOverlayJSX}
         {tagPickerModalJSX}
+        {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
-        {sidebarToggleJSX}
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="flex items-center gap-2 px-5 h-12 bg-white/70 backdrop-blur-md border-b border-[#EBE4D9] flex-shrink-0">
+          <header className="flex items-center gap-2 px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border flex-shrink-0">
+            {sidebarToggleJSX}
             <h2 className="font-headline text-lg text-stone-800">Planner</h2>
             <div className="ml-auto">{profileIconJSX}</div>
           </header>
@@ -1403,21 +1498,22 @@ const Index = () => {
 
   // ── Helper: main-area shell (sidebar + toggle + profile + content) ──────────
   const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
-    <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'pl-[280px]' : 'pl-0'}`}>
+    <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
       {shortcutsOverlayJSX}
       {tagPickerModalJSX}
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
-      {sidebarToggleJSX}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-x-hidden overflow-hidden">
         {/* Header */}
-        <header className="flex items-center gap-2 px-5 h-12 bg-white/70 backdrop-blur-md border-b border-[#EBE4D9] flex-shrink-0">
+        <header className="flex items-center gap-2 px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border flex-shrink-0">
+          {sidebarToggleJSX}
           <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-7 w-7 p-0 rounded-lg">
             <ArrowLeft className="h-3.5 w-3.5 text-stone-500" />
           </Button>
           <h2 className="font-headline text-lg text-stone-800 flex items-center gap-2">{icon}{title}</h2>
           <div className="ml-auto">{profileIconJSX}</div>
         </header>
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-5">
           <div className="max-w-4xl mx-auto w-full">
             {children}
           </div>
@@ -1443,7 +1539,7 @@ const Index = () => {
   if (sidebarView === 'liked') {
     return mainAreaShell('Liked Messages', <ThumbsUp className="h-5 w-5 text-primary" />,
       allLikedMessages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-16 text-stone-400">
           <ThumbsUp className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm">No liked messages yet.</p>
           <p className="text-xs mt-1">Click the <ThumbsUp className="inline h-3 w-3 mx-0.5" /> on any AI response.</p>
@@ -1452,10 +1548,10 @@ const Index = () => {
         <div className="grid gap-3 sm:grid-cols-2">
           {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
             <button key={msg.id} onClick={() => handleLikedMessageClick(msg)}
-              className="text-left rounded-2xl bg-white/70 border border-[#a2b29d]/40 px-4 py-3.5 space-y-2 hover:bg-white/90 hover:border-primary/30 hover:shadow-sm transition-all duration-150">
-              {msg.mode && <span className="inline-block text-[9px] uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
-              <p className="text-sm text-gray-700 leading-relaxed line-clamp-5">{msg.text}</p>
-              <p className="text-[10px] text-gray-400">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              className="text-left rounded-2xl bg-white/70 border border-primary/40 px-4 py-3.5 space-y-2 hover:bg-white/90 hover:border-primary/30 hover:shadow-sm transition-all duration-150">
+              {msg.mode && <span className="inline-block text-3xs uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
+              <p className="text-sm text-stone-700 leading-relaxed line-clamp-5">{msg.text}</p>
+              <p className="text-2xs text-stone-400">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
             </button>
           ))}
         </div>
@@ -1467,7 +1563,7 @@ const Index = () => {
   if (sidebarView === 'reminders') {
     return mainAreaShell('Upcoming & Reminders', <Calendar className="h-5 w-5 text-primary" />,
       calendarEvents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-16 text-stone-400">
           <Calendar className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm">No reminders yet.</p>
           <p className="text-xs mt-1">Ask Viva in <span className="font-semibold text-primary">Planner mode</span> to save a date.</p>
@@ -1478,11 +1574,11 @@ const Index = () => {
             const isPast = new Date(ev.date) < new Date(new Date().toDateString())
             return (
               <a key={ev.id} href={ev.htmlLink || '#'} target="_blank" rel="noopener noreferrer"
-                className={`block rounded-2xl border px-4 py-3.5 space-y-1.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-gray-50/60 border-gray-200 opacity-60' : 'bg-white/70 border-[#a2b29d]/40 hover:bg-white/90 hover:border-primary/30'}`}>
-                <p className="text-sm font-semibold text-gray-800">{ev.title}</p>
+                className={`block rounded-2xl border px-4 py-3.5 space-y-1.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-stone-50/60 border-stone-200 opacity-60' : 'bg-white/70 border-primary/40 hover:bg-white/90 hover:border-primary/30'}`}>
+                <p className="text-sm font-semibold text-stone-800">{ev.title}</p>
                 <p className="text-xs text-primary font-medium">{ev.date}{ev.time ? ` · ${ev.time}` : ''}</p>
-                {ev.description && <p className="text-xs text-gray-400 line-clamp-2">{ev.description}</p>}
-                {isPast && <p className="text-[10px] text-gray-400 italic">Past event</p>}
+                {ev.description && <p className="text-xs text-stone-400 line-clamp-2">{ev.description}</p>}
+                {isPast && <p className="text-2xs text-stone-400 italic">Past event</p>}
               </a>
             )
           })}
@@ -1562,9 +1658,9 @@ const Index = () => {
   if (sidebarView in comingSoonViews) {
     const cs = comingSoonViews[sidebarView]
     return mainAreaShell(cs.title, cs.icon,
-      <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400 space-y-2">
+      <div className="flex flex-col items-center justify-center py-20 text-center text-stone-400 space-y-2">
         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-1">{cs.icon}</div>
-        <p className="text-sm font-semibold text-gray-600">Coming Soon</p>
+        <p className="text-sm font-semibold text-stone-600">Coming Soon</p>
         <p className="text-xs max-w-xs leading-relaxed">{cs.desc}</p>
       </div>
     )
@@ -1574,57 +1670,72 @@ const Index = () => {
   if (isExpanded) {
     const activeCfg = modeConfig(selectedMode);
     return (
-      <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'pl-[280px]' : 'pl-0'}`}>
+      <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
         {shortcutsOverlayJSX}
         {tagPickerModalJSX}
+        {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
-        {sidebarToggleJSX}
 
         {/* ── Center Chat Area ── */}
         <main className="flex-1 flex flex-col relative overflow-hidden">
           {/* TopAppBar — Stitch style */}
-          <header className="flex justify-between items-center w-full px-5 h-12 bg-white/70 backdrop-blur-md border-b border-[#EBE4D9] z-10 flex-shrink-0">
-            <div className="flex bg-[#EBE4D9] p-0.5 rounded-full gap-0.5">
-              {MODE_CONFIG.map(m => (
-                <button
-                  key={m.key}
-                  onClick={() => setSelectedMode(m.key)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${selectedMode === m.key ? `${m.active}` : 'text-stone-500 hover:bg-white/50'}`}
-                >
-                  {m.label}
-                </button>
-              ))}
+          <header className="flex items-center gap-1.5 w-full px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border z-10 flex-shrink-0">
+            {sidebarToggleJSX}
+            <div className="overflow-x-auto scrollbar-hide flex-1 min-w-0 bg-border flex-nowrap" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex p-0.5 rounded-full gap-0.5 ">
+                {MODE_CONFIG.map(m => (
+                  <Tooltip key={m.key}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setSelectedMode(m.key)}
+                        className={`px-3 py-1 rounded-full text-label font-semibold transition-all flex-shrink-0 ${selectedMode === m.key ? `${m.active}` : 'text-stone-500 hover:bg-white/50'}`}
+                      >
+                        {m.label}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs max-w-[160px] text-center">
+                      {m.description}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 text-stone-500 text-xs font-medium px-2 py-1 rounded-full hover:bg-stone-100 transition-colors">
-                    <Globe className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Lang</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-sm border border-[#EBE4D9] shadow-lg">
-                  <DropdownMenuLabel className="text-[9px] text-stone-400 uppercase tracking-widest">Response Language</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {SUPPORTED_LANGUAGES.map(({ code, label }) => (
-                    <DropdownMenuItem key={code} className="cursor-pointer text-[11px] py-1" onClick={() => handleLanguageChange(code)}>
-                      <span className="flex-1">{label}</span>
-                      {preferredLang === code && <span className="text-primary font-bold text-[10px]">✓</span>}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
-                <Bell className="h-4 w-4" />
-              </button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
-                    <Keyboard className="h-4 w-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Shortcuts (Ctrl+/)</p></TooltipContent>
-              </Tooltip>
+            <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+              <div className="hidden sm:block">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-1 text-stone-500 text-xs font-medium px-2 py-1 rounded-full hover:bg-stone-100 transition-colors">
+                      <Globe className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Lang</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-sm border border-border shadow-lg">
+                    <DropdownMenuLabel className="text-3xs text-stone-400 uppercase tracking-widest">Response Language</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {SUPPORTED_LANGUAGES.map(({ code, label }) => (
+                      <DropdownMenuItem key={code} className="cursor-pointer text-label py-1" onClick={() => handleLanguageChange(code)}>
+                        <span className="flex-1">{label}</span>
+                        {preferredLang === code && <span className="text-primary font-bold text-2xs">✓</span>}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {user && (
+                <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
+                  <Bell className="h-4 w-4" />
+                </button>
+              )}
+              <div className="hidden sm:block">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
+                      <Keyboard className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom"><p>Shortcuts (Ctrl+/)</p></TooltipContent>
+                </Tooltip>
+              </div>
               {profileIconJSX}
             </div>
           </header>
@@ -1644,14 +1755,14 @@ const Index = () => {
           )}
 
           {/* Chat Messages */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5 space-y-5">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5 space-y-5 gradient-bg">
             {/* Load earlier messages */}
             {hasMoreMessages && (
               <div className="flex justify-center">
                 <button
                   onClick={handleLoadMoreMessages}
                   disabled={loadingMoreMessages}
-                  className="flex items-center gap-1.5 px-4 py-1.5 text-[11px] font-medium text-primary bg-white border border-primary/20 rounded-full hover:bg-primary/5 transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-label font-medium text-primary bg-white border border-primary/20 rounded-full hover:bg-primary/5 transition-colors shadow-sm disabled:opacity-50"
                 >
                   {loadingMoreMessages ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
                   Load earlier messages
@@ -1667,7 +1778,7 @@ const Index = () => {
                 {message.sender === 'user' ? (
                   <div className="flex flex-col items-end">
                     {inlineEditId === message.id ? (
-                      <div className="w-screen max-w-4xl md:max-w-5xl lg:max-w-6xl -mx-5 px-5 flex flex-col gap-2">
+                      <div className="w-full max-w-4xl md:max-w-5xl lg:max-w-6xl flex flex-col gap-2">
                         <textarea
                           autoFocus
                           value={inlineEditText}
@@ -1677,10 +1788,10 @@ const Index = () => {
                             if (e.key === 'Escape') cancelInlineEdit();
                           }}
                           rows={Math.max(2, inlineEditText.split('\n').length)}
-                          className="w-full px-4 py-3 rounded-xl border border-primary/40 bg-white/90 text-gray-800 text-[13px] leading-relaxed resize-none outline-none focus:ring-2 focus:ring-primary/30 shadow-md"
+                          className="w-full px-4 py-3 rounded-xl border border-primary/40 bg-white/90 text-stone-800 text-caption leading-relaxed resize-none outline-none focus:ring-2 focus:ring-primary/30 shadow-md"
                         />
                         <div className="flex gap-2 justify-end">
-                          <Button variant="ghost" size="sm" onClick={cancelInlineEdit} className="h-7 px-3 text-xs text-gray-500 hover:text-gray-700 rounded-xl">
+                          <Button variant="ghost" size="sm" onClick={cancelInlineEdit} className="h-7 px-3 text-xs text-stone-500 hover:text-stone-700 rounded-xl">
                             Cancel
                           </Button>
                           <Button size="sm" onClick={() => submitInlineEdit(message)} disabled={!inlineEditText.trim()} className="h-7 px-3 text-xs bg-primary hover:bg-primary/90 text-white rounded-xl">
@@ -1691,10 +1802,10 @@ const Index = () => {
                     ) : (
                       <div className="group flex flex-col items-end">
                         <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-white shadow-sm">
-                          <p className="text-[13px] leading-relaxed">{message.text}</p>
+                          <p className="text-caption leading-relaxed">{message.text}</p>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 mr-1">
-                          <span className="text-[9px] text-stone-400 uppercase tracking-wider">
+                          <span className="text-3xs text-stone-400 uppercase tracking-wider">
                             {message.timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                           </span>
                           {/* Branch navigation */}
@@ -1710,7 +1821,7 @@ const Index = () => {
                                 >
                                   <ChevronLeft className="h-3 w-3" />
                                 </button>
-                                <span className="text-[9px] text-stone-500 font-medium tabular-nums">
+                                <span className="text-3xs text-stone-500 font-medium tabular-nums">
                                   {info.current + 1}/{info.total}
                                 </span>
                                 <button
@@ -1727,7 +1838,7 @@ const Index = () => {
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 w-6 p-0 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg">
+                              <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 w-6 p-0 text-stone-400 hover:text-primary hover:bg-primary/10 rounded-lg">
                                 <Edit3 className="h-3 w-3" />
                               </Button>
                             </TooltipTrigger>
@@ -1739,16 +1850,26 @@ const Index = () => {
                       </div>
                     )}
                   </div>
+                ) : !message.text && isTyping && msgIndex === messages.length - 1 ? (
+                  <div className="max-w-xs md:max-w-md lg:max-w-lg">
+                    <div className="mb-1 w-full bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border">
+                      <div className="flex items-center gap-1 py-1">
+                        <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  </div>
                 ) : message.text ? (
                   <div className="max-w-xs md:max-w-md lg:max-w-lg group">
                     {message.mode && (
                       <div className="mb-1 flex items-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-[10px] italic font-headline">V</div>
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-2xs italic font-headline">V</div>
                         {(() => {
                           const cfg = modeConfig(message.mode);
                           const Icon = cfg.icon;
                           return (
-                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${cfg.pill}`}>
+                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-3xs font-bold uppercase tracking-widest ${cfg.pill}`}>
                               <Icon className="h-2 w-2" />
                               {cfg.label}
                             </span>
@@ -1756,12 +1877,12 @@ const Index = () => {
                         })()}
                       </div>
                     )}
-                    <div className="mb-1 w-full prose prose-sm max-w-none text-[13px] leading-relaxed bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-[#EBE4D9] text-stone-700">
+                    <div className="mb-1 w-full prose prose-sm max-w-none text-caption leading-relaxed bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border text-stone-700">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
                           a: ({ href, children }) => (
-                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#B8860B] hover:text-[#DAA520] underline underline-offset-2 font-medium transition-colors">
+                            <a href={href} target="_blank" rel="noopener noreferrer" className="text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors">
                               {children}
                             </a>
                           ),
@@ -1769,7 +1890,7 @@ const Index = () => {
                             <img
                               src={src}
                               alt={alt ?? ''}
-                              className="w-[200px] h-[200px] object-cover rounded-xl shadow-sm flex-shrink-0"
+                              className="max-w-full w-[120px] sm:w-[200px] h-auto sm:h-[200px] object-cover rounded-xl shadow-sm flex-shrink-0"
                             />
                           ),
                           table: ({ children, ...props }) => {
@@ -1819,7 +1940,7 @@ const Index = () => {
 
                               return (
                                 <li className="list-none mb-3 not-prose">
-                                  <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-[#a2b29d]/30 bg-white/60 shadow-sm hover:shadow-md hover:border-[#B8860B]/40 transition-all duration-200">
+                                  <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-primary/30 bg-white/60 shadow-sm hover:shadow-md hover:border-mode-stylist-dark/40 transition-all duration-200">
                                     <a href={href} target="_blank" rel="noopener noreferrer" className="block no-underline flex-1 flex flex-row gap-3 items-center">
                                       <img
                                         src={imageUrl}
@@ -1827,19 +1948,18 @@ const Index = () => {
                                         className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0"
                                       />
                                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                        <span className="text-sm font-semibold text-gray-800 leading-snug line-clamp-1">{title}</span>
-                                        {description && <span className="text-xs text-gray-500 leading-relaxed line-clamp-2">{description}</span>}
+                                        <span className="text-sm font-semibold text-stone-800 leading-snug line-clamp-1">{title}</span>
+                                        {description && <span className="text-xs text-stone-500 leading-relaxed line-clamp-2">{description}</span>}
                                       </div>
                                     </a>
                                     {user && (
                                       <button
                                         onClick={() => handleSaveProduct(title as string, href, imageUrl)}
                                         disabled={isSaved}
-                                        className={`flex-shrink-0 p-2 rounded-lg transition-all ${
-                                          isSaved
-                                            ? 'bg-primary/20 text-primary cursor-default'
-                                            : 'text-stone-400 hover:text-primary hover:bg-primary/10'
-                                        }`}
+                                        className={`flex-shrink-0 p-2 rounded-lg transition-all ${isSaved
+                                          ? 'bg-primary/20 text-primary cursor-default'
+                                          : 'text-stone-400 hover:text-primary hover:bg-primary/10'
+                                          }`}
                                         title={isSaved ? 'Already saved' : 'Save to saved items'}
                                       >
                                         <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
@@ -1871,24 +1991,24 @@ const Index = () => {
                       />
                     )}
                     {message.calendarEvent && message.calendarAdded && (
-                      <div className="mt-2 mb-1 flex items-center gap-1.5 text-[11px] px-3 py-2 rounded-xl w-fit bg-primary/5 text-primary border border-primary/10">
+                      <div className="mt-2 mb-1 flex items-center gap-1.5 text-label px-3 py-2 rounded-xl w-fit bg-primary/5 text-primary border border-primary/10">
                         <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
                         <span className="font-semibold">Added to Google Calendar</span>
                         <span className="font-medium text-stone-500">· {message.calendarEvent.date}</span>
                       </div>
                     )}
                     {message.calendarEvent && !message.calendarAdded && !user && (
-                      <div className="mt-2 mb-1 bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-[#EBE4D9] relative overflow-hidden">
+                      <div className="mt-2 mb-1 bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12"></div>
                         <div className="relative z-10">
-                          <p className="text-[9px] text-primary font-bold uppercase tracking-widest mb-0.5">Upcoming Event</p>
+                          <p className="text-3xs text-primary font-bold uppercase tracking-widest mb-0.5">Upcoming Event</p>
                           <h4 className="font-headline text-base text-stone-800">{message.calendarEvent.title}</h4>
                           <div className="flex items-center gap-3 mt-2 text-stone-500 text-xs">
                             <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {message.calendarEvent.date}</span>
                             {message.calendarEvent.time && <span className="flex items-center gap-1">{message.calendarEvent.time}</span>}
                           </div>
                           <div className="flex gap-2 mt-3">
-                            <Button size="sm" className="bg-secondary text-white rounded-lg text-[11px] font-semibold hover:bg-secondary/90 shadow-sm gap-1.5 h-7" onClick={() => setShowSignInModal(true)}>
+                            <Button size="sm" className="bg-secondary text-white rounded-lg text-label font-semibold hover:bg-secondary/90 shadow-sm gap-1.5 h-7" onClick={() => setShowSignInModal(true)}>
                               <Calendar className="h-3 w-3" /> Sign in to add to Calendar
                             </Button>
                           </div>
@@ -1910,8 +2030,8 @@ const Index = () => {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id)} className="h-6 w-6 p-0 hover:bg-gray-100/30 rounded-md">
-                            {copiedMsgId === message.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-gray-500" />}
+                          <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
+                            {copiedMsgId === message.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-stone-500" />}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
@@ -1921,8 +2041,8 @@ const Index = () => {
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id)} className="h-6 w-6 p-0 hover:bg-gray-100/30 rounded-md">
-                            <Download className="h-3 w-3 text-gray-500" />
+                          <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
+                            <Download className="h-3 w-3 text-stone-500" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
@@ -1932,8 +2052,8 @@ const Index = () => {
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => toggleLike(message.id)} className="h-6 w-6 p-0 hover:bg-gray-100/30 rounded-md">
-                            <ThumbsUp className={`h-3 w-3 ${message.liked ? 'text-primary fill-current' : 'text-gray-500'}`} />
+                          <Button variant="ghost" size="sm" onClick={() => toggleLike(message.id)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
+                            <ThumbsUp className={`h-3 w-3 ${message.liked ? 'text-primary fill-current' : 'text-stone-500'}`} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
@@ -1943,8 +2063,8 @@ const Index = () => {
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => handleRegenerateMessage(message)} className="h-6 w-6 p-0 hover:bg-gray-100/30 rounded-md">
-                            <RefreshCw className="h-3 w-3 text-gray-500" />
+                          <Button variant="ghost" size="sm" onClick={() => handleRegenerateMessage(message)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
+                            <RefreshCw className="h-3 w-3 text-stone-500" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
@@ -1952,49 +2072,42 @@ const Index = () => {
                         </TooltipContent>
                       </Tooltip>
 
-                      {/* TTS: Play / Pause / Resume / Stop */}
-                      {ttsState?.msgId === message.id ? (
-                        <>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => ttsState.status === 'speaking' ? handleTtsPause() : handleTtsResume()} className="h-6 w-6 p-0 hover:bg-gray-100/30 rounded-md text-primary">
-                                {ttsState.status === 'speaking' ? <Pause className="h-3 w-3 fill-current" /> : <Play className="h-3 w-3 fill-current" />}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              <p>{ttsState.status === 'speaking' ? 'Pause' : 'Resume'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => handleTtsStop(message.id)} className="h-6 w-6 p-0 hover:bg-gray-100/30 rounded-md text-red-400">
-                                <Square className="h-2.5 w-2.5 fill-current" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              <p>Stop listening</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => handleTtsPlay(message)} className="h-6 w-6 p-0 hover:bg-gray-100/30 rounded-md">
-                              <Volume2 className="h-3 w-3 text-gray-500" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <p>Listen</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      {/* TTS listen button */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost" size="sm"
+                            onClick={() => handleTtsPlay(message)}
+                            disabled={ttsLoadingId === message.id}
+                            className={`h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md ${ttsActiveId === message.id ? 'text-primary' : ''}`}
+                          >
+                            {ttsLoadingId === message.id
+                              ? <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                              : <Volume2 className="h-3 w-3 text-stone-500" />}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p>{ttsActiveId === message.id ? 'Close player' : 'Listen'}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
+
+                    {/* Gemini TTS AudioPlayer */}
+                    {ttsActiveId === message.id && ttsAudioUrls[message.id] && (
+                      <div className="mt-2">
+                        <AudioPlayer
+                          audioUrl={ttsAudioUrls[message.id]}
+                          onEnded={() => handleTtsClose(message.id)}
+                          onError={() => handleTtsClose(message.id)}
+                        />
+                      </div>
+                    )}
 
                     {/* Continue Generating — shown when response appears truncated */}
                     {message.truncated && !isTyping && (
                       <button
                         onClick={handleContinueGenerating}
-                        className="flex items-center gap-1.5 text-[11px] text-primary font-medium hover:underline underline-offset-2 mt-1 transition-colors"
+                        className="flex items-center gap-1.5 text-label text-primary font-medium hover:underline underline-offset-2 mt-1 transition-colors"
                       >
                         <Maximize2 className="h-3 w-3" />
                         Continue generating...
@@ -2013,7 +2126,7 @@ const Index = () => {
                           <button
                             key={label}
                             onClick={() => handleToneModifier(label.toLowerCase())}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-stone-200 text-[10px] text-stone-500 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-stone-200 text-2xs text-stone-500 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
                           >
                             <Icon className="h-2.5 w-2.5" />
                             {label}
@@ -2031,9 +2144,9 @@ const Index = () => {
               const modeLabel = selectedMode === 'auto' ? '' : ` (${cfg.label})`;
               return (
                 <div className="flex justify-start">
-                  <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-2.5 border border-[#EBE4D9] shadow-sm">
+                  <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-2.5 border border-border shadow-sm">
                     <div className={`flex items-center gap-1.5 ${cfg.pill}`}>
-                      <span className="text-[11px] italic">Viva{modeLabel} is thinking</span>
+                      <span className="text-label italic">Viva{modeLabel} is thinking</span>
                       {[0, 0.1, 0.2].map((d, i) => <div key={i} className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: `${d}s` }} />)}
                     </div>
                   </div>
@@ -2044,7 +2157,7 @@ const Index = () => {
           </div>
 
           {/* Input Bar Area */}
-          <div className="px-5 pb-4 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent flex-shrink-0">
+          <div className="px-5 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent flex-shrink-0" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
             <InputBar
               inputText={voiceState === 'recording' ? interimText : inputText}
               onInputChange={setInputText}
@@ -2056,7 +2169,7 @@ const Index = () => {
               voiceState={voiceState}
               onMicClick={handleMicClick}
             />
-            <p className="text-center text-[9px] text-stone-400 mt-2 uppercase tracking-[0.2em] font-medium">Viva concierge is here to make your day perfect</p>
+            <p className="text-center text-3xs text-stone-400 mt-2 uppercase tracking-[0.2em] font-medium">Viva concierge is here to make your day perfect</p>
           </div>
         </main>
       </div>
@@ -2065,56 +2178,65 @@ const Index = () => {
 
   // ── Landing page ───────────────────────────────────────────────────────────
   return (
-    <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'pl-[280px]' : 'pl-0'}`}>
+    <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
       {shortcutsOverlayJSX}
       {tagPickerModalJSX}
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
-      {sidebarToggleJSX}
 
       <main className="flex-1 flex flex-col relative overflow-hidden">
         {/* TopAppBar — same as chat view */}
-        <header className="flex justify-between items-center w-full px-5 h-12 bg-white/70 backdrop-blur-md border-b border-[#EBE4D9] z-10 flex-shrink-0">
-          <div className="flex bg-[#EBE4D9] p-0.5 rounded-full gap-0.5">
-            {MODE_CONFIG.map(m => (
-              <button
-                key={m.key}
-                onClick={() => setSelectedMode(m.key)}
-                className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all ${selectedMode === m.key ? `${m.active}` : 'text-stone-500 hover:bg-white/50'}`}
-              >
-                {m.label}
-              </button>
-            ))}
+        <header className="flex items-center gap-1.5 w-full px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border z-10 flex-shrink-0">
+          {sidebarToggleJSX}
+          <div className=" overflow-x-auto scrollbar-hide flex-1 min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex bg-border rounded-full p-0.5 gap-0.5 flex-nowrap w-fit">
+              {MODE_CONFIG.map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => setSelectedMode(m.key)}
+                  className={`px-3 py-1 rounded-full text-label font-semibold transition-all flex-shrink-0 ${selectedMode === m.key ? `${m.active}` : 'text-stone-500 hover:bg-white/50'}`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 text-stone-500 text-xs font-medium px-2 py-1 rounded-full hover:bg-stone-100 transition-colors">
-                  <Globe className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Lang</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-sm border border-[#EBE4D9] shadow-lg">
-                <DropdownMenuLabel className="text-[9px] text-stone-400 uppercase tracking-widest">Response Language</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {SUPPORTED_LANGUAGES.map(({ code, label }) => (
-                  <DropdownMenuItem key={code} className="cursor-pointer text-[11px] py-1" onClick={() => handleLanguageChange(code)}>
-                    <span className="flex-1">{label}</span>
-                    {preferredLang === code && <span className="text-primary font-bold text-[10px]">✓</span>}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
-              <Bell className="h-4 w-4" />
-            </button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
-                  <Keyboard className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom"><p>Shortcuts (Ctrl+/)</p></TooltipContent>
-            </Tooltip>
+          <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
+            <div className="hidden sm:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 text-stone-500 text-xs font-medium px-2 py-1 rounded-full hover:bg-stone-100 transition-colors">
+                    <Globe className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Lang</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-sm border border-border shadow-lg">
+                  <DropdownMenuLabel className="text-3xs text-stone-400 uppercase tracking-widest">Response Language</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {SUPPORTED_LANGUAGES.map(({ code, label }) => (
+                    <DropdownMenuItem key={code} className="cursor-pointer text-label py-1" onClick={() => handleLanguageChange(code)}>
+                      <span className="flex-1">{label}</span>
+                      {preferredLang === code && <span className="text-primary font-bold text-2xs">✓</span>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {user && (
+              <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
+                <Bell className="h-4 w-4" />
+              </button>
+            )}
+            <div className="hidden sm:block">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
+                    <Keyboard className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><p>Shortcuts (Ctrl+/)</p></TooltipContent>
+              </Tooltip>
+            </div>
             {profileIconJSX}
           </div>
         </header>
@@ -2126,7 +2248,7 @@ const Index = () => {
               <h1 className="font-headline italic text-2xl text-primary tracking-tight text-center mb-0.5">
                 Viva
               </h1>
-              <p className="text-[9px] uppercase tracking-[0.2em] text-stone-400 font-label mb-3 text-center">Universal Concierge</p>
+              <p className="text-3xs uppercase tracking-[0.2em] text-stone-400 font-label mb-3 text-center">Universal Concierge</p>
               <h2 className="font-headline text-lg md:text-xl text-stone-800 mb-1 tracking-tight text-center">
                 {profile ? `Welcome back, ${profile.name.split(' ')[0]}` : 'Your AI Wedding Planner'}
               </h2>
@@ -2139,7 +2261,7 @@ const Index = () => {
                   <Button key={i} onClick={() => setInputText(btn.action)} variant="outline"
                     className="flex flex-row items-center gap-2 h-auto py-2.5 px-3 bg-white border border-surface-container-high rounded-xl group transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow-md hover:border-primary/30">
                     <btn.icon className="w-3.5 h-3.5 text-primary flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                    <span className="text-[11px] font-medium text-stone-600 whitespace-nowrap">{btn.text}</span>
+                    <span className="text-label font-medium text-stone-600 whitespace-nowrap">{btn.text}</span>
                   </Button>
                 ))}
               </div>

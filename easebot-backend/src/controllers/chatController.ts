@@ -15,28 +15,31 @@ import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
 import { PLANNER_TOOLS, executeToolCall } from '../services/plannerTools'
 import { incrementUserUsage } from '../services/usageService'
-import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode, ToolAction } from '../types'
+import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
+import { buildPersonalizationSuffix } from '../utils/toneInjector'
+import { determineTargetLanguage, buildLanguageInstruction } from '../pipeline/languageInstruction'
 
 async function buildSystemPrompt(
   mode: Mode,
   userMessage: string,
-  userRole?: string | null
+  userRole?: string | null,
+  personalization?: UserPersonalization
 ): Promise<string> {
   if (mode === 'stylist') {
     try {
       const products = await getRelevantProductsViaAlgolia(userMessage)
       const context = formatProductsContext(products)
-      return getStylistPrompt(context)
+      return getStylistPrompt(context) + buildPersonalizationSuffix(personalization)
     } catch {
-      return getStylistPrompt()
+      return getStylistPrompt() + buildPersonalizationSuffix(personalization)
     }
   }
   switch (mode) {
-    case 'planner':    return getPlannerPrompt(userRole)
-    case 'therapist':  return getTherapistPrompt()
-    case 'knowledge':  return getKnowledgePrompt()
-    case 'consultant': return getConsultantPrompt()
-    default:           return getAssistantPrompt()
+    case 'planner':    return getPlannerPrompt(userRole) + buildPersonalizationSuffix(personalization)
+    case 'therapist':  return getTherapistPrompt() + buildPersonalizationSuffix(personalization)
+    case 'knowledge':  return getKnowledgePrompt() + buildPersonalizationSuffix(personalization)
+    case 'consultant': return getConsultantPrompt() + buildPersonalizationSuffix(personalization)
+    default:           return getAssistantPrompt() + buildPersonalizationSuffix(personalization)
   }
 }
 
@@ -63,7 +66,7 @@ async function getChatHistory(
 }
 
 export async function handleChat(req: Request, res: Response): Promise<void> {
-  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory } = req.body as ChatPayload
+  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization } = req.body as ChatPayload
 
   if (!message && !audioBase64) {
     res.status(400).json({ error: 'message or audioBase64 is required' })
@@ -89,7 +92,9 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       }
     }
 
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole)
+    const targetLanguage = determineTargetLanguage(language, detectedLanguage)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization)
+      + buildLanguageInstruction(targetLanguage)
 
     // Enable function calling for planner mode (logged-in only)
     const tools = (isLoggedIn && mode === 'planner') ? PLANNER_TOOLS : undefined
@@ -183,7 +188,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   const sse = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`)
 
   try {
-    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory } = req.body as ChatPayload
+    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization } = req.body as ChatPayload
 
     if (!message && !audioBase64) {
       sse({ t: 'e', msg: 'message or audioBase64 is required' })
@@ -207,7 +212,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole)
+    const targetLanguage = determineTargetLanguage(language, detectedLanguage)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization)
+      + buildLanguageInstruction(targetLanguage)
     const tools = (isLoggedIn && mode === 'planner') ? PLANNER_TOOLS : undefined
 
     const toolActions: ToolAction[] = []
