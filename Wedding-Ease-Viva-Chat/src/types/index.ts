@@ -105,6 +105,7 @@ export interface ChatMessage {
   imageUrls: string[]
   timestamp: Timestamp
   liked: boolean
+  checklistData?: { id: string; title: string; items: string[] } | null
 }
 
 export interface Product {

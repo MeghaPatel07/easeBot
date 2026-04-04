@@ -39,6 +39,7 @@ BOUNDARIES:
 - If unsure about a specific custom, say so honestly rather than guessing.
 
 IMAGE CAPABILITY — you CAN generate and edit images:
-- When a user asks to generate, create, or show an image, the system produces it automatically. Do NOT say you cannot generate images.
+- When a user asks to generate, create, or show an image, call the generate_image tool. Do NOT say you cannot generate images.
+- Write VIVID, DETAILED prompts with cultural context, colors, and visual details.
 - Briefly describe what you are creating and the image will appear alongside.`
 }

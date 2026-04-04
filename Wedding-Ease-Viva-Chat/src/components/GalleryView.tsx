@@ -1,52 +1,40 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { X, ChevronLeft, ChevronRight, Sparkles, Image } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { X, ChevronLeft, ChevronRight, Sparkles, Image, Loader2, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 import { ImageActions } from '@/components/ImageActions'
-import type { Message } from '@/hooks/useChat'
+import { getUserImages, deleteUserImage, type UserImage } from '@/services/galleryService'
 
 interface GalleryViewProps {
-  messages: Message[]
+  userId: string
 }
 
-interface GalleryImage {
-  url: string
-  prompt: string
-  timestamp: Date
-}
-
-export default function GalleryView({ messages }: GalleryViewProps) {
+export default function GalleryView({ userId }: GalleryViewProps) {
+  const [images, setImages] = useState<UserImage[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+  const [scale, setScale] = useState(1)
 
-  // Flatten all images from messages
-  const images = useMemo<GalleryImage[]>(() => {
-    const result: GalleryImage[] = []
-    for (const msg of messages) {
-      const prompt = msg.text || ''
-      const ts = msg.timestamp
-
-      if (msg.imageUrls && msg.imageUrls.length > 0) {
-        for (const url of msg.imageUrls) {
-          result.push({ url, prompt, timestamp: ts })
-        }
-      } else if (msg.imageUrl) {
-        result.push({ url: msg.imageUrl, prompt, timestamp: ts })
+  // Fetch images from Firestore
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    getUserImages(userId).then(imgs => {
+      if (!cancelled) {
+        setImages(imgs)
+        setLoading(false)
       }
-    }
-    return result
-  }, [messages])
+    })
+    return () => { cancelled = true }
+  }, [userId])
 
-  // Keyboard navigation for preview modal
+  // Keyboard navigation for preview
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (selectedIndex === null) return
-      if (e.key === 'Escape') {
-        setSelectedIndex(null)
-      } else if (e.key === 'ArrowLeft') {
-        setSelectedIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : prev))
-      } else if (e.key === 'ArrowRight') {
-        setSelectedIndex((prev) =>
-          prev !== null && prev < images.length - 1 ? prev + 1 : prev
-        )
-      }
+      if (e.key === 'Escape') { setSelectedIndex(null); setScale(1) }
+      else if (e.key === 'ArrowLeft') { setSelectedIndex(i => (i !== null && i > 0 ? i - 1 : i)); setScale(1) }
+      else if (e.key === 'ArrowRight') { setSelectedIndex(i => (i !== null && i < images.length - 1 ? i + 1 : i)); setScale(1) }
+      else if (e.key === '+' || e.key === '=') setScale(s => Math.min(s + 0.25, 3))
+      else if (e.key === '-') setScale(s => Math.max(s - 0.25, 0.5))
     },
     [selectedIndex, images.length]
   )
@@ -56,6 +44,38 @@ export default function GalleryView({ messages }: GalleryViewProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
+  // Lock body scroll when preview is open
+  useEffect(() => {
+    if (selectedIndex !== null) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = '' }
+    }
+  }, [selectedIndex])
+
+  const handleDelete = async (img: UserImage, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await deleteUserImage(img.id)
+      setImages(prev => prev.filter(i => i.id !== img.id))
+      if (selectedIndex !== null) {
+        if (images.length <= 1) setSelectedIndex(null)
+        else if (selectedIndex >= images.length - 1) setSelectedIndex(images.length - 2)
+      }
+    } catch (err) {
+      console.error('[GalleryView] delete error:', err)
+    }
+  }
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+        <Loader2 className="h-6 w-6 text-[#C6944A] animate-spin" />
+        <p className="text-sm text-white/50">Loading gallery...</p>
+      </div>
+    )
+  }
+
   // Empty state
   if (images.length === 0) {
     return (
@@ -64,7 +84,7 @@ export default function GalleryView({ messages }: GalleryViewProps) {
           <Sparkles className="h-5 w-5 text-[#C6944A]" />
         </div>
         <p className="text-sm text-white/50 max-w-xs leading-relaxed">
-          No images yet. Ask Viva to generate some wedding visuals!
+          No images yet. Ask Viva to generate some visuals!
         </p>
       </div>
     )
@@ -83,11 +103,11 @@ export default function GalleryView({ messages }: GalleryViewProps) {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {images.map((img, idx) => (
           <button
-            key={`${img.url}-${idx}`}
-            onClick={() => setSelectedIndex(idx)}
+            key={img.id}
+            onClick={() => { setSelectedIndex(idx); setScale(1) }}
             className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer min-h-[44px] bg-white/[0.04] border border-white/[0.08]"
           >
             <img
@@ -96,47 +116,55 @@ export default function GalleryView({ messages }: GalleryViewProps) {
               className="w-full h-full object-cover rounded-xl"
               loading="lazy"
             />
-            {/* Hover gradient with timestamp */}
+            {/* Hover overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <p className="text-3xs text-white/60 truncate">
-                {img.timestamp.toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                })}
+              <p className="text-3xs text-white/80 truncate">{img.prompt}</p>
+              <p className="text-3xs text-white/50">
+                {img.createdAt?.toDate?.().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) ?? ''}
               </p>
             </div>
-            {/* ImageActions overlay */}
-            <ImageActions imageUrl={img.url} />
+            {/* Delete button on hover */}
+            <button
+              onClick={(e) => handleDelete(img, e)}
+              className="absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/50 hover:bg-red-500/80 text-white/70 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </button>
         ))}
       </div>
 
-      {/* Full-screen preview modal */}
+      {/* Full-screen preview */}
       {currentImage && selectedIndex !== null && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center"
-          onClick={() => setSelectedIndex(null)}
+          className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200"
+          onClick={() => { setSelectedIndex(null); setScale(1) }}
         >
           {/* Close */}
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setSelectedIndex(null)
-            }}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors z-10"
+            onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); setScale(1) }}
+            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-10"
           >
             <X className="h-5 w-5" />
           </button>
 
+          {/* Zoom controls */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/10 rounded-full px-3 py-1.5 backdrop-blur-sm">
+            <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.5)) }} className="h-7 w-7 rounded-full hover:bg-white/20 text-white flex items-center justify-center transition-colors">
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <span className="text-white/70 text-xs min-w-[3rem] text-center">{Math.round(scale * 100)}%</span>
+            <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 3)) }} className="h-7 w-7 rounded-full hover:bg-white/20 text-white flex items-center justify-center transition-colors">
+              <ZoomIn className="h-4 w-4" />
+            </button>
+          </div>
+
           {/* Prev */}
           {selectedIndex > 0 && (
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setSelectedIndex((i) => (i !== null ? i - 1 : i))
-              }}
-              className="absolute left-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors z-10"
+              onClick={(e) => { e.stopPropagation(); setSelectedIndex(i => (i !== null ? i - 1 : i)); setScale(1) }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
@@ -145,35 +173,36 @@ export default function GalleryView({ messages }: GalleryViewProps) {
           {/* Next */}
           {selectedIndex < images.length - 1 && (
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setSelectedIndex((i) => (i !== null ? i + 1 : i))
-              }}
-              className="absolute right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors z-10"
+              onClick={(e) => { e.stopPropagation(); setSelectedIndex(i => (i !== null ? i + 1 : i)); setScale(1) }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
             >
               <ChevronRight className="h-6 w-6" />
             </button>
           )}
 
-          {/* Image */}
-          <div
-            className="max-w-3xl max-h-[80vh] relative group"
-            onClick={(e) => e.stopPropagation()}
-          >
+          {/* Main image */}
+          <div className="flex items-center justify-center w-full h-full p-8 sm:p-12" onClick={(e) => e.stopPropagation()}>
             <img
               src={currentImage.url}
               alt={currentImage.prompt || 'Preview'}
-              className="max-h-[75vh] rounded-xl object-contain"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-transform duration-200 select-none"
+              style={{ transform: `scale(${scale})` }}
+              draggable={false}
             />
-            <ImageActions imageUrl={currentImage.url} />
           </div>
 
-          {/* Prompt text */}
-          {currentImage.prompt && (
-            <p className="absolute bottom-8 text-center text-xs text-white/50 max-w-md px-4 line-clamp-3">
-              {currentImage.prompt}
+          {/* Bottom bar: actions + prompt */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <ImageActions imageUrl={currentImage.url} />
+            {currentImage.prompt && (
+              <p className="text-center text-xs text-white/50 px-4 line-clamp-2">
+                {currentImage.prompt}
+              </p>
+            )}
+            <p className="text-center text-2xs text-white/30">
+              {selectedIndex + 1} of {images.length}
             </p>
-          )}
+          </div>
         </div>
       )}
     </>

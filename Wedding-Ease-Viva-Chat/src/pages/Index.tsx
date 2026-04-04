@@ -32,7 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import SignUpModal from '@/components/auth/SignUpModal';
 import SignInModal from '@/components/auth/SignInModal';
@@ -124,15 +124,15 @@ const MODE_CONFIG: ModeConfig[] = [
     active: 'bg-[#D4AF37] text-white shadow-sm',
     inactive: 'text-white/60 hover:bg-white/15',
   },
-  {
-    key: 'therapist',
-    label: 'Therapist',
-    description: 'Talk through wedding stress and emotions',
-    icon: MessageSquare,
-    pill: 'bg-mode-therapist/10 text-mode-therapist',
-    active: 'bg-[#9B8B7A] text-white shadow-sm',
-    inactive: 'text-white/60 hover:bg-white/15',
-  },
+  // {
+  //   key: 'therapist',
+  //   label: 'Therapist',
+  //   description: 'Talk through wedding stress and emotions',
+  //   icon: MessageSquare,
+  //   pill: 'bg-mode-therapist/10 text-mode-therapist',
+  //   active: 'bg-[#9B8B7A] text-white shadow-sm',
+  //   inactive: 'text-white/60 hover:bg-white/15',
+  // },
   {
     key: 'knowledge',
     label: 'Knowledge',
@@ -142,15 +142,15 @@ const MODE_CONFIG: ModeConfig[] = [
     active: 'bg-[#6B5E52] text-white shadow-sm',
     inactive: 'text-white/60 hover:bg-white/15',
   },
-  {
-    key: 'consultant',
-    label: 'Consultant',
-    description: 'Expert advice on vendors, venues, and logistics',
-    icon: DollarSign,
-    pill: 'bg-mode-consultant/10 text-mode-consultant',
-    active: 'bg-[#A87C33] text-white shadow-sm',
-    inactive: 'text-white/60 hover:bg-white/15',
-  },
+  // {
+  //   key: 'consultant',
+  //   label: 'Consultant',
+  //   description: 'Expert advice on vendors, venues, and logistics',
+  //   icon: DollarSign,
+  //   pill: 'bg-mode-consultant/10 text-mode-consultant',
+  //   active: 'bg-[#A87C33] text-white shadow-sm',
+  //   inactive: 'text-white/60 hover:bg-white/15',
+  // },
 ]
 
 const modeConfig = (key: ModeOrAuto): ModeConfig =>
@@ -380,7 +380,8 @@ const InputBar = ({
 // ─────────────────────────────────────────────────────────────────────────────
 const Index = () => {
   const navigate = useNavigate();
-  const { threadId: urlThreadId } = useParams<{ threadId: string }>();
+  const { threadId: urlThreadId, checklistId: urlChecklistId, userId: urlUserId } = useParams<{ threadId: string; checklistId: string; userId: string }>();
+  const location = useLocation();
   const { user, profile, signOut } = useAuth();
   const {
     messages,
@@ -420,6 +421,13 @@ const Index = () => {
 
   const isExpanded = messages.length > 0;
 
+  // Count of AI-generated images across all messages (for gallery badge)
+  const galleryImageCount = messages.reduce((count, msg) => {
+    if (msg.imageUrls?.length) return count + msg.imageUrls.length
+    if (msg.imageUrl) return count + 1
+    return count
+  }, 0);
+
   // ── URL ↔ thread sync ──────────────────────────────────────────────────────
   // When URL has a threadId that doesn't match the active thread, load it
   useEffect(() => {
@@ -454,7 +462,21 @@ const Index = () => {
   const [inlineEditText, setInlineEditText] = useState('');
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [sidebarView, setSidebarView] = useState<'history' | 'liked' | 'reminders' | 'planner' | 'saved-items' | 'moodboard' | 'shopping' | 'budget' | 'timeline' | 'progress' | 'notifications' | 'collaborate' | 'gallery'>('history');
+  // Derive sidebarView from URL path (/:userId/view pattern)
+  type SidebarView = 'history' | 'liked' | 'reminders' | 'planner' | 'saved-items' | 'moodboard' | 'shopping' | 'budget' | 'timeline' | 'progress' | 'notifications' | 'collaborate' | 'gallery';
+  const VALID_VIEWS = new Set<SidebarView>(['gallery', 'planner', 'liked', 'reminders', 'budget', 'shopping', 'saved-items', 'timeline', 'progress', 'notifications', 'collaborate', 'moodboard']);
+  // Extract view segment from /:userId/<view> pattern
+  const pathSegments = location.pathname.split('/').filter(Boolean);
+  const viewSegment = pathSegments.length >= 2 && pathSegments[0] !== 'chat' && pathSegments[0] !== 'share' ? pathSegments[1] : null;
+  const sidebarView: SidebarView = viewSegment && VALID_VIEWS.has(viewSegment as SidebarView) ? viewSegment as SidebarView : 'history';
+  const activeUserId = user?.uid ?? urlUserId ?? '';
+  const setSidebarView = (view: SidebarView) => {
+    if (view === 'history') {
+      navigate('/');
+    } else if (activeUserId) {
+      navigate(`/${activeUserId}/${view}`);
+    }
+  };
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [ttsLoadingId, setTtsLoadingId] = useState<string | null>(null);
@@ -616,11 +638,19 @@ const Index = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [isTyping, showShortcuts]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sync selectedChecklistId from URL param
+  useEffect(() => {
+    if (urlChecklistId && urlChecklistId !== selectedChecklistId) {
+      setSelectedChecklistId(urlChecklistId);
+    }
+  }, [urlChecklistId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleLikedMessageClick = async (msg: Message) => {
-    setSidebarView('history');
     if (msg.threadId && msg.threadId !== activeThreadId) {
       navigate(`/chat/${msg.threadId}`);
+    } else {
+      navigate('/');
     }
     setPendingScrollToId(msg.id);
   };
@@ -808,7 +838,7 @@ const Index = () => {
     setRenamingThreadId(null);
   };
 
-  const handleNewChat = () => { startNewChat(); setInputText(''); setSidebarView('history'); setSelectedChecklistId(null); setBranchMap({}); navigate('/'); };
+  const handleNewChat = () => { startNewChat(); setInputText(''); setSelectedChecklistId(null); setBranchMap({}); navigate('/'); };
 
   const handleLoadChat = (threadId: string) => { setBranchMap({}); navigate(`/chat/${threadId}`); };
 
@@ -1073,6 +1103,7 @@ const Index = () => {
     { view: 'progress' as const, icon: BarChart3, label: 'Progress', badge: 0, authOnly: true },
     { view: 'notifications' as const, icon: Bell, label: 'Alerts', badge: 0, authOnly: true },
     { view: 'collaborate' as const, icon: Users, label: 'Collaborate', badge: 0, authOnly: true },
+    { view: 'gallery' as const, icon: Image, label: 'Gallery', badge: galleryImageCount },
   ];
 
   // ── Figma-style sidebar nav items ──────────────────────────────────────────
@@ -1117,18 +1148,20 @@ const Index = () => {
         {/* Main Navigation */}
         <nav className="flex-1 overflow-y-auto custom-scrollbar px-3 pt-2 pb-2 min-h-0">
           {/* Primary nav items (Figma style) */}
-       
+
 
           {/* Extra quick actions (logged-in) */}
           {user && (
             <div className="space-y-0.5 mb-4">
               {[
+                { view: 'planner' as const, icon: CheckSquare, label: 'planner', badge: overdueCount },
                 { view: 'liked' as const, icon: ThumbsUp, label: 'liked', badge: allLikedMessages.length },
                 { view: 'reminders' as const, icon: Bell, label: 'reminders', badge: calendarEvents.length },
                 { view: 'timeline' as const, icon: Clock, label: 'timeline', badge: 0 },
                 { view: 'progress' as const, icon: BarChart3, label: 'progress', badge: 0 },
                 { view: 'notifications' as const, icon: Bell, label: 'alerts', badge: 0 },
                 { view: 'collaborate' as const, icon: Users, label: 'collaborate', badge: 0 },
+                { view: 'gallery' as const, icon: Image, label: 'gallery', badge: galleryImageCount },
               ].map(({ view, icon: Icon, label, badge }) => {
                 const isActive = sidebarView === view;
                 return (
@@ -1175,7 +1208,7 @@ const Index = () => {
                         ) : (
                           <>
                             <button
-                              onClick={() => { handleLoadChat(thread.id); setSidebarView('history'); }}
+                              onClick={() => { handleLoadChat(thread.id); }}
                               className={`thread-title w-full text-left text-xs rounded-lg transition-all duration-200 px-2 py-1.5 ${activeThreadId === thread.id ? 'bg-white/[0.08] text-primary font-medium' : 'text-white/50 hover:text-white/75 hover:bg-white/[0.04]'}`}
                             >
                               <div className="flex items-center gap-1.5">
@@ -1228,7 +1261,7 @@ const Index = () => {
 
               {/* Recent Threads */}
               <h3 className="uppercase tracking-[0.12em] text-2xs text-white/35 mb-2 px-2 font-semibold">Recent</h3>
-              <div className="space-y-3">
+              <div>
                 {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-2xs text-white/30 text-center py-4 px-3 italic">Your conversations will appear here.</p>}
                 {sortedGroupKeys.length === 0 && searchQuery && <p className="text-xs text-white/35 text-center py-3">No chats found for "{searchQuery}"</p>}
                 {sortedGroupKeys.map(dateKey => (
@@ -1252,7 +1285,7 @@ const Index = () => {
                           ) : (
                             <>
                               <button
-                                onClick={() => { handleLoadChat(thread.id); setSidebarView('history'); }}
+                                onClick={() => { handleLoadChat(thread.id); }}
                                 className={`thread-title w-full text-left text-xs rounded-lg transition-all duration-200 px-2 py-1.5 ${activeThreadId === thread.id ? 'bg-white/[0.08] text-primary font-medium' : 'text-white/50 hover:text-white/75 hover:bg-white/[0.04]'}`}
                               >
                                 <span className="truncate block">{thread.title}</span>
@@ -1591,7 +1624,7 @@ const Index = () => {
         {/* Header */}
         <header className="flex items-center gap-2 px-2 sm:px-4 h-14 bg-[#3A0E20]/80 backdrop-blur-md border-b border-[#C6944A]/20 flex-shrink-0">
           {sidebarToggleJSX}
-          <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-7 w-7 p-0 rounded-lg">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-7 w-7 p-0 rounded-lg">
             <ArrowLeft className="h-3.5 w-3.5 text-white/60" />
           </Button>
           <h2 className="font-headline text-lg text-white/90 flex items-center gap-2">{icon}{title}</h2>
@@ -1612,9 +1645,9 @@ const Index = () => {
       <PlannerView
         userId={user.uid}
         isPremium={profile?.isPremium ?? false}
-        onBack={() => { setSidebarView('history'); setSelectedChecklistId(null) }}
+        onBack={() => { navigate('/'); setSelectedChecklistId(null) }}
         selectedChecklistId={selectedChecklistId}
-        onSelectChecklist={setSelectedChecklistId}
+        onSelectChecklist={(id) => { setSelectedChecklistId(id); if (id) navigate(`/${activeUserId}/planner/${id}`); }}
       />
     )
   }
@@ -1738,9 +1771,14 @@ const Index = () => {
   // ── Gallery view ──────────────────────────────────────────────────────────
   if (sidebarView === 'gallery') {
     return mainAreaShell('Gallery', <Image className="h-5 w-5 text-primary" />,
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
-        <GalleryView messages={messages} />
-      </div>
+      user ? (
+        <GalleryView userId={user.uid} />
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 text-center text-white/40 space-y-2">
+          <Image className="h-10 w-10 opacity-20" />
+          <p className="text-sm">Sign in to view your generated images.</p>
+        </div>
+      )
     )
   }
 
@@ -2126,7 +2164,7 @@ const Index = () => {
                           <div className="px-4 py-2 border-t border-stone-100">
                             <button
                               className="text-xs text-primary font-semibold hover:underline"
-                              onClick={() => { setSidebarView('planner'); setSelectedChecklistId(message.checklistData!.id) }}
+                              onClick={() => { navigate(`/${activeUserId}/planner/${message.checklistData!.id}`); setSelectedChecklistId(message.checklistData!.id) }}
                             >
                               Open in Planner
                             </button>
@@ -2340,8 +2378,8 @@ const Index = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-[#F5EFE5]/92 backdrop-blur-sm rounded-2xl rounded-tl-sm px-5 py-3 border border-[#C6944A]/10 shadow-lg shadow-black/8 msg-enter">
-                      <div className={`flex items-center gap-2 ${cfg.pill}`}>
+                    <div className={`${cfg.pill} bg-[#F5EFE5]/92 backdrop-blur-sm rounded-2xl rounded-tl-sm px-5 py-3 border border-[#C6944A]/10 shadow-lg shadow-black/8 msg-enter`}>
+                      <div className={`flex items-center gap-2 `}>
                         <span className="text-caption italic">thinking</span>
                         {[0, 0.15, 0.3].map((d, i) => <div key={i} className="w-1.5 h-1.5 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: `${d}s` }} />)}
                       </div>

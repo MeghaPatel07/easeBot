@@ -318,9 +318,11 @@ export function useChat(): UseChatResult {
       }
 
       // Extract inline checklist data from tool actions
+      console.log('[useChat] toolActions:', JSON.stringify(finalMeta.toolActions))
       const createdChecklist = finalMeta.toolActions?.find(
         (a: any) => a.tool === 'create_checklist' && a.checklistId && a.checklistItems
       )
+      console.log('[useChat] createdChecklist:', createdChecklist)
       const checklistData = createdChecklist
         ? { id: createdChecklist.checklistId!, title: createdChecklist.checklistTitle || 'Checklist', items: createdChecklist.checklistItems || [] }
         : null
@@ -354,6 +356,7 @@ export function useChat(): UseChatResult {
           imageUrl: imageUrl,
           imageUrls: imageUrls,
           liked: false,
+          checklistData: checklistData ?? null,
         } as NewMessage)
       }
     } catch (err: any) {
@@ -462,6 +465,7 @@ export function useChat(): UseChatResult {
           imageUrl: data.imageUrl ?? null,
           imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
           language: data.language || 'en',
+          checklistData: data.checklistData ?? null,
         } as Message))
       )
     } catch (err) {
@@ -485,7 +489,10 @@ export function useChat(): UseChatResult {
         mode: data.mode,
         liked: data.liked ?? false,
         audioUrl: data.audioUrl ?? null,
+        imageUrl: data.imageUrl ?? null,
+        imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
         language: data.language || 'en',
+        checklistData: data.checklistData ?? null,
       }))
       setMessages(prev => [...older, ...prev])
     } catch (err) {

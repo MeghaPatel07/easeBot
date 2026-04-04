@@ -1,29 +1,39 @@
 /**
- * Image services using Azure OpenAI gpt-image-1 (text-to-image, image-to-image)
- * and gpt-4o vision (image-to-text / analysis).
+ * Image services — unified interface for image generation, editing, and analysis.
  *
- * V2: LLM-based intent detection via IMAGE_TOOL, configurable sizes,
- * multi-variant generation, style consistency, vision detail toggle.
+ * V3: Switched from Azure gpt-image-1 to Gemini native image generation
+ * for superior quality, better prompt understanding, and native image editing.
+ *
+ * Primary engine: Gemini 2.0 Flash (native text-to-image & image-to-image)
+ * Fallback: Azure gpt-image-1 (if Gemini unavailable)
+ * Vision/Analysis: Gemini (primary) → Azure gpt-4o (fallback)
  *
  * Env vars:
- *   AZURE_GPT_IMAGE_DEPLOYMENT  – deployment name (default: "gpt-image-1")
- *   AZURE_GPT_IMAGE_API_VERSION – API version     (default: "2025-04-01-preview")
- *   AZURE_OPENAI_ENDPOINT       – shared endpoint
- *   AZURE_OPENAI_API_KEY        – shared key
- *   AZURE_DEPLOYMENT_NAME       – gpt-4o deployment (used for vision / image-to-text)
+ *   GEMINI_API_KEY               – Google AI Studio API key (primary)
+ *   GEMINI_IMAGE_MODEL           – model ID (default: "gemini-2.0-flash-exp")
+ *   AZURE_GPT_IMAGE_DEPLOYMENT   – Azure fallback deployment
+ *   AZURE_GPT_IMAGE_API_VERSION  – Azure fallback API version
+ *   AZURE_OPENAI_ENDPOINT        – Azure endpoint (fallback)
+ *   AZURE_OPENAI_API_KEY         – Azure key (fallback)
+ *   AZURE_DEPLOYMENT_NAME        – gpt-4o deployment for vision fallback
  */
 
 import { AzureOpenAI } from 'openai'
 import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import sharp from 'sharp'
 import type { HistoryMessage } from '../types'
+import {
+  generateImageGemini,
+  editImageGemini,
+  analyzeImageGemini,
+} from './geminiImageGeneration'
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 
 /** Maximum image size in bytes (500 KB) */
 const MAX_IMAGE_BYTES = 500 * 1024
 
-/** Output format from API — png gives best quality for sharp to then compress */
+/** Output format from Azure API */
 const IMAGE_FORMAT = 'png'
 
 // ── Types ───────────────────────────────────────────────────────────────────────
@@ -39,14 +49,14 @@ export const IMAGE_TOOL: ChatCompletionTool = {
   function: {
     name: 'generate_image',
     description:
-      'Generate or edit a wedding-related image when the user wants a visual. Only call this when the user explicitly or clearly implicitly requests an image, photo, visualization, or design. Do NOT call for non-visual requests like guest lists, timelines, or budgets.',
+      'Generate or edit a wedding/celebration image for any family member, any race, culture, or tradition. Only call this when the user explicitly or clearly implicitly requests an image, photo, visualization, or design. Do NOT call for non-visual requests like guest lists, timelines, or budgets.',
     parameters: {
       type: 'object',
       properties: {
         prompt: {
           type: 'string',
           description:
-            'For "generate": write a detailed image prompt with colors, styles, attire, decor, cultural context (max 2 sentences). For "edit": state ONLY the single targeted change — e.g. "change the sherwani color to red" or "replace the flowers with roses". Be minimal and specific. Do NOT describe the rest of the image. Do NOT add style instructions. Just the one change.',
+            'Write a rich, detailed image prompt. For "generate": identify the person\'s ROLE (bride, groom, father, mother, bridesmaid, etc.) and CULTURE/ETHNICITY, then include attire, colors, fabrics, textures, cultural elements, setting (max 3 sentences). Be vivid and specific — describe what you SEE. For "edit": state ONLY the single targeted change — e.g. "change the sherwani color to deep royal blue". Be precise. Do NOT describe the rest of the image.',
         },
         action: {
           type: 'string',
@@ -57,13 +67,13 @@ export const IMAGE_TOOL: ChatCompletionTool = {
           type: 'string',
           enum: ['1024x1024', '1024x1536', '1536x1024'],
           description:
-            'Image dimensions. Use portrait (1024x1536) for attire/people, landscape (1536x1024) for venues/decor, square (1024x1024) for general.',
+            'Image dimensions. Use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations.',
         },
         variants: {
           type: 'integer',
-          enum: [1, 2, 3],
+          enum: [1],
           description:
-            'Number of image variants to generate. Use 2-3 only when user asks for options or choices. Default 1.',
+            'Always 1. Generate exactly one image per request.',
         },
       },
       required: ['prompt', 'action'],
@@ -71,39 +81,30 @@ export const IMAGE_TOOL: ChatCompletionTool = {
   },
 }
 
-// ── Wedding-scoped image prompts ─────────────────────────────────────────────
+// ── Prompt Building ─────────────────────────────────────────────────────────────
 
-/** System prompt for image-to-text analysis (gpt-4o vision) */
-const IMAGE_ANALYSIS_SYSTEM = `You are Viva, a wedding and cultural celebration visual expert.
-Analyze images strictly in a wedding, bridal, or cultural ceremony context.
-Identify: attire (lehenga, sherwani, gown, tuxedo), décor, floral arrangements, venue style, color palettes, jewelry, mehndi, table settings, cultural elements (mandap, chuppah, altar, sangeet stage).
-Be concise — max 3-4 sentences. Skip unrelated details.`
-
-/** Wraps a user prompt with wedding context for NEW image generation (R9: style context) */
+/** Wraps a user prompt with wedding context for NEW image generation */
 export function buildImageGenPrompt(userPrompt: string, styleContext?: string[]): string {
   const styleStr = styleContext?.length
     ? `Maintain consistent visual style: ${styleContext.join(', ')}. `
     : ''
-  return `Wedding/cultural celebration context. ${styleStr}${userPrompt}. Style: elegant, photorealistic, wedding-appropriate.`
+  return `Wedding/celebration context for any culture, tradition, or family role. ${styleStr}${userPrompt}. Photorealistic, professionally lit, sharp details, accurate true-to-life colors, natural skin tones across all ethnicities, elegant composition.`
 }
 
 /** Builds a surgical edit prompt that preserves everything except the specific change */
 export function buildImageEditPrompt(userPrompt: string): string {
   return [
-    `You are an expert photo editor. Make ONE precise surgical edit to this image.`,
+    `Make ONE precise surgical edit to this image.`,
     ``,
     `THE EDIT: ${userPrompt}`,
     ``,
-    `CRITICAL RULES — you MUST follow ALL of these:`,
-    `- Change ONLY the specific element mentioned above — nothing else`,
-    `- Keep the EXACT same person(s), face(s), body pose, hand position, expression`,
-    `- Keep the EXACT same background, architecture, lighting, shadows, depth of field`,
-    `- Keep ALL other clothing items unchanged (shawl, dupatta, turban, jewelry, shoes, accessories)`,
-    `- Keep the EXACT same camera angle, framing, and composition`,
-    `- Keep the EXACT same color grading, warmth, and photo style`,
-    `- Do NOT add, remove, or move any element that wasn't mentioned`,
-    `- The result should look like the same photo with only the requested change applied`,
-    `- Match the texture and pattern style of the original garment when changing color`,
+    `RULES:`,
+    `- Change ONLY the specific element mentioned above`,
+    `- Keep EXACT same person(s), face, pose, expression`,
+    `- Keep EXACT same background, lighting, shadows, camera angle`,
+    `- Keep ALL other clothing/accessories unchanged`,
+    `- Match textures and patterns when changing colors`,
+    `- Result should look like the same photo with only the requested change`,
   ].join('\n')
 }
 
@@ -128,7 +129,7 @@ export function extractStyleDescriptors(prompt: string): string[] {
   }
 
   const cultureMatch = prompt.match(
-    /\b(Indian|South Indian|North Indian|Rajasthani|Bengali|Punjabi|Gujarati|Marathi|Tamil|Telugu|Kerala|Western|Christian|Jewish|Muslim|Hindu|Sikh|Japanese|Chinese|Korean|Mediterranean|Tuscan)\b/gi
+    /\b(Indian|South Indian|North Indian|Rajasthani|Bengali|Punjabi|Gujarati|Marathi|Tamil|Telugu|Kerala|Western|Christian|Jewish|Muslim|Hindu|Sikh|Japanese|Chinese|Korean|Mediterranean|Tuscan|African|Nigerian|Ghanaian|Ethiopian|Latin|Mexican|Brazilian|Caribbean|Arab|Persian|Thai|Vietnamese|Filipino|Polynesian|Indigenous|Pakistani|Bangladeshi|Sri Lankan|Nepali)\b/gi
   )
   if (cultureMatch) {
     descriptors.push(...[...new Set(cultureMatch.map(c => c.toLowerCase()))])
@@ -173,39 +174,34 @@ export async function buildContextAwareImagePrompt(
   return currentMessage
 }
 
-// ── Image Size Enforcement (sharp) ──────────────────────────────────────────
+// ── Image Compression (shared) ──────────────────────────────────────────────
 
 /**
  * Compress a base64 image to fit under MAX_IMAGE_BYTES using sharp.
- * Uses JPEG with progressive quality reduction until it fits.
- * Returns a base64 string (no data URI prefix).
  */
 async function compressImage(b64: string): Promise<string> {
   const inputBuffer = Buffer.from(b64, 'base64')
-  const sizeBytes = inputBuffer.length
 
-  if (sizeBytes <= MAX_IMAGE_BYTES) return b64
+  if (inputBuffer.length <= MAX_IMAGE_BYTES) return b64
 
   try {
-    // Start at quality 75 and reduce until under limit
     for (const quality of [75, 60, 45, 35, 25]) {
       const compressed = await sharp(inputBuffer)
         .jpeg({ quality, mozjpeg: true })
         .toBuffer()
 
       if (compressed.length <= MAX_IMAGE_BYTES) {
-        console.log(`[imageGeneration] Compressed ${Math.round(sizeBytes / 1024)}KB → ${Math.round(compressed.length / 1024)}KB (quality=${quality})`)
+        console.log(`[imageGeneration] Compressed ${Math.round(inputBuffer.length / 1024)}KB → ${Math.round(compressed.length / 1024)}KB (quality=${quality})`)
         return compressed.toString('base64')
       }
     }
 
-    // Last resort: resize down + lowest quality
     const resized = await sharp(inputBuffer)
       .resize(768, 768, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 20, mozjpeg: true })
       .toBuffer()
 
-    console.log(`[imageGeneration] Compressed+resized ${Math.round(sizeBytes / 1024)}KB → ${Math.round(resized.length / 1024)}KB`)
+    console.log(`[imageGeneration] Compressed+resized ${Math.round(inputBuffer.length / 1024)}KB → ${Math.round(resized.length / 1024)}KB`)
     return resized.toString('base64')
   } catch (err) {
     console.error('[imageGeneration] sharp compression failed:', err)
@@ -213,13 +209,34 @@ async function compressImage(b64: string): Promise<string> {
   }
 }
 
-// ── Text-to-Image (gpt-image-1 generations) ──────────────────────────────────
+// ── Text-to-Image (Gemini primary, Azure fallback) ──────────────────────────
 
 /**
- * Generate images using gpt-image-1.
+ * Generate images using Gemini native image generation.
+ * Falls back to Azure gpt-image-1 if Gemini is unavailable.
  * Returns an array of raw base64 strings (no data URI prefix).
  */
 export async function generateImageGptImage1(
+  prompt: string,
+  size: ImageSize = '1024x1024',
+  count: 1 | 2 | 3 = 1
+): Promise<string[]> {
+  // Try Gemini first
+  if (process.env.GEMINI_API_KEY) {
+    console.log('[imageGeneration] Using Gemini for text-to-image generation')
+    const images = await generateImageGemini(prompt, size, count)
+    if (images.length > 0) return images
+    console.warn('[imageGeneration] Gemini returned no images, falling back to Azure')
+  }
+
+  // Azure fallback
+  return await generateImageAzureFallback(prompt, size, count)
+}
+
+/**
+ * Azure gpt-image-1 fallback for text-to-image.
+ */
+async function generateImageAzureFallback(
   prompt: string,
   size: ImageSize = '1024x1024',
   count: 1 | 2 | 3 = 1
@@ -230,7 +247,7 @@ export async function generateImageGptImage1(
   const apiVersion = process.env.AZURE_GPT_IMAGE_API_VERSION ?? '2025-04-01-preview'
 
   if (!endpoint || !apiKey) {
-    console.warn('[imageGeneration] Azure credentials not set — skipping')
+    console.warn('[imageGeneration] No Azure credentials — cannot fallback')
     return []
   }
 
@@ -251,7 +268,7 @@ export async function generateImageGptImage1(
 
     if (!res.ok) {
       const body = await res.text()
-      console.error(`[imageGeneration] gpt-image-1 error ${res.status}: ${body}`)
+      console.error(`[imageGeneration] Azure fallback error ${res.status}: ${body}`)
       return []
     }
 
@@ -260,27 +277,43 @@ export async function generateImageGptImage1(
       .map((d: any) => d?.b64_json ?? d?.b64 ?? null)
       .filter(Boolean)
 
-    if (rawImages.length === 0) {
-      console.warn('[imageGeneration] No images in response:', JSON.stringify(Object.keys(data?.data?.[0] ?? {})))
-      return []
-    }
+    if (rawImages.length === 0) return []
 
-    // Compress all images to fit under MAX_IMAGE_BYTES
-    const images = await Promise.all(rawImages.map(b64 => compressImage(b64)))
-    return images
+    return await Promise.all(rawImages.map(b64 => compressImage(b64)))
   } catch (err) {
-    console.error('[imageGeneration] generateImageGptImage1 error:', err)
+    console.error('[imageGeneration] Azure fallback error:', err)
     return []
   }
 }
 
-// ── Image-to-Image (gpt-image-1 edits) ──────────────────────────────────────
+// ── Image-to-Image (Gemini primary, Azure fallback) ──────────────────────────
 
 /**
- * Edit an image using gpt-image-1.
+ * Edit an image using Gemini native image editing.
+ * Falls back to Azure gpt-image-1 edits if Gemini is unavailable.
  * Returns an array of raw base64 strings (no data URI prefix).
  */
 export async function editImageGptImage1(
+  imageBase64: string,
+  prompt: string,
+  size: ImageSize = '1024x1024'
+): Promise<string[]> {
+  // Try Gemini first
+  if (process.env.GEMINI_API_KEY) {
+    console.log('[imageGeneration] Using Gemini for image-to-image editing')
+    const images = await editImageGemini(imageBase64, prompt, size)
+    if (images.length > 0) return images
+    console.warn('[imageGeneration] Gemini edit returned no images, falling back to Azure')
+  }
+
+  // Azure fallback
+  return await editImageAzureFallback(imageBase64, prompt, size)
+}
+
+/**
+ * Azure gpt-image-1 fallback for image editing.
+ */
+async function editImageAzureFallback(
   imageBase64: string,
   prompt: string,
   size: ImageSize = '1024x1024'
@@ -291,7 +324,7 @@ export async function editImageGptImage1(
   const apiVersion = process.env.AZURE_GPT_IMAGE_API_VERSION ?? '2025-04-01-preview'
 
   if (!endpoint || !apiKey) {
-    console.warn('[imageGeneration] Azure credentials not set — skipping')
+    console.warn('[imageGeneration] No Azure credentials for fallback')
     return []
   }
 
@@ -317,8 +350,8 @@ export async function editImageGptImage1(
 
     if (!res.ok) {
       const body = await res.text()
-      console.error(`[imageGeneration] gpt-image-1 edit error ${res.status}: ${body}`)
-      return await fallbackImageToImage(imageBase64, prompt)
+      console.error(`[imageGeneration] Azure edit fallback error ${res.status}: ${body}`)
+      return await azureFallbackImageToImage(imageBase64, prompt)
     }
 
     const data = await res.json()
@@ -327,42 +360,63 @@ export async function editImageGptImage1(
       .filter(Boolean)
 
     if (rawImages.length === 0) {
-      console.warn('[imageGeneration] No images in edit response')
-      return await fallbackImageToImage(imageBase64, prompt)
+      return await azureFallbackImageToImage(imageBase64, prompt)
     }
 
-    const images = await Promise.all(rawImages.map(b64 => compressImage(b64)))
-    return images
+    return await Promise.all(rawImages.map(b64 => compressImage(b64)))
   } catch (err) {
-    console.error('[imageGeneration] editImageGptImage1 error:', err)
-    return await fallbackImageToImage(imageBase64, prompt)
+    console.error('[imageGeneration] Azure edit fallback error:', err)
+    return await azureFallbackImageToImage(imageBase64, prompt)
   }
 }
 
 /**
- * Fallback for image-to-image when the edits API is unavailable:
- * 1. Describe the image using gpt-4o vision
- * 2. Generate a new image using the description + user prompt
+ * Last-resort fallback: analyze image with vision, then regenerate.
  */
-async function fallbackImageToImage(imageBase64: string, prompt: string): Promise<string[]> {
+async function azureFallbackImageToImage(imageBase64: string, prompt: string): Promise<string[]> {
   try {
     const description = await analyzeImage(
       imageBase64,
       'image/png',
-      'Describe this image in EXTREME detail for recreation: exact person appearance (face, skin tone, hair, expression), exact clothing items and their colors/patterns/textures (each piece separately — sherwani, shawl, turban, jewelry, etc.), exact body pose and hand position, exact background architecture/setting, exact lighting direction and color temperature, exact camera angle and depth of field. Miss nothing.',
+      'Describe this image in EXTREME detail for recreation: exact person appearance, clothing, pose, background, lighting, camera angle. Miss nothing.',
       'high'
     )
-    const combinedPrompt = `Recreate this EXACT photo pixel-for-pixel: "${description}". Then make ONLY this one surgical change: ${prompt}. Everything else must remain absolutely identical — same person, same pose, same background, same lighting, same other clothing items. The edit should be invisible except for the specific change requested.`
+    const combinedPrompt = `Recreate this EXACT photo: "${description}". Then make ONLY this change: ${prompt}. Everything else must remain identical.`
     return await generateImageGptImage1(combinedPrompt)
   } catch (err) {
-    console.error('[imageGeneration] fallback image-to-image error:', err)
+    console.error('[imageGeneration] azure fallback image-to-image error:', err)
     return []
   }
 }
 
-// ── Image-to-Text (gpt-4o vision) ───────────────────────────────────────────
+// ── Image-to-Text / Analysis (Gemini primary, Azure fallback) ───────────────
 
+/**
+ * Analyze an image using Gemini vision (primary) or Azure gpt-4o (fallback).
+ */
 export async function analyzeImage(
+  imageBase64: string,
+  mimeType: string,
+  prompt?: string,
+  detail: 'low' | 'high' | 'auto' = 'auto'
+): Promise<string> {
+  // Try Gemini first
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      return await analyzeImageGemini(imageBase64, mimeType, prompt)
+    } catch (err) {
+      console.warn('[imageGeneration] Gemini analysis failed, falling back to Azure:', err)
+    }
+  }
+
+  // Azure fallback
+  return await analyzeImageAzure(imageBase64, mimeType, prompt, detail)
+}
+
+/**
+ * Azure gpt-4o vision fallback for image analysis.
+ */
+async function analyzeImageAzure(
   imageBase64: string,
   mimeType: string,
   prompt?: string,
@@ -373,7 +427,7 @@ export async function analyzeImage(
   const deployment = process.env.AZURE_DEPLOYMENT_NAME
 
   if (!endpoint || !apiKey || !deployment) {
-    throw new Error('Azure OpenAI environment variables not configured')
+    throw new Error('No image analysis service available (both Gemini and Azure unavailable)')
   }
 
   const client = new AzureOpenAI({
@@ -382,6 +436,11 @@ export async function analyzeImage(
     deployment,
     apiVersion: '2024-08-01-preview',
   })
+
+  const IMAGE_ANALYSIS_SYSTEM = `You are Viva, a wedding and cultural celebration visual expert.
+Analyze images strictly in a wedding, bridal, or cultural ceremony context.
+Identify: attire (lehenga, sherwani, gown, tuxedo), décor, floral arrangements, venue style, color palettes, jewelry, mehndi, table settings, cultural elements (mandap, chuppah, altar, sangeet stage).
+Be concise — max 3-4 sentences. Skip unrelated details.`
 
   const userPrompt = prompt?.trim() || 'Describe this wedding-related image briefly.'
 
@@ -407,5 +466,5 @@ export async function analyzeImage(
   return completion.choices[0]?.message?.content ?? 'Unable to analyze the image.'
 }
 
-// ── Legacy export (kept for backward compat) ─────────────────────────────────
+// ── Legacy export ───────────────────────────────────────────────────────────────
 export const generateImage = generateImageGptImage1

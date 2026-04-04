@@ -92,7 +92,7 @@ async function handleImageToolCall(
   const imgPrompt = args.prompt as string
   const imgAction = (args.action as string) ?? 'generate'
   const imgSize = (args.aspect_ratio as ImageSize) ?? '1024x1024'
-  const imgVariants = (args.variants as number) ?? 1
+  const imgVariants = 1 // Always generate exactly 1 image
 
   // Check quota for logged-in users
   if (opts.isLoggedIn && opts.uid) {
@@ -205,9 +205,9 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization)
       + buildLanguageInstruction(targetLanguage)
 
-    // Build tools array — always include IMAGE_TOOL, add PLANNER_TOOLS for planner mode
+    // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
     const tools: ChatCompletionTool[] = [IMAGE_TOOL]
-    if (isLoggedIn && mode === 'planner') {
+    if (isLoggedIn) {
       tools.push(...PLANNER_TOOLS)
     }
 
@@ -361,9 +361,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization)
       + buildLanguageInstruction(targetLanguage)
 
-    // Build tools array — always include IMAGE_TOOL, add PLANNER_TOOLS for planner mode
+    // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
     const tools: ChatCompletionTool[] = [IMAGE_TOOL]
-    if (isLoggedIn && mode === 'planner') {
+    if (isLoggedIn) {
       tools.push(...PLANNER_TOOLS)
     }
 
