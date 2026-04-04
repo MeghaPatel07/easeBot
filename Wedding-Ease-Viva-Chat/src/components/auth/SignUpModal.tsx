@@ -267,7 +267,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               <div>
-                <p className="text-xl font-semibold elegant-heading">Welcome to Wedding Ease! ✨</p>
+                <p className="text-xl font-semibold elegant-heading">Welcome to EaseBot! ✨</p>
                 <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'} 👋</p>
               </div>
             </div>

@@ -42,19 +42,19 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 
-				// Brand — Sage green palette
+				// Brand — Warm gold palette
 				primary: {
-					DEFAULT:   '#A2B29D',                 // sage green
+					DEFAULT:   '#C6944A',                 // warm gold
 					foreground:'hsl(var(--primary-foreground))',
-					container: '#DDE6C7',                 // light sage
-					muted:     '#8a9e84',                 // deeper sage (hover / accent)
+					container: '#F0E3CC',                 // light gold
+					muted:     '#B07D35',                 // deeper gold (hover / accent)
 				},
 
-				// Secondary — slate
+				// Secondary — warm beige
 				secondary: {
-					DEFAULT:   '#4A5568',
+					DEFAULT:   '#C9B89A',
 					foreground:'hsl(var(--secondary-foreground))',
-					container: '#E2E8F0',
+					container: '#F0E8DA',
 				},
 
 				// Status
@@ -107,12 +107,12 @@ export default {
 				},
 
 				// AI Mode palette — each mode has a distinct brand colour
-				'mode-auto':        '#71717A',   // neutral zinc
-				'mode-planner':     '#A2B29D',   // sage (= primary)
+				'mode-auto':        '#8A7E72',   // warm grey
+				'mode-planner':     '#C6944A',   // gold (= primary)
 				'mode-stylist':     '#D4AF37',   // gold
 				'mode-stylist-dark':'#B8860B',   // dark gold (hover / border)
-				'mode-therapist':   '#64748B',   // slate blue
-				'mode-knowledge':   '#334155',   // deep navy
+				'mode-therapist':   '#9B8B7A',   // warm taupe
+				'mode-knowledge':   '#6B5E52',   // warm brown
 				'mode-consultant':  '#A87C33',   // warm amber
 			},
 

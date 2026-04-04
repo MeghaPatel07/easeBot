@@ -165,7 +165,7 @@ export default function ProgressDashboard({
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
         <Heart className="w-12 h-12 text-primary mb-4" />
-        <h2 className="font-headline text-2xl text-stone-800 mb-2">Welcome to Wedding Ease</h2>
+        <h2 className="font-headline text-2xl text-stone-800 mb-2">Welcome to EaseBot</h2>
         <p className="text-sm text-stone-500 max-w-sm">
           Your wedding planning journey starts here. Try asking Viva: "Create a wedding checklist", "Set my wedding date", or "Help me with my budget".
         </p>

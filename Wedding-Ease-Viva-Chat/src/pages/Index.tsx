@@ -48,11 +48,13 @@ import ShoppingListView from '@/components/ShoppingListView';
 import SavedItemsView from '@/components/SavedItemsView';
 import ComparisonTable, { isMarkdownTable } from '@/components/ComparisonTable';
 import TimelineView from '@/components/TimelineView';
+import GalleryView from '@/components/GalleryView';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
 import InvitePartner from '@/components/InvitePartner';
 import { SettingsModal } from '@/components/SettingsModal';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { ImageCarousel } from '@/components/ImageCarousel';
 import { requestTTS } from '@/services/ttsService';
 import { subscribeToChecklists, computeStats } from '@/services/checklistService';
 import { subscribeToBudget, type BudgetData } from '@/services/budgetService';
@@ -98,20 +100,20 @@ const MODE_CONFIG: ModeConfig[] = [
   {
     key: 'auto',
     label: 'Auto',
-    description: 'Let Viva choose the best approach for you',
+    description: 'Let Easebot choose the best approach for you',
     icon: Sparkles,
     pill: 'bg-mode-auto/10 text-mode-auto',
-    active: 'bg-mode-auto text-white shadow-sm',
-    inactive: 'text-stone-600 hover:bg-white/50',
+    active: 'bg-[#8A7E72] text-white shadow-sm',
+    inactive: 'text-white/60 hover:bg-white/15',
   },
   {
     key: 'planner',
     label: 'Planner',
     description: 'Create timelines, tasks, and organize your wedding',
     icon: Calendar,
-    pill: 'bg-primary-muted/10 text-primary-muted',
-    active: 'bg-mode-planner text-white shadow-sm',
-    inactive: 'text-stone-600 hover:bg-white/50',
+    pill: 'bg-[#C6944A]/10 text-[#C6944A]',
+    active: 'bg-[#C6944A] text-white shadow-sm',
+    inactive: 'text-white/60 hover:bg-white/15',
   },
   {
     key: 'stylist',
@@ -119,8 +121,8 @@ const MODE_CONFIG: ModeConfig[] = [
     description: 'Get aesthetic advice and design inspiration',
     icon: Heart,
     pill: 'bg-mode-stylist/10 text-mode-stylist',
-    active: 'bg-mode-stylist text-white shadow-sm',
-    inactive: 'text-stone-600 hover:bg-white/50',
+    active: 'bg-[#D4AF37] text-white shadow-sm',
+    inactive: 'text-white/60 hover:bg-white/15',
   },
   {
     key: 'therapist',
@@ -128,8 +130,8 @@ const MODE_CONFIG: ModeConfig[] = [
     description: 'Talk through wedding stress and emotions',
     icon: MessageSquare,
     pill: 'bg-mode-therapist/10 text-mode-therapist',
-    active: 'bg-mode-therapist text-white shadow-sm',
-    inactive: 'text-stone-600 hover:bg-white/50',
+    active: 'bg-[#9B8B7A] text-white shadow-sm',
+    inactive: 'text-white/60 hover:bg-white/15',
   },
   {
     key: 'knowledge',
@@ -137,8 +139,8 @@ const MODE_CONFIG: ModeConfig[] = [
     description: 'Get answers to wedding etiquette and planning questions',
     icon: Lightbulb,
     pill: 'bg-mode-knowledge/10 text-mode-knowledge',
-    active: 'bg-mode-knowledge text-white shadow-sm',
-    inactive: 'text-stone-600 hover:bg-white/50',
+    active: 'bg-[#6B5E52] text-white shadow-sm',
+    inactive: 'text-white/60 hover:bg-white/15',
   },
   {
     key: 'consultant',
@@ -146,8 +148,8 @@ const MODE_CONFIG: ModeConfig[] = [
     description: 'Expert advice on vendors, venues, and logistics',
     icon: DollarSign,
     pill: 'bg-mode-consultant/10 text-mode-consultant',
-    active: 'bg-mode-consultant text-white shadow-sm',
-    inactive: 'text-stone-600 hover:bg-white/50',
+    active: 'bg-[#A87C33] text-white shadow-sm',
+    inactive: 'text-white/60 hover:bg-white/15',
   },
 ]
 
@@ -209,11 +211,11 @@ const TAG_PRESETS = [
   { name: 'Flowers', color: 'bg-rose-100 text-rose-700 border-rose-200' },
   { name: 'Photo', color: 'bg-amber-100 text-amber-700 border-amber-200' },
   { name: 'Guest List', color: 'bg-teal-100 text-teal-700 border-teal-200' },
-  { name: 'Other', color: 'bg-stone-100 text-stone-700 border-stone-200' },
+  { name: 'Other', color: 'bg-white/10 text-white/70 border-white/20' },
 ]
 
 const getTagStyle = (tagName: string) =>
-  TAG_PRESETS.find(t => t.name === tagName)?.color ?? 'bg-stone-100 text-stone-700 border-stone-200'
+  TAG_PRESETS.find(t => t.name === tagName)?.color ?? 'bg-white/10 text-white/70 border-white/20'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // InputBar — defined OUTSIDE Index so its identity stays stable across renders.
@@ -229,6 +231,9 @@ interface InputBarProps {
   isRecording: boolean;
   voiceState: 'idle' | 'recording' | 'transcribing';
   onMicClick: () => void;
+  attachedImage?: { preview: string } | null;
+  onAttachImage: () => void;
+  onRemoveImage: () => void;
 }
 
 const COLLAPSED_MAX = 120;  // ~5 lines — normal state
@@ -237,7 +242,7 @@ const MOBILE_MAX = 36;     // single line on mobile (< 640px)
 
 const InputBar = ({
   inputText, onInputChange, onSend, onStop, isTyping, placeholder,
-  isRecording, voiceState, onMicClick,
+  isRecording, voiceState, onMicClick, attachedImage, onAttachImage, onRemoveImage,
 }: InputBarProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -262,16 +267,30 @@ const InputBar = ({
   }, [inputText]);
 
   return (
-    <div className="bg-white rounded-2xl p-1.5 shadow-md shadow-stone-200/30 border border-border max-w-3xl mx-auto w-full">
+    <div className="bg-white/[0.07] backdrop-blur-xl rounded-2xl p-1.5 shadow-lg shadow-black/20 border border-white/[0.12] max-w-3xl mx-auto w-full input-glow transition-shadow duration-300">
 
       {/* Expand / collapse toggle — appears only when content overflows collapsed height */}
+      {/* Image preview */}
+      {attachedImage && (
+        <div className="relative inline-block mx-3 mt-2 mb-1">
+          <img src={attachedImage.preview} alt="Attached" className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg object-cover border border-white/20" />
+          <button
+            type="button"
+            onClick={onRemoveImage}
+            className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
+          >
+            <X className="h-2.5 w-2.5" />
+          </button>
+        </div>
+      )}
+
       {(isOverflowing || isExpanded) && (
         <div className="flex justify-end px-2 pt-1">
           <button
             type="button"
             onClick={() => setIsExpanded(v => !v)}
             title={isExpanded ? 'Collapse input' : 'Expand input'}
-            className="flex items-center gap-1 text-2xs text-stone-400 hover:text-stone-600 transition-colors"
+            className="flex items-center gap-1 text-2xs text-white/40 hover:text-white/60 transition-colors"
           >
             {isExpanded ? (
               <><ChevronDown className="h-3 w-3" /><span>Collapse</span></>
@@ -283,6 +302,15 @@ const InputBar = ({
       )}
 
       <div className="flex items-end gap-1">
+        {/* Image attach button */}
+        <button
+          type="button"
+          onClick={onAttachImage}
+          title="Attach image"
+          className="p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center text-white/40 hover:text-[#C6944A] transition-colors rounded-lg"
+        >
+          <Image className="h-4 w-4" />
+        </button>
         {/* Textarea */}
         <textarea
           ref={textareaRef}
@@ -296,7 +324,7 @@ const InputBar = ({
           }}
           placeholder={placeholder}
           rows={1}
-          className="flex-1 bg-transparent border-none text-stone-800 py-2 px-3 custom-scrollbar resize-none text-base sm:text-sm placeholder-stone-400 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+          className="flex-1 bg-transparent border-none text-white/90 py-2 px-3 custom-scrollbar resize-none text-base sm:text-sm placeholder-white/40 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
           style={{ minHeight: '36px', maxHeight: `${maxHeight}px` }}
         />
 
@@ -311,7 +339,7 @@ const InputBar = ({
               ? 'text-red-500'
               : voiceState === 'transcribing'
                 ? 'text-amber-500'
-                : 'text-stone-400 hover:text-primary'
+                : 'text-white/40 hover:text-primary'
               }`}
           >
             {voiceState === 'recording' ? (
@@ -331,7 +359,7 @@ const InputBar = ({
               <StopCircle className="w-4 h-4" />
             </button>
           ) : (
-            <button onClick={onSend} disabled={!inputText.trim()} className="p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center bg-primary text-white rounded-xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-40">
+            <button onClick={onSend} disabled={!inputText.trim() && !attachedImage} className="p-2.5 sm:p-2 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center bg-gradient-to-br from-[#D4A853] to-[#B07D35] text-white rounded-full hover:from-[#C6944A] hover:to-[#9B6B2F] active:scale-95 transition-all disabled:opacity-30 shadow-md shadow-[#C6944A]/20">
               <Send className="w-4 h-4" />
             </button>
           )}
@@ -387,12 +415,7 @@ const Index = () => {
       const t = setTimeout(() => setRecentlyToggledItemIds([]), 2000)
       return () => clearTimeout(t)
     }
-    // Auto-open newly created checklist in the detail panel
-    const created = lastToolActions.find(a => a.tool === 'create_checklist' && a.checklistId)
-    if (created?.checklistId) {
-      setSidebarView('planner')
-      setSelectedChecklistId(created.checklistId)
-    }
+    // Checklist is now shown inline in chat — no auto-redirect
   }, [lastToolActions]);
 
   const isExpanded = messages.length > 0;
@@ -417,9 +440,11 @@ const Index = () => {
 
   // ── UI-only state ──────────────────────────────────────────────────────────
   const [inputText, setInputText] = useState('');
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showSignUpModal, setShowSignUpModal] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAssetsOpen, setIsAssetsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -429,7 +454,7 @@ const Index = () => {
   const [inlineEditText, setInlineEditText] = useState('');
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [sidebarView, setSidebarView] = useState<'history' | 'liked' | 'reminders' | 'planner' | 'saved-items' | 'moodboard' | 'shopping' | 'budget' | 'timeline' | 'progress' | 'notifications' | 'collaborate'>('history');
+  const [sidebarView, setSidebarView] = useState<'history' | 'liked' | 'reminders' | 'planner' | 'saved-items' | 'moodboard' | 'shopping' | 'budget' | 'timeline' | 'progress' | 'notifications' | 'collaborate' | 'gallery'>('history');
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [ttsLoadingId, setTtsLoadingId] = useState<string | null>(null);
@@ -602,15 +627,39 @@ const Index = () => {
 
   const langHint = preferredLang === 'auto' ? undefined : preferredLang;
 
+  // ── Image attachment handlers ─────────────────────────────────────────────
+  const handleAttachImage = () => fileInputRef.current?.click();
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 4 * 1024 * 1024) {
+      alert('Image must be under 4MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUri = reader.result as string;
+      const base64 = dataUri.split(',')[1];
+      setAttachedImage({ base64, mimeType: file.type, preview: dataUri });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = () => setAttachedImage(null);
+
   const handleSendMessage = () => {
     const text = inputText.trim();
-    if (!text) return;
+    if (!text && !attachedImage) return;
     setInputText('');
     const mode = selectedMode === 'auto' ? undefined : selectedMode;
-    // Use detected voice language if available, otherwise fall back to preferred lang
     const lang = voiceLanguage ?? langHint;
     setVoiceLanguage(null);
-    sendMessage(text, undefined, mode, lang);
+    const imgBase64 = attachedImage?.base64;
+    const imgMime = attachedImage?.mimeType;
+    setAttachedImage(null);
+    sendMessage(text || 'Describe this image', undefined, mode, lang, imgBase64, imgMime);
   };
 
   const handleMicClick = async () => {
@@ -718,7 +767,18 @@ const Index = () => {
     if (userMsgIdx >= 0) {
       const userMsg = messages[userMsgIdx];
       truncateMessages(userMsgIdx);
-      sendMessage(userMsg.text);
+      // Re-send with the original attached image if present
+      if (userMsg.attachedImage) {
+        // Extract base64 and mimeType from the data URI
+        const match = userMsg.attachedImage.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          sendMessage(userMsg.text, undefined, undefined, undefined, match[2], match[1]);
+        } else {
+          sendMessage(userMsg.text);
+        }
+      } else {
+        sendMessage(userMsg.text);
+      }
     }
   };
 
@@ -1015,68 +1075,91 @@ const Index = () => {
     { view: 'collaborate' as const, icon: Users, label: 'Collaborate', badge: 0, authOnly: true },
   ];
 
+  // ── Figma-style sidebar nav items ──────────────────────────────────────────
+  const sidebarNavItems = [
+    { view: 'history' as const, icon: MessageSquare, label: 'the chat' },
+    { view: 'planner' as const, icon: Calendar, label: 'planning', authOnly: true },
+    { view: 'saved-items' as const, icon: Sparkles, label: 'inspiration', authOnly: true },
+    { view: 'budget' as const, icon: DollarSign, label: 'budget', authOnly: true },
+    { view: 'shopping' as const, icon: ShoppingCart, label: 'registry', authOnly: true },
+    { view: 'gallery' as const, icon: Image, label: 'gallery', authOnly: false },
+  ];
+
   const sidebarJSX = (
-    <div className={`fixed left-0 top-0 h-full bg-white/45 backdrop-blur-sm border-r border-white/20 shadow-lg transition-all duration-300 z-30 font-['Lato',sans-serif] ${isSidebarOpen ? 'w-72' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-      <div className="p-3 h-full flex flex-col overflow-y-auto">
-        <div className="flex items-center justify-between mb-3">
-          <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="Close sidebar">
+    <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-['Lato',sans-serif] ${isSidebarOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className="m-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-[#C6944A]/25 backdrop-blur-xl bg-gradient-to-b from-[rgba(58,14,32,0.82)] to-[rgba(40,8,22,0.92)] overflow-hidden">
+
+        {/* Top bar: close + search + new chat */}
+        <div className="flex items-center justify-between px-3 pt-3 pb-1 flex-shrink-0">
+          <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/70" title="Close sidebar">
             <PanelLeft className="h-4 w-4" />
           </Button>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {user && (
-              <Button onClick={() => { setShowSearch(v => !v); if (showSearch) setSearchQuery(''); }} variant="ghost" className={`h-9 w-9 rounded-full hover:bg-white/70 ${showSearch ? 'bg-white/70' : ''}`} title="Search chats">
-                <Search className="h-4 w-4" />
+              <Button onClick={() => { setShowSearch(v => !v); if (showSearch) setSearchQuery(''); }} variant="ghost" className={`h-8 w-8 rounded-full hover:bg-white/10 text-white/60 ${showSearch ? 'bg-white/10' : ''}`} title="Search chats">
+                <Search className="h-3.5 w-3.5" />
               </Button>
             )}
-            <Button onClick={handleNewChat} variant="ghost" className="h-9 w-9 rounded-full hover:bg-white/70" title="New Chat">
-              <SquarePen className="h-4 w-4" />
+            <Button onClick={handleNewChat} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/60" title="New Chat">
+              <SquarePen className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
+
+        {/* Search bar */}
         {user && showSearch && (
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-stone-400" />
-            <Input placeholder="Search chats..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 bg-white/70 border-stone-200 rounded-xl text-sm" autoFocus />
+          <div className="relative px-3 pb-2">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
+            <Input placeholder="Search chats..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 bg-white/[0.06] border-white/10 rounded-xl text-sm text-white/90 placeholder-white/35 h-8" autoFocus />
           </div>
         )}
 
         {/* Main Navigation */}
-        <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2 space-y-1 min-h-0">
-          {/* Quick Actions */}
-          <div className="md:px-3 mb-2 py-1"><h3 className="uppercase font-label tracking-widest text-label text-stone-500 font-extrabold">Quick Actions</h3></div>
-          <div className="space-y-1 px-1">
-            {quickActions.map(({ view, icon: Icon, label, badge, authOnly }) => {
-              if (authOnly && !user) return null;
-              const isActive = sidebarView === view;
-              return (
-                <button
-                  key={view}
-                  onClick={() => setSidebarView(view as any)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-sm ${isActive ? 'bg-white text-primary font-bold shadow-lg border border-primary/10 scale-[1.02]' : 'text-stone-600 hover:text-primary hover:bg-white/90 hover:shadow-md'}`}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span>{label}</span>
-                  {badge > 0 && (
-                    <span className={`ml-auto text-2xs rounded-full px-2 py-0.5 font-bold ${view === 'planner' ? (isActive ? 'bg-red-400/30 text-white' : 'bg-red-100 text-red-600') : (isActive ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary')
-                      }`}>{badge}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        <nav className="flex-1 overflow-y-auto custom-scrollbar px-3 pt-2 pb-2 min-h-0">
+          {/* Primary nav items (Figma style) */}
+       
 
-          {/* Threads */}
-          {user && sidebarView !== 'planner' && (
+          {/* Extra quick actions (logged-in) */}
+          {user && (
+            <div className="space-y-0.5 mb-4">
+              {[
+                { view: 'liked' as const, icon: ThumbsUp, label: 'liked', badge: allLikedMessages.length },
+                { view: 'reminders' as const, icon: Bell, label: 'reminders', badge: calendarEvents.length },
+                { view: 'timeline' as const, icon: Clock, label: 'timeline', badge: 0 },
+                { view: 'progress' as const, icon: BarChart3, label: 'progress', badge: 0 },
+                { view: 'notifications' as const, icon: Bell, label: 'alerts', badge: 0 },
+                { view: 'collaborate' as const, icon: Users, label: 'collaborate', badge: 0 },
+              ].map(({ view, icon: Icon, label, badge }) => {
+                const isActive = sidebarView === view;
+                return (
+                  <button
+                    key={view}
+                    onClick={() => setSidebarView(view as any)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase ${isActive ? 'bg-white/[0.1] text-[#C6944A] font-medium' : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]'}`}
+                  >
+                    <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-[#C6944A]' : 'text-white/35'}`} />
+                    <span>{label}</span>
+                    {badge > 0 && (
+                      <span className={`ml-auto text-2xs rounded-full px-1.5 py-0.5 font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-primary/15 text-primary/80'}`}>{badge}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Thread history */}
+          {user && (
             <div>
               {/* Pinned Threads */}
               {pinnedThreads.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="uppercase font-label tracking-widest text-2xs text-stone-500 mb-3 px-3 font-semibold flex items-center gap-1.5">
+                <div className="mb-3">
+                  <h3 className="uppercase tracking-[0.12em] text-2xs text-white/35 mb-2 px-2 font-semibold flex items-center gap-1.5">
                     <Pin className="h-3 w-3" />Pinned
                   </h3>
-                  <div className="space-y-0.5 px-1">
+                  <div className="space-y-0.5">
                     {pinnedThreads.map(thread => (
-                      <div key={thread.id} className="group relative flex items-start gap-1 rounded-md overflow-hidden py-1 px-2">
+                      <div key={thread.id} className="thread-item group relative rounded-lg py-0.5 px-1">
                         {renamingThreadId === thread.id ? (
                           <input
                             autoFocus
@@ -1087,33 +1170,33 @@ const Index = () => {
                               if (e.key === 'Escape') setRenamingThreadId(null);
                             }}
                             onBlur={() => submitRename(thread.id)}
-                            className="flex-1 text-sm px-3 py-2 rounded-lg bg-white border border-primary/30 outline-none focus:ring-1 focus:ring-primary/40 text-stone-900"
+                            className="flex-1 text-xs px-2 py-1.5 rounded-lg bg-white/[0.06] border border-primary/20 outline-none focus:ring-1 focus:ring-primary/30 text-white/90"
                           />
                         ) : (
                           <>
                             <button
                               onClick={() => { handleLoadChat(thread.id); setSidebarView('history'); }}
-                              className={`flex-1 text-left text-sm  rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'bg-white text-primary font-bold shadow-md border border-primary/10' : 'text-stone-600 hover:text-primary hover:bg-white/60 hover:shadow-sm'}`}
+                              className={`thread-title w-full text-left text-xs rounded-lg transition-all duration-200 px-2 py-1.5 ${activeThreadId === thread.id ? 'bg-white/[0.08] text-primary font-medium' : 'text-white/50 hover:text-white/75 hover:bg-white/[0.04]'}`}
                             >
                               <div className="flex items-center gap-1.5">
-                                <Pin className="h-3 w-3 text-primary/50 flex-shrink-0" />
+                                <Pin className="h-2.5 w-2.5 text-primary/40 flex-shrink-0" />
                                 <span className="truncate">{thread.title}</span>
                               </div>
                               {(thread.tags ?? []).length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {thread.tags.map(tag => (
-                                    <span key={tag} className={`text-[8px] px-1 py-0.5 rounded-full border font-medium ${getTagStyle(tag)}`}>{tag}</span>
+                                    <span key={tag} className={`text-[7px] px-1 py-0.5 rounded-full border font-medium ${getTagStyle(tag)}`}>{tag}</span>
                                   ))}
                                 </div>
                               )}
                             </button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <button className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded hover:bg-white/80 transition-opacity" onClick={e => e.stopPropagation()}>
-                                  <MoreHorizontal className="h-3.5 w-3.5 text-stone-500" />
+                                <button className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-opacity text-white/50 z-10" onClick={e => e.stopPropagation()}>
+                                  <MoreHorizontal className="h-3 w-3" />
                                 </button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent className="w-44 bg-white/95 backdrop-blur-sm" align="end">
+                              <DropdownMenuContent className="w-40 bg-[#3A0E20]/95 backdrop-blur-sm border-white/10 text-white/80" align="end">
                                 <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => pinThread(thread.id, false)}>
                                   <PinOff className="mr-2 h-3.5 w-3.5" />Unpin
                                 </DropdownMenuItem>
@@ -1144,17 +1227,16 @@ const Index = () => {
               )}
 
               {/* Recent Threads */}
-              <h3 className="uppercase font-label tracking-widest text-2xs text-stone-500 mb-3 px-3 font-semibold">Recent Threads</h3>
-
-              <div className="space-y-4 px-1">
-                {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-label text-stone-400 text-center py-6 px-4 bg-white/40 rounded-2xl border border-border italic">Your conversations will appear here.</p>}
-                {sortedGroupKeys.length === 0 && searchQuery && <p className="text-xs text-stone-500 text-center py-4">No chats found for "{searchQuery}"</p>}
+              <h3 className="uppercase tracking-[0.12em] text-2xs text-white/35 mb-2 px-2 font-semibold">Recent</h3>
+              <div className="space-y-3">
+                {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-2xs text-white/30 text-center py-4 px-3 italic">Your conversations will appear here.</p>}
+                {sortedGroupKeys.length === 0 && searchQuery && <p className="text-xs text-white/35 text-center py-3">No chats found for "{searchQuery}"</p>}
                 {sortedGroupKeys.map(dateKey => (
                   <div key={dateKey}>
-                    <h4 className="mb-2.5 px-3 uppercase tracking-[0.15em] text-2xs text-stone-600 font-bold">{dateKey}</h4>
+                    {/* <h4 className="mb-1.5 px-2 uppercase tracking-[0.12em] text-[10px] text-white/30 font-semibold">{dateKey}</h4> */}
                     <div className="space-y-0.5">
                       {groupedThreads[dateKey].map(thread => (
-                        <div key={thread.id} className="group relative flex items-start gap-1 rounded-md overflow-hidden py-1 px-2">
+                        <div key={thread.id} className="thread-item group relative rounded-lg py-0.5 px-1">
                           {renamingThreadId === thread.id ? (
                             <input
                               autoFocus
@@ -1165,30 +1247,30 @@ const Index = () => {
                                 if (e.key === 'Escape') setRenamingThreadId(null);
                               }}
                               onBlur={() => submitRename(thread.id)}
-                              className="flex-1 text-sm px-3 py-2 rounded-lg bg-white border border-primary/30 outline-none focus:ring-1 focus:ring-primary/40 text-stone-900"
+                              className="flex-1 text-xs px-2 py-1.5 rounded-lg bg-white/[0.06] border border-primary/20 outline-none focus:ring-1 focus:ring-primary/30 text-white/90"
                             />
                           ) : (
                             <>
                               <button
                                 onClick={() => { handleLoadChat(thread.id); setSidebarView('history'); }}
-                                className={`flex-1 text-left text-sm rounded-lg transition-all min-w-0 ${activeThreadId === thread.id ? 'p-2 bg-white text-primary shadow-md border border-primary/10' : 'p-1 text-stone-600 hover:text-primary hover:bg-white/60 hover:shadow-sm'}`}
+                                className={`thread-title w-full text-left text-xs rounded-lg transition-all duration-200 px-2 py-1.5 ${activeThreadId === thread.id ? 'bg-white/[0.08] text-primary font-medium' : 'text-white/50 hover:text-white/75 hover:bg-white/[0.04]'}`}
                               >
-                                <span className=" truncate block">{thread.title}</span>
+                                <span className="truncate block">{thread.title}</span>
                                 {(thread.tags ?? []).length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-1">
                                     {thread.tags.map(tag => (
-                                      <span key={tag} className={`text-[8px] px-1 py-0.5 rounded-full border font-medium ${getTagStyle(tag)}`}>{tag}</span>
+                                      <span key={tag} className={`text-[7px] px-1 py-0.5 rounded-full border font-medium ${getTagStyle(tag)}`}>{tag}</span>
                                     ))}
                                   </div>
                                 )}
                               </button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <button className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded hover:bg-white/80 transition-opacity" onClick={e => e.stopPropagation()}>
-                                    <MoreHorizontal className="h-3.5 w-3.5 text-stone-500" />
+                                  <button className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-opacity text-white/50 z-10" onClick={e => e.stopPropagation()}>
+                                    <MoreHorizontal className="h-3 w-3" />
                                   </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-44 bg-white/95 backdrop-blur-sm" align="end">
+                                <DropdownMenuContent className="w-40 bg-[#3A0E20]/95 backdrop-blur-sm border-white/10 text-white/80" align="end">
                                   <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => pinThread(thread.id, !thread.pinned)}>
                                     {thread.pinned ? <PinOff className="mr-2 h-3.5 w-3.5" /> : <Pin className="mr-2 h-3.5 w-3.5" />}
                                     {thread.pinned ? 'Unpin' : 'Pin'}
@@ -1222,8 +1304,8 @@ const Index = () => {
 
               {/* Tag filter bar */}
               {allUsedTags.length > 0 && (
-                <div className="mt-4 px-2">
-                  <h3 className="uppercase font-label tracking-widest text-2xs text-stone-500 mb-2 px-1 font-semibold flex items-center gap-1.5">
+                <div className="mt-3 px-1">
+                  <h3 className="uppercase tracking-[0.12em] text-2xs text-white/35 mb-1.5 px-1 font-semibold flex items-center gap-1.5">
                     <Tag className="h-3 w-3" />Filter by Tag
                   </h3>
                   <div className="flex flex-wrap gap-1">
@@ -1233,14 +1315,14 @@ const Index = () => {
                         onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
                         className={`text-3xs px-2 py-0.5 rounded-full border font-medium transition-all ${selectedTagFilter === tag
                           ? getTagStyle(tag) + ' ring-1 ring-offset-1'
-                          : 'bg-white/60 text-stone-400 border-stone-200 hover:bg-white'
+                          : 'bg-white/[0.06] text-white/35 border-white/10 hover:bg-white/10'
                           }`}
                       >{tag}</button>
                     ))}
                     {selectedTagFilter && (
                       <button
                         onClick={() => setSelectedTagFilter(null)}
-                        className="text-3xs px-2 py-0.5 rounded-full border border-stone-300 bg-white text-stone-500 hover:bg-stone-50 flex items-center gap-0.5"
+                        className="text-3xs px-2 py-0.5 rounded-full border border-white/15 bg-white/[0.06] text-white/40 hover:bg-white/10 flex items-center gap-0.5"
                       ><X className="h-2.5 w-2.5" />Clear</button>
                     )}
                   </div>
@@ -1250,17 +1332,17 @@ const Index = () => {
               {/* Archived Threads */}
               {archivedThreads.length > 0 && (
                 <Collapsible open={showArchived} onOpenChange={setShowArchived} className="mt-2">
-                  <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-2 py-1.5 text-3xs font-bold uppercase tracking-wider text-stone-500 hover:text-stone-700">
+                  <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-2 py-1.5 text-3xs font-bold uppercase tracking-wider text-white/35 hover:text-white/60">
                     {showArchived ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                     <Archive className="h-3 w-3" />
                     Archived
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-0.5 animate-in fade-in duration-200 mt-1">
                     {archivedThreads.map(thread => (
-                      <div key={thread.id} className="px-3">
+                      <div key={thread.id} className="px-2">
                         <button
                           onClick={() => handleLoadChat(thread.id)}
-                          className="w-full text-left text-xs px-2 py-1 rounded text-stone-500 hover:text-stone-700 hover:bg-white/50 truncate opacity-70 hover:opacity-100 transition-all"
+                          className="w-full text-left text-xs px-2 py-1 rounded text-white/40 hover:text-white/70 hover:bg-white/[0.06] truncate transition-all"
                           title={thread.title}
                         >
                           {thread.title}
@@ -1274,28 +1356,30 @@ const Index = () => {
           )}
         </nav>
 
-        {/* User Profile Footer */}
-        <div className="flex-shrink-0 border-t border-border px-2 py-2" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}>
+        {/* Bottom: help + settings + profile */}
+        <div className="flex-shrink-0 border-t border-white/[0.06] px-3 py-2.5" style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}>
           {user && profile ? (
-            <div className="flex items-center justify-between gap-1">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-stone-700 truncate">{profile.name || 'User'}</p>
-                <p className="text-2xs text-stone-400 truncate">{profile.email}</p>
-              </div>
-              <div className="flex gap-0.5 flex-shrink-0">
-                <button className="p-1.5 text-stone-400 hover:text-primary hover:bg-white/50 rounded transition-all" title="Settings" onClick={() => setShowSettingsModal(true)}>
-                  <Settings className="h-3.5 w-3.5" />
-                </button>
-                <button className="p-1.5 text-stone-400 hover:text-red-500 hover:bg-red-50/50 rounded transition-all" title="Sign out" onClick={() => signOut()}>
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
-              </div>
+            <div className="space-y-1">
+              <button onClick={() => setShowShortcuts(true)} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                <HelpCircle className="h-4 w-4 flex-shrink-0" />
+                <span>help</span>
+              </button>
+              <button onClick={() => setShowSettingsModal(true)} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                <Settings className="h-4 w-4 flex-shrink-0" />
+                <span>settings</span>
+              </button>
             </div>
           ) : (
-            <button className="w-full text-left px-3 py-2 rounded-lg bg-white border border-primary/20 hover:border-primary/50 hover:bg-white transition-all text-xs font-semibold text-stone-700 flex items-center gap-2" onClick={() => setShowSignInModal(true)}>
-              <LogIn className="h-3.5 w-3.5 text-primary" />
-              Sign in
-            </button>
+            <div className="space-y-1">
+              <button onClick={() => setShowShortcuts(true)} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                <HelpCircle className="h-4 w-4 flex-shrink-0" />
+                <span>help</span>
+              </button>
+              <button className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl bg-gradient-to-r from-[#C6944A]/12 to-transparent border border-[#C6944A]/20 hover:border-[#C6944A]/35 transition-all duration-200 text-xs text-white/70" onClick={() => setShowSignInModal(true)}>
+                <LogIn className="h-4 w-4 text-primary flex-shrink-0" />
+                <span>sign in</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -1304,23 +1388,23 @@ const Index = () => {
 
   const sidebarToggleJSX = !isSidebarOpen ? (
     <div className="flex items-center gap-0.5 flex-shrink-0">
-      <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-stone-100" title="Open sidebar">
-        <PanelLeft className="h-4 w-4 text-stone-500" />
+      <Button onClick={() => setIsSidebarOpen(v => !v)} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-white/10 text-white/70" title="Open sidebar">
+        <PanelLeft className="h-4 w-4 text-white/60" />
       </Button>
-      <Button onClick={handleNewChat} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-stone-100" title="New Chat">
-        <SquarePen className="h-4 w-4 text-stone-500" />
+      <Button onClick={handleNewChat} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-white/10 text-white/70" title="New Chat">
+        <SquarePen className="h-4 w-4 text-white/60" />
       </Button>
     </div>
   ) : null;
 
   const shortcutsOverlayJSX = showShortcuts && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
-      <div className="bg-white rounded-2xl shadow-2xl border border-border p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#3A0E20] rounded-2xl shadow-2xl border border-white/15 p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-headline text-lg text-stone-800 flex items-center gap-2">
+          <h3 className="font-headline text-lg text-white/90 flex items-center gap-2">
             <Keyboard className="h-4 w-4 text-primary" />Keyboard Shortcuts
           </h3>
-          <button onClick={() => setShowShortcuts(false)} className="text-stone-400 hover:text-stone-600 text-sm">Esc</button>
+          <button onClick={() => setShowShortcuts(false)} className="text-white/40 hover:text-white/60 text-sm">Esc</button>
         </div>
         <div className="space-y-2.5">
           {[
@@ -1330,12 +1414,12 @@ const Index = () => {
             { keys: 'Shift + Enter', desc: 'New line in message' },
           ].map(({ keys, desc }) => (
             <div key={keys} className="flex items-center justify-between">
-              <span className="text-xs text-stone-600">{desc}</span>
-              <kbd className="text-2xs font-mono bg-stone-100 text-stone-600 px-2 py-0.5 rounded border border-stone-200">{keys}</kbd>
+              <span className="text-xs text-white/60">{desc}</span>
+              <kbd className="text-2xs font-mono bg-white/10 text-white/60 px-2 py-0.5 rounded border border-white/15">{keys}</kbd>
             </div>
           ))}
         </div>
-        <p className="text-2xs text-stone-400 mt-4 text-center">Press <kbd className="font-mono bg-stone-100 px-1 rounded text-3xs">Ctrl + /</kbd> anytime to toggle</p>
+        <p className="text-2xs text-white/40 mt-4 text-center">Press <kbd className="font-mono bg-white/10 px-1 rounded text-3xs">Ctrl + /</kbd> anytime to toggle</p>
       </div>
     </div>
   );
@@ -1343,9 +1427,9 @@ const Index = () => {
   // Tag picker modal
   const tagPickerModalJSX = (
     <Dialog open={!!tagPickerThreadId} onOpenChange={(open) => !open && setTagPickerThreadId(null)}>
-      <DialogContent className="w-[95vw] sm:max-w-[500px] glass-panel rounded-2xl p-6 border border-white/60 shadow-2xl">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[500px] glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="font-headline text-xl text-stone-800">Organize with Tags</DialogTitle>
+          <DialogTitle className="font-headline text-xl text-white/90">Organize with Tags</DialogTitle>
           <DialogDescription>Select tags to organize this conversation</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto custom-scrollbar py-4">
@@ -1358,7 +1442,7 @@ const Index = () => {
                 onClick={() => handleToggleTag(tagPickerThreadId!, tag.name)}
                 className={`py-3 px-4 rounded-xl border-2 font-medium transition-all text-sm ${isActive
                   ? tag.color + ' border-opacity-80 ring-2 ring-offset-2'
-                  : 'bg-white/60 text-stone-400 border-stone-200 hover:bg-white hover:border-stone-300'
+                  : 'bg-white/10 text-white/40 border-white/15 hover:bg-white/15 hover:border-white/25'
                   }`}
               >
                 {tag.name}
@@ -1370,7 +1454,7 @@ const Index = () => {
           <Button
             variant="ghost"
             onClick={() => setTagPickerThreadId(null)}
-            className="px-6 text-stone-600 hover:text-stone-800"
+            className="px-6 text-white/60 hover:text-white/80"
           >
             Cancel
           </Button>
@@ -1390,7 +1474,7 @@ const Index = () => {
       <div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="h-8 w-8 rounded-full border border-border bg-white/80 hover:bg-white flex items-center justify-center transition-colors">
+            <button className="h-8 w-8 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
               <Avatar className="h-6 w-6">
                 <AvatarImage src="" alt="Profile" />
                 <AvatarFallback className="bg-primary/10 text-primary text-2xs font-semibold">
@@ -1399,7 +1483,7 @@ const Index = () => {
               </Avatar>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 bg-white/95 backdrop-blur-sm border border-border" align="end" forceMount>
+          <DropdownMenuContent className="w-56 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 text-white/80" align="end" forceMount>
             {profile ? (
               <>
                 <DropdownMenuLabel className="font-normal">
@@ -1409,7 +1493,7 @@ const Index = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="font-normal text-xs text-stone-400 flex items-center gap-1.5 pb-1">
+                <DropdownMenuLabel className="font-normal text-xs text-white/40 flex items-center gap-1.5 pb-1">
                   <Globe className="h-3 w-3" />Response language
                 </DropdownMenuLabel>
                 {SUPPORTED_LANGUAGES.map(({ code, label }) => (
@@ -1444,7 +1528,7 @@ const Index = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Continue as Guest</span></DropdownMenuItem>
                 <DropdownMenuSeparator className="sm:hidden" />
-                <DropdownMenuLabel className="font-normal text-xs text-stone-400 flex items-center gap-1.5 pb-1 sm:hidden">
+                <DropdownMenuLabel className="font-normal text-xs text-white/40 flex items-center gap-1.5 pb-1 sm:hidden">
                   <Globe className="h-3 w-3" />Response Language
                 </DropdownMenuLabel>
                 {SUPPORTED_LANGUAGES.map(({ code, label }) => (
@@ -1471,15 +1555,15 @@ const Index = () => {
   // ── Planner detail view (full right panel) ────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
-      <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
+      <div className={` gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`}>
         {shortcutsOverlayJSX}
         {tagPickerModalJSX}
-        {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+        {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="flex items-center gap-2 px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border flex-shrink-0">
+          <header className="flex items-center gap-2 px-2 sm:px-4 h-14 bg-[#3A0E20]/80 backdrop-blur-md border-b border-[#C6944A]/20 flex-shrink-0">
             {sidebarToggleJSX}
-            <h2 className="font-headline text-lg text-stone-800">Planner</h2>
+            <h2 className="font-headline text-lg text-white/90">Planner</h2>
             <div className="ml-auto">{profileIconJSX}</div>
           </header>
           <div className="flex-1 overflow-hidden p-4">
@@ -1498,19 +1582,19 @@ const Index = () => {
 
   // ── Helper: main-area shell (sidebar + toggle + profile + content) ──────────
   const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
-    <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
+    <div className={` gradient-bg  flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`}>
       {shortcutsOverlayJSX}
       {tagPickerModalJSX}
-      {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
       <main className="flex-1 flex flex-col overflow-x-hidden overflow-hidden">
         {/* Header */}
-        <header className="flex items-center gap-2 px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border flex-shrink-0">
+        <header className="flex items-center gap-2 px-2 sm:px-4 h-14 bg-[#3A0E20]/80 backdrop-blur-md border-b border-[#C6944A]/20 flex-shrink-0">
           {sidebarToggleJSX}
           <Button variant="ghost" size="sm" onClick={() => setSidebarView('history')} className="h-7 w-7 p-0 rounded-lg">
-            <ArrowLeft className="h-3.5 w-3.5 text-stone-500" />
+            <ArrowLeft className="h-3.5 w-3.5 text-white/60" />
           </Button>
-          <h2 className="font-headline text-lg text-stone-800 flex items-center gap-2">{icon}{title}</h2>
+          <h2 className="font-headline text-lg text-white/90 flex items-center gap-2">{icon}{title}</h2>
           <div className="ml-auto">{profileIconJSX}</div>
         </header>
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-5">
@@ -1539,7 +1623,7 @@ const Index = () => {
   if (sidebarView === 'liked') {
     return mainAreaShell('Liked Messages', <ThumbsUp className="h-5 w-5 text-primary" />,
       allLikedMessages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-stone-400">
+        <div className="flex flex-col items-center justify-center py-16 text-white/40">
           <ThumbsUp className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm">No liked messages yet.</p>
           <p className="text-xs mt-1">Click the <ThumbsUp className="inline h-3 w-3 mx-0.5" /> on any AI response.</p>
@@ -1548,10 +1632,10 @@ const Index = () => {
         <div className="grid gap-3 sm:grid-cols-2">
           {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
             <button key={msg.id} onClick={() => handleLikedMessageClick(msg)}
-              className="text-left rounded-2xl bg-white/70 border border-primary/40 px-4 py-3.5 space-y-2 hover:bg-white/90 hover:border-primary/30 hover:shadow-sm transition-all duration-150">
+              className="text-left rounded-2xl bg-white/10 border border-primary/30 px-4 py-3.5 space-y-2 hover:bg-white/15 hover:border-primary/40 hover:shadow-sm transition-all duration-150">
               {msg.mode && <span className="inline-block text-3xs uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
-              <p className="text-sm text-stone-700 leading-relaxed line-clamp-5">{msg.text}</p>
-              <p className="text-2xs text-stone-400">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              <p className="text-sm text-white/70 leading-relaxed line-clamp-5">{msg.text}</p>
+              <p className="text-2xs text-white/40">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
             </button>
           ))}
         </div>
@@ -1563,10 +1647,10 @@ const Index = () => {
   if (sidebarView === 'reminders') {
     return mainAreaShell('Upcoming & Reminders', <Calendar className="h-5 w-5 text-primary" />,
       calendarEvents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-stone-400">
+        <div className="flex flex-col items-center justify-center py-16 text-white/40">
           <Calendar className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm">No reminders yet.</p>
-          <p className="text-xs mt-1">Ask Viva in <span className="font-semibold text-primary">Planner mode</span> to save a date.</p>
+          <p className="text-xs mt-1">Ask Easebot in <span className="font-semibold text-primary">Planner mode</span> to save a date.</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1574,11 +1658,11 @@ const Index = () => {
             const isPast = new Date(ev.date) < new Date(new Date().toDateString())
             return (
               <a key={ev.id} href={ev.htmlLink || '#'} target="_blank" rel="noopener noreferrer"
-                className={`block rounded-2xl border px-4 py-3.5 space-y-1.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-stone-50/60 border-stone-200 opacity-60' : 'bg-white/70 border-primary/40 hover:bg-white/90 hover:border-primary/30'}`}>
-                <p className="text-sm font-semibold text-stone-800">{ev.title}</p>
+                className={`block rounded-2xl border px-4 py-3.5 space-y-1.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-white/5 border-white/10 opacity-60' : 'bg-white/10 border-primary/30 hover:bg-white/15 hover:border-primary/40'}`}>
+                <p className="text-sm font-semibold text-white/80">{ev.title}</p>
                 <p className="text-xs text-primary font-medium">{ev.date}{ev.time ? ` · ${ev.time}` : ''}</p>
-                {ev.description && <p className="text-xs text-stone-400 line-clamp-2">{ev.description}</p>}
-                {isPast && <p className="text-2xs text-stone-400 italic">Past event</p>}
+                {ev.description && <p className="text-xs text-white/40 line-clamp-2">{ev.description}</p>}
+                {isPast && <p className="text-2xs text-white/30 italic">Past event</p>}
               </a>
             )
           })}
@@ -1651,6 +1735,15 @@ const Index = () => {
     )
   }
 
+  // ── Gallery view ──────────────────────────────────────────────────────────
+  if (sidebarView === 'gallery') {
+    return mainAreaShell('Gallery', <Image className="h-5 w-5 text-primary" />,
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+        <GalleryView messages={messages} />
+      </div>
+    )
+  }
+
   // ── Coming soon views ─────────────────────────────────────────────────────
   const comingSoonViews: Record<string, { title: string; icon: React.ReactNode; desc: string }> = {
     'moodboard': { title: 'Moodboard', icon: <Image className="h-5 w-5 text-primary" />, desc: 'Collect inspiration images for your wedding aesthetic.' },
@@ -1658,9 +1751,9 @@ const Index = () => {
   if (sidebarView in comingSoonViews) {
     const cs = comingSoonViews[sidebarView]
     return mainAreaShell(cs.title, cs.icon,
-      <div className="flex flex-col items-center justify-center py-20 text-center text-stone-400 space-y-2">
+      <div className="flex flex-col items-center justify-center py-20 text-center text-white/40 space-y-2">
         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-1">{cs.icon}</div>
-        <p className="text-sm font-semibold text-stone-600">Coming Soon</p>
+        <p className="text-sm font-semibold text-white/60">Coming Soon</p>
         <p className="text-xs max-w-xs leading-relaxed">{cs.desc}</p>
       </div>
     )
@@ -1670,25 +1763,32 @@ const Index = () => {
   if (isExpanded) {
     const activeCfg = modeConfig(selectedMode);
     return (
-      <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
+      <div className={` gradient-bg  flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`}>
         {shortcutsOverlayJSX}
         {tagPickerModalJSX}
-        {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+        {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
 
         {/* ── Center Chat Area ── */}
         <main className="flex-1 flex flex-col relative overflow-hidden">
-          {/* TopAppBar — Stitch style */}
-          <header className="flex items-center gap-1.5 w-full px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border z-10 flex-shrink-0">
+          {/* TopAppBar — Easebot style */}
+          <header className="flex items-center gap-1.5 w-full px-3 sm:px-5 h-14 backdrop-blur-xl border-b border-white/[0.06] z-10 flex-shrink-0">
             {sidebarToggleJSX}
-            <div className="overflow-x-auto scrollbar-hide flex-1 min-w-0 bg-border flex-nowrap" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="flex p-0.5 rounded-full gap-0.5 ">
+            <div className="flex items-center gap-2 mr-3 flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4A853] to-[#B07D35] flex items-center justify-center text-white text-sm italic font-headline shadow-sm">E</div>
+              <div className="hidden sm:block">
+                <h1 className="font-headline italic text-base text-[#C6944A] leading-none tracking-tight">wedding ease</h1>
+                <p className="text-3xs text-white/40 tracking-wide">your AI wedding concierge</p>
+              </div>
+            </div>
+            <div className="overflow-x-auto scrollbar-hide flex-1 min-w-0 flex-nowrap" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex bg-white/[0.06] p-0.5 rounded-full gap-0.5 border border-white/[0.06]">
                 {MODE_CONFIG.map(m => (
                   <Tooltip key={m.key}>
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => setSelectedMode(m.key)}
-                        className={`px-3 py-1 rounded-full text-label font-semibold transition-all flex-shrink-0 ${selectedMode === m.key ? `${m.active}` : 'text-stone-500 hover:bg-white/50'}`}
+                        className={`px-3 py-1 rounded-full text-label font-semibold transition-all duration-200 flex-shrink-0 ${selectedMode === m.key ? `${m.active}` : 'text-white/45 hover:text-white/70 hover:bg-white/[0.08]'}`}
                       >
                         {m.label}
                       </button>
@@ -1704,13 +1804,13 @@ const Index = () => {
               <div className="hidden sm:block">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-1 text-stone-500 text-xs font-medium px-2 py-1 rounded-full hover:bg-stone-100 transition-colors">
+                    <button className="flex items-center gap-1 text-white/60 text-xs font-medium px-2 py-1 rounded-full hover:bg-white/10 transition-colors">
                       <Globe className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Lang</span>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-sm border border-border shadow-lg">
-                    <DropdownMenuLabel className="text-3xs text-stone-400 uppercase tracking-widest">Response Language</DropdownMenuLabel>
+                  <DropdownMenuContent align="end" className="w-44 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 shadow-lg text-white/80">
+                    <DropdownMenuLabel className="text-3xs text-white/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {SUPPORTED_LANGUAGES.map(({ code, label }) => (
                       <DropdownMenuItem key={code} className="cursor-pointer text-label py-1" onClick={() => handleLanguageChange(code)}>
@@ -1722,14 +1822,14 @@ const Index = () => {
                 </DropdownMenu>
               </div>
               {user && (
-                <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
+                <button className="p-1.5 text-white/60 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
                   <Bell className="h-4 w-4" />
                 </button>
               )}
               <div className="hidden sm:block">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
+                    <button className="p-1.5 text-white/60 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
                       <Keyboard className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>
@@ -1743,8 +1843,8 @@ const Index = () => {
 
           {/* Guest banner */}
           {!user && (
-            <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-5 pt-3">
-              <div className="flex items-center bg-white/50 backdrop-blur-sm rounded-xl px-3 py-2 border border-primary/20 text-xs text-stone-600 gap-1.5">
+            <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
+              <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 border border-primary/20 text-xs text-white/70 gap-1.5">
                 <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                 This chat won't be saved.{' '}
                 <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
@@ -1755,14 +1855,14 @@ const Index = () => {
           )}
 
           {/* Chat Messages */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-5 py-5 space-y-5 gradient-bg">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-6 space-y-6 noise-overlay relative">
             {/* Load earlier messages */}
             {hasMoreMessages && (
               <div className="flex justify-center">
                 <button
                   onClick={handleLoadMoreMessages}
                   disabled={loadingMoreMessages}
-                  className="flex items-center gap-1.5 px-4 py-1.5 text-label font-medium text-primary bg-white border border-primary/20 rounded-full hover:bg-primary/5 transition-colors shadow-sm disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-4 py-1.5 text-label font-medium text-primary bg-white/10 border border-primary/20 rounded-full hover:bg-white/15 transition-colors shadow-sm disabled:opacity-50"
                 >
                   {loadingMoreMessages ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
                   Load earlier messages
@@ -1788,10 +1888,10 @@ const Index = () => {
                             if (e.key === 'Escape') cancelInlineEdit();
                           }}
                           rows={Math.max(2, inlineEditText.split('\n').length)}
-                          className="w-full px-4 py-3 rounded-xl border border-primary/40 bg-white/90 text-stone-800 text-caption leading-relaxed resize-none outline-none focus:ring-2 focus:ring-primary/30 shadow-md"
+                          className="w-full px-4 py-3 rounded-xl border border-primary/40 bg-white/10 text-white/90 text-caption leading-relaxed resize-none outline-none focus:ring-2 focus:ring-primary/30 shadow-md"
                         />
                         <div className="flex gap-2 justify-end">
-                          <Button variant="ghost" size="sm" onClick={cancelInlineEdit} className="h-7 px-3 text-xs text-stone-500 hover:text-stone-700 rounded-xl">
+                          <Button variant="ghost" size="sm" onClick={cancelInlineEdit} className="h-7 px-3 text-xs text-white/60 hover:text-white/80 rounded-xl">
                             Cancel
                           </Button>
                           <Button size="sm" onClick={() => submitInlineEdit(message)} disabled={!inlineEditText.trim()} className="h-7 px-3 text-xs bg-primary hover:bg-primary/90 text-white rounded-xl">
@@ -1801,11 +1901,14 @@ const Index = () => {
                       </div>
                     ) : (
                       <div className="group flex flex-col items-end">
-                        <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-white shadow-sm">
+                        <div className="max-w-[calc(100%-2rem)] sm:max-w-sm md:max-w-lg lg:max-w-xl px-4 py-3 rounded-2xl rounded-tr-sm bg-white/[0.08] backdrop-blur-sm text-white/90 shadow-sm border border-white/[0.08] msg-enter">
+                          {message.attachedImage && (
+                            <img src={message.attachedImage} alt="Attached" className="mb-2 rounded-lg max-w-[200px] max-h-[200px] object-cover" />
+                          )}
                           <p className="text-caption leading-relaxed">{message.text}</p>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 mr-1">
-                          <span className="text-3xs text-stone-400 uppercase tracking-wider">
+                          <span className="text-3xs text-white/40 uppercase tracking-wider">
                             {message.timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                           </span>
                           {/* Branch navigation */}
@@ -1817,17 +1920,17 @@ const Index = () => {
                                 <button
                                   onClick={() => switchBranch(info.anchorId, info.current - 1)}
                                   disabled={info.current <= 0}
-                                  className="h-4 w-4 flex items-center justify-center rounded text-stone-400 hover:text-primary disabled:opacity-30 transition-colors"
+                                  className="h-4 w-4 flex items-center justify-center rounded text-white/40 hover:text-primary disabled:opacity-30 transition-colors"
                                 >
                                   <ChevronLeft className="h-3 w-3" />
                                 </button>
-                                <span className="text-3xs text-stone-500 font-medium tabular-nums">
+                                <span className="text-3xs text-white/50 font-medium tabular-nums">
                                   {info.current + 1}/{info.total}
                                 </span>
                                 <button
                                   onClick={() => switchBranch(info.anchorId, info.current + 1)}
                                   disabled={info.current >= info.total - 1}
-                                  className="h-4 w-4 flex items-center justify-center rounded text-stone-400 hover:text-primary disabled:opacity-30 transition-colors"
+                                  className="h-4 w-4 flex items-center justify-center rounded text-white/40 hover:text-primary disabled:opacity-30 transition-colors"
                                 >
                                   <ChevronRight className="h-3 w-3" />
                                 </button>
@@ -1838,7 +1941,7 @@ const Index = () => {
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 w-6 p-0 text-stone-400 hover:text-primary hover:bg-primary/10 rounded-lg">
+                              <Button variant="ghost" size="sm" onClick={() => startInlineEdit(message)} className="h-6 w-6 p-0 text-white/40 hover:text-primary hover:bg-primary/10 rounded-lg">
                                 <Edit3 className="h-3 w-3" />
                               </Button>
                             </TooltipTrigger>
@@ -1850,21 +1953,11 @@ const Index = () => {
                       </div>
                     )}
                   </div>
-                ) : !message.text && isTyping && msgIndex === messages.length - 1 ? (
-                  <div className="max-w-xs md:max-w-md lg:max-w-lg">
-                    <div className="mb-1 w-full bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border">
-                      <div className="flex items-center gap-1 py-1">
-                        <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="h-2 w-2 rounded-full bg-stone-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                    </div>
-                  </div>
                 ) : message.text ? (
-                  <div className="max-w-xs md:max-w-md lg:max-w-lg group">
+                  <div className="max-w-[calc(100%-2rem)] sm:max-w-sm md:max-w-lg lg:max-w-xl group msg-enter">
                     {message.mode && (
-                      <div className="mb-1 flex items-center gap-1.5">
-                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-white text-2xs italic font-headline">V</div>
+                      <div className="mb-1.5 flex items-center gap-1.5">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D4A853] to-[#B07D35] flex items-center justify-center text-white text-2xs italic font-headline shadow-sm bot-avatar">E</div>
                         {(() => {
                           const cfg = modeConfig(message.mode);
                           const Icon = cfg.icon;
@@ -1877,7 +1970,7 @@ const Index = () => {
                         })()}
                       </div>
                     )}
-                    <div className="mb-1 w-full prose prose-sm max-w-none text-caption leading-relaxed bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border text-stone-700">
+                    <div className="mb-1 w-full prose prose-sm max-w-none text-[13px] leading-[1.7] bg-[#F5EFE5]/10 backdrop-blur-sm p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-lg shadow-black/8 border border-[#C6944A]/10 text-white">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -1940,7 +2033,7 @@ const Index = () => {
 
                               return (
                                 <li className="list-none mb-3 not-prose">
-                                  <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-primary/30 bg-white/60 shadow-sm hover:shadow-md hover:border-mode-stylist-dark/40 transition-all duration-200">
+                                  <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-[#E8D9C0]/60 bg-white/80 shadow-sm hover:shadow-md hover:border-[#C6944A]/40 transition-all duration-200">
                                     <a href={href} target="_blank" rel="noopener noreferrer" className="block no-underline flex-1 flex flex-row gap-3 items-center">
                                       <img
                                         src={imageUrl}
@@ -1948,8 +2041,8 @@ const Index = () => {
                                         className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0"
                                       />
                                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                        <span className="text-sm font-semibold text-stone-800 leading-snug line-clamp-1">{title}</span>
-                                        {description && <span className="text-xs text-stone-500 leading-relaxed line-clamp-2">{description}</span>}
+                                        <span className="text-sm font-semibold text-[#B07D35] leading-snug line-clamp-1">{title}</span>
+                                        {description && <span className="text-xs text-[#8A7E72] leading-relaxed line-clamp-2">{description}</span>}
                                       </div>
                                     </a>
                                     {user && (
@@ -1983,12 +2076,63 @@ const Index = () => {
                         className="mt-1 mb-2 w-full max-w-xs rounded-xl h-8"
                       />
                     )}
-                    {message.imageUrl && (
-                      <img
-                        src={message.imageUrl}
-                        alt="Generated"
-                        className="mt-2 mb-2 rounded-xl max-w-xs w-full object-cover shadow-md"
+                    {/* Image generation skeleton — Gemini/ChatGPT style shimmer */}
+                    {message.imageGenerating && !message.imageUrl && !message.imageUrls?.length && (
+                      <div className="mt-3 mb-2 max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full animate-in fade-in duration-300">
+                        <div className="relative aspect-square rounded-xl overflow-hidden bg-white/[0.04] border border-white/[0.08]">
+                          {/* Shimmer sweep */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
+                          {/* Center content */}
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
+                              <Sparkles className="h-5 w-5 text-[#C6944A]/50 animate-pulse" />
+                            </div>
+                            <div className="space-y-1.5 text-center">
+                              <p className="text-xs text-white/40 font-medium">generating image...</p>
+                              <p className="text-3xs text-white/25">this may take a few seconds</p>
+                            </div>
+                            {/* Fake progress bar */}
+                            <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                              <div className="h-full bg-[#C6944A]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {(message.imageUrls?.length || message.imageUrl) && (
+                      <ImageCarousel
+                        imageUrls={message.imageUrls ?? (message.imageUrl ? [message.imageUrl] : [])}
                       />
+                    )}
+                    {message.checklistData && (
+                      <div className="mt-2 mb-1 bg-white rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border overflow-hidden max-w-xs w-full">
+                        <div className="px-4 py-2.5 bg-primary/5 border-b border-primary/10 flex items-center gap-2">
+                          <CheckSquare className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="font-headline text-sm font-semibold text-stone-800 truncate">{message.checklistData.title}</span>
+                          <span className="ml-auto text-3xs text-stone-400 font-medium">{message.checklistData.items.length} items</span>
+                        </div>
+                        <ul className="px-4 py-2 space-y-1.5">
+                          {message.checklistData.items.slice(0, 8).map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-xs text-stone-600">
+                              <span className="mt-0.5 h-3.5 w-3.5 rounded border border-stone-300 flex-shrink-0" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                          {message.checklistData.items.length > 8 && (
+                            <li className="text-3xs text-stone-400 pl-5">+{message.checklistData.items.length - 8} more items</li>
+                          )}
+                        </ul>
+                        {user && (
+                          <div className="px-4 py-2 border-t border-stone-100">
+                            <button
+                              className="text-xs text-primary font-semibold hover:underline"
+                              onClick={() => { setSidebarView('planner'); setSelectedChecklistId(message.checklistData!.id) }}
+                            >
+                              Open in Planner
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                     {message.calendarEvent && message.calendarAdded && (
                       <div className="mt-2 mb-1 flex items-center gap-1.5 text-label px-3 py-2 rounded-xl w-fit bg-primary/5 text-primary border border-primary/10">
@@ -2030,30 +2174,61 @@ const Index = () => {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
-                            {copiedMsgId === message.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-stone-500" />}
+                          <Button variant="ghost" size="sm" onClick={async () => {
+                            const imgUrl = message.imageUrl || message.imageUrls?.[0]
+                            if (imgUrl) {
+                              try {
+                                const res = await fetch(imgUrl)
+                                const blob = await res.blob()
+                                await navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([blob], { type: 'image/png' }) })])
+                                setCopiedMsgId(message.id)
+                                setTimeout(() => setCopiedMsgId(null), 2000)
+                              } catch { copyMessage(message.text, message.id) }
+                            } else {
+                              copyMessage(message.text, message.id)
+                            }
+                          }} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
+                            {copiedMsgId === message.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-white/50" />}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                          <p>{copiedMsgId === message.id ? 'Copied!' : 'Copy message'}</p>
+                          <p>{copiedMsgId === message.id ? 'Copied!' : (message.imageUrl || message.imageUrls?.[0]) ? 'Copy image' : 'Copy message'}</p>
                         </TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
-                            <Download className="h-3 w-3 text-stone-500" />
+                          <Button variant="ghost" size="sm" onClick={async () => {
+                            const imgUrl = message.imageUrl || message.imageUrls?.[0]
+                            if (imgUrl) {
+                              try {
+                                const res = await fetch(imgUrl)
+                                const blob = await res.blob()
+                                const url = URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = url
+                                a.download = `wedding-ease-${Date.now()}.jpg`
+                                document.body.appendChild(a)
+                                a.click()
+                                document.body.removeChild(a)
+                                URL.revokeObjectURL(url)
+                              } catch { downloadMessage(message.text, message.id) }
+                            } else {
+                              downloadMessage(message.text, message.id)
+                            }
+                          }} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
+                            <Download className="h-3 w-3 text-white/50" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
-                          <p>Download as text</p>
+                          <p>{(message.imageUrl || message.imageUrls?.[0]) ? 'Download image' : 'Download as text'}</p>
                         </TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => toggleLike(message.id)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
-                            <ThumbsUp className={`h-3 w-3 ${message.liked ? 'text-primary fill-current' : 'text-stone-500'}`} />
+                          <Button variant="ghost" size="sm" onClick={() => toggleLike(message.id)} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
+                            <ThumbsUp className={`h-3 w-3 ${message.liked ? 'text-primary fill-current' : 'text-white/50'}`} />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
@@ -2063,8 +2238,8 @@ const Index = () => {
 
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => handleRegenerateMessage(message)} className="h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md">
-                            <RefreshCw className="h-3 w-3 text-stone-500" />
+                          <Button variant="ghost" size="sm" onClick={() => handleRegenerateMessage(message)} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
+                            <RefreshCw className="h-3 w-3 text-white/50" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
@@ -2079,11 +2254,11 @@ const Index = () => {
                             variant="ghost" size="sm"
                             onClick={() => handleTtsPlay(message)}
                             disabled={ttsLoadingId === message.id}
-                            className={`h-6 w-6 p-0 hover:bg-stone-100/30 rounded-md ${ttsActiveId === message.id ? 'text-primary' : ''}`}
+                            className={`h-6 w-6 p-0 hover:bg-white/15 rounded-md ${ttsActiveId === message.id ? 'text-primary' : ''}`}
                           >
                             {ttsLoadingId === message.id
                               ? <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                              : <Volume2 className="h-3 w-3 text-stone-500" />}
+                              : <Volume2 className="h-3 w-3 text-white/50" />}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
@@ -2126,7 +2301,7 @@ const Index = () => {
                           <button
                             key={label}
                             onClick={() => handleToneModifier(label.toLowerCase())}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-stone-200 text-2xs text-stone-500 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-white/20 text-2xs text-white/50 hover:border-primary/40 hover:text-primary hover:bg-primary/10 transition-all"
                           >
                             <Icon className="h-2.5 w-2.5" />
                             {label}
@@ -2141,15 +2316,37 @@ const Index = () => {
 
             {isTyping && !(messages.length > 0 && messages[messages.length - 1].sender === 'ai' && messages[messages.length - 1].text !== '') && (() => {
               const cfg = modeConfig(selectedMode);
-              const modeLabel = selectedMode === 'auto' ? '' : ` (${cfg.label})`;
+              const lastMsg = messages[messages.length - 1];
+              const isGeneratingImage = lastMsg?.imageGenerating;
               return (
                 <div className="flex justify-start">
-                  <div className="bg-white rounded-2xl rounded-tl-sm px-4 py-2.5 border border-border shadow-sm">
-                    <div className={`flex items-center gap-1.5 ${cfg.pill}`}>
-                      <span className="text-label italic">Viva{modeLabel} is thinking</span>
-                      {[0, 0.1, 0.2].map((d, i) => <div key={i} className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: `${d}s` }} />)}
+                  {isGeneratingImage ? (
+                    /* Image generation skeleton — shown immediately when server confirms generate_image tool */
+                    <div className="max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full msg-enter">
+                      <div className="relative aspect-square rounded-xl overflow-hidden bg-white/[0.04] border border-white/[0.08]">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
+                            <Sparkles className="h-5 w-5 text-[#C6944A]/50 animate-pulse" />
+                          </div>
+                          <div className="space-y-1.5 text-center">
+                            <p className="text-xs text-white/40 font-medium">viva is generating...</p>
+                            <p className="text-3xs text-white/25">creating your image</p>
+                          </div>
+                          <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                            <div className="h-full bg-[#C6944A]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="bg-[#F5EFE5]/92 backdrop-blur-sm rounded-2xl rounded-tl-sm px-5 py-3 border border-[#C6944A]/10 shadow-lg shadow-black/8 msg-enter">
+                      <div className={`flex items-center gap-2 ${cfg.pill}`}>
+                        <span className="text-caption italic">thinking</span>
+                        {[0, 0.15, 0.3].map((d, i) => <div key={i} className="w-1.5 h-1.5 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: `${d}s` }} />)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -2157,19 +2354,23 @@ const Index = () => {
           </div>
 
           {/* Input Bar Area */}
-          <div className="px-5 pt-1 bg-gradient-to-t from-background via-background/90 to-transparent flex-shrink-0" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="px-4 sm:px-6 pt-2 pb-1 bg-gradient-to-t from-[#1F0612] via-[#2D0A1A]/95 to-transparent flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
             <InputBar
               inputText={voiceState === 'recording' ? interimText : inputText}
               onInputChange={setInputText}
               onSend={handleSendMessage}
               onStop={stopGeneration}
               isTyping={isTyping}
-              placeholder="Ask Viva anything..."
+              placeholder="ask me anything about your wedding styling, planning, or outfits..."
               isRecording={isRecording}
               voiceState={voiceState}
               onMicClick={handleMicClick}
+              attachedImage={attachedImage}
+              onAttachImage={handleAttachImage}
+              onRemoveImage={handleRemoveImage}
             />
-            <p className="text-center text-3xs text-stone-400 mt-2 uppercase tracking-[0.2em] font-medium">Viva concierge is here to make your day perfect</p>
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
+            <p className="text-center text-3xs text-white/20 mt-2.5 uppercase tracking-[0.25em] font-medium">wedding ease — your day, perfected</p>
           </div>
         </main>
       </div>
@@ -2178,23 +2379,30 @@ const Index = () => {
 
   // ── Landing page ───────────────────────────────────────────────────────────
   return (
-    <div className={`flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[280px]' : 'pl-0'}`}>
+    <div className={` gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`}>
       {shortcutsOverlayJSX}
       {tagPickerModalJSX}
-      {isSidebarOpen && <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
 
       <main className="flex-1 flex flex-col relative overflow-hidden">
         {/* TopAppBar — same as chat view */}
-        <header className="flex items-center gap-1.5 w-full px-2 sm:px-4 h-12 bg-white/70 backdrop-blur-md border-b border-border z-10 flex-shrink-0">
+        <header className="flex items-center gap-1.5 w-full px-2 sm:px-4 h-14 bg-[#3A0E20]/80 backdrop-blur-md border-b border-[#C6944A]/20 z-10 flex-shrink-0">
           {sidebarToggleJSX}
-          <div className=" overflow-x-auto scrollbar-hide flex-1 min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <div className="flex bg-border rounded-full p-0.5 gap-0.5 flex-nowrap w-fit">
+          <div className="flex items-center gap-2 mr-3 flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#C6944A] flex items-center justify-center text-white text-sm italic font-headline shadow-sm">E</div>
+            <div className="hidden sm:block">
+              <h1 className="font-headline italic text-base text-[#C6944A] leading-none tracking-tight">Easebot</h1>
+              <p className="text-3xs text-white/50">online — your bridal AI stylist</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto scrollbar-hide flex-1 min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex bg-white/10 rounded-full p-0.5 gap-0.5 flex-nowrap w-fit">
               {MODE_CONFIG.map(m => (
                 <button
                   key={m.key}
                   onClick={() => setSelectedMode(m.key)}
-                  className={`px-3 py-1 rounded-full text-label font-semibold transition-all flex-shrink-0 ${selectedMode === m.key ? `${m.active}` : 'text-stone-500 hover:bg-white/50'}`}
+                  className={`px-3 py-1 rounded-full text-label font-semibold transition-all duration-200 flex-shrink-0 ${selectedMode === m.key ? `${m.active}` : 'text-white/45 hover:text-white/70 hover:bg-white/[0.08]'}`}
                 >
                   {m.label}
                 </button>
@@ -2205,13 +2413,13 @@ const Index = () => {
             <div className="hidden sm:block">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 text-stone-500 text-xs font-medium px-2 py-1 rounded-full hover:bg-stone-100 transition-colors">
+                  <button className="flex items-center gap-1 text-white/60 text-xs font-medium px-2 py-1 rounded-full hover:bg-white/10 transition-colors">
                     <Globe className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">Lang</span>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44 bg-white/95 backdrop-blur-sm border border-border shadow-lg">
-                  <DropdownMenuLabel className="text-3xs text-stone-400 uppercase tracking-widest">Response Language</DropdownMenuLabel>
+                <DropdownMenuContent align="end" className="w-44 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 shadow-lg text-white/80">
+                  <DropdownMenuLabel className="text-3xs text-white/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {SUPPORTED_LANGUAGES.map(({ code, label }) => (
                     <DropdownMenuItem key={code} className="cursor-pointer text-label py-1" onClick={() => handleLanguageChange(code)}>
@@ -2223,14 +2431,14 @@ const Index = () => {
               </DropdownMenu>
             </div>
             {user && (
-              <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
+              <button className="p-1.5 text-white/60 hover:text-primary transition-colors" onClick={() => setSidebarView('reminders')}>
                 <Bell className="h-4 w-4" />
               </button>
             )}
             <div className="hidden sm:block">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="p-1.5 text-stone-500 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
+                  <button className="p-1.5 text-white/60 hover:text-primary transition-colors" onClick={() => setShowShortcuts(true)}>
                     <Keyboard className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>
@@ -2242,26 +2450,27 @@ const Index = () => {
         </header>
 
         {/* Landing content */}
-        <div className="flex-1 flex items-center justify-center p-6 gradient-bg">
-          <div className="text-center max-w-2xl mx-auto w-full">
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6 gradient-bg noise-overlay relative">
+          <div className="text-center max-w-2xl mx-auto w-full relative z-10">
             <div className="relative z-10">
-              <h1 className="font-headline italic text-2xl text-primary tracking-tight text-center mb-0.5">
-                Viva
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#D4A853] to-[#B07D35] flex items-center justify-center text-white text-2xl italic font-headline shadow-lg mx-auto mb-3 bot-avatar">E</div>
+              <h1 className="font-headline italic text-3xl text-white/95 tracking-tight text-center mb-1">
+                EaseBot
               </h1>
-              <p className="text-3xs uppercase tracking-[0.2em] text-stone-400 font-label mb-3 text-center">Universal Concierge</p>
-              <h2 className="font-headline text-lg md:text-xl text-stone-800 mb-1 tracking-tight text-center">
-                {profile ? `Welcome back, ${profile.name.split(' ')[0]}` : 'Your AI Wedding Planner'}
+              <p className="text-2xs uppercase tracking-[0.25em] text-[#C6944A]/70 font-label mb-4 text-center">Your AI Wedding Concierge</p>
+              <h2 className="font-headline text-base sm:text-lg md:text-xl text-white/80 mb-1.5 tracking-tight text-center">
+                {profile ? `Welcome back, ${profile.name.split(' ')[0]}!` : 'Your dream wedding starts here.'}
               </h2>
-              <p className="text-xs text-stone-500 mb-5 leading-relaxed max-w-md mx-auto text-center font-body">
-                {profile ? 'Ready to continue planning your perfect wedding?' : "Ask me anything about your wedding — planning, styling, budgets, or just need someone to talk to."}
+              <p className="text-sm text-white/45 mb-8 leading-relaxed max-w-md mx-auto text-center font-body">
+                {profile ? "Let's continue planning your perfect day." : "Ask me anything about styling, planning, budgets, or vendors."}
               </p>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-2.5 mb-8 max-w-xl mx-auto">
                 {actionButtons.map((btn, i) => (
                   <Button key={i} onClick={() => setInputText(btn.action)} variant="outline"
-                    className="flex flex-row items-center gap-2 h-auto py-2.5 px-3 bg-white border border-surface-container-high rounded-xl group transition-all duration-200 hover:-translate-y-0.5 shadow-sm hover:shadow-md hover:border-primary/30">
-                    <btn.icon className="w-3.5 h-3.5 text-primary flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                    <span className="text-label font-medium text-stone-600 whitespace-nowrap">{btn.text}</span>
+                    className="flex flex-row items-center gap-2 h-auto py-3 px-3.5 bg-white/[0.06] border border-white/[0.12] rounded-xl group transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/10 hover:border-[#C6944A]/30 hover:shadow-lg hover:shadow-[#C6944A]/5">
+                    <btn.icon className="w-3.5 h-3.5 text-[#C6944A] flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                    <span className="text-label font-medium text-white/60 group-hover:text-white/80 whitespace-nowrap">{btn.text}</span>
                   </Button>
                 ))}
               </div>
@@ -2272,10 +2481,13 @@ const Index = () => {
                 onSend={handleSendMessage}
                 onStop={stopGeneration}
                 isTyping={isTyping}
-                placeholder="Ask me anything about wedding planning..."
+                placeholder="Ask me anything about your wedding..."
                 isRecording={isRecording}
                 voiceState={voiceState}
                 onMicClick={handleMicClick}
+                attachedImage={attachedImage}
+                onAttachImage={handleAttachImage}
+                onRemoveImage={handleRemoveImage}
               />
             </div>
           </div>

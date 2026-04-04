@@ -102,7 +102,12 @@ export async function executeToolCall(
       const checklist = await createChecklist(uid, args.title, args.items)
       return {
         result: `Checklist "${checklist.title}" saved with ${checklist.items.length} items. ID: ${checklist.id}`,
-        action: { tool: 'create_checklist', checklistId: checklist.id },
+        action: {
+          tool: 'create_checklist',
+          checklistId: checklist.id,
+          checklistTitle: checklist.title,
+          checklistItems: checklist.items.map(i => i.text),
+        },
       }
     }
     case 'edit_checklist_item': {

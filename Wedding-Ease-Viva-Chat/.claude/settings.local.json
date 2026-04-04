@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Figma__get_design_context",
+      "mcp__claude_ai_Figma__whoami",
+      "mcp__claude_ai_Figma__get_screenshot",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(npx --prefix D:/weddingease/easeBot/easebot-backend tsc --project D:/weddingease/easeBot/easebot-backend/tsconfig.json --noEmit)",
+      "Bash(npm install:*)"
+    ]
+  }
+}

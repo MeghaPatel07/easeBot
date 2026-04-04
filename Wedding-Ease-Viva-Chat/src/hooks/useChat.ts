@@ -16,7 +16,7 @@ import {
   loadOlderMessages,
   type NewMessage,
 } from '@/services/chatService'
-import { streamChatMessage, generateImage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
+import { streamChatMessage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
 import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc, ToolAction, UserPersonalization } from '@/types'
 
 export interface Message {
@@ -28,12 +28,16 @@ export interface Message {
   liked?: boolean
   audioUrl?: string | null
   imageUrl?: string | null
+  attachedImage?: string    // base64 data URI of user-uploaded image (displayed in user bubble)
   calendarEvent?: CalendarEvent | null
   calendarAdded?: boolean   // true once successfully added to Google Calendar
   convertToTable?: boolean  // true when AI returned a budget/guest list
   truncated?: boolean       // true when response appears cut off (token limit)
   language?: string         // detected response language (BCP-47)
   threadId?: string
+  checklistData?: { id: string; title: string; items: string[] } | null  // inline checklist
+  imageUrls?: string[]  // Multiple image variants
+  imageGenerating?: boolean // true while image is being generated server-side
 }
 
 export interface UseChatResult {
@@ -45,7 +49,7 @@ export interface UseChatResult {
   calendarEvents: CalendarEventDoc[]
   lastToolActions: ToolAction[]
   hasMoreMessages: boolean
-  sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string) => Promise<void>
+  sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string, imageBase64?: string, imageMimeType?: string) => Promise<void>
   stopGeneration: () => void
   loadChat: (threadId: string) => Promise<void>
   startNewChat: () => void
@@ -71,6 +75,7 @@ export function useChat(): UseChatResult {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventDoc[]>([])
   const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null)
   const firstDocRef = useRef<DocumentSnapshot | null>(null)
 
   // Keep refs so callbacks always see latest values without needing them as deps
@@ -113,6 +118,8 @@ export function useChat(): UseChatResult {
                 timestamp: data.timestamp?.toDate?.() ?? new Date(),
                 mode: data.mode,
                 liked: true,
+                imageUrl: data.imageUrl ?? null,
+                imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
                 threadId: threadDoc.id,
               } satisfies Message
             })
@@ -164,10 +171,6 @@ export function useChat(): UseChatResult {
     }
   }, [user])
 
-  // ── Image intent detection (mirrors backend regex) ────────────────────────
-  const IMAGE_INTENT_RE =
-    /\b(generate|create|make|show|draw|design|visualize|render)\b.{0,60}\b(images?|pictures?|photos?|visuals?|illustrations?|mockups?|renders?|sketches?)\b/i
-
   // ── Truncation detection (response ends mid-sentence) ────────────────────
   const isTruncated = (text: string): boolean => {
     const trimmed = text.trim()
@@ -193,15 +196,16 @@ export function useChat(): UseChatResult {
     /(\bbudget\b.*(\d+%|\₹|\$|cost|spend|allocat))|(\bguest\s*list\b.*\d+)|(category\s*\|.*\|)|(item\s*\|.*amount)/i
 
   // ── Send message ───────────────────────────────────────────────────────────
-  const sendMessage = useCallback(async (text: string, audioBase64?: string, mode?: Mode, language?: string) => {
-    if (!text.trim() && !audioBase64) return
+  const sendMessage = useCallback(async (text: string, audioBase64?: string, mode?: Mode, language?: string, imageBase64?: string, imageMimeType?: string) => {
+    if (!text.trim() && !audioBase64 && !imageBase64) return
 
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: text || '🎙️ Voice message',
+      text: text || (imageBase64 ? '📷 Image' : '🎙️ Voice message'),
       sender: 'user',
       timestamp: new Date(),
       liked: false,
+      attachedImage: imageBase64 ? `data:${imageMimeType || 'image/png'};base64,${imageBase64}` : undefined,
     }
     setMessages((prev) => [...prev, userMsg])
     setIsTyping(true)
@@ -243,7 +247,6 @@ export function useChat(): UseChatResult {
       }
 
       // ── Stream the response ───────────────────────────────────────────────
-      const isImgReq = IMAGE_INTENT_RE.test(text)
       const history = user ? undefined : messagesRef.current.map(m => ({
         role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
         content: m.text,
@@ -252,36 +255,43 @@ export function useChat(): UseChatResult {
       let streamedText = ''
       let finalMeta: StreamDoneEvent | null = null
 
-      const [, imgResult] = await Promise.all([
-        (async () => {
-          const userPersonalization: UserPersonalization | undefined = profile ? {
-            nickname: profile.nickname,
-            voiceId: profile.voiceId,
-            toneSettings: profile.toneSettings,
-          } : undefined
+      const userPersonalization: UserPersonalization | undefined = profile ? {
+        nickname: profile.nickname,
+        voiceId: profile.voiceId,
+        toneSettings: profile.toneSettings,
+      } : undefined
 
-          for await (const event of streamChatMessage(
-            { message: text, threadId: threadId ?? null, audioBase64, history, mode, language, userPersonalization },
-            controller.signal
-          )) {
-            if (event.t === 'c') {
-              streamedText += event.v
-              setMessages(prev => prev.map(m =>
-                m.id === aiMsgId ? { ...m, text: streamedText } : m
-              ))
-            } else if (event.t === 'd') {
-              finalMeta = event
-            } else if (event.t === 'e') {
-              throw new Error(event.msg)
-            }
-          }
-        })(),
-        isImgReq ? generateImage(text).catch(() => null) : Promise.resolve(null),
-      ])
+      // Backend handles image generation in parallel with streaming now
+      for await (const event of streamChatMessage(
+        { message: text, threadId: threadId ?? null, audioBase64, history, mode, language, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl },
+        controller.signal
+      )) {
+        if (event.t === 'c') {
+          streamedText += event.v
+          setMessages(prev => prev.map(m =>
+            m.id === aiMsgId ? { ...m, text: streamedText } : m
+          ))
+        } else if (event.t === 'img') {
+          // Server confirmed image generation started — show skeleton immediately
+          setMessages(prev => prev.map(m =>
+            m.id === aiMsgId ? { ...m, imageGenerating: true } : m
+          ))
+        } else if (event.t === 'd') {
+          finalMeta = event
+        } else if (event.t === 'e') {
+          throw new Error(event.msg)
+        }
+      }
 
       if (!finalMeta) return
 
-      const imageUrl = (imgResult as any)?.imageUrl ?? finalMeta.imageUrl ?? null
+      const imageUrl = finalMeta.imageUrl ?? null
+      const imageUrls = finalMeta.imageUrls ?? (imageUrl ? [imageUrl] : [])
+
+      // Track last generated image for iterative editing
+      if (imageUrl) {
+        setLastGeneratedImageUrl(imageUrl)
+      }
 
       // Handle calendar event
       let calendarAdded = false
@@ -307,6 +317,14 @@ export function useChat(): UseChatResult {
         setLastToolActions(finalMeta.toolActions as ToolAction[])
       }
 
+      // Extract inline checklist data from tool actions
+      const createdChecklist = finalMeta.toolActions?.find(
+        (a: any) => a.tool === 'create_checklist' && a.checklistId && a.checklistItems
+      )
+      const checklistData = createdChecklist
+        ? { id: createdChecklist.checklistId!, title: createdChecklist.checklistTitle || 'Checklist', items: createdChecklist.checklistItems || [] }
+        : null
+
       // Finalize the message with clean text + metadata
       setMessages(prev => prev.map(m => m.id === aiMsgId ? {
         ...m,
@@ -314,14 +332,17 @@ export function useChat(): UseChatResult {
         mode: finalMeta!.mode as Mode,
         audioUrl: finalMeta!.audioUrl,
         imageUrl,
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        imageGenerating: false,
         calendarEvent: finalMeta!.calendarEvent ?? null,
         calendarAdded,
         convertToTable: TABLE_CONTENT_RE.test(finalMeta!.text || streamedText),
         truncated: isTruncated(finalMeta!.text || streamedText),
         language: finalMeta!.detectedLanguage || 'en',
+        checklistData,
       } : m))
 
-      // Persist assistant message to Firestore
+      // Persist assistant message to Firestore (including image URLs)
       if (user && threadId) {
         await addMessage(threadId, {
           role: 'assistant',
@@ -330,6 +351,8 @@ export function useChat(): UseChatResult {
           mode: finalMeta.mode as Mode,
           language: finalMeta.detectedLanguage,
           audioUrl: finalMeta.audioUrl,
+          imageUrl: imageUrl,
+          imageUrls: imageUrls,
           liked: false,
         } as NewMessage)
       }
@@ -436,6 +459,8 @@ export function useChat(): UseChatResult {
           mode: data.mode,
           liked: data.liked ?? false,
           audioUrl: data.audioUrl ?? null,
+          imageUrl: data.imageUrl ?? null,
+          imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
           language: data.language || 'en',
         } as Message))
       )
@@ -473,6 +498,7 @@ export function useChat(): UseChatResult {
     setMessages([])
     setActiveThreadId(null)
     activeThreadIdRef.current = null
+    setLastGeneratedImageUrl(null)
   }, [])
 
   // ── Delete thread ──────────────────────────────────────────────────────────

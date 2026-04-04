@@ -11,7 +11,7 @@ import { getSpeechToken } from './controllers/speechTokenController'
 const app = express()
 
 app.use(cors({ origin: true }))
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '20mb' }))
 
 app.use('/api/chat', chatRouter)
 app.use('/api/transcribe', transcribeRouter)

@@ -101,6 +101,8 @@ export interface ChatMessage {
   mode: Mode
   language: string
   audioUrl: string | null
+  imageUrl: string | null
+  imageUrls: string[]
   timestamp: Timestamp
   liked: boolean
 }
@@ -124,6 +126,9 @@ export interface ChatFunctionPayload {
   mode?: Mode
   history?: { role: 'user' | 'assistant'; content: string }[]
   userPersonalization?: UserPersonalization
+  imageBase64?: string
+  imageMimeType?: string
+  lastGeneratedImageUrl?: string
 }
 
 export interface CalendarEvent {
@@ -145,20 +150,28 @@ export interface CalendarEventDoc {
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'web_search'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'web_search' | 'generate_image'
   checklistId?: string
   itemId?: string
   searchQuery?: string
+  checklistTitle?: string
+  checklistItems?: string[]
+  imagePrompt?: string
+  imageAction?: 'generate' | 'edit'
+  imageAspectRatio?: string
+  imageVariants?: number
 }
 
 export interface ChatFunctionResponse {
   text: string
   audioUrl: string | null
   imageUrl: string | null
+  imageUrls?: string[]
   calendarEvent: CalendarEvent | null
   toolActions: ToolAction[]
   mode: Mode
   detectedLanguage: string
+  imageQuota?: { allowed: boolean; remaining: number; dailyUsed: number; dailyLimit: number; resetAt: string }
 }
 
 // Typed error thrown by authService

@@ -26,7 +26,17 @@
       "Bash(sed \"s|.*/src/||\")",
       "Bash(grep -rn text-[[0-9]+px] /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/pages/ /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/)",
       "Bash(grep -E '\\\\.\\(ts|js\\)$')",
-      "Bash(find /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src -not -path */node_modules/* -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))"
+      "Bash(find /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src -not -path */node_modules/* -type f \\\\\\(-name *.ts -o -name *.tsx \\\\\\))",
+      "mcp__claude_ai_Canva__get-design",
+      "mcp__claude_ai_Canva__get-design-content",
+      "mcp__claude_ai_Canva__get-design-pages",
+      "WebFetch(domain:document-export.canva.com)",
+      "Bash(wc:*)",
+      "Bash(grep -E \"^D:[^n]*/functions/[^/]*/[^/]*\\\\.ts$\")",
+      "Bash(find D:/weddingease/easeBot/Wedding-Ease-Viva-Chat/functions/src -name *.ts -path */types*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "mcp__claude_ai_Figma__get_design_context",
+      "mcp__claude_ai_Figma__get_screenshot"
     ]
   }
 }
