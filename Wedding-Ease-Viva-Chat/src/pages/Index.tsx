@@ -2527,6 +2527,7 @@ const Index = () => {
                 onAttachImage={handleAttachImage}
                 onRemoveImage={handleRemoveImage}
               />
+              <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
             </div>
           </div>
         </div>
