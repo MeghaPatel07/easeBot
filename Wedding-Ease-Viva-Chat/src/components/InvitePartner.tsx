@@ -101,7 +101,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
     }
 
     if (trimmed === userEmail.toLowerCase()) {
-      setError("You can't invite yourself.")
+      setError("You're already part of this plan.")
       return
     }
 
@@ -137,7 +137,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
 
       const inviteLink = `${window.location.origin}/invite?from=${userId}`
       setLastInviteLink(inviteLink)
-      setSuccess(`Invite sent to ${trimmed}!`)
+      setSuccess(`Invite sent to ${trimmed}. They'll receive an email to join your plan.`)
       setEmail('')
     } catch (err: any) {
       setError(err.message || 'Failed to send invite. Please try again.')
@@ -174,7 +174,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
   return (
     <div className="space-y-6">
       {/* Share info section */}
-      <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-5">
+      <div className="rounded-2xl bg-white/70 border border-border p-5">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-primary/10 p-2.5">
             <Link className="h-5 w-5 text-primary" />
@@ -184,15 +184,14 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
               Collaborative Planning
             </h3>
             <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-              Invite your partner or wedding planner to share your planning data
-              — checklists, budget, and timeline.
+              Plan together in real-time. Invite your partner or planner to see all your checklists, budgets, and timelines. Changes sync instantly.
             </p>
           </div>
         </div>
       </div>
 
       {/* Invite form */}
-      <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-5">
+      <div className="rounded-2xl bg-white/70 border border-border p-5">
         <div className="flex items-center gap-2 mb-4">
           <UserPlus className="h-4.5 w-4.5 text-primary" />
           <h4 className="font-headline text-sm font-semibold text-foreground">
@@ -203,7 +202,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
         <form onSubmit={handleInvite} className="space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
               <input
                 type="email"
                 placeholder="partner@email.com"
@@ -212,7 +211,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
                   setEmail(e.target.value)
                   if (error) setError(null)
                 }}
-                className="w-full rounded-xl border border-[#EBE4D9] bg-white py-2.5 pl-10 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
+                className="w-full rounded-xl border border-border bg-white py-2.5 pl-12 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
               />
             </div>
             <button
@@ -267,7 +266,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       </div>
 
       {/* Active collaborators list / Empty state */}
-      <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-5">
+      <div className="rounded-2xl bg-white/70 border border-border p-5">
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-4.5 w-4.5 text-primary" />
           <h4 className="font-headline text-sm font-semibold text-foreground">
@@ -298,7 +297,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
             {collaborators.map((collab) => (
               <li
                 key={collab.email}
-                className="flex items-center gap-3 rounded-xl border border-[#EBE4D9] bg-white p-3 group"
+                className="flex items-center gap-3 rounded-xl border border-border bg-white p-3 group"
               >
                 <div className="rounded-lg bg-primary/10 p-2">
                   <Mail className="h-4 w-4 text-primary" />

@@ -91,14 +91,17 @@ export interface StreamDoneEvent {
   t: 'd'
   text: string
   calendarEvent: CalendarEvent | null
-  toolActions: { tool: string; checklistId?: string; itemId?: string }[]
+  toolActions: { tool: string; checklistId?: string; itemId?: string; checklistTitle?: string; checklistItems?: string[]; imagePrompt?: string; imageAction?: string; imageAspectRatio?: string; imageVariants?: number }[]
   mode: string
   detectedLanguage: string
   audioUrl: string | null
   imageUrl: string | null
+  imageUrls?: string[]
+  imageQuota?: { allowed: boolean; remaining: number; dailyUsed: number; dailyLimit: number; resetAt: string }
 }
 export interface StreamErrorEvent { t: 'e'; msg: string }
-export type StreamSSEEvent = StreamChunkEvent | StreamDoneEvent | StreamErrorEvent
+export interface StreamImageEvent { t: 'img'; status: 'generating' }
+export type StreamSSEEvent = StreamChunkEvent | StreamDoneEvent | StreamErrorEvent | StreamImageEvent
 
 export async function* streamChatMessage(
   payload: ChatFunctionPayload,

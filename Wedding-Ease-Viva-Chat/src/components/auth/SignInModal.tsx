@@ -90,7 +90,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     setResendSent(false)
     setError('')
     if (recaptchaRef.current) {
-      try { recaptchaRef.current.clear() } catch {}
+      try { recaptchaRef.current.clear() } catch { }
       recaptchaRef.current = null
     }
   }
@@ -255,13 +255,13 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {fpStep === 'email-input' ? (
                 <div className="space-y-4 py-2">
                   <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Email</label>
+                    <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Email</label>
                     <Input
                       type="email"
                       value={fpEmail}
                       onChange={e => setFpEmail(e.target.value)}
                       placeholder="jane@example.com"
-                      className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400"
+                      className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm"
                     />
                   </div>
                   {error && <p className="text-sm text-red-500">{error}</p>}
@@ -277,7 +277,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 <div className="py-6 space-y-4 text-center">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
                   <p className="text-sm text-muted-foreground">
-                    A password reset link was sent to <span className="font-medium text-gray-700">{fpEmail}</span>.
+                    A password reset link was sent to <span className="font-medium text-stone-700">{fpEmail}</span>.
                     Check your inbox.
                   </p>
                   <Button className="w-full bg-primary hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email-input'); setFpEmail('') }}>
@@ -300,17 +300,17 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               <div className="space-y-4 py-2">
                 {!resendSent ? (
                   <>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-stone-600">
                       Account: <span className="font-medium">{unverifiedUser?.email}</span>
                     </p>
                     <div className="space-y-1">
-                      <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Password (to confirm it's you)</label>
+                      <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Password (to confirm it's you)</label>
                       <Input
                         type="password"
                         value={resendPassword}
                         onChange={e => setResendPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400"
+                        className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm"
                       />
                     </div>
                     {error && <p className="text-sm text-red-500">{error}</p>}
@@ -342,7 +342,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 {/* Viva Logo */}
                 <div className="flex flex-col items-center">
                   <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
-                  <div className="font-label uppercase tracking-[0.2em] text-[10px] text-stone-400">Digital Concierge</div>
+                  <div className="font-label uppercase tracking-[0.2em] text-2xs text-stone-400">Digital Concierge</div>
                 </div>
                 <DialogTitle className="font-headline text-3xl tracking-tight">Welcome back</DialogTitle>
                 <DialogDescription className="text-stone-500 text-sm">Your wedding planning journey continues here.</DialogDescription>
@@ -359,12 +359,12 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
               <div className="flex items-center gap-4 my-6">
                 <div className="h-[1px] flex-1 bg-stone-200"></div>
-                <span className="font-label uppercase tracking-widest text-[10px] text-stone-400">or</span>
+                <span className="font-label uppercase tracking-widest text-2xs text-stone-400">or</span>
                 <div className="h-[1px] flex-1 bg-stone-200"></div>
               </div>
 
               {/* Tabs */}
-              <div className="flex bg-[#EBE4D9] p-1 rounded-full gap-1 mb-4">
+              <div className="flex bg-border p-1 rounded-full gap-1 mb-4">
                 {(['email', 'phone'] as Tab[]).map(t => (
                   <button
                     key={t}
@@ -380,12 +380,12 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {tab === 'email' && (
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Email</label>
-                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400" />
+                    <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Email</label>
+                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Password</label>
+                      <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Password</label>
                       <Button
                         variant="link"
                         className="p-0 h-auto text-xs text-primary"
@@ -400,7 +400,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                       onChange={e => setPassword(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleEmailSignIn()}
                       placeholder="••••••••"
-                      className="h-14 px-6 rounded-xl bg-[#EBE4D9] border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400"
+                      className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm"
                     />
                   </div>
 
@@ -411,7 +411,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                       id="remember"
                       checked={rememberMe}
                       onChange={e => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-stone-300"
                     />
                     <label htmlFor="remember" className="text-sm text-muted-foreground">Remember me</label>
                   </div>
@@ -429,7 +429,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {tab === 'phone' && (
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Phone Number</label>
+                    <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Phone Number</label>
                     <div className="flex gap-2">
                       <Input
                         type="tel"
@@ -452,7 +452,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
                   {otpSent && (
                     <div className="space-y-1">
-                      <label className="font-label uppercase tracking-widest text-[11px] text-stone-500 ml-1">Verification Code</label>
+                      <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Verification Code</label>
                       <Input
                         value={otp}
                         onChange={e => setOtp(e.target.value)}

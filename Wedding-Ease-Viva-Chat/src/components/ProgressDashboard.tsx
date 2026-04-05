@@ -57,7 +57,7 @@ function ProgressRing({ percentage }: { percentage: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-2xl font-bold text-stone-800">{Math.round(percentage)}%</span>
-        <span className="text-[10px] text-stone-500">ready</span>
+        <span className="text-2xs text-stone-500">ready</span>
       </div>
     </div>
   )
@@ -165,10 +165,9 @@ export default function ProgressDashboard({
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
         <Heart className="w-12 h-12 text-primary mb-4" />
-        <h2 className="font-headline text-2xl text-stone-800 mb-2">Welcome to Wedding Ease</h2>
+        <h2 className="font-headline text-2xl text-stone-800 mb-2">Welcome to EaseBot</h2>
         <p className="text-sm text-stone-500 max-w-sm">
-          Your wedding planning journey starts here. Chat with Viva to create a checklist, set your
-          wedding date, and start organizing the big day.
+          Your wedding planning journey starts here. Try asking Viva: "Create a wedding checklist", "Set my wedding date", or "Help me with my budget".
         </p>
         <div className="mt-6 flex items-center gap-1.5 text-primary text-sm font-medium">
           <span>Start a conversation</span>
@@ -217,9 +216,9 @@ export default function ProgressDashboard({
       </div>
 
       {/* Category Cards 2x2 */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
         {/* Planning */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/70 border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckSquare className="w-4 h-4 text-primary" />
             <span className="text-xs text-stone-500 font-medium">Planning</span>
@@ -233,7 +232,7 @@ export default function ProgressDashboard({
         </div>
 
         {/* Budget */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/70 border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-4 h-4 text-primary" />
             <span className="text-xs text-stone-500 font-medium">Budget</span>
@@ -251,7 +250,7 @@ export default function ProgressDashboard({
           ) : (
             <>
               <div className="text-sm text-stone-400 mt-1">Not set up</div>
-              <div className="text-[10px] text-primary mt-1 flex items-center gap-0.5">
+              <div className="text-2xs text-primary mt-1 flex items-center gap-0.5">
                 <span>Set up budget</span>
                 <ArrowRight className="w-3 h-3" />
               </div>
@@ -260,7 +259,7 @@ export default function ProgressDashboard({
         </div>
 
         {/* Calendar */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/70 border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-primary" />
             <span className="text-xs text-stone-500 font-medium">Calendar</span>
@@ -270,7 +269,7 @@ export default function ProgressDashboard({
         </div>
 
         {/* Conversations */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/70 border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <MessageSquare className="w-4 h-4 text-primary" />
             <span className="text-xs text-stone-500 font-medium">Conversations</span>

@@ -18,13 +18,13 @@ function renderItemText(text: string, favourites: string[]): React.ReactNode {
     const vendorName = match[1].trim()
     const link = favourites.find(f => f.toLowerCase().includes(vendorName.toLowerCase()))
     if (link) {
-      return <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">{vendorName}</a>
+      return <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">{vendorName}</a>
     }
     return (
-      <span key={i} className="font-medium text-gray-700">
+      <span key={i} className="font-medium text-stone-700">
         {vendorName}
-        <button className="ml-1 text-[10px] text-primary hover:underline" onClick={() => window.open(`/search?q=${encodeURIComponent(vendorName)}`, '_blank')}>
-          Save vendor?
+        <button className="ml-1 text-2xs text-primary hover:underline" onClick={() => window.open(`/search?q=${encodeURIComponent(vendorName)}`, '_blank')}>
+          Find vendor
         </button>
       </span>
     )
@@ -68,7 +68,7 @@ export default function ChecklistDetail({
 
   if (!checklist) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-400">
+      <div className="flex flex-col items-center justify-center h-full text-stone-400">
         <CheckSquare className="h-10 w-10 mb-3 opacity-30" />
         <p className="text-sm">Loading checklist…</p>
       </div>
@@ -126,17 +126,17 @@ export default function ChecklistDetail({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white/60 backdrop-blur-sm rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white/60 backdrop-blur-sm rounded-2xl border border-border shadow-sm overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-blue-50 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-xl bg-blue-50 flex items-center justify-center">
-            <CheckSquare className="h-4 w-4 text-blue-500" />
+          <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+            <CheckSquare className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-gray-800">{checklist.title}</h2>
-            <p className="text-xs text-gray-400">
+            <h2 className="text-base font-semibold text-stone-800">{checklist.title}</h2>
+            <p className="text-xs text-stone-400">
               {done} of {total} completed
               {overdue > 0 && <span className="ml-1.5 text-red-500 font-medium">· {overdue} overdue</span>}
             </p>
@@ -145,26 +145,26 @@ export default function ChecklistDetail({
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAddInput(v => !v)}
-            className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg px-2.5 py-1.5 transition-colors font-medium"
+            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/70 bg-primary/10 hover:bg-primary/15 rounded-lg px-2.5 py-1.5 transition-colors font-medium"
           >
             <Plus className="h-3.5 w-3.5" />
             Add item
           </button>
-          <button onClick={onClose} className="text-gray-300 hover:text-gray-500 transition-colors ml-1">
+          <button onClick={onClose} className="text-stone-300 hover:text-stone-500 transition-colors ml-1">
             <X className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="px-6 py-3 flex-shrink-0 border-b border-blue-50">
+      <div className="px-6 py-3 flex-shrink-0 border-b border-border">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-gray-400 font-medium">Progress</span>
-          <span className="text-[10px] font-semibold text-blue-500">{pct}%</span>
+          <span className="text-2xs text-stone-400 font-medium">Progress</span>
+          <span className="text-2xs font-semibold text-primary">{pct}%</span>
         </div>
-        <div className="h-1.5 bg-blue-50 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-primary/10 rounded-full overflow-hidden">
           <div
-            className="h-full bg-blue-400 rounded-full transition-all duration-500"
+            className="h-full bg-primary rounded-full transition-all duration-500"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -172,7 +172,7 @@ export default function ChecklistDetail({
 
       {/* Add item input */}
       {showAddInput && (
-        <div className="px-6 py-3 border-b border-blue-50 flex-shrink-0 flex items-center gap-2">
+        <div className="px-6 py-3 border-b border-border flex-shrink-0 flex items-center gap-2">
           <input
             ref={addInputRef}
             value={newItemText}
@@ -182,18 +182,18 @@ export default function ChecklistDetail({
               if (e.key === 'Escape') { setShowAddInput(false); setNewItemText('') }
             }}
             placeholder="Type a new task and press Enter…"
-            className="flex-1 text-sm bg-white border border-blue-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-gray-300"
+            className="flex-1 text-sm bg-white border border-primary/20 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-stone-300"
           />
           <button
             onClick={handleAddItem}
             disabled={!newItemText.trim()}
-            className="h-8 w-8 flex items-center justify-center rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
           >
             <Check className="h-4 w-4" />
           </button>
           <button
             onClick={() => { setShowAddInput(false); setNewItemText('') }}
-            className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -203,12 +203,12 @@ export default function ChecklistDetail({
       {/* Items list */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {sortedItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-            <CheckSquare className="h-8 w-8 mb-2 opacity-20" />
+          <div className="flex flex-col items-center justify-center py-12 text-stone-400">
+            <CheckSquare className="h-10 w-10 mb-3 opacity-20" />
             <p className="text-sm">No items yet.</p>
             <button
               onClick={() => setShowAddInput(true)}
-              className="mt-3 text-xs text-blue-500 hover:underline"
+              className="mt-3 text-xs text-primary hover:underline"
             >
               + Add the first item
             </button>
@@ -227,13 +227,13 @@ export default function ChecklistDetail({
                     ? 'bg-red-50/50 border-red-200'
                     : item.completed
                     ? 'bg-emerald-50/50 border-emerald-100'
-                    : 'bg-white/70 border-gray-100 hover:border-blue-100 hover:bg-white/90'
+                    : 'bg-white/70 border-stone-100 hover:border-border hover:bg-white/90'
                 } ${justToggled ? 'ring-2 ring-blue-300 ring-offset-1' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Number badge */}
-                  <span className={`flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    isOverdue ? 'bg-red-100 text-red-600' : item.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-50 text-blue-400'
+                  <span className={`flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center text-2xs font-bold ${
+                    isOverdue ? 'bg-red-100 text-red-600' : item.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'
                   }`}>
                     {isOverdue ? '!' : item.completed ? '✓' : idx + 1}
                   </span>
@@ -257,12 +257,12 @@ export default function ChecklistDetail({
                         if (e.key === 'Escape') { setEditingItemId(null); setEditText('') }
                       }}
                       onBlur={() => submitEdit(item.id)}
-                      className="flex-1 text-sm bg-white border border-blue-200 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-300"
+                      className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/30"
                     />
                   ) : (
                     <span
                       className={`flex-1 text-sm leading-snug ${
-                        item.completed ? 'line-through text-gray-400' : 'text-gray-700'
+                        item.completed ? 'line-through text-stone-400' : 'text-stone-700'
                       }`}
                     >
                       {renderItemText(item.text, favourites)}
@@ -271,11 +271,11 @@ export default function ChecklistDetail({
 
                   {/* Action buttons — always visible on mobile, hover on desktop */}
                   {!isEditing && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
                       <button
                         onClick={() => setEditingDueDateId(editingDueDateId === item.id ? null : item.id)}
                         className={`h-7 w-7 flex items-center justify-center rounded-lg transition-colors ${
-                          item.dueDate ? 'text-blue-400 hover:text-blue-700 hover:bg-blue-70' : 'text-gray-500 hover:text-blue-500 hover:bg-blue-50'
+                          item.dueDate ? 'text-primary hover:text-primary/70 hover:bg-primary/10' : 'text-stone-500 hover:text-primary hover:bg-primary/10'
                         }`}
                         title="Set due date"
                       >
@@ -283,14 +283,14 @@ export default function ChecklistDetail({
                       </button>
                       <button
                         onClick={() => { setEditingItemId(item.id); setEditText(item.text) }}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-stone-500 hover:text-primary hover:bg-primary/10 transition-colors"
                         title="Edit"
                       >
                         <Pencil className="h-3 w-3" />
                       </button>
                       <button
                         onClick={() => handleDeleteItem(item.id)}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-50 transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-stone-500 hover:text-red-400 hover:bg-red-50 transition-colors"
                         title="Delete"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -303,13 +303,13 @@ export default function ChecklistDetail({
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => submitEdit(item.id)}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
                       >
                         <Check className="h-3 w-3" />
                       </button>
                       <button
                         onClick={() => { setEditingItemId(null); setEditText('') }}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 transition-colors"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -324,12 +324,12 @@ export default function ChecklistDetail({
                       type="date"
                       value={item.dueDate ?? ''}
                       onChange={e => handleDueDateChange(item.id, e.target.value)}
-                      className="text-xs border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 bg-white"
+                      className="text-xs border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 bg-white"
                     />
                     {item.dueDate && (
                       <button
                         onClick={() => handleDueDateChange(item.id, '')}
-                        className="text-[10px] text-gray-400 hover:text-red-400 transition-colors"
+                        className="text-2xs text-stone-400 hover:text-red-400 transition-colors"
                       >
                         Clear
                       </button>
@@ -337,8 +337,8 @@ export default function ChecklistDetail({
                   </div>
                 )}
                 {item.dueDate && editingDueDateId !== item.id && (
-                  <div className={`ml-12 text-[10px] font-medium flex items-center gap-1 ${
-                    isOverdue ? 'text-red-500' : 'text-gray-400'
+                  <div className={`ml-12 text-2xs font-medium flex items-center gap-1 ${
+                    isOverdue ? 'text-red-500' : 'text-stone-400'
                   }`}>
                     {isOverdue && <AlertTriangle className="h-2.5 w-2.5" />}
                     Due {new Date(item.dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -352,13 +352,13 @@ export default function ChecklistDetail({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-blue-50 flex-shrink-0 flex items-center justify-between">
-        <p className="text-xs text-gray-400">
+      <div className="px-6 py-3 border-t border-border flex-shrink-0 flex items-center justify-between">
+        <p className="text-xs text-stone-400">
           {done === total && total > 0
             ? '🎉 All tasks complete!'
             : `${total - done} task${total - done !== 1 ? 's' : ''} remaining`}
         </p>
-        <div className="flex gap-3 text-[10px] font-medium">
+        <div className="flex gap-3 text-2xs font-medium">
           {overdue > 0 && <span className="text-red-500">⚠ {overdue} Overdue</span>}
           <span className="text-amber-500">📋 {total - done} To-Do</span>
           <span className="text-emerald-500">✅ {done} Done</span>

@@ -45,19 +45,19 @@ export default function SharedChat() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-[#EBE4D9] px-5 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-border px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/" className="text-primary hover:text-primary/80 transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
             <h1 className="text-sm font-bold text-stone-800">{data.threadTitle}</h1>
-            <p className="text-[10px] text-stone-400">
+            <p className="text-2xs text-stone-400">
               Shared {data.sharedAt.toLocaleDateString()} &middot; Expires {data.expiresAt.toLocaleDateString()}
             </p>
           </div>
         </div>
-        <span className="text-[10px] text-stone-400 bg-stone-100 px-2 py-1 rounded-full uppercase tracking-wider font-medium">Read-only</span>
+        <span className="text-2xs text-stone-400 bg-stone-100 px-2 py-1 rounded-full uppercase tracking-wider font-medium">Read-only</span>
       </header>
 
       {/* Messages */}
@@ -65,16 +65,16 @@ export default function SharedChat() {
         {data.messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'user' ? (
-              <div className="max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-white shadow-sm">
-                <p className="text-[13px] leading-relaxed">{msg.content}</p>
+              <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-white shadow-sm">
+                <p className="text-caption leading-relaxed">{msg.content}</p>
               </div>
             ) : (
-              <div className="max-w-xs md:max-w-md lg:max-w-lg">
-                <div className="mb-1 w-full prose prose-sm max-w-none text-[13px] leading-relaxed bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-[#EBE4D9] text-stone-700">
+              <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg">
+                <div className="mb-1 w-full prose prose-sm max-w-none text-caption leading-relaxed bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border text-stone-700">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}
                     components={{
                       a: ({ href, children }) => (
-                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#B8860B] hover:text-[#DAA520] underline underline-offset-2 font-medium transition-colors">
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors">
                           {children}
                         </a>
                       ),
@@ -91,7 +91,7 @@ export default function SharedChat() {
 
       {/* Footer */}
       <div className="text-center py-8">
-        <p className="text-[10px] text-stone-400 uppercase tracking-[0.2em] font-medium">
+        <p className="text-2xs text-stone-400 uppercase tracking-[0.2em] font-medium">
           Shared from Viva &mdash; Your Wedding AI Concierge
         </p>
         <Link to="/" className="inline-block mt-2 text-xs text-primary hover:underline">

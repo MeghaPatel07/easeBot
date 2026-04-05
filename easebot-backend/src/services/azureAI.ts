@@ -1,5 +1,5 @@
 import { AzureOpenAI } from 'openai'
-import type { ChatCompletionTool, ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import type { ChatCompletionTool, ChatCompletionMessageParam, ChatCompletionContentPart } from 'openai/resources/chat/completions'
 import type { HistoryMessage } from '../types'
 
 export interface AIResult {
@@ -25,24 +25,38 @@ function getClient(): AzureOpenAI {
   })
 }
 
+export interface ImageData {
+  base64: string
+  mimeType: string
+}
+
 export async function callAzureAI(
   history: HistoryMessage[],
   userMessage: string,
   systemPrompt: string,
-  tools?: ChatCompletionTool[]
+  tools?: ChatCompletionTool[],
+  imageData?: ImageData
 ): Promise<AIResult> {
   const client = getClient()
+
+  // Build user content — multimodal array when image is attached
+  const userContent: string | ChatCompletionContentPart[] = imageData
+    ? [
+        { type: 'text' as const, text: userMessage || 'Describe this image.' },
+        { type: 'image_url' as const, image_url: { url: `data:${imageData.mimeType};base64,${imageData.base64}` } },
+      ]
+    : userMessage
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history,
-    { role: 'user', content: userMessage },
+    { role: 'user', content: userContent },
   ]
 
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
+    max_tokens: 1200,
     temperature: 0.7,
     ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
   })
@@ -77,20 +91,28 @@ export async function* streamCallAzureAI(
   history: HistoryMessage[],
   userMessage: string,
   systemPrompt: string,
-  tools?: ChatCompletionTool[]
+  tools?: ChatCompletionTool[],
+  imageData?: ImageData
 ): AsyncGenerator<StreamEvent> {
   const client = getClient()
+
+  const userContent: string | ChatCompletionContentPart[] = imageData
+    ? [
+        { type: 'text' as const, text: userMessage || 'Describe this image.' },
+        { type: 'image_url' as const, image_url: { url: `data:${imageData.mimeType};base64,${imageData.base64}` } },
+      ]
+    : userMessage
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history,
-    { role: 'user', content: userMessage },
+    { role: 'user', content: userContent },
   ]
 
   const stream = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
+    max_tokens: 1200,
     temperature: 0.7,
     stream: true,
     stream_options: { include_usage: true },
@@ -166,7 +188,7 @@ export async function* streamCallAzureAIWithToolResults(
   const stream = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
+    max_tokens: 1200,
     temperature: 0.7,
     stream: true,
   })
@@ -212,7 +234,7 @@ export async function callAzureAIWithToolResults(
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
+    max_tokens: 1200,
     temperature: 0.7,
   })
 
