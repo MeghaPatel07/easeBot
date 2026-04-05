@@ -36,7 +36,9 @@
       "Bash(find D:/weddingease/easeBot/Wedding-Ease-Viva-Chat/functions/src -name *.ts -path */types*)",
       "Bash(node_modules/.bin/tsc --noEmit)",
       "mcp__claude_ai_Figma__get_design_context",
-      "mcp__claude_ai_Figma__get_screenshot"
+      "mcp__claude_ai_Figma__get_screenshot",
+      "Bash(find \"D:\\\\weddingease\\\\easeBot\\\\Wedding-Ease-Viva-Chat\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.js\" \\\\\\) -exec grep -l \"keep.*brief\\\\|concise\\\\|short\\\\|limit\" {} \\\\;)",
+      "Bash(ls:*)"
     ]
   }
 }
