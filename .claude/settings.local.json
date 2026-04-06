@@ -38,7 +38,8 @@
       "mcp__claude_ai_Figma__get_design_context",
       "mcp__claude_ai_Figma__get_screenshot",
       "Bash(find \"D:\\\\weddingease\\\\easeBot\\\\Wedding-Ease-Viva-Chat\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.js\" \\\\\\) -exec grep -l \"keep.*brief\\\\|concise\\\\|short\\\\|limit\" {} \\\\;)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(grep -E \"\\\\.\\(env|json|yml|yaml|dockerfile|ts|js|config\\)$\")"
     ]
   }
 }
