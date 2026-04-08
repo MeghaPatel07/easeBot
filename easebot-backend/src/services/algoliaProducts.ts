@@ -98,7 +98,7 @@ export async function getRelevantProductsViaAlgolia(userMessage: string): Promis
       {
         indexName: 'variants',
         query: algoliaQuery,
-        hitsPerPage: 5,
+        hitsPerPage: 8,
         typoTolerance: true,
         removeWordsIfNoResults: 'allOptional',
         removeStopWords: true,

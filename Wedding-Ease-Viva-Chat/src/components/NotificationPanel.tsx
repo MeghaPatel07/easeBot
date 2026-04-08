@@ -172,11 +172,11 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
   if (notifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-        <div className="rounded-full bg-stone-100 p-4 mb-4">
-          <Bell className="h-8 w-8 text-stone-400" />
+        <div className="rounded-full bg-white/[0.06] p-4 mb-4">
+          <Bell className="h-8 w-8 text-white/40" />
         </div>
-        <h3 className="text-lg font-semibold text-stone-700 mb-1">No notifications</h3>
-        <p className="text-sm text-stone-500 max-w-xs">
+        <h3 className="text-lg font-semibold text-white/70 mb-1">No notifications</h3>
+        <p className="text-sm text-white/50 max-w-xs">
           You'll see reminders for upcoming deadlines here
         </p>
       </div>
@@ -188,7 +188,7 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200/60">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
           {unreadCount > 0 && (
@@ -213,8 +213,8 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
         {grouped.map((group) => (
           <div key={group.label}>
             {/* Group header */}
-            <div className="sticky top-0 z-10 px-4 py-2 bg-stone-50/90 backdrop-blur-sm">
-              <span className="text-xs font-medium text-stone-500 uppercase tracking-wider">
+            <div className="sticky top-0 z-10 px-4 py-2 bg-white/[0.04] backdrop-blur-sm">
+              <span className="text-xs font-medium text-white/50 uppercase tracking-wider">
                 {group.label}
               </span>
             </div>
@@ -230,9 +230,9 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
                   }}
                   className={`
                     group relative flex items-start gap-3 px-4 py-3 cursor-pointer
-                    border-b border-stone-100/60 transition-all duration-200
+                    border-b border-white/[0.06] transition-all duration-200
                     ${isDeleting ? 'opacity-0 max-h-0 py-0 overflow-hidden' : 'opacity-100 max-h-40'}
-                    ${notif.read ? 'bg-white/50 hover:bg-stone-50/50' : 'bg-blue-50/50 hover:bg-blue-50/80'}
+                    ${notif.read ? 'bg-white/[0.06] hover:bg-white/[0.06]' : 'bg-blue-500/10 hover:bg-blue-500/15'}
                   `}
                 >
                   {/* Unread dot */}
@@ -247,11 +247,11 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug ${notif.read ? 'text-stone-700' : 'text-stone-900 font-semibold'}`}>
+                    <p className={`text-sm leading-snug ${notif.read ? 'text-white/70' : 'text-white/90 font-semibold'}`}>
                       {notif.title}
                     </p>
-                    <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{notif.body}</p>
-                    <div className="flex items-center gap-1 mt-1 text-stone-400">
+                    <p className="text-xs text-white/50 mt-0.5 line-clamp-2">{notif.body}</p>
+                    <div className="flex items-center gap-1 mt-1 text-white/40">
                       <Clock className="h-3 w-3" />
                       <span className="text-label">{timeAgo(notif.createdAt)}</span>
                     </div>
@@ -263,7 +263,7 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
                       e.stopPropagation()
                       handleDelete(notif.id)
                     }}
-                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-2 rounded hover:bg-red-50 text-stone-400 hover:text-red-500 shrink-0 mt-0.5"
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-2 rounded hover:bg-red-50 text-white/40 hover:text-red-500 shrink-0 mt-0.5"
                     aria-label="Delete notification"
                   >
                     <X className="h-5 w-5" />

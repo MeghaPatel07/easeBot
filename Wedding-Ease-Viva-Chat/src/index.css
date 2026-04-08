@@ -150,13 +150,15 @@
 }
 
 .gradient-bg {
-  background: linear-gradient(160deg, #4A1028 0%, #3A0E20 30%, #2D0A1A 60%, #1F0612 100%);
   position: relative;
+  background: var(--bg-image) center / cover no-repeat fixed;
+  background-color: #3A0E20;
+  overflow-x: hidden;
 }
 
 .gradient-bg-expanded {
-  background: linear-gradient(160deg, #4A1028 0%, #3A0E20 30%, #2D0A1A 60%, #1F0612 100%);
   position: relative;
+  background-color: #3A0E20;
 }
 
 .glass-panel {
@@ -265,4 +267,47 @@
   width: 3px;
   background: #C6944A;
   border-radius: 0 3px 3px 0;
+}
+
+/* Floral decorative corner overlay — top-right peony line art */
+.floral-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 400px;
+  /* background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400' fill='none'%3E%3Cpath d='M250 40c-30 20-55 65-45 110 10 45 55 65 90 45s45-65 25-110c-12-25-35-45-70-45z' stroke='rgba(210,170,130,0.25)' stroke-width='1.5'/%3E%3Cpath d='M195 70c-45 12-75 55-65 100s55 65 100 55 75-55 65-100-55-65-100-55z' stroke='rgba(210,170,130,0.22)' stroke-width='1.5'/%3E%3Cpath d='M215 25c-22 32-22 75 0 108s55 44 78 22 22-65 0-98-44-55-78-32z' stroke='rgba(210,170,130,0.18)' stroke-width='1.5'/%3E%3Cpath d='M175 110c-32 32-32 88 0 120s78 32 110 0 32-88 0-120-78-32-110 0z' stroke='rgba(210,170,130,0.15)' stroke-width='1.2'/%3E%3Cpath d='M258 90c-12 35-6 72 18 95s55 22 72 0 18-62-6-85-55-35-84-10z' stroke='rgba(210,170,130,0.20)' stroke-width='1.5'/%3E%3Cpath d='M228 155c6 22 28 38 50 33s33-28 28-50-28-38-50-33-33 28-28 50z' stroke='rgba(210,170,130,0.22)' stroke-width='1.2'/%3E%3Ccircle cx='248' cy='135' r='6' stroke='rgba(210,170,130,0.18)' stroke-width='1'/%3E%3Ccircle cx='275' cy='115' r='4' stroke='rgba(210,170,130,0.15)' stroke-width='1'/%3E%3Cpath d='M242 195c0-22 16-44 38-50' stroke='rgba(210,170,130,0.14)' stroke-width='1'/%3E%3Cpath d='M205 255c12-32 32-60 65-72' stroke='rgba(210,170,130,0.12)' stroke-width='1'/%3E%3Cpath d='M180 60c15-10 40-12 60-5' stroke='rgba(210,170,130,0.14)' stroke-width='1'/%3E%3Cpath d='M280 70c5 15 5 35-2 52' stroke='rgba(210,170,130,0.14)' stroke-width='1'/%3E%3C/svg%3E"); */
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: top right;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 1;
+}
+
+/* Glassmorphism action card */
+.glass-action-card {
+  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+.glass-action-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(198, 148, 74, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(198, 148, 74, 0.1);
+}
+
+/* Event chip pill */
+.event-chip {
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.2s ease;
+}
+.event-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(198, 148, 74, 0.3);
 }

@@ -30,20 +30,17 @@ EaseBot is an AI-powered wedding planning chatbot with multimodal capabilities (
 | **Database** | Firebase Firestore (users, chats, messages, checklists, images, usage) |
 | **Storage** | Firebase Storage (generated images, CDN URLs) |
 | **Auth** | Firebase Auth (email, phone OTP, Google OAuth) |
-| **Search** | Algolia (product catalog for stylist mode) |
+| **Search** | Algolia (product catalog for styler mode) |
 | **Hosting** | Firebase Hosting (frontend SPA) |
 | **Calendar** | Google Calendar API (user-authenticated OAuth) |
 
-### 2.1.1 Mode Architecture (6 Modes)
+### 2.1.1 Mode Architecture (3 Modes)
 
 | Mode | Purpose | Routing |
 |------|---------|---------|
-| **planner** | Timelines, checklists, vendor booking | Keyword regex |
-| **stylist** | Attire, décor, color palettes, Algolia product search | Keyword regex |
+| **planner** | Timelines, checklists, vendor booking, budget planning | Keyword regex |
+| **styler** | Attire, décor, color palettes, Algolia product search | Keyword regex |
 | **knowledge** | Wedding traditions, etiquette, cultural context | Keyword regex |
-| **consultant** | Budget, costs, pricing, negotiations | Keyword regex |
-| **therapist** | Emotional support (currently disabled) | Keyword regex |
-| **assistant** | Default fallback for unclassified queries | Score = 0 fallback |
 
 ### 2.2 Critical Issues Identified
 
@@ -89,7 +86,7 @@ EaseBot is an AI-powered wedding planning chatbot with multimodal capabilities (
 
 | Current | Replace With | Benefit |
 |---------|-------------|---------|
-| Google Gemini 2.5 Flash (image gen) | **Azure OpenAI DALL-E 3 / gpt-image-1** (as primary) | Predictable SLA, consistent billing with other Azure AI |
+| Google Gemini 2.5 Flash (image gen) | **Azure OpenAI gpt-image-1** (as primary) | Predictable SLA, consistent billing with other Azure AI |
 | Google Gemini TTS | **Azure AI Speech TTS** (Neural voices) | Already have Azure Speech key; consolidate AI on Azure |
 | Firebase Auth (REST API validation) | **Firebase Admin SDK** `verifyIdToken()` | Local JWT verification — eliminates HTTP roundtrip per request |
 | Algolia (product search) | **Azure AI Search** (formerly Cognitive Search) | Semantic + vector search, unified Azure billing |
@@ -146,7 +143,7 @@ EaseBot is an AI-powered wedding planning chatbot with multimodal capabilities (
 | Chat history | Last 10 messages (raw) | **Sliding window + summarization** — last 5 raw + summary of older |
 | Mode routing | Regex keyword matching | **LLM-based intent classification** (single GPT-4o-mini call, ~100ms) |
 | System prompts | Static per-mode | **Dynamic prompt composition** with user history, preferences, prior decisions |
-| Temperature | 0.7 (all modes) | **Mode-specific**: planner=0.3, stylist=0.8, knowledge=0.2 |
+| Temperature | 0.7 (all modes) | **Mode-specific**: planner=0.3, styler=0.8, knowledge=0.2 |
 | Personalization | Tone slider suffix | **Full user profile injection** — wedding date, budget, guest count, style prefs |
 | Tool execution | Sequential, in-request | **Parallel tool execution** where independent |
 
@@ -162,7 +159,7 @@ Message count > 10?
 **Intent Classification (replace regex routing):**
 ```
 User message → GPT-4o-mini (fast, cheap):
-  System: "Classify intent: planner|stylist|knowledge|assistant. Return JSON."
+  System: "Classify intent: planner|styler|knowledge. Return JSON."
   → ~80ms, $0.0001/call
   → Falls back to keyword if classification fails
 ```
@@ -175,7 +172,7 @@ User message → GPT-4o-mini (fast, cheap):
 
 **Changes:**
 
-**A) Primary Provider: Azure OpenAI gpt-image-1 (DALL-E 3)**
+**A) Primary Provider: Azure OpenAI gpt-image-1**
 - Move Azure image gen from fallback to primary
 - Remove Gemini dependency for image generation
 - Use `quality: "hd"` for premium users, `quality: "standard"` for free
@@ -189,7 +186,7 @@ User request
      - Add composition details (centered, rule-of-thirds)
      - Add cultural context (Indian wedding, Western ceremony)
      - Add negative constraints (no text artifacts, no distortion)
-  → Enhanced prompt → DALL-E 3
+  → Enhanced prompt → gpt-image-1
   → Result image → Azure Blob Storage → CDN URL
 ```
 
@@ -580,7 +577,7 @@ pages/
 | **Conversation summary** | GPT-4o-mini | Compression task, doesn't need full model |
 | **Prompt enhancement** | GPT-4o-mini | Template-based enrichment |
 | **Memory extraction** | GPT-4o-mini | Structured extraction task |
-| **Image generation** | DALL-E 3 / gpt-image-1 | Azure-native, reliable |
+| **Image generation** | gpt-image-1 | Azure-native, reliable |
 | **Embeddings** | text-embedding-3-small | Cost-effective, good quality |
 | **Content safety** | Azure Content Safety | Purpose-built, fast |
 | **Quick answers** | GPT-4o-mini | FAQ-style queries don't need GPT-4o |
@@ -590,7 +587,7 @@ pages/
 User message → Intent classifier (GPT-4o-mini)
   → If simple/FAQ → GPT-4o-mini (fast, cheap)
   → If complex planning/creative → GPT-4o (quality)
-  → If image request → DALL-E 3
+  → If image request → gpt-image-1
   → If knowledge lookup → RAG + GPT-4o-mini
 ```
 
@@ -668,7 +665,7 @@ import { z } from 'zod';
 export const ChatRequestV1 = z.object({
   message: z.string().min(1).max(10000),
   threadId: z.string().optional(),
-  mode: z.enum(['planner', 'stylist', 'knowledge', 'consultant', 'assistant']).optional(),
+  mode: z.enum(['planner', 'styler', 'knowledge']).optional(),
   imageData: z.string().optional(),
   toneSettings: z.record(z.number().min(0).max(100)).optional(),
 });
@@ -740,7 +737,7 @@ CRITICAL RULES:
 |----------|----------|-----------|------------|
 | **Account data** | Email, name, phone | Until account deletion | Firestore default (AES-256 at rest) |
 | **Conversation data** | Chat messages, AI responses | 12 months after last activity, then archive | Firestore default |
-| **Generated images** | DALL-E / Gemini outputs | 6 months after generation, then soft-delete | Firebase Storage (encrypted at rest) |
+| **Generated images** | gpt-image-1 / Gemini outputs | 6 months after generation, then soft-delete | Firebase Storage (encrypted at rest) |
 | **Financial data** | Budget numbers, vendor costs | Until account deletion | Firestore default + field-level access rules |
 | **Voice recordings** | Audio uploads for STT | Process → transcribe → **delete immediately** (never persist raw audio) |
 
@@ -925,7 +922,7 @@ sdk.start();
 
 | Service | Purpose | Tier |
 |---------|---------|------|
-| **Azure OpenAI** | GPT-4o, GPT-4o-mini, DALL-E 3 / gpt-image-1, text-embedding-3-small | Standard S0 |
+| **Azure OpenAI** | GPT-4o, GPT-4o-mini, gpt-image-1, text-embedding-3-small | Standard S0 |
 | **Azure Cache for Redis** | Caching layer (user profiles, chat history, summaries) | Basic C0 → Standard C1 |
 | **Azure AI Search** | Product search + RAG knowledge base (replace Algolia) | Basic |
 | **Azure AI Speech** | STT + TTS (consolidate from Gemini TTS) | Standard S0 |
@@ -964,7 +961,7 @@ sdk.start();
 
 ### Phase 1 — Quick Wins (Week 2-3)
 - [ ] Increase max_tokens from 1200 → 4096
-- [ ] Add mode-specific temperature values (planner=0.3, stylist=0.8, knowledge=0.2)
+- [ ] Add mode-specific temperature values (planner=0.3, styler=0.8, knowledge=0.2)
 - [ ] Switch Firebase Auth to Admin SDK (`verifyIdToken`) — eliminates HTTP roundtrip
 - [ ] Add retry logic with exponential backoff for Azure OpenAI calls
 - [ ] Add circuit breaker for all external services (opossum library)
@@ -1086,7 +1083,7 @@ sdk.start();
 
 ## 8. Dependencies & Prerequisites
 
-- Azure subscription with sufficient quotas (GPT-4o, DALL-E 3, GPT-4o-mini, text-embedding-3-small)
+- Azure subscription with sufficient quotas (GPT-4o, gpt-image-1, GPT-4o-mini, text-embedding-3-small)
 - Azure OpenAI access approved for all required models
 - Azure AI Content Safety resource provisioned
 - Azure Application Insights resource with connection string

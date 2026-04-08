@@ -44,7 +44,7 @@ function SliderRow({
   return (
     <div className="mb-5">
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-sm font-medium text-stone-700">{label}</span>
+        <span className="text-sm font-medium text-white/70">{label}</span>
         <span className="text-xs font-semibold text-primary w-8 text-right">{value}</span>
       </div>
       <Slider
@@ -56,8 +56,8 @@ function SliderRow({
         className="mb-1"
       />
       <div className="flex justify-between">
-        <span className="text-2xs text-stone-400">{leftLabel}</span>
-        <span className="text-2xs text-stone-400">{rightLabel}</span>
+        <span className="text-2xs text-white/40">{leftLabel}</span>
+        <span className="text-2xs text-white/40">{rightLabel}</span>
       </div>
     </div>
   )
@@ -170,14 +170,14 @@ export function SettingsModal({ open, onClose }: Props) {
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="max-w-lg w-full rounded-2xl p-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle className="text-lg font-semibold text-stone-800">
+          <DialogTitle className="text-lg font-semibold text-white/85">
             Personalize Your Experience
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="identity" className="w-full">
           {/* Tab list */}
-          <TabsList className="w-full rounded-none border-b border-stone-100 bg-white px-6 h-12 gap-1">
+          <TabsList className="w-full rounded-none border-b border-white/[0.06] bg-transparent px-6 h-12 gap-1">
             <TabsTrigger
               value="identity"
               className="flex items-center gap-1.5 text-sm data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
@@ -207,17 +207,17 @@ export function SettingsModal({ open, onClose }: Props) {
             className="max-h-[60vh] overflow-y-auto px-6 py-5 focus:outline-none"
           >
             <div className="mb-3">
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">
+              <label className="block text-sm font-medium text-white/70 mb-1.5">
                 Nickname
               </label>
-              <p className="text-xs text-stone-400 mb-2">
+              <p className="text-xs text-white/40 mb-2">
                 What should the AI call you during conversations?
               </p>
               <Input
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="e.g. Priya, Babe, The Bride"
-                className="border-stone-200 focus-visible:ring-primary text-base sm:text-sm"
+                className="border-white/10 focus-visible:ring-primary text-base sm:text-sm"
               />
             </div>
           </TabsContent>
@@ -227,7 +227,7 @@ export function SettingsModal({ open, onClose }: Props) {
             value="tone"
             className="max-h-[60vh] overflow-y-auto px-6 py-5 focus:outline-none"
           >
-            <p className="text-xs text-stone-400 mb-4">
+            <p className="text-xs text-white/40 mb-4">
               Adjust these sliders to shape how the AI communicates with you.
             </p>
             <SliderRow
@@ -307,7 +307,7 @@ export function SettingsModal({ open, onClose }: Props) {
             value="voice"
             className="max-h-[60vh] overflow-y-auto px-6 py-5 focus:outline-none"
           >
-            <p className="text-xs text-stone-400 mb-4">
+            <p className="text-xs text-white/40 mb-4">
               Choose a voice for AI audio responses. Availability depends on your device.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -323,12 +323,12 @@ export function SettingsModal({ open, onClose }: Props) {
                       'rounded-xl border-2 p-3 cursor-pointer text-left transition-colors',
                       isSelected
                         ? 'border-primary bg-primary/10'
-                        : 'border-stone-200 bg-white hover:border-stone-300',
+                        : 'border-white/10 bg-white/[0.06] hover:border-white/20',
                     ].join(' ')}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-stone-800">{preset.name}</span>
+                        <span className="text-sm font-semibold text-white/85">{preset.name}</span>
                         <span className={`text-3xs font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
                           preset.gender === 'female'
                             ? 'bg-pink-100 text-pink-500'
@@ -346,7 +346,7 @@ export function SettingsModal({ open, onClose }: Props) {
                             'h-6 w-6 rounded-full flex items-center justify-center transition-colors',
                             isPreviewing
                               ? 'bg-primary text-white'
-                              : 'text-stone-400 hover:text-primary hover:bg-primary/10',
+                              : 'text-white/40 hover:text-primary hover:bg-primary/10',
                           ].join(' ')}
                         >
                           {previewLoadingId === preset.id
@@ -358,7 +358,7 @@ export function SettingsModal({ open, onClose }: Props) {
                         {isSelected && <Check size={14} className="text-primary" />}
                       </div>
                     </div>
-                    <span className="text-xs text-stone-500">{preset.description}</span>
+                    <span className="text-xs text-white/50">{preset.description}</span>
                   </button>
                 )
               })}
@@ -367,12 +367,12 @@ export function SettingsModal({ open, onClose }: Props) {
         </Tabs>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-stone-100">
+        <div className="flex justify-end gap-2 px-6 py-4 border-t border-white/[0.06]">
           <Button
             variant="ghost"
             onClick={onClose}
             disabled={saveState === 'saving'}
-            className="text-stone-500 hover:text-stone-700"
+            className="text-white/50 hover:text-white/70"
           >
             Cancel
           </Button>

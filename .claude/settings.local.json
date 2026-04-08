@@ -39,7 +39,20 @@
       "mcp__claude_ai_Figma__get_screenshot",
       "Bash(find \"D:\\\\weddingease\\\\easeBot\\\\Wedding-Ease-Viva-Chat\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.js\" \\\\\\) -exec grep -l \"keep.*brief\\\\|concise\\\\|short\\\\|limit\" {} \\\\;)",
       "Bash(ls:*)",
-      "Bash(grep -E \"\\\\.\\(env|json|yml|yaml|dockerfile|ts|js|config\\)$\")"
+      "Bash(grep -E \"\\\\.\\(env|json|yml|yaml|dockerfile|ts|js|config\\)$\")",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(curl:*)",
+      "Bash(python -c \"print\\('{\\\\\"message\\\\\": \\\\\"' + 'A' * 10001 + '\\\\\"}'\\)\")",
+      "Bash(pkill -f \"ts-node.*server.ts\")",
+      "Bash(ALLOWED_ORIGINS=\"http://localhost:8080,http://localhost:5173,http://localhost:8081\" npx ts-node --transpile-only src/server.ts)",
+      "Bash(python3 -c \"print\\('A'*10001\\)\")",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "WebFetch(domain:localhost)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(npx playwright:*)",
+      "Bash(npm list:*)",
+      "Bash(node -e ':*)"
     ]
   }
 }

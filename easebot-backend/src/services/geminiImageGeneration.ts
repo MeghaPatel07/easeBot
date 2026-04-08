@@ -124,6 +124,13 @@ EDITING RULES:
 - Match lighting and shadow direction on edited elements to the original scene
 - Maintain the person's ethnicity, skin tone, and features exactly as they are
 
+ASPECT RATIO RULE (CRITICAL):
+- The output image MUST have the EXACT SAME aspect ratio and orientation as the input image
+- If the input is horizontal/landscape, the output MUST be horizontal/landscape
+- If the input is vertical/portrait, the output MUST be vertical/portrait
+- If the input is square, the output MUST be square
+- NEVER change the orientation or crop the image differently
+
 OUTPUT: Generate the edited image directly. Do not describe the edit — just produce the result.`
 
 /**
@@ -304,12 +311,20 @@ export async function generateImageGemini(
 export async function editImageGemini(
   imageBase64: string,
   prompt: string,
-  _size: string = '1024x1024'
+  size: string = '1024x1024'
 ): Promise<string[]> {
   try {
+    // Determine orientation instruction from the target size
+    let orientationHint = ''
+    if (size === '1536x1024') orientationHint = 'IMPORTANT: Maintain the LANDSCAPE (horizontal) orientation of the original image. Do NOT change the aspect ratio.'
+    else if (size === '1024x1536') orientationHint = 'IMPORTANT: Maintain the PORTRAIT (vertical) orientation of the original image. Do NOT change the aspect ratio.'
+    else orientationHint = 'IMPORTANT: Maintain the SQUARE aspect ratio of the original image. Do NOT change the aspect ratio.'
+
     const editPrompt = `Edit this image with the following change: ${prompt}
 
-Remember: Change ONLY what was requested. Keep everything else exactly the same — same person, same pose, same background, same lighting, same other clothing and accessories.`
+${orientationHint}
+
+Remember: Change ONLY what was requested. Keep everything else exactly the same — same person, same pose, same background, same lighting, same other clothing and accessories. The output image MUST have the same orientation and proportions as the input image.`
 
     const { images } = await callGeminiImageAPI(
       IMAGE_EDIT_SYSTEM,
@@ -330,20 +345,20 @@ Remember: Change ONLY what was requested. Keep everything else exactly the same 
 
     if (images.length === 0) {
       console.warn('[geminiImage] Edit produced no images, trying fallback')
-      return await fallbackEditGemini(imageBase64, prompt)
+      return await fallbackEditGemini(imageBase64, prompt, size)
     }
 
     return Promise.all(images.map(compressImage))
   } catch (err) {
     console.error('[geminiImage] editImageGemini error:', err)
-    return await fallbackEditGemini(imageBase64, prompt)
+    return await fallbackEditGemini(imageBase64, prompt, size)
   }
 }
 
 /**
  * Fallback for image editing: analyze the image first, then regenerate with the edit applied.
  */
-async function fallbackEditGemini(imageBase64: string, prompt: string): Promise<string[]> {
+async function fallbackEditGemini(imageBase64: string, prompt: string, size: string = '1024x1024'): Promise<string[]> {
   try {
     // First, describe the image in detail
     const description = await analyzeImageGemini(
@@ -352,10 +367,13 @@ async function fallbackEditGemini(imageBase64: string, prompt: string): Promise<
       'Describe this image in EXTREME detail for recreation: exact person appearance (face, skin tone, hair, expression), exact clothing items and their colors/patterns/textures (each piece separately), exact body pose and hand position, exact background architecture/setting, exact lighting direction and color temperature, exact camera angle and depth of field. Miss nothing.',
     )
 
-    // Then regenerate with the edit
-    const editedPrompt = `Recreate this EXACT image: "${description}". Apply ONLY this one change: ${prompt}. Everything else must remain identical.`
+    // Determine orientation label from size for the prompt
+    const orientationLabel = size === '1536x1024' ? 'LANDSCAPE/horizontal' : size === '1024x1536' ? 'PORTRAIT/vertical' : 'SQUARE'
 
-    return await generateImageGemini(editedPrompt)
+    // Then regenerate with the edit — preserving the original orientation
+    const editedPrompt = `Recreate this EXACT image: "${description}". Apply ONLY this one change: ${prompt}. Everything else must remain identical. The image MUST be in ${orientationLabel} orientation matching the original.`
+
+    return await generateImageGemini(editedPrompt, size)
   } catch (err) {
     console.error('[geminiImage] fallback edit error:', err)
     return []

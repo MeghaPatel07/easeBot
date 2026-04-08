@@ -174,7 +174,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
   return (
     <div className="space-y-6">
       {/* Share info section */}
-      <div className="rounded-2xl bg-white/70 border border-border p-5">
+      <div className="rounded-2xl bg-white/[0.06] border border-border p-5">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-primary/10 p-2.5">
             <Link className="h-5 w-5 text-primary" />
@@ -191,7 +191,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       </div>
 
       {/* Invite form */}
-      <div className="rounded-2xl bg-white/70 border border-border p-5">
+      <div className="rounded-2xl bg-white/[0.06] border border-border p-5">
         <div className="flex items-center gap-2 mb-4">
           <UserPlus className="h-4.5 w-4.5 text-primary" />
           <h4 className="font-headline text-sm font-semibold text-foreground">
@@ -266,7 +266,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       </div>
 
       {/* Active collaborators list / Empty state */}
-      <div className="rounded-2xl bg-white/70 border border-border p-5">
+      <div className="rounded-2xl bg-white/[0.06] border border-border p-5">
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-4.5 w-4.5 text-primary" />
           <h4 className="font-headline text-sm font-semibold text-foreground">

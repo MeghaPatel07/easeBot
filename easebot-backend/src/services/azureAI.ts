@@ -2,13 +2,20 @@ import { AzureOpenAI } from 'openai'
 import type { ChatCompletionTool, ChatCompletionMessageParam, ChatCompletionContentPart } from 'openai/resources/chat/completions'
 import type { HistoryMessage } from '../types'
 
+// ── Mode-specific temperature map ──────────────────────────────────────────────
+export const MODE_TEMPERATURES: Record<string, number> = {
+  planner: 0.3,
+  stylist: 0.8,
+  knowledge: 0.2,
+}
+
 export interface AIResult {
   text: string
   toolCalls: { id: string; name: string; args: Record<string, any> }[]
   usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null
 }
 
-function getClient(): AzureOpenAI {
+export function getClient(): AzureOpenAI {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_API_KEY
   const deployment = process.env.AZURE_DEPLOYMENT_NAME
@@ -35,7 +42,8 @@ export async function callAzureAI(
   userMessage: string,
   systemPrompt: string,
   tools?: ChatCompletionTool[],
-  imageData?: ImageData
+  imageData?: ImageData,
+  temperature: number = 0.7
 ): Promise<AIResult> {
   const client = getClient()
 
@@ -56,8 +64,8 @@ export async function callAzureAI(
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 1200,
-    temperature: 0.7,
+    max_tokens: 4096,
+    temperature,
     ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
   })
 
@@ -92,7 +100,8 @@ export async function* streamCallAzureAI(
   userMessage: string,
   systemPrompt: string,
   tools?: ChatCompletionTool[],
-  imageData?: ImageData
+  imageData?: ImageData,
+  temperature: number = 0.7
 ): AsyncGenerator<StreamEvent> {
   const client = getClient()
 
@@ -112,8 +121,8 @@ export async function* streamCallAzureAI(
   const stream = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 1200,
-    temperature: 0.7,
+    max_tokens: 4096,
+    temperature,
     stream: true,
     stream_options: { include_usage: true },
     ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
@@ -188,7 +197,7 @@ export async function* streamCallAzureAIWithToolResults(
   const stream = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 1200,
+    max_tokens: 4096,
     temperature: 0.7,
     stream: true,
   })
@@ -234,7 +243,7 @@ export async function callAzureAIWithToolResults(
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 1200,
+    max_tokens: 4096,
     temperature: 0.7,
   })
 

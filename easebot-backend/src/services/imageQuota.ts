@@ -29,8 +29,8 @@ interface ImageUsageDoc {
 // ── Tier Limits ─────────────────────────────────────────────────────────────────
 
 const LIMITS = {
-  free:    { daily: 999999,  monthly: 999999  },
-  premium: { daily: 999999, monthly: 999999 },
+  free:    { daily: 10,  monthly: 100  },
+  premium: { daily: 50, monthly: 500 },
 } as const
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────

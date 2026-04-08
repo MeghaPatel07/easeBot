@@ -214,7 +214,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
   return (
     <div className="my-3 w-full">
       {/* Header bar */}
-      <div className="flex items-center gap-1.5 mb-1.5 text-xs text-stone-500">
+      <div className="flex items-center gap-1.5 mb-1.5 text-xs text-white/50">
         <Table className="w-3.5 h-3.5 text-primary" />
         <span className="font-medium">Comparison</span>
       </div>
@@ -228,7 +228,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
                 <th
                   key={colIdx}
                   onClick={() => handleSort(colIdx)}
-                  className="px-2 sm:px-3 py-2 text-xs font-semibold text-stone-700 cursor-pointer select-none whitespace-nowrap"
+                  className="px-2 sm:px-3 py-2 text-xs font-semibold text-white/70 cursor-pointer select-none whitespace-nowrap"
                 >
                   <span className="inline-flex items-center gap-1">
                     {header}
@@ -248,7 +248,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
               <tr
                 key={rowIdx}
                 className={`transition-colors hover:bg-muted ${
-                  rowIdx % 2 === 0 ? "bg-white" : "bg-stone-50"
+                  rowIdx % 2 === 0 ? "bg-white" : "bg-white/[0.04]"
                 }`}
               >
                 {row.map((cell, colIdx) => {
@@ -258,7 +258,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
                   return (
                     <td
                       key={colIdx}
-                      className={`px-2 sm:px-3 py-2 text-xs sm:text-sm text-stone-600 ${
+                      className={`px-2 sm:px-3 py-2 text-xs sm:text-sm text-white/60 ${
                         highlighted
                           ? "text-green-700 font-semibold bg-green-50/60"
                           : ""

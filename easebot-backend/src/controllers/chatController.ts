@@ -3,7 +3,9 @@ import { db } from '../lib/firebase'
 import { Request, Response } from 'express'
 import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
-import { callAzureAI, callAzureAIWithToolResults, streamCallAzureAI, streamCallAzureAIWithToolResults } from '../services/azureAI'
+import { callAzureAI, callAzureAIWithToolResults, streamCallAzureAI, streamCallAzureAIWithToolResults, MODE_TEMPERATURES } from '../services/azureAI'
+import { summarizeConversation } from '../services/conversationSummarizer'
+import sharp from 'sharp'
 import { IMAGE_TOOL, generateImageGptImage1, editImageGptImage1, extractStyleDescriptors, type ImageSize } from '../services/imageGeneration'
 import { storeMultipleImages } from '../services/imageStorage'
 import { checkImageQuota, incrementImageUsage } from '../services/imageQuota'
@@ -22,27 +24,51 @@ import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode, To
 import { buildPersonalizationSuffix } from '../utils/toneInjector'
 import { determineTargetLanguage, buildLanguageInstruction } from '../pipeline/languageInstruction'
 
+interface UserProfileContext {
+  weddingDate?: string | null
+  budget?: string | number | null
+  stylePreferences?: string | null
+}
+
+function buildUserContextSuffix(profile?: UserProfileContext | null): string {
+  if (!profile) return ''
+  const parts: string[] = []
+  if (profile.weddingDate) {
+    parts.push(`The user's wedding is on ${profile.weddingDate}.`)
+  }
+  if (profile.budget) {
+    parts.push(`The user's budget is ${profile.budget}.`)
+  }
+  if (profile.stylePreferences) {
+    parts.push(`The user's style preferences: ${profile.stylePreferences}.`)
+  }
+  return parts.length > 0 ? '\n' + parts.join(' ') : ''
+}
+
 async function buildSystemPrompt(
   mode: Mode,
   userMessage: string,
   userRole?: string | null,
-  personalization?: UserPersonalization
+  personalization?: UserPersonalization,
+  userProfile?: UserProfileContext | null
 ): Promise<string> {
+  const userContext = buildUserContextSuffix(userProfile)
+
   if (mode === 'stylist') {
     try {
       const products = await getRelevantProductsViaAlgolia(userMessage)
       const context = formatProductsContext(products)
-      return getStylistPrompt(context) + buildPersonalizationSuffix(personalization)
+      return getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext
     } catch {
-      return getStylistPrompt() + buildPersonalizationSuffix(personalization)
+      return getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext
     }
   }
   switch (mode) {
-    case 'planner':    return getPlannerPrompt(userRole) + buildPersonalizationSuffix(personalization)
-    case 'therapist':  return getTherapistPrompt() + buildPersonalizationSuffix(personalization)
-    case 'knowledge':  return getKnowledgePrompt() + buildPersonalizationSuffix(personalization)
-    case 'consultant': return getConsultantPrompt() + buildPersonalizationSuffix(personalization)
-    default:           return getAssistantPrompt() + buildPersonalizationSuffix(personalization)
+    case 'planner':    return getPlannerPrompt(userRole) + buildPersonalizationSuffix(personalization) + userContext
+    case 'therapist':  return getTherapistPrompt() + buildPersonalizationSuffix(personalization) + userContext
+    case 'knowledge':  return getKnowledgePrompt() + buildPersonalizationSuffix(personalization) + userContext
+    case 'consultant': return getConsultantPrompt() + buildPersonalizationSuffix(personalization) + userContext
+    default:           return getAssistantPrompt() + buildPersonalizationSuffix(personalization) + userContext
   }
 }
 
@@ -77,6 +103,28 @@ interface ImageToolResult {
   styleDescriptors: string[]
 }
 
+/**
+ * Detect the aspect ratio of a source image and return the closest supported size.
+ * This ensures edits preserve the original image's orientation and proportions.
+ */
+async function detectImageAspectRatio(imageBase64: string): Promise<ImageSize> {
+  try {
+    const buffer = Buffer.from(imageBase64, 'base64')
+    const metadata = await sharp(buffer).metadata()
+    const w = metadata.width ?? 1024
+    const h = metadata.height ?? 1024
+    const ratio = w / h
+
+    // ratio > 1.15 → landscape, ratio < 0.85 → portrait, else square
+    if (ratio > 1.15) return '1536x1024'      // landscape
+    if (ratio < 0.85) return '1024x1536'       // portrait
+    return '1024x1024'                          // square
+  } catch (err) {
+    console.warn('[chatController] Could not detect image aspect ratio, defaulting to 1024x1024:', err)
+    return '1024x1024'
+  }
+}
+
 async function handleImageToolCall(
   args: Record<string, any>,
   opts: {
@@ -91,7 +139,7 @@ async function handleImageToolCall(
 ): Promise<ImageToolResult> {
   const imgPrompt = args.prompt as string
   const imgAction = (args.action as string) ?? 'generate'
-  const imgSize = (args.aspect_ratio as ImageSize) ?? '1024x1024'
+  const llmChosenSize = (args.aspect_ratio as ImageSize) ?? '1024x1024'
   const imgVariants = 1 // Always generate exactly 1 image
 
   // Check quota for logged-in users
@@ -110,23 +158,32 @@ async function handleImageToolCall(
   let base64Images: string[] = []
 
   // If user attached an image, ALWAYS use edit (regardless of what the LLM chose)
+  // CRITICAL: Detect the source image's actual aspect ratio — ignore the LLM's choice
   if (opts.imageBase64) {
-    console.log('[chatController] User attached image → using editImageGptImage1')
-    base64Images = await editImageGptImage1(opts.imageBase64, imgPrompt, imgSize)
+    const sourceSize = await detectImageAspectRatio(opts.imageBase64)
+    console.log(`[chatController] User attached image → edit mode | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
+    base64Images = await editImageGptImage1(opts.imageBase64, imgPrompt, sourceSize)
   } else if (imgAction === 'edit' && opts.lastGeneratedImageUrl) {
-    // Iterative editing: fetch the previously generated image from storage and edit it
+    // Iterative editing: fetch the previously generated image and preserve its aspect ratio
     try {
       console.log('[chatController] Iterative edit → fetching previous image from URL')
       const imgRes = await fetch(opts.lastGeneratedImageUrl)
       const imgBuf = Buffer.from(await imgRes.arrayBuffer())
-      base64Images = await editImageGptImage1(imgBuf.toString('base64'), imgPrompt, imgSize)
+      const sourceBase64 = imgBuf.toString('base64')
+      const sourceSize = await detectImageAspectRatio(sourceBase64)
+      console.log(`[chatController] Iterative edit | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
+      base64Images = await editImageGptImage1(sourceBase64, imgPrompt, sourceSize)
     } catch (fetchErr) {
       console.error('[chatController] Failed to fetch lastGeneratedImageUrl, falling back to generate:', fetchErr)
-      base64Images = await generateImageGptImage1(imgPrompt, imgSize, imgVariants as 1 | 2 | 3)
+      base64Images = await generateImageGptImage1(imgPrompt, llmChosenSize, imgVariants as 1 | 2 | 3)
     }
   } else {
-    base64Images = await generateImageGptImage1(imgPrompt, imgSize, imgVariants as 1 | 2 | 3)
+    // New generation — use LLM's chosen aspect ratio (it picks based on content type)
+    base64Images = await generateImageGptImage1(imgPrompt, llmChosenSize, imgVariants as 1 | 2 | 3)
   }
+
+  // Track which size was actually used for storage metadata
+  const imgSize = llmChosenSize // Overridden above for edit paths via sourceSize
 
   if (base64Images.length === 0) {
     return {
@@ -190,20 +247,48 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const mode: Mode = requestedMode ?? detectMode(englishText)
     const history = await getChatHistory(threadId, providedHistory)
 
-    // Fetch user profile for premium status and role
+    // Fetch user profile for premium status, role, and context
     let isPremium = false
     let userRole: string | null = null
+    let userProfile: UserProfileContext | null = null
     if (isLoggedIn) {
       const profileSnap = await getDoc(doc(db, 'users', uid))
       if (profileSnap.exists()) {
-        isPremium = profileSnap.data().isPremium ?? false
-        userRole = profileSnap.data().role ?? null
+        const data = profileSnap.data()
+        isPremium = data.isPremium ?? false
+        userRole = data.role ?? null
+        userProfile = {
+          weddingDate: data.weddingDate ?? null,
+          budget: data.budget ?? null,
+          stylePreferences: data.stylePreferences ?? null,
+        }
       }
     }
 
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
       + buildLanguageInstruction(targetLanguage)
+
+    // Conversation summarization: compress older messages when history is long
+    let effectiveHistory = history
+    if (history.length > 10) {
+      try {
+        const olderMessages = history.slice(0, history.length - 5)
+        const recentMessages = history.slice(history.length - 5)
+        const { getClient } = await import('../services/azureAI')
+        const summary = await summarizeConversation(olderMessages, getClient())
+        effectiveHistory = [
+          { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
+          ...recentMessages,
+        ]
+      } catch (err) {
+        console.error('[chatController] summarization failed, using full history:', err)
+        // Fall back to full history on error
+      }
+    }
+
+    // Resolve mode-specific temperature
+    const temperature = MODE_TEMPERATURES[mode] ?? 0.7
 
     // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
     const tools: ChatCompletionTool[] = [IMAGE_TOOL]
@@ -214,7 +299,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // Pass user-attached image as vision data so LLM can see it
     const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
 
-    const aiResult = await callAzureAI(history, englishText, systemPrompt, tools, visionData)
+    const aiResult = await callAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)
 
     // Store token usage for logged-in users
     console.log(`[chatController] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, aiResult.usage)
@@ -349,17 +434,44 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     let isPremium = false
     let userRole: string | null = null
+    let userProfile: UserProfileContext | null = null
     if (isLoggedIn) {
       const profileSnap = await getDoc(doc(db, 'users', uid))
       if (profileSnap.exists()) {
-        isPremium = profileSnap.data().isPremium ?? false
-        userRole = profileSnap.data().role ?? null
+        const data = profileSnap.data()
+        isPremium = data.isPremium ?? false
+        userRole = data.role ?? null
+        userProfile = {
+          weddingDate: data.weddingDate ?? null,
+          budget: data.budget ?? null,
+          stylePreferences: data.stylePreferences ?? null,
+        }
       }
     }
 
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
       + buildLanguageInstruction(targetLanguage)
+
+    // Conversation summarization: compress older messages when history is long
+    let effectiveHistory = history
+    if (history.length > 10) {
+      try {
+        const olderMessages = history.slice(0, history.length - 5)
+        const recentMessages = history.slice(history.length - 5)
+        const { getClient } = await import('../services/azureAI')
+        const summary = await summarizeConversation(olderMessages, getClient())
+        effectiveHistory = [
+          { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
+          ...recentMessages,
+        ]
+      } catch (err) {
+        console.error('[chatController:stream] summarization failed, using full history:', err)
+      }
+    }
+
+    // Resolve mode-specific temperature
+    const temperature = MODE_TEMPERATURES[mode] ?? 0.7
 
     // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
     const tools: ChatCompletionTool[] = [IMAGE_TOOL]
@@ -379,7 +491,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     let firstPassToolCalls: { id: string; name: string; args: Record<string, any> }[] = []
     let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
 
-    for await (const event of streamCallAzureAI(history, englishText, systemPrompt, tools, visionData)) {
+    for await (const event of streamCallAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)) {
       if (event.type === 'chunk') {
         sse({ t: 'c', v: event.text })
         fullText += event.text

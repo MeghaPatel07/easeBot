@@ -216,11 +216,11 @@ export default function TimelineView({
   if (entries.length === 0 && !weddingDate) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center">
-        <div className="h-14 w-14 rounded-full bg-stone-100 flex items-center justify-center mb-4">
-          <Calendar className="h-7 w-7 text-stone-400" />
+        <div className="h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center mb-4">
+          <Calendar className="h-7 w-7 text-white/40" />
         </div>
-        <h3 className="text-sm font-semibold text-stone-700 mb-1">No timeline items yet</h3>
-        <p className="text-xs text-stone-400 max-w-[260px] leading-relaxed">
+        <h3 className="text-sm font-semibold text-white/70 mb-1">No timeline items yet</h3>
+        <p className="text-xs text-white/40 max-w-[260px] leading-relaxed">
           Add due dates to your checklist items or create calendar events to see them on your timeline.
         </p>
       </div>
@@ -235,15 +235,15 @@ export default function TimelineView({
       {/* Stats bar */}
       <div className="flex-shrink-0 px-4 pt-4 pb-3">
         <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-          <div className="flex-1 min-w-0 rounded-xl bg-stone-50 border border-border px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-stone-700">{stats.total}</p>
-            <p className="text-3xs text-stone-500 font-medium">Total</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-white/[0.04] border border-border px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-white/70">{stats.total}</p>
+            <p className="text-3xs text-white/50 font-medium">Total</p>
           </div>
           <div className="flex-1 min-w-0 rounded-xl bg-emerald-50 border border-emerald-100 px-2.5 py-2 text-center">
             <p className="text-base font-bold text-emerald-600">{stats.completed}</p>
             <p className="text-3xs text-emerald-500 font-medium">Completed</p>
           </div>
-          <div className="flex-1 min-w-0 rounded-xl bg-blue-50 border border-border px-2.5 py-2 text-center">
+          <div className="flex-1 min-w-0 rounded-xl bg-blue-500/10 border border-border px-2.5 py-2 text-center">
             <p className="text-base font-bold text-blue-600">{stats.upcoming}</p>
             <p className="text-3xs text-primary font-medium">Upcoming</p>
           </div>
@@ -261,8 +261,8 @@ export default function TimelineView({
         {Array.from(grouped.entries()).map(([monthKey, monthEntries]) => (
           <div key={monthKey} className="mb-6">
             {/* Month header */}
-            <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm py-1.5 mb-2">
-              <h4 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">
+            <div className="sticky top-0 z-10 bg-white/[0.08] backdrop-blur-sm py-1.5 mb-2">
+              <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider">
                 {monthKey}
               </h4>
             </div>
@@ -275,7 +275,7 @@ export default function TimelineView({
             {/* Entries */}
             <div className="relative">
               {/* Vertical line */}
-              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-stone-200" />
+              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-white/15" />
 
               {monthEntries.map((entry, idx) => {
                 const isLast = idx === monthEntries.length - 1
@@ -288,10 +288,10 @@ export default function TimelineView({
                     </div>
 
                     {/* Card */}
-                    <div className="flex-1 rounded-xl bg-white/70 border border-border px-3 py-2.5 min-w-0">
+                    <div className="flex-1 rounded-xl bg-white/[0.06] border border-border px-3 py-2.5 min-w-0">
                       {/* Date row */}
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-2xs text-stone-400 font-medium">
+                        <span className="text-2xs text-white/40 font-medium">
                           {formatDate(entry.date)}
                         </span>
 
@@ -300,7 +300,7 @@ export default function TimelineView({
                           className={`text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none ${
                             entry.type === 'task'
                               ? 'bg-primary/15 text-primary'
-                              : 'bg-blue-50 text-primary'
+                              : 'bg-blue-500/10 text-primary'
                           }`}
                         >
                           {entry.type === 'task' ? 'Task' : 'Event'}
@@ -314,13 +314,13 @@ export default function TimelineView({
                       </div>
 
                       {/* Title */}
-                      <p className="text-sm font-medium text-stone-800 leading-snug mb-0.5">
+                      <p className="text-sm font-medium text-white/85 leading-snug mb-0.5">
                         {entry.type === 'task' && (
                           <span className="inline-flex items-center mr-1.5 align-middle">
                             {entry.completed ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                             ) : (
-                              <span className="inline-block h-3.5 w-3.5 rounded border border-stone-300" />
+                              <span className="inline-block h-3.5 w-3.5 rounded border border-white/30" />
                             )}
                           </span>
                         )}
@@ -339,12 +339,12 @@ export default function TimelineView({
 
                       {/* Description / checklist source */}
                       {entry.description && (
-                        <p className="text-xs text-stone-400 leading-relaxed line-clamp-3">
+                        <p className="text-xs text-white/40 leading-relaxed line-clamp-3">
                           {entry.description}
                         </p>
                       )}
                       {entry.checklistTitle && (
-                        <p className="text-2xs text-stone-400 mt-0.5">
+                        <p className="text-2xs text-white/40 mt-0.5">
                           From: {entry.checklistTitle}
                         </p>
                       )}

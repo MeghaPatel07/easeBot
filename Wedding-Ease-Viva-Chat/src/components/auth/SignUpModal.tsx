@@ -129,10 +129,10 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
               <DialogHeader className="text-center space-y-4">
                 <div className="flex flex-col items-center">
                   <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
-                  <div className="font-label uppercase tracking-[0.2em] text-2xs text-stone-400">Digital Concierge</div>
+                  <div className="font-label uppercase tracking-[0.2em] text-2xs text-white/40">Digital Concierge</div>
                 </div>
                 <DialogTitle className="font-headline text-3xl tracking-tight">Create Your Account</DialogTitle>
-                <DialogDescription className="text-stone-500 text-sm">
+                <DialogDescription className="text-white/50 text-sm">
                   Join thousands of couples planning their perfect wedding with Viva.
                 </DialogDescription>
               </DialogHeader>
@@ -142,48 +142,48 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 <button
                   onClick={handleGoogle}
                   disabled={loading}
-                  className="w-full h-14 rounded-xl bg-white border border-stone-200 flex items-center justify-center gap-3 text-stone-800 font-medium hover:bg-stone-50 hover:border-stone-300 transition-all disabled:opacity-50"
+                  className="w-full h-14 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center gap-3 text-white/85 font-medium hover:bg-white/[0.06] hover:border-white/20 transition-all disabled:opacity-50"
                 >
                   <GoogleIcon /> Continue with Google
                 </button>
 
                 <div className="flex items-center gap-4 my-4">
-                  <div className="h-[1px] flex-1 bg-stone-200"></div>
-                  <span className="font-label uppercase tracking-widest text-2xs text-stone-400">or sign up with email</span>
-                  <div className="h-[1px] flex-1 bg-stone-200"></div>
+                  <div className="h-[1px] flex-1 bg-white/10"></div>
+                  <span className="font-label uppercase tracking-widest text-2xs text-white/40">or sign up with email</span>
+                  <div className="h-[1px] flex-1 bg-white/10"></div>
                 </div>
 
                 {/* Full name */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Full Name</label>
-                  <Input value={form.name} onChange={set('name')} placeholder="Jane Smith" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
+                  <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Full Name</label>
+                  <Input value={form.name} onChange={set('name')} placeholder="Jane Smith" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
                   {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                 </div>
 
                 {/* Email */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Email</label>
-                  <Input type="email" value={form.email} onChange={set('email')} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
+                  <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Email</label>
+                  <Input type="email" value={form.email} onChange={set('email')} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
                   {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
                 </div>
 
                 {/* Phone (optional) */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Phone <span className="text-muted-foreground font-normal">(optional)</span></label>
-                  <Input type="tel" value={form.phone} onChange={set('phone')} placeholder="+1 555 123 4567" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
+                  <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Phone <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <Input type="tel" value={form.phone} onChange={set('phone')} placeholder="+1 555 123 4567" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
                 </div>
 
                 {/* Password */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Password</label>
-                  <Input type="password" value={form.password} onChange={set('password')} placeholder="Min 6 characters" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
+                  <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Password</label>
+                  <Input type="password" value={form.password} onChange={set('password')} placeholder="Min 6 characters" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
                   {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
                 </div>
 
                 {/* Confirm */}
                 <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-label text-stone-500 ml-1">Confirm Password</label>
-                  <Input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} placeholder="••••••••" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all placeholder:text-stone-400 text-base sm:text-sm" />
+                  <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Confirm Password</label>
+                  <Input type="password" value={form.confirmPassword} onChange={set('confirmPassword')} placeholder="••••••••" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
                   {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
                 </div>
 
@@ -194,7 +194,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                     id="terms"
                     checked={form.terms}
                     onChange={set('terms')}
-                    className="mt-0.5 h-4 w-4 rounded border-stone-300"
+                    className="mt-0.5 h-4 w-4 rounded border-white/20"
                   />
                   <label htmlFor="terms" className="text-xs text-muted-foreground">
                     I agree to the <span className="underline cursor-pointer">Terms of Service</span> and <span className="underline cursor-pointer">Privacy Policy</span>
@@ -236,9 +236,9 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                   </div>
                 </div>
                 <div>
-                  <p className="font-medium text-stone-800">Check your inbox</p>
+                  <p className="font-medium text-white/85">Check your inbox</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    We sent a verification link to <span className="font-medium text-stone-700">{signedUpEmail}</span>
+                    We sent a verification link to <span className="font-medium text-white/70">{signedUpEmail}</span>
                   </p>
                   <p className="text-sm text-muted-foreground mt-2">
                     Click the link in the email to activate your account, then sign in.

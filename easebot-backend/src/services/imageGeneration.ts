@@ -27,6 +27,8 @@ import {
   editImageGemini,
   analyzeImageGemini,
 } from './geminiImageGeneration'
+import { withRetry } from '../utils/retry'
+import { imageCircuitBreaker, CircuitBreakerError } from './circuitBreaker'
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 
@@ -67,7 +69,7 @@ export const IMAGE_TOOL: ChatCompletionTool = {
           type: 'string',
           enum: ['1024x1024', '1024x1536', '1536x1024'],
           description:
-            'Image dimensions. Use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations.',
+            'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
         },
         variants: {
           type: 'integer',
@@ -105,6 +107,7 @@ export function buildImageEditPrompt(userPrompt: string): string {
     `- Keep ALL other clothing/accessories unchanged`,
     `- Match textures and patterns when changing colors`,
     `- Result should look like the same photo with only the requested change`,
+    `- CRITICAL: Maintain the EXACT same aspect ratio and orientation as the original image — do NOT change from landscape to portrait or vice versa`,
   ].join('\n')
 }
 
@@ -221,16 +224,32 @@ export async function generateImageGptImage1(
   size: ImageSize = '1024x1024',
   count: 1 | 2 | 3 = 1
 ): Promise<string[]> {
-  // Try Gemini first
-  if (process.env.GEMINI_API_KEY) {
-    console.log('[imageGeneration] Using Gemini for text-to-image generation')
-    const images = await generateImageGemini(prompt, size, count)
-    if (images.length > 0) return images
-    console.warn('[imageGeneration] Gemini returned no images, falling back to Azure')
-  }
+  try {
+    return await imageCircuitBreaker.execute(async () => {
+      // Try Gemini first (with retry)
+      if (process.env.GEMINI_API_KEY) {
+        console.log('[imageGeneration] Using Gemini for text-to-image generation')
+        const images = await withRetry(
+          () => generateImageGemini(prompt, size, count),
+          { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 8000 }
+        )
+        if (images.length > 0) return images
+        console.warn('[imageGeneration] Gemini returned no images, falling back to Azure')
+      }
 
-  // Azure fallback
-  return await generateImageAzureFallback(prompt, size, count)
+      // Azure fallback (with retry)
+      return await withRetry(
+        () => generateImageAzureFallback(prompt, size, count),
+        { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
+      )
+    })
+  } catch (err) {
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[imageGeneration] ${err.message}`)
+      return []
+    }
+    throw err
+  }
 }
 
 /**
@@ -298,16 +317,32 @@ export async function editImageGptImage1(
   prompt: string,
   size: ImageSize = '1024x1024'
 ): Promise<string[]> {
-  // Try Gemini first
-  if (process.env.GEMINI_API_KEY) {
-    console.log('[imageGeneration] Using Gemini for image-to-image editing')
-    const images = await editImageGemini(imageBase64, prompt, size)
-    if (images.length > 0) return images
-    console.warn('[imageGeneration] Gemini edit returned no images, falling back to Azure')
-  }
+  try {
+    return await imageCircuitBreaker.execute(async () => {
+      // Try Gemini first (with retry)
+      if (process.env.GEMINI_API_KEY) {
+        console.log('[imageGeneration] Using Gemini for image-to-image editing')
+        const images = await withRetry(
+          () => editImageGemini(imageBase64, prompt, size),
+          { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 8000 }
+        )
+        if (images.length > 0) return images
+        console.warn('[imageGeneration] Gemini edit returned no images, falling back to Azure')
+      }
 
-  // Azure fallback
-  return await editImageAzureFallback(imageBase64, prompt, size)
+      // Azure fallback (with retry)
+      return await withRetry(
+        () => editImageAzureFallback(imageBase64, prompt, size),
+        { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
+      )
+    })
+  } catch (err) {
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[imageGeneration] ${err.message}`)
+      return []
+    }
+    throw err
+  }
 }
 
 /**
@@ -351,7 +386,7 @@ async function editImageAzureFallback(
     if (!res.ok) {
       const body = await res.text()
       console.error(`[imageGeneration] Azure edit fallback error ${res.status}: ${body}`)
-      return await azureFallbackImageToImage(imageBase64, prompt)
+      return await azureFallbackImageToImage(imageBase64, prompt, size)
     }
 
     const data = await res.json()
@@ -360,20 +395,21 @@ async function editImageAzureFallback(
       .filter(Boolean)
 
     if (rawImages.length === 0) {
-      return await azureFallbackImageToImage(imageBase64, prompt)
+      return await azureFallbackImageToImage(imageBase64, prompt, size)
     }
 
     return await Promise.all(rawImages.map(b64 => compressImage(b64)))
   } catch (err) {
     console.error('[imageGeneration] Azure edit fallback error:', err)
-    return await azureFallbackImageToImage(imageBase64, prompt)
+    return await azureFallbackImageToImage(imageBase64, prompt, size)
   }
 }
 
 /**
  * Last-resort fallback: analyze image with vision, then regenerate.
+ * Preserves the source image's aspect ratio by detecting it from the base64.
  */
-async function azureFallbackImageToImage(imageBase64: string, prompt: string): Promise<string[]> {
+async function azureFallbackImageToImage(imageBase64: string, prompt: string, size: ImageSize = '1024x1024'): Promise<string[]> {
   try {
     const description = await analyzeImage(
       imageBase64,
@@ -381,8 +417,9 @@ async function azureFallbackImageToImage(imageBase64: string, prompt: string): P
       'Describe this image in EXTREME detail for recreation: exact person appearance, clothing, pose, background, lighting, camera angle. Miss nothing.',
       'high'
     )
-    const combinedPrompt = `Recreate this EXACT photo: "${description}". Then make ONLY this change: ${prompt}. Everything else must remain identical.`
-    return await generateImageGptImage1(combinedPrompt)
+    const orientationLabel = size === '1536x1024' ? 'LANDSCAPE/horizontal' : size === '1024x1536' ? 'PORTRAIT/vertical' : 'SQUARE'
+    const combinedPrompt = `Recreate this EXACT photo: "${description}". Then make ONLY this change: ${prompt}. Everything else must remain identical. The image MUST be ${orientationLabel} orientation.`
+    return await generateImageGptImage1(combinedPrompt, size)
   } catch (err) {
     console.error('[imageGeneration] azure fallback image-to-image error:', err)
     return []
