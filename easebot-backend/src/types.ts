@@ -52,7 +52,7 @@ export interface ToolAction {
   imageVariants?: number
 }
 
-export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024'
+export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
 
 export interface ImageQuotaStatus {
   allowed: boolean

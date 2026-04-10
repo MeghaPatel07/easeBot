@@ -32,15 +32,21 @@ import { imageCircuitBreaker, CircuitBreakerError } from './circuitBreaker'
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 
-/** Maximum image size in bytes (500 KB) */
-const MAX_IMAGE_BYTES = 500 * 1024
+/** Maximum image size in bytes (2 MB) — higher limit preserves image quality */
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
 /** Output format from Azure API */
 const IMAGE_FORMAT = 'png'
 
 // ── Types ───────────────────────────────────────────────────────────────────────
 
-export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024'
+export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
+
+/** Map ImageSize to Azure-supported size values. Azure doesn't support 1024x1792, use 'auto' instead. */
+function toAzureSize(size: ImageSize): string {
+  if (size === '1024x1792') return 'auto'
+  return size
+}
 
 export type ImageClassification = 'text-to-image' | 'image-to-text' | 'image-to-image' | 'text-only'
 
@@ -51,14 +57,14 @@ export const IMAGE_TOOL: ChatCompletionTool = {
   function: {
     name: 'generate_image',
     description:
-      'Generate or edit a wedding/celebration image for any family member, any race, culture, or tradition. Only call this when the user explicitly or clearly implicitly requests an image, photo, visualization, or design. Do NOT call for non-visual requests like guest lists, timelines, or budgets.',
+      'Generate or edit an image. Only call this when the user explicitly or clearly implicitly requests an image, photo, visualization, or design. Do NOT call for non-visual requests like guest lists, timelines, or budgets.',
     parameters: {
       type: 'object',
       properties: {
         prompt: {
           type: 'string',
           description:
-            'Write a rich, detailed image prompt. For "generate": identify the person\'s ROLE (bride, groom, father, mother, bridesmaid, etc.) and CULTURE/ETHNICITY, then include attire, colors, fabrics, textures, cultural elements, setting (max 3 sentences). Be vivid and specific — describe what you SEE. For "edit": state ONLY the single targeted change — e.g. "change the sherwani color to deep royal blue". Be precise. Do NOT describe the rest of the image.',
+            'Write a rich, vivid, and contextually detailed image prompt. Think like a creative director briefing a designer — describe the VISUAL you want to see: subject, composition, mood, colors, textures, lighting, styling details, and emotional feel. Be specific and vivid. For people, describe their appearance, attire, pose, and context. For multi-element visuals (mood boards, collages, comparisons), describe each section\'s unique mood and content. For design outputs (invitations, timelines, infographics), describe the layout, typography style, and content. The more detailed and intentional the prompt, the better the result. For "edit": state ONLY the single targeted change — be precise. Do NOT describe the rest of the image.',
         },
         action: {
           type: 'string',
@@ -67,9 +73,9 @@ export const IMAGE_TOOL: ChatCompletionTool = {
         },
         aspect_ratio: {
           type: 'string',
-          enum: ['1024x1024', '1024x1536', '1536x1024'],
+          enum: ['1024x1024', '1024x1536', '1536x1024', '1024x1792'],
           description:
-            'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
+            'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations, tall (1024x1792) for timelines/infographics/checklists/step-by-step content that needs extra vertical space to avoid cropping. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
         },
         variants: {
           type: 'integer',
@@ -90,7 +96,7 @@ export function buildImageGenPrompt(userPrompt: string, styleContext?: string[])
   const styleStr = styleContext?.length
     ? `Maintain consistent visual style: ${styleContext.join(', ')}. `
     : ''
-  return `Wedding/celebration context for any culture, tradition, or family role. ${styleStr}${userPrompt}. Photorealistic, professionally lit, sharp details, accurate true-to-life colors, natural skin tones across all ethnicities, elegant composition.`
+  return `${styleStr}${userPrompt}. Photorealistic, professionally lit, sharp details, accurate true-to-life colors, natural skin tones, elegant composition.`
 }
 
 /** Builds a surgical edit prompt that preserves everything except the specific change */
@@ -188,7 +194,7 @@ async function compressImage(b64: string): Promise<string> {
   if (inputBuffer.length <= MAX_IMAGE_BYTES) return b64
 
   try {
-    for (const quality of [75, 60, 45, 35, 25]) {
+    for (const quality of [92, 85, 78, 70]) {
       const compressed = await sharp(inputBuffer)
         .jpeg({ quality, mozjpeg: true })
         .toBuffer()
@@ -199,9 +205,10 @@ async function compressImage(b64: string): Promise<string> {
       }
     }
 
+    // Last resort: slight resize but keep quality high
     const resized = await sharp(inputBuffer)
-      .resize(768, 768, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 20, mozjpeg: true })
+      .resize(1536, 1536, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 65, mozjpeg: true })
       .toBuffer()
 
     console.log(`[imageGeneration] Compressed+resized ${Math.round(inputBuffer.length / 1024)}KB → ${Math.round(resized.length / 1024)}KB`)
@@ -280,7 +287,7 @@ async function generateImageAzureFallback(
       body: JSON.stringify({
         prompt: weddingPrompt,
         n: count,
-        size,
+        size: toAzureSize(size),
         output_format: IMAGE_FORMAT,
       }),
     })
@@ -372,7 +379,7 @@ async function editImageAzureFallback(
     formData.append('image', blob, 'image.png')
     formData.append('prompt', editPrompt)
     formData.append('n', '1')
-    formData.append('size', size)
+    formData.append('size', toAzureSize(size))
     formData.append('output_format', IMAGE_FORMAT)
 
     const url = `${endpoint}/openai/deployments/${deployment}/images/edits?api-version=${apiVersion}`
@@ -417,7 +424,7 @@ async function azureFallbackImageToImage(imageBase64: string, prompt: string, si
       'Describe this image in EXTREME detail for recreation: exact person appearance, clothing, pose, background, lighting, camera angle. Miss nothing.',
       'high'
     )
-    const orientationLabel = size === '1536x1024' ? 'LANDSCAPE/horizontal' : size === '1024x1536' ? 'PORTRAIT/vertical' : 'SQUARE'
+    const orientationLabel = size === '1536x1024' ? 'LANDSCAPE/horizontal' : (size === '1024x1536' || size === '1024x1792') ? 'TALL PORTRAIT/vertical' : 'SQUARE'
     const combinedPrompt = `Recreate this EXACT photo: "${description}". Then make ONLY this change: ${prompt}. Everything else must remain identical. The image MUST be ${orientationLabel} orientation.`
     return await generateImageGptImage1(combinedPrompt, size)
   } catch (err) {

@@ -52,7 +52,12 @@
       "Bash(pkill -f \"vite\")",
       "Bash(npx playwright:*)",
       "Bash(npm list:*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "mcp__claude_ai_Figma__whoami",
+      "mcp__claude_ai_Figma__create_new_file",
+      "mcp__claude_ai_Figma__use_figma",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(npx ts-node:*)"
     ]
   }
 }

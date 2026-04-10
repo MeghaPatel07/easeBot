@@ -267,7 +267,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="mb-1 w-full prose prose-sm max-w-none text-[13px] leading-[1.7] bg-[#F5EFE5]/10 backdrop-blur-sm p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-lg shadow-black/8 border border-[#C6944A]/10 text-white">
+              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-[#F5EFE5]/10 backdrop-blur-sm p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-lg shadow-black/8 border border-[#C6944A]/10 text-white">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
