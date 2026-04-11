@@ -9,6 +9,7 @@ import LoadingScreen from "@/components/ui/loading-screen";
 
 const Index = lazy(() => import('./pages/Index'));
 const SharedChat = lazy(() => import('./pages/SharedChat'));
+const SharedNote = lazy(() => import('./pages/SharedNote'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -37,7 +38,10 @@ const App = () => (
               <Route path="/:userId/progress" element={<Index />} />
               <Route path="/:userId/notifications" element={<Index />} />
               <Route path="/:userId/collaborate" element={<Index />} />
+              <Route path="/:userId/notes" element={<Index />} />
+              <Route path="/:userId/notes/:noteId" element={<Index />} />
               <Route path="/share/:shareId" element={<SharedChat />} />
+              <Route path="/shared/note/:shareId" element={<SharedNote />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

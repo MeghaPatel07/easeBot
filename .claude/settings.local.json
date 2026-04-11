@@ -61,7 +61,16 @@
       "Bash(npx tsx:*)",
       "Bash(jobs -l)",
       "Bash(python3 -m json.tool)",
-      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)"
+      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)",
+      "Bash(grep -A5 'alias' vite.config.ts)",
+      "Bash(grep -A5 '\"paths\"' tsconfig.json)",
+      "Bash(grep -A5 '\"paths\"' tsconfig.app.json)",
+      "Bash(/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"exit code: $?\")",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/node_modules/.bin/tsc --version)",
+      "Bash(python3 -c \"import sys,json; deps=json.load\\(sys.stdin\\).get\\('dependencies',{}\\); [print\\(k\\) for k in sorted\\(deps\\)]\")"
     ]
   }
 }

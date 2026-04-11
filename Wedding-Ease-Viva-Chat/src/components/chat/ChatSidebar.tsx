@@ -4,7 +4,7 @@ import {
   MoreHorizontal, Pencil, Trash2, Share2, Archive, ArchiveRestore,
   Tag, X, ChevronDown, ChevronRight,
   ThumbsUp, Bell, CheckSquare, DollarSign, ShoppingCart, Image,
-  Clock, BarChart3, Users, HelpCircle, Settings, LogIn,
+  Clock, BarChart3, Users, HelpCircle, Settings, LogIn, FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ import { TAG_PRESETS, getTagStyle } from './constants';
 export type SidebarView =
   | 'history' | 'liked' | 'reminders' | 'planner' | 'saved-items'
   | 'moodboard' | 'shopping' | 'budget' | 'timeline' | 'progress'
-  | 'notifications' | 'collaborate' | 'gallery';
+  | 'notifications' | 'collaborate' | 'gallery' | 'notes';
 
 export interface ChatSidebarProps {
   isOpen: boolean;
@@ -280,6 +280,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   // { view: 'notifications' as const, icon: Bell, label: 'alerts', badge: 0 },
                   // { view: 'collaborate' as const, icon: Users, label: 'collaborate', badge: 0 },
                   { view: 'gallery' as const, icon: Image, label: 'gallery', badge: 0 },
+                  { view: 'notes' as const, icon: FileText, label: 'notes', badge: 0 },
                 ] as const).map(({ view, icon: Icon, label, badge }) => {
                   const isActive = sidebarView === view;
                   return (

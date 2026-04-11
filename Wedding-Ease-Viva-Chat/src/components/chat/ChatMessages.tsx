@@ -101,11 +101,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom on new messages
+  // Track pendingScrollToId via ref so clearing it doesn't re-trigger auto-scroll
+  const pendingScrollRef = useRef(pendingScrollToId);
+  useEffect(() => { pendingScrollRef.current = pendingScrollToId; }, [pendingScrollToId]);
+
+  // Auto-scroll to bottom on new messages (skip when a targeted scroll is pending)
   useEffect(() => {
-    if (pendingScrollToId) return;
+    if (pendingScrollRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping, pendingScrollToId]);
+  }, [messages, isTyping]);
 
   const handleLoadMore = async () => {
     if (loadingMoreMessages || !hasMoreMessages) return;

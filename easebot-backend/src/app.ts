@@ -6,6 +6,7 @@ import transcribeRouter from './routes/transcribe'
 import imageRouter from './routes/image'
 import calendarRouter from './routes/calendar'
 import checklistsRouter from './routes/checklists'
+import notesRouter from './routes/notes'
 import ttsRouter from './routes/tts'
 import healthRouter from './routes/health'
 import { getSpeechToken } from './controllers/speechTokenController'
@@ -66,6 +67,7 @@ const mountRoutes = (prefix: string): void => {
   app.use(`${prefix}/generate-image`, imageRouter)
   app.use(`${prefix}/calendar`, calendarRouter)
   app.use(`${prefix}/checklists`, checklistsRouter)
+  app.use(`${prefix}/notes`, notesRouter)
   app.use(`${prefix}/tts`, ttsRouter)
   app.get(`${prefix}/speech-token`, getSpeechToken)
 }

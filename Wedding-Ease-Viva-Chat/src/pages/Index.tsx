@@ -3,7 +3,7 @@ import {
   Sparkles, Heart, MessageSquare, Calendar, Lightbulb, Globe,
   Lock, ArrowLeft, CheckSquare,
   Bookmark, Image, ShoppingCart, DollarSign, ThumbsUp,
-  Keyboard, BarChart3, Clock, Bell, Users,
+  Keyboard, BarChart3, Clock, Bell, Users, FileText,
   X, Copy, Check, Link, Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import ShoppingListView from '@/components/ShoppingListView';
 import SavedItemsView from '@/components/SavedItemsView';
 import TimelineView from '@/components/TimelineView';
 import GalleryView from '@/components/GalleryView';
+import NotesView from '@/components/notes/NotesView';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
 import InvitePartner from '@/components/InvitePartner';
@@ -116,7 +117,7 @@ const Index = () => {
   const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
 
   // ── Sidebar view from URL ─────────────────────────────────────────────────
-  const VALID_VIEWS = new Set<SidebarView>(['gallery', 'planner', 'liked', 'reminders', 'budget', 'shopping', 'saved-items', 'timeline', 'progress', 'notifications', 'collaborate', 'moodboard']);
+  const VALID_VIEWS = new Set<SidebarView>(['gallery', 'planner', 'liked', 'reminders', 'budget', 'shopping', 'saved-items', 'timeline', 'progress', 'notifications', 'collaborate', 'moodboard', 'notes']);
   const pathSegments = location.pathname.split('/').filter(Boolean);
   const viewSegment = pathSegments.length >= 2 && pathSegments[0] !== 'chat' && pathSegments[0] !== 'share' ? pathSegments[1] : null;
   const sidebarView: SidebarView = viewSegment && VALID_VIEWS.has(viewSegment as SidebarView) ? viewSegment as SidebarView : 'history';
@@ -162,13 +163,17 @@ const Index = () => {
   useEffect(() => {
     if (!pendingScrollToId || messages.length === 0) return;
     const el = document.getElementById(`msg-${pendingScrollToId}`);
-    if (!el) return;
+    if (!el) {
+      // Message not in DOM yet — load older messages if available
+      if (hasMoreMessages) loadMoreMessages();
+      return;
+    }
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setHighlightedMessageId(pendingScrollToId);
     setPendingScrollToId(null);
     const timer = setTimeout(() => setHighlightedMessageId(null), 2000);
     return () => clearTimeout(timer);
-  }, [messages, pendingScrollToId]);
+  }, [messages, pendingScrollToId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Full-text search (debounced) ──────────────────────────────────────────
   useEffect(() => {
@@ -814,7 +819,7 @@ const Index = () => {
           <div className="ml-auto">{profileIconJSX}</div>
         </header>
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-5">
-          <div className="max-w-4xl mx-auto w-full">{children}</div>
+          <div className=" mx-auto w-full">{children}</div>
         </div>
       </main>
     </div>
@@ -890,6 +895,7 @@ const Index = () => {
 
   if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
+  if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
   if (sidebarView === 'gallery') return mainAreaShell('Gallery', <Image className="h-5 w-5 text-primary" />, user ? <GalleryView userId={user.uid} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-white/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
   // ── Coming soon views ─────────────────────────────────────────────────────

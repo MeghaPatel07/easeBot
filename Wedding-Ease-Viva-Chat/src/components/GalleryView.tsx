@@ -103,7 +103,7 @@ export default function GalleryView({ userId }: GalleryViewProps) {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-8 gap-2">
         {images.map((img, idx) => (
           <button
             key={img.id}
