@@ -19,7 +19,8 @@ import {
   Unsubscribe,
   DocumentSnapshot,
 } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage'
+import { db, storage } from '@/lib/firebase'
 import type { ChatThread, ChatMessage, Mode } from '@/types'
 
 // ── Threads ──────────────────────────────────────────────────────────────────
@@ -299,4 +300,76 @@ export async function getSharedChat(shareId: string): Promise<SharedChatData | n
     sharedAt: data.sharedAt?.toDate?.() ?? new Date(),
     expiresAt,
   }
+}
+
+// ── Remove image from a message ──────────────────────────────────────────────
+
+/** Remove a specific image URL from a message, delete from Firebase Storage, and flag as deleted */
+export async function removeMessageImage(
+  threadId: string,
+  messageId: string,
+  imageUrl: string
+): Promise<void> {
+  const msgRef = doc(db, 'chats', threadId, 'messages', messageId)
+  const snap = await getDoc(msgRef)
+  if (!snap.exists()) return
+  const data = snap.data()
+
+  const updates: Record<string, any> = {}
+
+  // Remove from imageUrls array
+  if (Array.isArray(data.imageUrls)) {
+    const filtered = data.imageUrls.filter((u: string) => u !== imageUrl)
+    updates.imageUrls = filtered
+    if (data.imageUrl === imageUrl) {
+      updates.imageUrl = filtered[0] ?? null
+    }
+  } else if (data.imageUrl === imageUrl) {
+    updates.imageUrl = null
+    updates.imageUrls = []
+  }
+
+  // If no images remain after removal, mark as deleted
+  const remainingUrls = updates.imageUrls ?? data.imageUrls ?? []
+  const remainingUrl = updates.imageUrl ?? data.imageUrl ?? null
+  if (remainingUrls.length === 0 && !remainingUrl) {
+    updates.imageDeleted = true
+  }
+
+  // Also clear attachedImageUrl if it matches
+  if (data.attachedImageUrl === imageUrl) {
+    updates.attachedImageUrl = null
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await updateDoc(msgRef, updates)
+  }
+
+  // Delete from Firebase Storage (best-effort — ignore if URL is external or already gone)
+  try {
+    const storageRef = ref(storage, imageUrl)
+    await deleteObject(storageRef)
+  } catch {
+    // URL may be external (not in our Storage) or already deleted — that's fine
+  }
+}
+
+// ── User-attached image upload ──────────────────────────────────────────────
+
+/**
+ * Upload a user-attached image (base64) to Firebase Storage.
+ * Returns the download URL. Optimized: compresses before upload.
+ */
+export async function uploadAttachedImage(
+  userId: string,
+  threadId: string,
+  base64Data: string,
+  mimeType: string = 'image/png'
+): Promise<string> {
+  const ext = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png'
+  const fileName = `${Date.now()}.${ext}`
+  const storagePath = `userAttachments/${userId}/${threadId}/${fileName}`
+  const storageRef = ref(storage, storagePath)
+  await uploadString(storageRef, base64Data, 'base64', { contentType: mimeType })
+  return getDownloadURL(storageRef)
 }

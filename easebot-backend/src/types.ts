@@ -30,6 +30,7 @@ export interface ChatPayload {
   imageBase64?: string
   imageMimeType?: string
   lastGeneratedImageUrl?: string  // For iterative editing (R6)
+  styleMemory?: StyleMemory
 }
 
 export interface CalendarEvent {
@@ -62,6 +63,14 @@ export interface ImageQuotaStatus {
   resetAt: string
 }
 
+export interface StyleMemory {
+  descriptors: string[]
+  colorPalette: string[]
+  aestheticRegister: string
+  culturalContext: string
+  lastGeneratedImageUrl: string | null
+}
+
 export interface ChatResponse {
   text: string
   audioUrl: string | null
@@ -72,6 +81,7 @@ export interface ChatResponse {
   mode: Mode
   detectedLanguage: string
   imageQuota?: ImageQuotaStatus
+  styleMemory?: StyleMemory
 }
 
 export interface HistoryMessage {

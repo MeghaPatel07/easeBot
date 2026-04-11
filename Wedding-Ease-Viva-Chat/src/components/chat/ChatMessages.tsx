@@ -3,9 +3,9 @@ import {
   Send, Sparkles, Calendar, CheckSquare,
   Copy, Download, ThumbsUp, Edit3, Lock,
   RefreshCw, Loader2, Bookmark,
-  Check, Volume2,
+  Check, Volume2, X, ImagePlus,
   ChevronUp, ChevronLeft, ChevronRight,
-  Minimize2, Maximize2, Type, GraduationCap,
+  Minimize2, Maximize2, Type, GraduationCap, ImageOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,10 +43,13 @@ export interface ChatMessagesProps {
   // Inline editing
   inlineEditId: string | null;
   inlineEditText: string;
+  inlineEditImage: string | null;
   onStartInlineEdit: (m: Message) => void;
   onCancelInlineEdit: () => void;
   onSubmitInlineEdit: (m: Message) => void;
   onInlineEditTextChange: (text: string) => void;
+  onInlineEditImageChange: (dataUri: string | null) => void;
+  onInlineEditImageRemove: () => void;
   // Branch navigation
   getBranchInfo: (msgIndex: number) => BranchInfo | null;
   onSwitchBranch: (anchorId: string, newIndex: number) => void;
@@ -62,6 +65,7 @@ export interface ChatMessagesProps {
   onSaveProduct: (title: string, url: string, imageUrl: string) => void;
   onOpenPlanner: (checklistId: string) => void;
   onShowSignIn: () => void;
+  onDeleteImage?: (messageId: string, imageUrl: string) => void;
   // TTS
   ttsLoadingId: string | null;
   ttsActiveId: string | null;
@@ -84,11 +88,11 @@ export interface ChatMessagesProps {
 const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages, isTyping, selectedMode, user, profile, activeThreadId, activeUserId,
   highlightedMessageId, hasMoreMessages, loadingMoreMessages,
-  inlineEditId, inlineEditText, onStartInlineEdit, onCancelInlineEdit, onSubmitInlineEdit, onInlineEditTextChange,
+  inlineEditId, inlineEditText, inlineEditImage, onStartInlineEdit, onCancelInlineEdit, onSubmitInlineEdit, onInlineEditTextChange, onInlineEditImageChange, onInlineEditImageRemove,
   getBranchInfo, onSwitchBranch,
   onLoadMoreMessages, onCopyMessage, onDownloadMessage, onToggleLike, onRegenerateMessage,
   onContinueGenerating, onToneModifier, onConvertToTable, onSaveProduct,
-  onOpenPlanner, onShowSignIn,
+  onOpenPlanner, onShowSignIn, onDeleteImage,
   ttsLoadingId, ttsActiveId, ttsAudioUrls, onTtsPlay, onTtsClose,
   copiedMsgId, savedProductIds,
   pendingScrollToId,
@@ -173,27 +177,98 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-300 ${highlightedMessageId === message.id ? 'rounded-2xl ring-2 ring-primary/40 ring-offset-2 bg-primary/5' : ''}`}
         >
           {message.sender === 'user' ? (
-            <div className="flex flex-col items-end">
+            <div className="flex flex-col items-end w-full">
               {inlineEditId === message.id ? (
-                <div className="w-full max-w-4xl md:max-w-5xl lg:max-w-6xl flex flex-col gap-2">
-                  <textarea
-                    autoFocus
-                    value={inlineEditText}
-                    onChange={e => onInlineEditTextChange(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmitInlineEdit(message); }
-                      if (e.key === 'Escape') onCancelInlineEdit();
-                    }}
-                    rows={Math.max(2, inlineEditText.split('\n').length)}
-                    className="w-full px-4 py-3 rounded-xl border border-primary/40 bg-white/10 text-white/90 text-caption leading-relaxed resize-none outline-none focus:ring-2 focus:ring-primary/30 shadow-md"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="ghost" size="sm" onClick={onCancelInlineEdit} className="h-7 px-3 text-xs text-white/60 hover:text-white/80 rounded-xl">
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={() => onSubmitInlineEdit(message)} disabled={!inlineEditText.trim()} className="h-7 px-3 text-xs bg-primary hover:bg-primary/90 text-white rounded-xl">
-                      <Send className="h-3 w-3 mr-1" />Send
-                    </Button>
+                <div className="w-full max-w-2xl flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Edit mode container */}
+                  <div className="rounded-2xl border border-primary/30 bg-white/[0.06] backdrop-blur-md shadow-xl overflow-hidden">
+                    {/* Attached image preview with remove/replace */}
+                    {inlineEditImage && (
+                      <div className="px-4 pt-4 flex items-start gap-3">
+                        <div className="relative group/img">
+                          <img src={inlineEditImage} alt="Attached" className="rounded-xl w-[100px] h-[100px] object-cover border border-white/10" />
+                          <button
+                            onClick={onInlineEditImageRemove}
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/90 hover:bg-red-500 text-white flex items-center justify-center shadow-md transition-all opacity-0 group-hover/img:opacity-100"
+                            title="Remove image"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                        <label className="flex flex-col items-center justify-center w-[100px] h-[100px] rounded-xl border-2 border-dashed border-white/15 hover:border-primary/40 cursor-pointer transition-colors group/upload">
+                          <ImagePlus className="h-5 w-5 text-white/30 group-hover/upload:text-primary/60 transition-colors" />
+                          <span className="text-3xs text-white/30 group-hover/upload:text-primary/60 mt-1 transition-colors">Replace</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') {
+                                  onInlineEditImageChange(reader.result);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                    )}
+                    {/* Add image button when no image */}
+                    {!inlineEditImage && (
+                      <div className="px-4 pt-3">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-white/15 hover:border-primary/40 cursor-pointer transition-colors text-white/40 hover:text-primary/70 text-xs">
+                          <ImagePlus className="h-3.5 w-3.5" />
+                          <span>Attach image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') {
+                                  onInlineEditImageChange(reader.result);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      </div>
+                    )}
+                    {/* Textarea */}
+                    <textarea
+                      autoFocus
+                      value={inlineEditText}
+                      onChange={e => onInlineEditTextChange(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmitInlineEdit(message); }
+                        if (e.key === 'Escape') onCancelInlineEdit();
+                      }}
+                      rows={Math.max(3, Math.min(12, inlineEditText.split('\n').length + 1))}
+                      className="w-full px-4 py-4 bg-transparent text-white/90 text-sm leading-relaxed resize-none outline-none placeholder:text-white/30"
+                      placeholder="Edit your message..."
+                    />
+                    {/* Action bar */}
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06] bg-white/[0.02]">
+                      <span className="text-3xs text-white/30">Press Enter to send, Esc to cancel</span>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={onCancelInlineEdit} className="h-8 px-4 text-xs text-white/60 hover:text-white/90 hover:bg-white/10 rounded-xl font-medium">
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={() => onSubmitInlineEdit(message)} disabled={!inlineEditText.trim()} className="h-8 px-4 text-xs bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-sm gap-1.5">
+                          <Send className="h-3 w-3" />Send
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -365,24 +440,51 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
               {message.imageGenerating && !message.imageUrl && !message.imageUrls?.length && (
                 <div className="mt-3 mb-2 max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full animate-in fade-in duration-300">
                   <div className="relative aspect-square rounded-xl overflow-hidden bg-white/[0.04] border border-white/[0.08]">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
-                        <Sparkles className="h-5 w-5 text-[#C6944A]/50 animate-pulse" />
-                      </div>
-                      <div className="space-y-1.5 text-center">
-                        <p className="text-xs text-white/40 font-medium">generating image...</p>
-                        <p className="text-3xs text-white/25">this may take a few seconds</p>
-                      </div>
-                      <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                        <div className="h-full bg-[#C6944A]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
-                      </div>
-                    </div>
+                    {(message as any).partialImageUrl ? (
+                      <>
+                        <img
+                          src={(message as any).partialImageUrl}
+                          alt="Generating..."
+                          className="absolute inset-0 w-full h-full object-cover blur-sm transition-all duration-700"
+                        />
+                        <div className="absolute inset-0 bg-black/20 flex items-end justify-center pb-4">
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm">
+                            <Sparkles className="h-3.5 w-3.5 text-[#C6944A] animate-pulse" />
+                            <p className="text-xs text-white/80 font-medium">refining image...</p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
+                            <Sparkles className="h-5 w-5 text-[#C6944A]/50 animate-pulse" />
+                          </div>
+                          <div className="space-y-1.5 text-center">
+                            <p className="text-xs text-white/40 font-medium">generating image...</p>
+                            <p className="text-3xs text-white/25">this may take a few seconds</p>
+                          </div>
+                          <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                            <div className="h-full bg-[#C6944A]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
               {(message.imageUrls?.length || message.imageUrl) && (
-                <ImageCarousel imageUrls={message.imageUrls ?? (message.imageUrl ? [message.imageUrl] : [])} />
+                <ImageCarousel
+                  imageUrls={message.imageUrls ?? (message.imageUrl ? [message.imageUrl] : [])}
+                  onDelete={onDeleteImage ? (imageUrl) => onDeleteImage(message.id, imageUrl) : undefined}
+                />
+              )}
+              {message.imageDeleted && !message.imageUrls?.length && !message.imageUrl && (
+                <div className="mt-2 mb-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] max-w-xs">
+                  <ImageOff className="h-4 w-4 text-white/30 flex-shrink-0" />
+                  <span className="text-xs text-white/40 italic">Image was deleted</span>
+                </div>
               )}
               {message.checklistData && (
                 <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border border-border overflow-hidden max-w-xs w-full">

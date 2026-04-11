@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Download, Share2, Bookmark, Check, Loader2, Copy, Link, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Download, Share2, Bookmark, Check, Loader2, Copy, Link, X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -7,6 +8,10 @@ interface ImageActionsProps {
   imageUrl: string
   onSaveToGallery?: () => void
   isSaved?: boolean
+  onDelete?: () => void
+  /** 'overlay' (default): absolute positioned, hover-reveal on desktop.
+   *  'preview': inline flex, always visible, larger buttons — for fullscreen lightbox. */
+  variant?: 'overlay' | 'preview'
 }
 
 // Social/share platform configs
@@ -53,7 +58,7 @@ const SHARE_PLATFORMS = [
   },
 ]
 
-export function ImageActions({ imageUrl, onSaveToGallery, isSaved }: ImageActionsProps) {
+export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, variant = 'overlay' }: ImageActionsProps) {
   const [downloading, setDownloading] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -143,38 +148,51 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved }: ImageAction
 
   return (
     <>
-      <div className="absolute top-2 right-2 flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+      <div className={
+        variant === 'preview'
+          ? 'flex gap-2 items-center bg-white/10 rounded-full px-3 py-1.5 backdrop-blur-sm'
+          : 'absolute top-2 right-2 flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200'
+      }>
         {/* Download */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" variant="ghost" onClick={handleDownload} disabled={downloading}
-              className="h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm">
-              {downloading ? <Loader2 className="h-4 w-4 sm:h-3.5 sm:w-3.5 animate-spin" /> : <Download className="h-4 w-4 sm:h-3.5 sm:w-3.5" />}
+              className={variant === 'preview'
+                ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
+                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
+              }>
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="hidden sm:block"><p>Download</p></TooltipContent>
+          <TooltipContent side="top"><p>Download</p></TooltipContent>
         </Tooltip>
 
         {/* Copy as image */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" variant="ghost" onClick={handleCopyImage}
-              className="h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm">
-              {imageCopied ? <Check className="h-4 w-4 sm:h-3.5 sm:w-3.5 text-green-400" /> : <Copy className="h-4 w-4 sm:h-3.5 sm:w-3.5" />}
+              className={variant === 'preview'
+                ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
+                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
+              }>
+              {imageCopied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="hidden sm:block"><p>{imageCopied ? 'Copied!' : 'Copy image'}</p></TooltipContent>
+          <TooltipContent side="top"><p>{imageCopied ? 'Copied!' : 'Copy image'}</p></TooltipContent>
         </Tooltip>
 
         {/* Share */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" variant="ghost" onClick={() => setShowShareModal(true)}
-              className="h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm">
-              <Share2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              className={variant === 'preview'
+                ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
+                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
+              }>
+              <Share2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="hidden sm:block"><p>Share</p></TooltipContent>
+          <TooltipContent side="top"><p>Share</p></TooltipContent>
         </Tooltip>
 
         {/* Save to gallery */}
@@ -182,18 +200,37 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved }: ImageAction
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={onSaveToGallery} disabled={isSaved}
-                className={`h-10 w-10 sm:h-7 sm:w-7 p-0 backdrop-blur-sm rounded-lg ${isSaved ? 'bg-[#C6944A]/50 text-white' : 'bg-black/50 hover:bg-black/70 text-white'}`}>
-                <Bookmark className={`h-4 w-4 sm:h-3.5 sm:w-3.5 ${isSaved ? 'fill-current' : ''}`} />
+                className={variant === 'preview'
+                  ? `h-9 w-9 p-0 rounded-full ${isSaved ? 'bg-[#C6944A]/40 text-white' : 'hover:bg-white/20 text-white'}`
+                  : `h-10 w-10 sm:h-7 sm:w-7 p-0 backdrop-blur-sm rounded-lg ${isSaved ? 'bg-[#C6944A]/50 text-white' : 'bg-black/50 hover:bg-black/70 text-white'}`
+                }>
+                <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="hidden sm:block"><p>{isSaved ? 'Saved' : 'Save to gallery'}</p></TooltipContent>
+            <TooltipContent side="top"><p>{isSaved ? 'Saved' : 'Save to gallery'}</p></TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Delete */}
+        {onDelete && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="ghost" onClick={onDelete}
+                className={variant === 'preview'
+                  ? 'h-9 w-9 p-0 rounded-full hover:bg-red-500/70 text-white'
+                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-red-500/70 text-white rounded-lg backdrop-blur-sm'
+                }>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Delete</p></TooltipContent>
           </Tooltip>
         )}
       </div>
 
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
+      {/* Share Modal — portaled to body so transforms/overflow can't clip it */}
+      {showShareModal && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
           <div ref={modalRef} className="bg-[#2D0A1A]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -261,7 +298,8 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved }: ImageAction
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

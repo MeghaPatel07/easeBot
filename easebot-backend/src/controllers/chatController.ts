@@ -7,6 +7,8 @@ import { callAzureAI, callAzureAIWithToolResults, streamCallAzureAI, streamCallA
 import { summarizeConversation } from '../services/conversationSummarizer'
 import sharp from 'sharp'
 import { IMAGE_TOOL, generateImageGptImage1, editImageGptImage1, extractStyleDescriptors, type ImageSize } from '../services/imageGeneration'
+import { expandWithPromptArchitect, type PromptArchitectOutput } from '../services/promptArchitect'
+import { postProcessImage } from '../services/imagePostProcessor'
 import { storeMultipleImages } from '../services/imageStorage'
 import { checkImageQuota, incrementImageUsage } from '../services/imageQuota'
 import { getRelevantProductsViaAlgolia, formatProductsContext } from '../services/algoliaProducts'
@@ -43,6 +45,31 @@ function buildUserContextSuffix(profile?: UserProfileContext | null): string {
     parts.push(`The user's style preferences: ${profile.stylePreferences}.`)
   }
   return parts.length > 0 ? '\n' + parts.join(' ') : ''
+}
+
+function buildGroundingContext(mode: Mode, userProfile: UserProfileContext | null): string {
+  const parts: string[] = []
+
+  if (userProfile?.weddingDate) {
+    const month = new Date(userProfile.weddingDate).getMonth()
+    if (month >= 11 || month <= 1) parts.push('Winter wedding: warm golden lighting, rich velvet/brocade textures, deep jewel tones, evergreen accents, candlelit ambiance')
+    else if (month >= 2 && month <= 4) parts.push('Spring wedding: soft natural light, pastel florals, light fabrics, cherry blossom/lavender accents, garden feel')
+    else if (month >= 5 && month <= 7) parts.push('Summer wedding: bright golden-hour light, airy fabrics, tropical florals, vibrant colors')
+    else parts.push('Autumn wedding: warm amber light, rustic textures, burgundy/burnt orange palette, harvest florals')
+  }
+
+  if (userProfile?.budget) {
+    const budget = Number(userProfile.budget)
+    if (budget > 50000) parts.push('Luxury tier: designer labels, premium fabrics, crystal/diamond accents, editorial quality')
+    else if (budget > 20000) parts.push('Mid-range: quality fabrics, tasteful details, elegant but not ostentatious')
+    else parts.push('Budget-conscious: creative styling, DIY-friendly aesthetics, meaningful over expensive')
+  }
+
+  if (userProfile?.stylePreferences) {
+    parts.push(`User style: ${userProfile.stylePreferences}`)
+  }
+
+  return parts.join('. ')
 }
 
 async function buildSystemPrompt(
@@ -101,6 +128,7 @@ interface ImageToolResult {
   action: ToolAction
   imageUrls: string[]
   styleDescriptors: string[]
+  styleMemory?: import('../types').StyleMemory
 }
 
 /**
@@ -135,12 +163,40 @@ async function handleImageToolCall(
     lastGeneratedImageUrl?: string
     mode: Mode
     threadId?: string
+    styleMemory?: import('../types').StyleMemory
+    userProfile?: UserProfileContext | null
+    onPartialImage?: (b64: string) => void
   }
 ): Promise<ImageToolResult> {
   const imgPrompt = args.prompt as string
   const imgAction = (args.action as string) ?? 'generate'
   const llmChosenSize = (args.aspect_ratio as ImageSize) ?? '1024x1024'
   const imgVariants = 1 // Always generate exactly 1 image
+
+  // ── Stage 2+3: Prompt Architect (Thinking Mode + Domain Grounding) ──────
+  const groundingContext = buildGroundingContext(opts.mode, opts.userProfile ?? null)
+  let architectOutput: PromptArchitectOutput | null = null
+
+  try {
+    architectOutput = await expandWithPromptArchitect({
+      userIntent: imgPrompt,
+      action: imgAction as 'generate' | 'edit',
+      mode: opts.mode,
+      aspectRatio: llmChosenSize,
+      styleHistory: opts.styleMemory?.descriptors ?? [],
+      referenceImageBase64: opts.imageBase64,
+      referenceImageMime: 'image/png',
+      userProfile: opts.userProfile ?? undefined,
+      groundingContext,
+    })
+    console.log(`[chatController] Prompt Architect expanded: ${architectOutput.expandedPrompt.length} chars, quality=${architectOutput.qualityTier}`)
+  } catch (err) {
+    console.error('[chatController] Prompt Architect failed, using raw prompt:', err)
+  }
+
+  // Use expanded prompt if available, otherwise raw
+  const finalPrompt = architectOutput?.expandedPrompt ?? imgPrompt
+  const negativePrompt = architectOutput?.negativePrompt
 
   // Check quota for logged-in users
   if (opts.isLoggedIn && opts.uid) {
@@ -157,14 +213,11 @@ async function handleImageToolCall(
 
   let base64Images: string[] = []
 
-  // If user attached an image, ALWAYS use edit (regardless of what the LLM chose)
-  // CRITICAL: Detect the source image's actual aspect ratio — ignore the LLM's choice
   if (opts.imageBase64) {
     const sourceSize = await detectImageAspectRatio(opts.imageBase64)
     console.log(`[chatController] User attached image → edit mode | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-    base64Images = await editImageGptImage1(opts.imageBase64, imgPrompt, sourceSize)
+    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images })
   } else if (imgAction === 'edit' && opts.lastGeneratedImageUrl) {
-    // Iterative editing: fetch the previously generated image and preserve its aspect ratio
     try {
       console.log('[chatController] Iterative edit → fetching previous image from URL')
       const imgRes = await fetch(opts.lastGeneratedImageUrl)
@@ -172,23 +225,32 @@ async function handleImageToolCall(
       const sourceBase64 = imgBuf.toString('base64')
       const sourceSize = await detectImageAspectRatio(sourceBase64)
       console.log(`[chatController] Iterative edit | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-      base64Images = await editImageGptImage1(sourceBase64, imgPrompt, sourceSize)
+      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt })
     } catch (fetchErr) {
       console.error('[chatController] Failed to fetch lastGeneratedImageUrl, falling back to generate:', fetchErr)
-      base64Images = await generateImageGptImage1(imgPrompt, llmChosenSize, imgVariants as 1 | 2 | 3)
+      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage })
     }
   } else {
-    // New generation — use LLM's chosen aspect ratio (it picks based on content type)
-    base64Images = await generateImageGptImage1(imgPrompt, llmChosenSize, imgVariants as 1 | 2 | 3)
+    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage })
   }
 
   // Track which size was actually used for storage metadata
   const imgSize = llmChosenSize // Overridden above for edit paths via sourceSize
 
+  // ── Stage 6: Post-Processing ──────────────────────────────────────────────
+  if (base64Images.length > 0) {
+    base64Images = await Promise.all(
+      base64Images.map(b64 => postProcessImage(b64, {
+        upscale: opts.isPremium,
+        outputFormat: 'png',
+      }))
+    )
+  }
+
   if (base64Images.length === 0) {
     return {
       result: 'Image generation failed. The service may be temporarily unavailable.',
-      action: { tool: 'generate_image', imagePrompt: imgPrompt },
+      action: { tool: 'generate_image', imagePrompt: finalPrompt },
       imageUrls: [],
       styleDescriptors: [],
     }
@@ -213,26 +275,38 @@ async function handleImageToolCall(
   }
 
   // Extract style descriptors for consistency
-  const styleDescriptors = extractStyleDescriptors(imgPrompt)
+  const styleDescriptors = extractStyleDescriptors(finalPrompt)
+  const architectDescriptors = architectOutput?.styleDescriptors ?? []
+  const mergedDescriptors = [...new Set([...styleDescriptors, ...architectDescriptors])].slice(0, 20)
+
+  // Build updated style memory
+  const updatedStyleMemory: import('../types').StyleMemory = {
+    descriptors: [...new Set([...(opts.styleMemory?.descriptors ?? []), ...mergedDescriptors])].slice(0, 20),
+    colorPalette: opts.styleMemory?.colorPalette ?? [],
+    aestheticRegister: opts.styleMemory?.aestheticRegister ?? '',
+    culturalContext: opts.styleMemory?.culturalContext ?? '',
+    lastGeneratedImageUrl: imageUrls[0] ?? null,
+  }
 
   return {
     result: `Image${imageUrls.length > 1 ? 's' : ''} generated successfully. ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''} created.`,
     action: {
       tool: 'generate_image',
-      imagePrompt: imgPrompt,
+      imagePrompt: finalPrompt,
       imageAction: imgAction as any,
       imageAspectRatio: imgSize,
       imageVariants: imageUrls.length,
     },
     imageUrls,
-    styleDescriptors,
+    styleDescriptors: mergedDescriptors,
+    styleMemory: updatedStyleMemory,
   }
 }
 
 // ── Non-streaming chat handler ──────────────────────────────────────────────────
 
 export async function handleChat(req: Request, res: Response): Promise<void> {
-  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl } = req.body as ChatPayload
+  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory } = req.body as ChatPayload
 
   if (!message && !audioBase64 && !imageBase64) {
     res.status(400).json({ error: 'message, audioBase64, or imageBase64 is required' })
@@ -315,6 +389,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     let finalAiText = aiResult.text
     let calendarEvent: CalendarEvent | null = null
     let imageUrls: string[] = []
+    let imageToolStyleMemory: import('../types').StyleMemory | undefined
 
     // Execute tool calls if any
     if (aiResult.toolCalls.length > 0) {
@@ -331,9 +406,12 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
             lastGeneratedImageUrl,
             mode,
             threadId,
+            userProfile,
+            styleMemory: styleMemory ?? undefined,
           })
           toolActions.push(imgResult.action)
           imageUrls = imgResult.imageUrls
+          imageToolStyleMemory = imgResult.styleMemory
           toolResults.push({ id: tc.id, result: imgResult.result })
           continue
         }
@@ -399,6 +477,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       toolActions,
       mode,
       detectedLanguage,
+      styleMemory: imageToolStyleMemory,
     }
     res.status(200).json(response)
   } catch (err: any) {
@@ -418,7 +497,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   const sse = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`)
 
   try {
-    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl } = req.body as ChatPayload
+    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory } = req.body as ChatPayload
 
     if (!message && !audioBase64 && !imageBase64) {
       sse({ t: 'e', msg: 'message, audioBase64, or imageBase64 is required' })
@@ -485,6 +564,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     const toolActions: ToolAction[] = []
     let calendarEvent: CalendarEvent | null = null
     let imageUrls: string[] = []
+    let imageToolStyleMemory: import('../types').StyleMemory | undefined
     let fullText = ''
 
     // ── Stream first LLM call ────────────────────────────────────────────────
@@ -531,9 +611,15 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
             lastGeneratedImageUrl,
             mode,
             threadId,
+            userProfile,
+            styleMemory: styleMemory ?? undefined,
+            onPartialImage: (partialB64: string) => {
+              sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
+            },
           })
           toolActions.push(imgResult.action)
           imageUrls = imgResult.imageUrls
+          imageToolStyleMemory = imgResult.styleMemory
           toolResults.push({ id: tc.id, result: imgResult.result })
           continue
         }
@@ -577,7 +663,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // TTS after full text is ready
     const { audioUrl } = await processOutbound(cleanedText, detectedLanguage)
 
-    sse({ t: 'd', text: cleanedText, calendarEvent, toolActions, mode, detectedLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls })
+    sse({ t: 'd', text: cleanedText, calendarEvent, toolActions, mode, detectedLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
     res.end()
   } catch (err: any) {
     console.error('[chatController:stream]', err)

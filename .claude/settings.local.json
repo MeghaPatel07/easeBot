@@ -57,7 +57,11 @@
       "mcp__claude_ai_Figma__create_new_file",
       "mcp__claude_ai_Figma__use_figma",
       "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(npx tsx:*)",
+      "Bash(jobs -l)",
+      "Bash(python3 -m json.tool)",
+      "Bash(./node_modules/.bin/tsc --noEmit -p tsconfig.app.json)"
     ]
   }
 }

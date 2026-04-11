@@ -52,8 +52,8 @@ export default function GalleryView({ userId }: GalleryViewProps) {
     }
   }, [selectedIndex])
 
-  const handleDelete = async (img: UserImage, e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleDelete = async (img: UserImage, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     try {
       await deleteUserImage(img.id)
       setImages(prev => prev.filter(i => i.id !== img.id))
@@ -193,7 +193,11 @@ export default function GalleryView({ userId }: GalleryViewProps) {
 
           {/* Bottom bar: actions + prompt */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <ImageActions imageUrl={currentImage.url} />
+            <ImageActions
+              imageUrl={currentImage.url}
+              onDelete={() => handleDelete(currentImage)}
+              variant="preview"
+            />
             {currentImage.prompt && (
               <p className="text-center text-xs text-white/50 px-4 line-clamp-2">
                 {currentImage.prompt}

@@ -6,6 +6,7 @@ interface ImageCarouselProps {
   imageUrls: string[]
   aspectRatio?: string // '1024x1024' | '1024x1536' | '1536x1024'
   onSaveToGallery?: (imageUrl: string) => void
+  onDelete?: (imageUrl: string) => void
 }
 
 /** Fullscreen image preview overlay */
@@ -14,11 +15,13 @@ function ImagePreview({
   initialIndex,
   onClose,
   onSaveToGallery,
+  onDelete,
 }: {
   imageUrls: string[]
   initialIndex: number
   onClose: () => void
   onSaveToGallery?: (imageUrl: string) => void
+  onDelete?: (imageUrl: string) => void
 }) {
   const [index, setIndex] = useState(initialIndex)
   const [scale, setScale] = useState(1)
@@ -120,6 +123,8 @@ function ImagePreview({
           <ImageActions
             imageUrl={imageUrls[index]}
             onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[index]) : undefined}
+            onDelete={onDelete ? () => onDelete(imageUrls[index]) : undefined}
+            variant="preview"
           />
         </div>
         {imageUrls.length > 1 && (
@@ -145,7 +150,7 @@ function ImagePreview({
   )
 }
 
-export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery }: ImageCarouselProps) {
+export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelete }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [previewOpen, setPreviewOpen] = useState(false)
 
@@ -167,7 +172,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery }: Image
             className={`w-full ${arClass} max-h-[60vh] sm:max-h-none object-cover rounded-xl shadow-lg cursor-pointer hover:brightness-95 transition-all`}
             onClick={() => setPreviewOpen(true)}
           />
-          <ImageActions imageUrl={imageUrls[0]} onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[0]) : undefined} />
+          <ImageActions imageUrl={imageUrls[0]} onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[0]) : undefined} onDelete={onDelete ? () => onDelete(imageUrls[0]) : undefined} />
         </div>
         {previewOpen && (
           <ImagePreview
@@ -175,6 +180,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery }: Image
             initialIndex={0}
             onClose={() => setPreviewOpen(false)}
             onSaveToGallery={onSaveToGallery}
+            onDelete={onDelete}
           />
         )}
       </>
@@ -196,6 +202,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery }: Image
           <ImageActions
             imageUrl={imageUrls[activeIndex]}
             onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[activeIndex]) : undefined}
+            onDelete={onDelete ? () => onDelete(imageUrls[activeIndex]) : undefined}
           />
           {/* Navigation arrows */}
           {imageUrls.length > 1 && (
@@ -241,6 +248,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery }: Image
           initialIndex={activeIndex}
           onClose={() => setPreviewOpen(false)}
           onSaveToGallery={onSaveToGallery}
+          onDelete={onDelete}
         />
       )}
     </>

@@ -279,7 +279,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   // { view: 'progress' as const, icon: BarChart3, label: 'progress', badge: 0 },
                   // { view: 'notifications' as const, icon: Bell, label: 'alerts', badge: 0 },
                   // { view: 'collaborate' as const, icon: Users, label: 'collaborate', badge: 0 },
-                  { view: 'gallery' as const, icon: Image, label: 'gallery', badge: galleryImageCount },
+                  { view: 'gallery' as const, icon: Image, label: 'gallery', badge: 0 },
                 ] as const).map(({ view, icon: Icon, label, badge }) => {
                   const isActive = sidebarView === view;
                   return (

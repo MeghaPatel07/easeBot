@@ -98,9 +98,10 @@ export interface StreamDoneEvent {
   imageUrl: string | null
   imageUrls?: string[]
   imageQuota?: { allowed: boolean; remaining: number; dailyUsed: number; dailyLimit: number; resetAt: string }
+  styleMemory?: { descriptors: string[]; colorPalette: string[]; aestheticRegister: string; culturalContext: string; lastGeneratedImageUrl: string | null }
 }
 export interface StreamErrorEvent { t: 'e'; msg: string }
-export interface StreamImageEvent { t: 'img'; status: 'generating' }
+export interface StreamImageEvent { t: 'img'; status: 'generating' | 'partial'; data?: string }
 export type StreamSSEEvent = StreamChunkEvent | StreamDoneEvent | StreamErrorEvent | StreamImageEvent
 
 export async function* streamChatMessage(

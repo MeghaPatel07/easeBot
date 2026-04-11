@@ -1,48 +1,37 @@
 /**
  * Image services — unified interface for image generation, editing, and analysis.
  *
- * V3: Switched from Azure gpt-image-1 to Gemini native image generation
- * for superior quality, better prompt understanding, and native image editing.
- *
- * Primary engine: Gemini 2.0 Flash (native text-to-image & image-to-image)
- * Fallback: Azure gpt-image-1 (if Gemini unavailable)
- * Vision/Analysis: Gemini (primary) → Azure gpt-4o (fallback)
+ * V4: Azure-native agentic pipeline
+ * Primary engine: Azure GPT-Image-1.5 (text-to-image, image-to-image, multi-image compositing)
+ * Fallback: Azure GPT-Image-1
+ * Vision/Analysis: Azure GPT-4o
  *
  * Env vars:
- *   GEMINI_API_KEY               – Google AI Studio API key (primary)
- *   GEMINI_IMAGE_MODEL           – model ID (default: "gemini-2.0-flash-exp")
- *   AZURE_GPT_IMAGE_DEPLOYMENT   – Azure fallback deployment
- *   AZURE_GPT_IMAGE_API_VERSION  – Azure fallback API version
- *   AZURE_OPENAI_ENDPOINT        – Azure endpoint (fallback)
- *   AZURE_OPENAI_API_KEY         – Azure key (fallback)
- *   AZURE_DEPLOYMENT_NAME        – gpt-4o deployment for vision fallback
+ *   AZURE_IMAGE_ENDPOINT           – Azure endpoint for image models
+ *   AZURE_IMAGE_API_KEY            – Azure key for image models
+ *   AZURE_GPT_IMAGE_15_DEPLOYMENT  – GPT-Image-1.5 deployment name
+ *   AZURE_GPT_IMAGE_DEPLOYMENT     – GPT-Image-1 fallback deployment name
+ *   AZURE_GPT_IMAGE_API_VERSION    – API version
+ *   AZURE_OPENAI_ENDPOINT          – Azure endpoint for GPT-4o (vision)
+ *   AZURE_OPENAI_API_KEY           – Azure key for GPT-4o
+ *   AZURE_DEPLOYMENT_NAME          – GPT-4o deployment name
  */
 
 import { AzureOpenAI } from 'openai'
 import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import sharp from 'sharp'
 import type { HistoryMessage } from '../types'
-import {
-  generateImageGemini,
-  editImageGemini,
-  analyzeImageGemini,
-} from './geminiImageGeneration'
 import { withRetry } from '../utils/retry'
-import { imageCircuitBreaker, CircuitBreakerError } from './circuitBreaker'
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 
-/** Maximum image size in bytes (2 MB) — higher limit preserves image quality */
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
-
-/** Output format from Azure API */
 const IMAGE_FORMAT = 'png'
 
 // ── Types ───────────────────────────────────────────────────────────────────────
 
 export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
 
-/** Map ImageSize to Azure-supported size values. Azure doesn't support 1024x1792, use 'auto' instead. */
 function toAzureSize(size: ImageSize): string {
   if (size === '1024x1792') return 'auto'
   return size
@@ -50,7 +39,18 @@ function toAzureSize(size: ImageSize): string {
 
 export type ImageClassification = 'text-to-image' | 'image-to-text' | 'image-to-image' | 'text-only'
 
-// ── LLM Tool Definition (R1) ───────────────────────────────────────────────────
+// ── Env helpers ─────────────────────────────────────────────────────────────────
+
+function getImageConfig() {
+  const endpoint = (process.env.AZURE_IMAGE_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '')
+  const apiKey = process.env.AZURE_IMAGE_API_KEY || process.env.AZURE_OPENAI_API_KEY
+  const apiVersion = process.env.AZURE_GPT_IMAGE_API_VERSION ?? '2025-04-01-preview'
+  const primaryDeployment = process.env.AZURE_GPT_IMAGE_15_DEPLOYMENT ?? 'gpt-image-1.5'
+  const fallbackDeployment = process.env.AZURE_GPT_IMAGE_DEPLOYMENT ?? 'gpt-image-1'
+  return { endpoint, apiKey, apiVersion, primaryDeployment, fallbackDeployment }
+}
+
+// ── LLM Tool Definition ─────────────────────────────────────────────────────────
 
 export const IMAGE_TOOL: ChatCompletionTool = {
   type: 'function',
@@ -75,13 +75,17 @@ export const IMAGE_TOOL: ChatCompletionTool = {
           type: 'string',
           enum: ['1024x1024', '1024x1536', '1536x1024', '1024x1792'],
           description:
-            'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations, tall (1024x1792) for timelines/infographics/checklists/step-by-step content that needs extra vertical space to avoid cropping. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
+            'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations, tall (1024x1792) for timelines/infographics/checklists/step-by-step content. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
         },
         variants: {
           type: 'integer',
           enum: [1],
-          description:
-            'Always 1. Generate exactly one image per request.',
+          description: 'Always 1. Generate exactly one image per request.',
+        },
+        reference_images: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'URLs of previously generated images to use as style/subject reference. Use when user says "like the previous one" or "match that style".',
         },
       },
       required: ['prompt', 'action'],
@@ -91,15 +95,13 @@ export const IMAGE_TOOL: ChatCompletionTool = {
 
 // ── Prompt Building ─────────────────────────────────────────────────────────────
 
-/** Wraps a user prompt with wedding context for NEW image generation */
 export function buildImageGenPrompt(userPrompt: string, styleContext?: string[]): string {
   const styleStr = styleContext?.length
     ? `Maintain consistent visual style: ${styleContext.join(', ')}. `
     : ''
-  return `${styleStr}${userPrompt}. Photorealistic, professionally lit, sharp details, accurate true-to-life colors, natural skin tones, elegant composition.`
+  return `${styleStr}${userPrompt}. Modern editorial photography style, soft golden-hour lighting, shallow depth of field, film-inspired color grading with lifted blacks and warm highlights, clean composition with negative space, aspirational and Pinterest-worthy aesthetic.`
 }
 
-/** Builds a surgical edit prompt that preserves everything except the specific change */
 export function buildImageEditPrompt(userPrompt: string): string {
   return [
     `Make ONE precise surgical edit to this image.`,
@@ -113,13 +115,12 @@ export function buildImageEditPrompt(userPrompt: string): string {
     `- Keep ALL other clothing/accessories unchanged`,
     `- Match textures and patterns when changing colors`,
     `- Result should look like the same photo with only the requested change`,
-    `- CRITICAL: Maintain the EXACT same aspect ratio and orientation as the original image — do NOT change from landscape to portrait or vice versa`,
+    `- CRITICAL: Maintain the EXACT same aspect ratio and orientation as the original image`,
   ].join('\n')
 }
 
-// ── Style Extraction (R9) ───────────────────────────────────────────────────────
+// ── Style Extraction ────────────────────────────────────────────────────────────
 
-/** Extract style descriptors from an image prompt for cross-generation consistency */
 export function extractStyleDescriptors(prompt: string): string[] {
   const descriptors: string[] = []
 
@@ -147,26 +148,17 @@ export function extractStyleDescriptors(prompt: string): string[] {
   return descriptors
 }
 
-// ── Legacy Intent Detection (deprecated — kept for imageController compat) ───
+// ── Legacy Intent Detection (deprecated) ────────────────────────────────────────
 
-/** @deprecated Use IMAGE_TOOL with LLM tool-calling instead */
 const IMAGE_GEN_RE =
   /\b(generate|create|show|draw|design|visualize|render)\b.{0,60}\b(images?|pictures?|photos?|visuals?|illustrations?|mockups?|renders?|sketches?)\b/i
-
-/** @deprecated Use IMAGE_TOOL with LLM tool-calling instead */
 const IMAGE_EDIT_RE =
   /\b(make|change|modify|edit|replace|swap|turn|convert|transform|add|remove|put|wear|dress|style|recolor|repaint|redo)\b/i
 
 /** @deprecated Use IMAGE_TOOL with LLM tool-calling instead */
-export function isImageRequest(message: string): boolean {
-  return IMAGE_GEN_RE.test(message)
-}
-
+export function isImageRequest(message: string): boolean { return IMAGE_GEN_RE.test(message) }
 /** @deprecated Use IMAGE_TOOL with LLM tool-calling instead */
-export function isImageEditRequest(message: string): boolean {
-  return IMAGE_EDIT_RE.test(message)
-}
-
+export function isImageEditRequest(message: string): boolean { return IMAGE_EDIT_RE.test(message) }
 /** @deprecated Use IMAGE_TOOL with LLM tool-calling instead */
 export function classifyImageRequest(text: string, hasImage: boolean): ImageClassification {
   if (hasImage && (isImageRequest(text) || isImageEditRequest(text))) return 'image-to-image'
@@ -174,23 +166,15 @@ export function classifyImageRequest(text: string, hasImage: boolean): ImageClas
   if (isImageRequest(text)) return 'text-to-image'
   return 'text-only'
 }
-
-/** @deprecated Replaced by LLM writing the prompt directly via IMAGE_TOOL */
-export async function buildContextAwareImagePrompt(
-  _history: HistoryMessage[],
-  currentMessage: string
-): Promise<string> {
+/** @deprecated */
+export async function buildContextAwareImagePrompt(_history: HistoryMessage[], currentMessage: string): Promise<string> {
   return currentMessage
 }
 
-// ── Image Compression (shared) ──────────────────────────────────────────────
+// ── Image Compression ───────────────────────────────────────────────────────────
 
-/**
- * Compress a base64 image to fit under MAX_IMAGE_BYTES using sharp.
- */
 async function compressImage(b64: string): Promise<string> {
   const inputBuffer = Buffer.from(b64, 'base64')
-
   if (inputBuffer.length <= MAX_IMAGE_BYTES) return b64
 
   try {
@@ -198,19 +182,15 @@ async function compressImage(b64: string): Promise<string> {
       const compressed = await sharp(inputBuffer)
         .jpeg({ quality, mozjpeg: true })
         .toBuffer()
-
       if (compressed.length <= MAX_IMAGE_BYTES) {
         console.log(`[imageGeneration] Compressed ${Math.round(inputBuffer.length / 1024)}KB → ${Math.round(compressed.length / 1024)}KB (quality=${quality})`)
         return compressed.toString('base64')
       }
     }
-
-    // Last resort: slight resize but keep quality high
     const resized = await sharp(inputBuffer)
       .resize(1536, 1536, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 65, mozjpeg: true })
       .toBuffer()
-
     console.log(`[imageGeneration] Compressed+resized ${Math.round(inputBuffer.length / 1024)}KB → ${Math.round(resized.length / 1024)}KB`)
     return resized.toString('base64')
   } catch (err) {
@@ -219,204 +199,224 @@ async function compressImage(b64: string): Promise<string> {
   }
 }
 
-// ── Text-to-Image (Gemini primary, Azure fallback) ──────────────────────────
+// ── Text-to-Image Generation ────────────────────────────────────────────────────
 
 /**
- * Generate images using Gemini native image generation.
- * Falls back to Azure gpt-image-1 if Gemini is unavailable.
- * Returns an array of raw base64 strings (no data URI prefix).
+ * Generate images using Azure GPT-Image-1.5 (primary) with GPT-Image-1 fallback.
+ * Supports negativePrompt appended to main prompt.
+ * Returns array of raw base64 strings (no data URI prefix).
  */
 export async function generateImageGptImage1(
   prompt: string,
   size: ImageSize = '1024x1024',
-  count: 1 | 2 | 3 = 1
+  count: 1 | 2 | 3 = 1,
+  options?: { negativePrompt?: string; onPartialImage?: (b64: string) => void }
 ): Promise<string[]> {
-  try {
-    return await imageCircuitBreaker.execute(async () => {
-      // Try Gemini first (with retry)
-      if (process.env.GEMINI_API_KEY) {
-        console.log('[imageGeneration] Using Gemini for text-to-image generation')
-        const images = await withRetry(
-          () => generateImageGemini(prompt, size, count),
-          { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 8000 }
-        )
-        if (images.length > 0) return images
-        console.warn('[imageGeneration] Gemini returned no images, falling back to Azure')
-      }
-
-      // Azure fallback (with retry)
-      return await withRetry(
-        () => generateImageAzureFallback(prompt, size, count),
-        { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
-      )
-    })
-  } catch (err) {
-    if (err instanceof CircuitBreakerError) {
-      console.warn(`[imageGeneration] ${err.message}`)
-      return []
-    }
-    throw err
+  const config = getImageConfig()
+  if (!config.endpoint || !config.apiKey) {
+    console.warn('[imageGeneration] No Azure credentials')
+    return []
   }
+
+  // Append negative prompt to main prompt
+  let fullPrompt = prompt
+  if (options?.negativePrompt) {
+    fullPrompt += `\n\nAVOID: ${options.negativePrompt}`
+  }
+
+  // Try GPT-Image-1.5 primary
+  try {
+    const images = await withRetry(
+      () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, fullPrompt, size, count, options?.onPartialImage),
+      { maxRetries: 1, baseDelayMs: 1000, maxDelayMs: 5000 }
+    )
+    if (images.length > 0) {
+      console.log(`[imageGeneration] GPT-Image-1.5 generated ${images.length} image(s)`)
+      return images
+    }
+  } catch (err) {
+    console.warn('[imageGeneration] GPT-Image-1.5 failed, trying fallback:', err instanceof Error ? err.message : err)
+  }
+
+  // Fallback to GPT-Image-1
+  try {
+    const images = await withRetry(
+      () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, fullPrompt, size, count),
+      { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
+    )
+    if (images.length > 0) {
+      console.log(`[imageGeneration] GPT-Image-1 fallback generated ${images.length} image(s)`)
+      return images
+    }
+  } catch (err) {
+    console.error('[imageGeneration] GPT-Image-1 fallback also failed:', err)
+  }
+
+  return []
 }
 
-/**
- * Azure gpt-image-1 fallback for text-to-image.
- */
-async function generateImageAzureFallback(
+async function callAzureImageGeneration(
+  endpoint: string,
+  apiKey: string,
+  deployment: string,
+  apiVersion: string,
   prompt: string,
-  size: ImageSize = '1024x1024',
-  count: 1 | 2 | 3 = 1
+  size: ImageSize,
+  count: number,
+  onPartialImage?: (b64: string) => void
 ): Promise<string[]> {
-  const endpoint = (process.env.AZURE_IMAGE_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '')
-  const apiKey = process.env.AZURE_IMAGE_API_KEY || process.env.AZURE_OPENAI_API_KEY
-  const deployment = process.env.AZURE_GPT_IMAGE_DEPLOYMENT ?? 'gpt-image-1'
-  const apiVersion = process.env.AZURE_GPT_IMAGE_API_VERSION ?? '2025-04-01-preview'
+  const url = `${endpoint}/openai/deployments/${deployment}/images/generations?api-version=${apiVersion}`
 
-  if (!endpoint || !apiKey) {
-    console.warn('[imageGeneration] No Azure credentials — cannot fallback')
-    return []
+  const body: Record<string, any> = {
+    prompt,
+    n: count,
+    size: toAzureSize(size),
+    output_format: IMAGE_FORMAT,
+    quality: 'high',
   }
 
-  try {
-    const url = `${endpoint}/openai/deployments/${deployment}/images/generations?api-version=${apiVersion}`
-    const weddingPrompt = buildImageGenPrompt(prompt)
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+    body: JSON.stringify(body),
+  })
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
-      body: JSON.stringify({
-        prompt: weddingPrompt,
-        n: count,
-        size: toAzureSize(size),
-        output_format: IMAGE_FORMAT,
-      }),
-    })
+  if (!res.ok) {
+    const errBody = await res.text()
+    console.error(`[imageGeneration] ${deployment} error ${res.status}: ${errBody}`)
+    throw new Error(`Image generation failed: ${res.status}`)
+  }
 
-    if (!res.ok) {
-      const body = await res.text()
-      console.error(`[imageGeneration] Azure fallback error ${res.status}: ${body}`)
-      return []
+  const data = await res.json()
+
+  // Handle partial images if present in response
+  if (data?.partial_images && onPartialImage) {
+    for (const partial of data.partial_images) {
+      if (partial?.b64_json) {
+        onPartialImage(partial.b64_json)
+      }
     }
-
-    const data = await res.json()
-    const rawImages: string[] = (data?.data ?? [])
-      .map((d: any) => d?.b64_json ?? d?.b64 ?? null)
-      .filter(Boolean)
-
-    if (rawImages.length === 0) return []
-
-    return await Promise.all(rawImages.map(b64 => compressImage(b64)))
-  } catch (err) {
-    console.error('[imageGeneration] Azure fallback error:', err)
-    return []
   }
+
+  const rawImages: string[] = (data?.data ?? [])
+    .map((d: any) => d?.b64_json ?? d?.b64 ?? null)
+    .filter(Boolean)
+
+  if (rawImages.length === 0) return []
+  return await Promise.all(rawImages.map(b64 => compressImage(b64)))
 }
 
-// ── Image-to-Image (Gemini primary, Azure fallback) ──────────────────────────
+// ── Image-to-Image Editing ──────────────────────────────────────────────────────
 
 /**
- * Edit an image using Gemini native image editing.
- * Falls back to Azure gpt-image-1 edits if Gemini is unavailable.
- * Returns an array of raw base64 strings (no data URI prefix).
+ * Edit an image using Azure GPT-Image-1.5 (primary) with GPT-Image-1 fallback.
+ * Uses input_fidelity: "high" for face preservation (89.96%).
  */
 export async function editImageGptImage1(
   imageBase64: string,
   prompt: string,
-  size: ImageSize = '1024x1024'
+  size: ImageSize = '1024x1024',
+  options?: { negativePrompt?: string; referenceImages?: string[] }
 ): Promise<string[]> {
-  try {
-    return await imageCircuitBreaker.execute(async () => {
-      // Try Gemini first (with retry)
-      if (process.env.GEMINI_API_KEY) {
-        console.log('[imageGeneration] Using Gemini for image-to-image editing')
-        const images = await withRetry(
-          () => editImageGemini(imageBase64, prompt, size),
-          { maxRetries: 2, baseDelayMs: 1000, maxDelayMs: 8000 }
-        )
-        if (images.length > 0) return images
-        console.warn('[imageGeneration] Gemini edit returned no images, falling back to Azure')
-      }
-
-      // Azure fallback (with retry)
-      return await withRetry(
-        () => editImageAzureFallback(imageBase64, prompt, size),
-        { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
-      )
-    })
-  } catch (err) {
-    if (err instanceof CircuitBreakerError) {
-      console.warn(`[imageGeneration] ${err.message}`)
-      return []
-    }
-    throw err
-  }
-}
-
-/**
- * Azure gpt-image-1 fallback for image editing.
- */
-async function editImageAzureFallback(
-  imageBase64: string,
-  prompt: string,
-  size: ImageSize = '1024x1024'
-): Promise<string[]> {
-  const endpoint = (process.env.AZURE_IMAGE_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '')
-  const apiKey = process.env.AZURE_IMAGE_API_KEY || process.env.AZURE_OPENAI_API_KEY
-  const deployment = process.env.AZURE_GPT_IMAGE_DEPLOYMENT ?? 'gpt-image-1'
-  const apiVersion = process.env.AZURE_GPT_IMAGE_API_VERSION ?? '2025-04-01-preview'
-
-  if (!endpoint || !apiKey) {
-    console.warn('[imageGeneration] No Azure credentials for fallback')
+  const config = getImageConfig()
+  if (!config.endpoint || !config.apiKey) {
+    console.warn('[imageGeneration] No Azure credentials')
     return []
   }
 
-  try {
-    const imageBuffer = Buffer.from(imageBase64, 'base64')
-    const blob = new Blob([imageBuffer], { type: 'image/png' })
-    const editPrompt = buildImageEditPrompt(prompt)
-
-    const formData = new FormData()
-    formData.append('image', blob, 'image.png')
-    formData.append('prompt', editPrompt)
-    formData.append('n', '1')
-    formData.append('size', toAzureSize(size))
-    formData.append('output_format', IMAGE_FORMAT)
-
-    const url = `${endpoint}/openai/deployments/${deployment}/images/edits?api-version=${apiVersion}`
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'api-key': apiKey },
-      body: formData,
-    })
-
-    if (!res.ok) {
-      const body = await res.text()
-      console.error(`[imageGeneration] Azure edit fallback error ${res.status}: ${body}`)
-      return await azureFallbackImageToImage(imageBase64, prompt, size)
-    }
-
-    const data = await res.json()
-    const rawImages: string[] = (data?.data ?? [])
-      .map((d: any) => d?.b64_json ?? d?.b64 ?? null)
-      .filter(Boolean)
-
-    if (rawImages.length === 0) {
-      return await azureFallbackImageToImage(imageBase64, prompt, size)
-    }
-
-    return await Promise.all(rawImages.map(b64 => compressImage(b64)))
-  } catch (err) {
-    console.error('[imageGeneration] Azure edit fallback error:', err)
-    return await azureFallbackImageToImage(imageBase64, prompt, size)
+  let editPrompt = buildImageEditPrompt(prompt)
+  if (options?.negativePrompt) {
+    editPrompt += `\n\nAVOID: ${options.negativePrompt}`
   }
+
+  // Try GPT-Image-1.5 primary
+  try {
+    const images = await withRetry(
+      () => callAzureImageEdit(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, imageBase64, editPrompt, size, true, options?.referenceImages),
+      { maxRetries: 1, baseDelayMs: 1000, maxDelayMs: 5000 }
+    )
+    if (images.length > 0) {
+      console.log(`[imageGeneration] GPT-Image-1.5 edited ${images.length} image(s)`)
+      return images
+    }
+  } catch (err) {
+    console.warn('[imageGeneration] GPT-Image-1.5 edit failed, trying fallback:', err instanceof Error ? err.message : err)
+  }
+
+  // Fallback to GPT-Image-1
+  try {
+    const images = await withRetry(
+      () => callAzureImageEdit(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, imageBase64, editPrompt, size, false),
+      { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
+    )
+    if (images.length > 0) {
+      console.log(`[imageGeneration] GPT-Image-1 fallback edited ${images.length} image(s)`)
+      return images
+    }
+  } catch (err) {
+    console.error('[imageGeneration] GPT-Image-1 edit fallback also failed:', err)
+  }
+
+  // Last resort: analyze + regenerate
+  return await fallbackAnalyzeAndRegenerate(imageBase64, prompt, size)
 }
 
-/**
- * Last-resort fallback: analyze image with vision, then regenerate.
- * Preserves the source image's aspect ratio by detecting it from the base64.
- */
-async function azureFallbackImageToImage(imageBase64: string, prompt: string, size: ImageSize = '1024x1024'): Promise<string[]> {
+async function callAzureImageEdit(
+  endpoint: string,
+  apiKey: string,
+  deployment: string,
+  apiVersion: string,
+  imageBase64: string,
+  prompt: string,
+  size: ImageSize,
+  useHighFidelity: boolean,
+  referenceImages?: string[]
+): Promise<string[]> {
+  const url = `${endpoint}/openai/deployments/${deployment}/images/edits?api-version=${apiVersion}`
+
+  const imageBuffer = Buffer.from(imageBase64, 'base64')
+  const blob = new Blob([imageBuffer], { type: 'image/png' })
+
+  const formData = new FormData()
+  formData.append('image', blob, 'image.png')
+  formData.append('prompt', prompt)
+  formData.append('n', '1')
+  formData.append('size', toAzureSize(size))
+  formData.append('output_format', IMAGE_FORMAT)
+
+  // GPT-Image-1.5: high fidelity for face preservation
+  if (useHighFidelity) {
+    formData.append('input_fidelity', 'high')
+  }
+
+  // Note: multi-image compositing is only supported on the generations endpoint, not edits
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'api-key': apiKey },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const errBody = await res.text()
+    console.error(`[imageGeneration] ${deployment} edit error ${res.status}: ${errBody}`)
+    throw new Error(`Image edit failed: ${res.status}`)
+  }
+
+  const data = await res.json()
+  const rawImages: string[] = (data?.data ?? [])
+    .map((d: any) => d?.b64_json ?? d?.b64 ?? null)
+    .filter(Boolean)
+
+  if (rawImages.length === 0) return []
+  return await Promise.all(rawImages.map(b64 => compressImage(b64)))
+}
+
+async function fallbackAnalyzeAndRegenerate(
+  imageBase64: string,
+  prompt: string,
+  size: ImageSize
+): Promise<string[]> {
   try {
     const description = await analyzeImage(
       imageBase64,
@@ -428,39 +428,14 @@ async function azureFallbackImageToImage(imageBase64: string, prompt: string, si
     const combinedPrompt = `Recreate this EXACT photo: "${description}". Then make ONLY this change: ${prompt}. Everything else must remain identical. The image MUST be ${orientationLabel} orientation.`
     return await generateImageGptImage1(combinedPrompt, size)
   } catch (err) {
-    console.error('[imageGeneration] azure fallback image-to-image error:', err)
+    console.error('[imageGeneration] fallback analyze+regenerate error:', err)
     return []
   }
 }
 
-// ── Image-to-Text / Analysis (Gemini primary, Azure fallback) ───────────────
+// ── Image Analysis (Azure GPT-4o) ──────────────────────────────────────────────
 
-/**
- * Analyze an image using Gemini vision (primary) or Azure gpt-4o (fallback).
- */
 export async function analyzeImage(
-  imageBase64: string,
-  mimeType: string,
-  prompt?: string,
-  detail: 'low' | 'high' | 'auto' = 'auto'
-): Promise<string> {
-  // Try Gemini first
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      return await analyzeImageGemini(imageBase64, mimeType, prompt)
-    } catch (err) {
-      console.warn('[imageGeneration] Gemini analysis failed, falling back to Azure:', err)
-    }
-  }
-
-  // Azure fallback
-  return await analyzeImageAzure(imageBase64, mimeType, prompt, detail)
-}
-
-/**
- * Azure gpt-4o vision fallback for image analysis.
- */
-async function analyzeImageAzure(
   imageBase64: string,
   mimeType: string,
   prompt?: string,
@@ -471,7 +446,7 @@ async function analyzeImageAzure(
   const deployment = process.env.AZURE_DEPLOYMENT_NAME
 
   if (!endpoint || !apiKey || !deployment) {
-    throw new Error('No image analysis service available (both Gemini and Azure unavailable)')
+    throw new Error('No image analysis service available')
   }
 
   const client = new AzureOpenAI({
@@ -496,10 +471,7 @@ Be concise — max 3-4 sentences. Skip unrelated details.`
         role: 'user',
         content: [
           { type: 'text', text: userPrompt },
-          {
-            type: 'image_url',
-            image_url: { url: `data:${mimeType};base64,${imageBase64}`, detail },
-          },
+          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}`, detail } },
         ],
       },
     ],

@@ -37,6 +37,14 @@ export interface UserPersonalization {
   toneSettings?: ToneSettings
 }
 
+export interface StyleMemory {
+  descriptors: string[]
+  colorPalette: string[]
+  aestheticRegister: string
+  culturalContext: string
+  lastGeneratedImageUrl: string | null
+}
+
 // Matches authflow.md §12 + WeddingEase fields
 export interface UserProfile {
   uid: string
@@ -103,8 +111,10 @@ export interface ChatMessage {
   audioUrl: string | null
   imageUrl: string | null
   imageUrls: string[]
+  attachedImageUrl: string | null  // user-uploaded image stored in Firebase Storage
   timestamp: Timestamp
   liked: boolean
+  imageDeleted?: boolean
   checklistData?: { id: string; title: string; items: string[] } | null
 }
 
@@ -130,6 +140,7 @@ export interface ChatFunctionPayload {
   imageBase64?: string
   imageMimeType?: string
   lastGeneratedImageUrl?: string
+  styleMemory?: StyleMemory
 }
 
 export interface CalendarEvent {
@@ -173,6 +184,7 @@ export interface ChatFunctionResponse {
   mode: Mode
   detectedLanguage: string
   imageQuota?: { allowed: boolean; remaining: number; dailyUsed: number; dailyLimit: number; resetAt: string }
+  styleMemory?: StyleMemory
 }
 
 // Typed error thrown by authService

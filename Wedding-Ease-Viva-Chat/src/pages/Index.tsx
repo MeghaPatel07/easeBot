@@ -4,6 +4,7 @@ import {
   Lock, ArrowLeft, CheckSquare,
   Bookmark, Image, ShoppingCart, DollarSign, ThumbsUp,
   Keyboard, BarChart3, Clock, Bell, Users,
+  X, Copy, Check, Link, Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -53,7 +54,7 @@ const Index = () => {
     messages, threads, activeThreadId, isTyping, allLikedMessages, calendarEvents, lastToolActions,
     sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
-    hasMoreMessages, loadMoreMessages,
+    hasMoreMessages, loadMoreMessages, deleteMessageImage,
   } = useChat();
 
   // ── Flash checkbox on AI mark_as_done ─────────────────────────────────────
@@ -93,12 +94,14 @@ const Index = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showSignUpModal, setShowSignUpModal] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [selectedMode, setSelectedMode] = useState<ModeOrAuto>('auto');
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState('');
+  const [inlineEditImage, setInlineEditImage] = useState<string | null>(null);
+  const [inlineEditImageMime, setInlineEditImageMime] = useState<string | null>(null);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [ttsLoadingId, setTtsLoadingId] = useState<string | null>(null);
@@ -274,8 +277,20 @@ const Index = () => {
     if (user) await updatePreferredLanguage(user.uid, code);
   };
 
-  const startInlineEdit = (m: Message) => { setInlineEditId(m.id); setInlineEditText(m.text); };
-  const cancelInlineEdit = () => { setInlineEditId(null); setInlineEditText(''); };
+  const startInlineEdit = (m: Message) => {
+    setInlineEditId(m.id);
+    setInlineEditText(m.text);
+    // Preserve attached image — extract base64 from data URI if present
+    if (m.attachedImage) {
+      setInlineEditImage(m.attachedImage);
+      const mimeMatch = m.attachedImage.match(/^data:([^;]+);/)
+      setInlineEditImageMime(mimeMatch ? mimeMatch[1] : 'image/png');
+    } else {
+      setInlineEditImage(null);
+      setInlineEditImageMime(null);
+    }
+  };
+  const cancelInlineEdit = () => { setInlineEditId(null); setInlineEditText(''); setInlineEditImage(null); setInlineEditImageMime(null); };
 
   const submitInlineEdit = (m: Message) => {
     const text = inlineEditText.trim();
@@ -298,7 +313,19 @@ const Index = () => {
     setInlineEditId(null);
     setInlineEditText('');
     const mode = selectedMode === 'auto' ? undefined : selectedMode;
-    sendMessage(text, undefined, mode, langHint);
+    // Extract raw base64 from data URI if image is present
+    let imgBase64: string | undefined;
+    let imgMime: string | undefined;
+    if (inlineEditImage) {
+      const parts = inlineEditImage.match(/^data:([^;]+);base64,(.+)$/);
+      if (parts) {
+        imgMime = parts[1];
+        imgBase64 = parts[2];
+      }
+    }
+    sendMessage(text, undefined, mode, langHint, imgBase64, imgMime);
+    setInlineEditImage(null);
+    setInlineEditImageMime(null);
   };
 
   // ── Branch navigation ─────────────────────────────────────────────────────
@@ -352,18 +379,19 @@ const Index = () => {
     if (archived && threadId === activeThreadId) navigate('/');
   };
 
+  const [shareModalUrl, setShareModalUrl] = useState<string | null>(null);
+  const [shareModalTitle, setShareModalTitle] = useState('');
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
+
   const handleShareThread = async (threadId: string) => {
     const thread = threads.find(t => t.id === threadId);
     if (!thread) return;
     try {
       const shareId = await createSharedChat(threadId, thread.title);
       const shareUrl = `${window.location.origin}/share/${shareId}`;
-      await navigator.clipboard.writeText(shareUrl);
-      const toast = document.createElement('div');
-      toast.textContent = 'Share link copied to clipboard!';
-      toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#3A0E20] text-white border border-white/10 text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-in fade-in';
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2500);
+      setShareModalUrl(shareUrl);
+      setShareModalTitle(thread.title);
+      setShareLinkCopied(false);
     } catch (err) {
       console.error('[share] error:', err);
     }
@@ -606,6 +634,85 @@ const Index = () => {
     </div>
   );
 
+  // ── Chat share modal ──────────────────────────────────────────────────────
+  const handleCopyShareLink = async () => {
+    if (!shareModalUrl) return;
+    try { await navigator.clipboard.writeText(shareModalUrl); }
+    catch { /* fallback */ const i = document.createElement('input'); i.value = shareModalUrl; document.body.appendChild(i); i.select(); document.execCommand('copy'); document.body.removeChild(i); }
+    setShareLinkCopied(true);
+    setTimeout(() => setShareLinkCopied(false), 2000);
+  };
+
+  const handleNativeShareChat = async () => {
+    if (!shareModalUrl) return;
+    if (navigator.share) {
+      try { await navigator.share({ url: shareModalUrl, title: `Wedding Ease — ${shareModalTitle}`, text: 'Check out this conversation from Wedding Ease!' }); } catch { /* cancelled */ }
+    }
+    setShareModalUrl(null);
+  };
+
+  const CHAT_SHARE_PLATFORMS = [
+    { name: 'WhatsApp', color: 'text-green-400',
+      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>,
+      getUrl: (url: string) => `https://wa.me/?text=${encodeURIComponent(`Check out this conversation: ${url}`)}` },
+    { name: 'Twitter / X', color: 'text-white',
+      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
+      getUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this wedding conversation from Wedding Ease!')}` },
+    { name: 'Email', color: 'text-blue-400',
+      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
+      getUrl: (url: string) => `mailto:?subject=${encodeURIComponent('Wedding Ease — Shared Conversation')}&body=${encodeURIComponent(`Check out this conversation: ${url}`)}` },
+  ];
+
+  const shareModalJSX = shareModalUrl && (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShareModalUrl(null)}>
+      <div className="bg-[#2D0A1A]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-white/90">Share conversation</h3>
+          <button onClick={() => setShareModalUrl(null)} className="p-1 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Title preview */}
+        <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+          <p className="text-xs text-white/60 truncate">{shareModalTitle}</p>
+          <p className="text-3xs text-white/30 mt-1">Link expires in 7 days</p>
+        </div>
+
+        {/* Copy link */}
+        <button onClick={handleCopyShareLink} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-white/70 hover:text-white/90 hover:bg-white/[0.06] transition-all mb-4">
+          {shareLinkCopied ? <Check className="h-4 w-4 text-green-400" /> : <Link className="h-4 w-4 text-white/40" />}
+          <span>{shareLinkCopied ? 'Link copied!' : 'Copy link'}</span>
+          {shareLinkCopied && <Check className="h-4 w-4 text-green-400 ml-auto" />}
+        </button>
+
+        {/* Divider */}
+        <div className="border-t border-white/[0.06] mb-4" />
+
+        {/* Social platforms */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {CHAT_SHARE_PLATFORMS.map(platform => (
+            <a key={platform.name} href={platform.getUrl(shareModalUrl)} target="_blank" rel="noopener noreferrer" onClick={() => setShareModalUrl(null)}
+              className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-white/[0.06] transition-colors">
+              <div className={platform.color}><platform.icon /></div>
+              <span className="text-3xs text-white/40">{platform.name}</span>
+            </a>
+          ))}
+        </div>
+
+        {/* Native share (mobile) */}
+        {typeof navigator !== 'undefined' && 'share' in navigator && (
+          <button onClick={handleNativeShareChat}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#C6944A]/15 border border-[#C6944A]/25 text-sm text-[#C6944A] font-medium hover:bg-[#C6944A]/25 transition-colors">
+            <Share2 className="h-4 w-4" />
+            More sharing options
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   // ── Profile icon (reused across views) ────────────────────────────────────
   const profileIconJSX = (
     <>
@@ -621,7 +728,6 @@ const Index = () => {
       />
       <SignInModal open={showSignInModal} onOpenChange={setShowSignInModal} onSwitchToSignUp={(email) => { setSignUpPrefillEmail(email); setShowSignUpModal(true); }} />
       <SignUpModal open={showSignUpModal} onOpenChange={setShowSignUpModal} onSwitchToSignIn={() => setShowSignInModal(true)} initialEmail={signUpPrefillEmail} />
-      <SettingsModal open={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
     </>
   );
 
@@ -658,11 +764,16 @@ const Index = () => {
     />
   );
 
+  // ── Settings modal (always mounted so sidebar button works from any view) ─
+  const settingsModalJSX = <SettingsModal open={showSettingsModal} onClose={() => setShowSettingsModal(false)} />;
+
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
       <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
         {shortcutsOverlayJSX}
+        {shareModalJSX}
+        {settingsModalJSX}
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
         <main className="flex-1 flex flex-col overflow-hidden">
@@ -689,6 +800,8 @@ const Index = () => {
   const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
     <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
       {shortcutsOverlayJSX}
+      {shareModalJSX}
+      {settingsModalJSX}
       {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
       <main className="flex-1 flex flex-col overflow-x-hidden overflow-hidden">
@@ -818,6 +931,8 @@ const Index = () => {
     return (
       <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
         {shortcutsOverlayJSX}
+        {shareModalJSX}
+        {settingsModalJSX}
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
 
@@ -871,10 +986,13 @@ const Index = () => {
             loadingMoreMessages={loadingMoreMessages}
             inlineEditId={inlineEditId}
             inlineEditText={inlineEditText}
+            inlineEditImage={inlineEditImage}
             onStartInlineEdit={startInlineEdit}
             onCancelInlineEdit={cancelInlineEdit}
             onSubmitInlineEdit={submitInlineEdit}
             onInlineEditTextChange={setInlineEditText}
+            onInlineEditImageChange={setInlineEditImage}
+            onInlineEditImageRemove={() => { setInlineEditImage(null); setInlineEditImageMime(null); }}
             getBranchInfo={getBranchInfo}
             onSwitchBranch={switchBranch}
             onLoadMoreMessages={handleLoadMoreMessages}
@@ -888,6 +1006,7 @@ const Index = () => {
             onSaveProduct={handleSaveProduct}
             onOpenPlanner={(checklistId) => { navigate(`/${activeUserId}/planner/${checklistId}`); setSelectedChecklistId(checklistId); }}
             onShowSignIn={() => setShowSignInModal(true)}
+            onDeleteImage={deleteMessageImage}
             ttsLoadingId={ttsLoadingId}
             ttsActiveId={ttsActiveId}
             ttsAudioUrls={ttsAudioUrls}
@@ -915,6 +1034,8 @@ const Index = () => {
   return (
     <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
       {shortcutsOverlayJSX}
+      {shareModalJSX}
+      {settingsModalJSX}
       {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
 

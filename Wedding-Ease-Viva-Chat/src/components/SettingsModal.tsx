@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Slider } from '@/components/ui/slider'
 import { useAuth } from '@/contexts/AuthContext'
 import { savePersonalization } from '@/services/settingsService'
 import { VOICE_PRESETS, getVoicePreset } from '@/services/voicePresets'
 import { requestTTS } from '@/services/ttsService'
 import type { ToneSettings, UserPersonalization } from '@/types'
-import { User, Sliders, Volume2, Check, Square, Loader2 } from 'lucide-react'
+import { User, Sliders, Volume2, Check, Square, Loader2, Sparkles } from 'lucide-react'
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -42,10 +39,10 @@ function SliderRow({
   onChange: (v: number) => void
 }) {
   return (
-    <div className="mb-5">
-      <div className="flex justify-between items-center mb-1.5">
-        <span className="text-sm font-medium text-white/70">{label}</span>
-        <span className="text-xs font-semibold text-primary w-8 text-right">{value}</span>
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-medium text-white/80">{label}</span>
+        <span className="text-xs font-bold text-[#C6944A] bg-[#C6944A]/10 px-2 py-0.5 rounded-full min-w-[2rem] text-center">{value}</span>
       </div>
       <Slider
         value={[value]}
@@ -56,12 +53,22 @@ function SliderRow({
         className="mb-1"
       />
       <div className="flex justify-between">
-        <span className="text-2xs text-white/40">{leftLabel}</span>
-        <span className="text-2xs text-white/40">{rightLabel}</span>
+        <span className="text-2xs text-white/30">{leftLabel}</span>
+        <span className="text-2xs text-white/30">{rightLabel}</span>
       </div>
     </div>
   )
 }
+
+// ── Tab config ───────────────────────────────────────────────────────────────
+
+const TABS = [
+  { id: 'identity', label: 'Identity', icon: User },
+  { id: 'tone', label: 'Tone', icon: Sliders },
+  { id: 'voice', label: 'Voice', icon: Volume2 },
+] as const
+
+type TabId = typeof TABS[number]['id']
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -75,6 +82,7 @@ interface Props {
 export function SettingsModal({ open, onClose }: Props) {
   const { user, profile } = useAuth()
 
+  const [activeTab, setActiveTab] = useState<TabId>('identity')
   const [nickname, setNickname] = useState('')
   const [voiceId, setVoiceId] = useState('')
   const [toneSettings, setToneSettings] = useState<ToneSettings>(DEFAULT_TONE)
@@ -83,13 +91,13 @@ export function SettingsModal({ open, onClose }: Props) {
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null)
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
 
-  // Populate from profile whenever the modal opens or profile changes
   useEffect(() => {
     if (open) {
       setNickname(profile?.nickname ?? '')
       setVoiceId(profile?.voiceId ?? '')
       setToneSettings(profile?.toneSettings ?? DEFAULT_TONE)
       setSaveState('idle')
+      setActiveTab('identity')
     } else {
       previewAudioRef.current?.pause()
       setPreviewingVoiceId(null)
@@ -99,8 +107,6 @@ export function SettingsModal({ open, onClose }: Props) {
 
   const previewVoice = async (presetId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-
-    // Stop any playing preview
     if (previewAudioRef.current) {
       previewAudioRef.current.pause()
       previewAudioRef.current = null
@@ -109,29 +115,19 @@ export function SettingsModal({ open, onClose }: Props) {
       setPreviewingVoiceId(null)
       return
     }
-
     const preset = getVoicePreset(presetId)
     if (!preset) return
-
     const storedLang = profile?.preferredLanguage
     const language = (storedLang && storedLang !== 'auto') ? storedLang : 'en'
-
     setPreviewLoadingId(presetId)
     try {
-      const audioUrl = await requestTTS({
-        text: preset.sampleText,
-        voiceName: preset.geminiVoiceName,
-        language,
-      })
+      const audioUrl = await requestTTS({ text: preset.sampleText, voiceName: preset.geminiVoiceName, language })
       const audio = new Audio(audioUrl)
       previewAudioRef.current = audio
       setPreviewingVoiceId(presetId)
       audio.onended = () => { setPreviewingVoiceId(null); URL.revokeObjectURL(audioUrl) }
       audio.onerror = () => { setPreviewingVoiceId(null); URL.revokeObjectURL(audioUrl) }
-      audio.play().catch(() => {
-        setPreviewingVoiceId(null);
-        URL.revokeObjectURL(audioUrl);
-      })
+      audio.play().catch(() => { setPreviewingVoiceId(null); URL.revokeObjectURL(audioUrl) })
     } catch {
       setPreviewingVoiceId(null)
     } finally {
@@ -145,21 +141,16 @@ export function SettingsModal({ open, onClose }: Props) {
 
   const handleSave = async () => {
     if (!user) return
-
     setSaveState('saving')
-
     const personalization: UserPersonalization = {
       nickname: nickname.trim() || undefined,
       voiceId,
       toneSettings,
     }
-
     try {
       await savePersonalization(user.uid, personalization)
       setSaveState('saved')
-      setTimeout(() => {
-        onClose()
-      }, 900)
+      setTimeout(() => onClose(), 900)
     } catch (err) {
       console.error('Failed to save personalization:', err)
       setSaveState('idle')
@@ -168,227 +159,188 @@ export function SettingsModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-lg w-full rounded-2xl p-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle className="text-lg font-semibold text-white/85">
-            Personalize Your Experience
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="w-[95vw] sm:max-w-[520px] glass-panel rounded-[2rem] p-0 border border-white/15 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden">
+        {/* Decorative blurs */}
+        <div className="absolute -top-16 -right-16 w-40 h-40 bg-[#C6944A]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#C6944A]/5 rounded-full blur-3xl pointer-events-none" />
 
-        <Tabs defaultValue="identity" className="w-full">
-          {/* Tab list */}
-          <TabsList className="w-full rounded-none border-b border-white/[0.06] bg-transparent px-6 h-12 gap-1">
-            <TabsTrigger
-              value="identity"
-              className="flex items-center gap-1.5 text-sm data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
-            >
-              <User size={14} />
-              Identity
-            </TabsTrigger>
-            <TabsTrigger
-              value="tone"
-              className="flex items-center gap-1.5 text-sm data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
-            >
-              <Sliders size={14} />
-              Tone
-            </TabsTrigger>
-            <TabsTrigger
-              value="voice"
-              className="flex items-center gap-1.5 text-sm data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary"
-            >
-              <Volume2 size={14} />
-              Voice
-            </TabsTrigger>
-          </TabsList>
-
-          {/* ── Identity Tab ── */}
-          <TabsContent
-            value="identity"
-            className="max-h-[60vh] overflow-y-auto px-6 py-5 focus:outline-none"
-          >
-            <div className="mb-3">
-              <label className="block text-sm font-medium text-white/70 mb-1.5">
-                Nickname
-              </label>
-              <p className="text-xs text-white/40 mb-2">
-                What should the AI call you during conversations?
-              </p>
-              <Input
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                placeholder="e.g. Priya, Babe, The Bride"
-                className="border-white/10 focus-visible:ring-primary text-base sm:text-sm"
-              />
+        <div className="relative max-h-[85dvh] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4">
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#C6944A] to-[#E8B86D] flex items-center justify-center shadow-lg shadow-[#C6944A]/20">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <h2 className="text-lg font-semibold text-white/95 tracking-tight">Personalize Your Experience</h2>
             </div>
-          </TabsContent>
+            <p className="text-xs text-white/40 ml-[2.625rem]">Customize how Viva interacts with you</p>
+          </div>
 
-          {/* ── Tone Tab ── */}
-          <TabsContent
-            value="tone"
-            className="max-h-[60vh] overflow-y-auto px-6 py-5 focus:outline-none"
-          >
-            <p className="text-xs text-white/40 mb-4">
-              Adjust these sliders to shape how the AI communicates with you.
-            </p>
-            <SliderRow
-              label="Warm"
-              leftLabel="Cool"
-              rightLabel="Warm"
-              value={toneSettings.warm}
-              onChange={updateTone('warm')}
-            />
-            <SliderRow
-              label="Analytical"
-              leftLabel="Intuitive"
-              rightLabel="Analytical"
-              value={toneSettings.analytical}
-              onChange={updateTone('analytical')}
-            />
-            <SliderRow
-              label="Friendly"
-              leftLabel="Formal"
-              rightLabel="Friendly"
-              value={toneSettings.friendly}
-              onChange={updateTone('friendly')}
-            />
-            <SliderRow
-              label="Professional"
-              leftLabel="Casual"
-              rightLabel="Professional"
-              value={toneSettings.professional}
-              onChange={updateTone('professional')}
-            />
-            <SliderRow
-              label="Enthusiastic"
-              leftLabel="Calm"
-              rightLabel="Enthusiastic"
-              value={toneSettings.enthusiastic}
-              onChange={updateTone('enthusiastic')}
-            />
-            <SliderRow
-              label="Concise"
-              leftLabel="Detailed"
-              rightLabel="Concise"
-              value={toneSettings.concise}
-              onChange={updateTone('concise')}
-            />
-            <SliderRow
-              label="Quirky"
-              leftLabel="Straight"
-              rightLabel="Quirky"
-              value={toneSettings.quirky}
-              onChange={updateTone('quirky')}
-            />
-            <SliderRow
-              label="Candid"
-              leftLabel="Diplomatic"
-              rightLabel="Candid"
-              value={toneSettings.candid}
-              onChange={updateTone('candid')}
-            />
-            <SliderRow
-              label="Emojis"
-              leftLabel="None"
-              rightLabel="Lots 😄"
-              value={toneSettings.emojis}
-              onChange={updateTone('emojis')}
-            />
-            <SliderRow
-              label="Headers & Lists"
-              leftLabel="Prose"
-              rightLabel="Structured"
-              value={toneSettings.headers}
-              onChange={updateTone('headers')}
-            />
-          </TabsContent>
-
-          {/* ── Voice Tab ── */}
-          <TabsContent
-            value="voice"
-            className="max-h-[60vh] overflow-y-auto px-6 py-5 focus:outline-none"
-          >
-            <p className="text-xs text-white/40 mb-4">
-              Choose a voice for AI audio responses. Availability depends on your device.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {VOICE_PRESETS.map((preset) => {
-                const isSelected = voiceId === preset.id
-                const isPreviewing = previewingVoiceId === preset.id
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => setVoiceId(preset.id)}
-                    className={[
-                      'rounded-xl border-2 p-3 cursor-pointer text-left transition-colors',
-                      isSelected
-                        ? 'border-primary bg-primary/10'
-                        : 'border-white/10 bg-white/[0.06] hover:border-white/20',
-                    ].join(' ')}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-white/85">{preset.name}</span>
-                        <span className={`text-3xs font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
-                          preset.gender === 'female'
-                            ? 'bg-pink-100 text-pink-500'
-                            : 'bg-blue-100 text-blue-500'
-                        }`}>
-                          {preset.gender}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span
-                          role="button"
-                          title={isPreviewing ? 'Stop preview' : 'Preview voice'}
-                          onClick={(e) => previewVoice(preset.id, e)}
-                          className={[
-                            'h-6 w-6 rounded-full flex items-center justify-center transition-colors',
-                            isPreviewing
-                              ? 'bg-primary text-white'
-                              : 'text-white/40 hover:text-primary hover:bg-primary/10',
-                          ].join(' ')}
-                        >
-                          {previewLoadingId === preset.id
-                            ? <Loader2 size={10} className="animate-spin" />
-                            : isPreviewing
-                              ? <Square size={10} fill="currentColor" />
-                              : <Volume2 size={12} />}
-                        </span>
-                        {isSelected && <Check size={14} className="text-primary" />}
-                      </div>
-                    </div>
-                    <span className="text-xs text-white/50">{preset.description}</span>
-                  </button>
-                )
-              })}
+          {/* Tab bar */}
+          <div className="px-6 mb-1">
+            <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+              {TABS.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all duration-200 ${
+                    activeTab === id
+                      ? 'bg-gradient-to-r from-[#C6944A]/20 to-[#E8B86D]/10 text-[#E8B86D] border border-[#C6944A]/25 shadow-sm'
+                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <Icon size={13} />
+                  {label}
+                </button>
+              ))}
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t border-white/[0.06]">
-          <Button
-            variant="ghost"
-            onClick={onClose}
-            disabled={saveState === 'saving'}
-            className="text-white/50 hover:text-white/70"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saveState !== 'idle'}
-            className="bg-primary text-white hover:bg-primary-muted min-w-[90px]"
-          >
-            {saveState === 'saving' && 'Saving...'}
-            {saveState === 'saved' && (
-              <span className="flex items-center gap-1">
-                <Check size={14} /> Saved
-              </span>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+            {/* ── Identity ── */}
+            {activeTab === 'identity' && (
+              <div className="space-y-4">
+                <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
+                  <label className="block text-sm font-medium text-white/80 mb-1">Nickname</label>
+                  <p className="text-xs text-white/35 mb-3">What should the AI call you during conversations?</p>
+                  <input
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="e.g. Priya, Babe, The Bride"
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-sm text-white/90 placeholder:text-white/25 focus:outline-none focus:border-[#C6944A]/40 focus:ring-2 focus:ring-[#C6944A]/15 focus:bg-white/[0.08] transition-all"
+                  />
+                </div>
+                <div className="rounded-xl bg-gradient-to-br from-[#C6944A]/5 to-transparent border border-[#C6944A]/10 p-4">
+                  <p className="text-xs text-white/50 leading-relaxed">
+                    Your nickname helps create a more personal and warm conversation experience. You can change it anytime.
+                  </p>
+                </div>
+              </div>
             )}
-            {saveState === 'idle' && 'Save'}
-          </Button>
+
+            {/* ── Tone ── */}
+            {activeTab === 'tone' && (
+              <div>
+                <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4 mb-4">
+                  <p className="text-xs text-white/45 leading-relaxed">
+                    Adjust these sliders to shape how the AI communicates with you.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <SliderRow label="Warm" leftLabel="Cool" rightLabel="Warm" value={toneSettings.warm} onChange={updateTone('warm')} />
+                  <SliderRow label="Analytical" leftLabel="Intuitive" rightLabel="Analytical" value={toneSettings.analytical} onChange={updateTone('analytical')} />
+                  <SliderRow label="Friendly" leftLabel="Formal" rightLabel="Friendly" value={toneSettings.friendly} onChange={updateTone('friendly')} />
+                  <SliderRow label="Professional" leftLabel="Casual" rightLabel="Professional" value={toneSettings.professional} onChange={updateTone('professional')} />
+                  <SliderRow label="Enthusiastic" leftLabel="Calm" rightLabel="Enthusiastic" value={toneSettings.enthusiastic} onChange={updateTone('enthusiastic')} />
+                  <SliderRow label="Concise" leftLabel="Detailed" rightLabel="Concise" value={toneSettings.concise} onChange={updateTone('concise')} />
+                  <SliderRow label="Quirky" leftLabel="Straight" rightLabel="Quirky" value={toneSettings.quirky} onChange={updateTone('quirky')} />
+                  <SliderRow label="Candid" leftLabel="Diplomatic" rightLabel="Candid" value={toneSettings.candid} onChange={updateTone('candid')} />
+                  <SliderRow label="Emojis" leftLabel="None" rightLabel="Lots" value={toneSettings.emojis} onChange={updateTone('emojis')} />
+                  <SliderRow label="Headers & Lists" leftLabel="Prose" rightLabel="Structured" value={toneSettings.headers} onChange={updateTone('headers')} />
+                </div>
+              </div>
+            )}
+
+            {/* ── Voice ── */}
+            {activeTab === 'voice' && (
+              <div>
+                <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4 mb-4">
+                  <p className="text-xs text-white/45 leading-relaxed">
+                    Choose a voice for AI audio responses.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {VOICE_PRESETS.map((preset) => {
+                    const isSelected = voiceId === preset.id
+                    const isPreviewing = previewingVoiceId === preset.id
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setVoiceId(preset.id)}
+                        className={`rounded-xl p-3.5 cursor-pointer text-left transition-all duration-200 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-[#C6944A]/15 to-[#E8B86D]/5 border border-[#C6944A]/30 shadow-md shadow-[#C6944A]/10'
+                            : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-white/90">{preset.name}</span>
+                            <span className={`text-3xs font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                              preset.gender === 'female'
+                                ? 'bg-pink-500/15 text-pink-300'
+                                : 'bg-blue-500/15 text-blue-300'
+                            }`}>
+                              {preset.gender}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span
+                              role="button"
+                              title={isPreviewing ? 'Stop preview' : 'Preview voice'}
+                              onClick={(e) => previewVoice(preset.id, e)}
+                              className={`h-7 w-7 rounded-full flex items-center justify-center transition-all ${
+                                isPreviewing
+                                  ? 'bg-[#C6944A] text-white shadow-md shadow-[#C6944A]/30'
+                                  : 'text-white/35 hover:text-[#C6944A] hover:bg-[#C6944A]/10'
+                              }`}
+                            >
+                              {previewLoadingId === preset.id
+                                ? <Loader2 size={11} className="animate-spin" />
+                                : isPreviewing
+                                  ? <Square size={10} fill="currentColor" />
+                                  : <Volume2 size={13} />}
+                            </span>
+                            {isSelected && (
+                              <div className="h-5 w-5 rounded-full bg-[#C6944A] flex items-center justify-center">
+                                <Check size={11} className="text-white" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-xs text-white/35 leading-relaxed">{preset.description}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-2.5 px-6 py-4 border-t border-white/[0.06] bg-white/[0.02]">
+            <button
+              onClick={onClose}
+              disabled={saveState === 'saving'}
+              className="px-5 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/[0.06] transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saveState !== 'idle'}
+              className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all min-w-[100px] ${
+                saveState === 'saved'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-gradient-to-r from-[#C6944A] to-[#E8B86D] text-white shadow-lg shadow-[#C6944A]/25 hover:shadow-[#C6944A]/40 hover:brightness-110 disabled:opacity-60'
+              }`}
+            >
+              {saveState === 'saving' && (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 size={14} className="animate-spin" /> Saving...
+                </span>
+              )}
+              {saveState === 'saved' && (
+                <span className="flex items-center gap-1.5">
+                  <Check size={14} /> Saved
+                </span>
+              )}
+              {saveState === 'idle' && 'Save Changes'}
+            </button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
