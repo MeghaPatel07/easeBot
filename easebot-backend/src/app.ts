@@ -17,6 +17,22 @@ import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
 
+// --- Trust proxy ---
+// When deployed behind a reverse proxy (Railway, Render, Fly, Cloud Run, nginx, etc.)
+// Express needs this so req.ip and the X-Forwarded-For header are honoured by
+// downstream middleware like express-rate-limit. Configurable via TRUST_PROXY env:
+//   - unset / "1"    → trust first proxy hop (typical PaaS setup)
+//   - "true"         → trust all proxies
+//   - "false" / "0"  → disable (local dev without a proxy)
+//   - any other value → passed through verbatim (e.g. a subnet like "10.0.0.0/8")
+const trustProxyEnv = process.env.TRUST_PROXY ?? '1'
+const trustProxyValue: boolean | number | string =
+  trustProxyEnv === 'true' ? true
+  : trustProxyEnv === 'false' ? false
+  : /^\d+$/.test(trustProxyEnv) ? Number(trustProxyEnv)
+  : trustProxyEnv
+app.set('trust proxy', trustProxyValue)
+
 // --- Security Headers (helmet) ---
 // Disable contentSecurityPolicy so SSE / EventSource connections are not blocked
 app.use(helmet({ contentSecurityPolicy: false }))

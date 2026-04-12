@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { generateSpeech } from '../services/geminiTTS'
+import { generateSpeech } from '../services/azureTTS'
 
 export async function handleTTS(req: Request, res: Response): Promise<void> {
   const { text, voiceName, language } = req.body as { text: string; voiceName?: string; language?: string }
@@ -24,7 +24,7 @@ export async function handleTTS(req: Request, res: Response): Promise<void> {
     .replace(/\s{2,}/g, ' ')
     .trim()
 
-  // Cap at 5000 chars (Gemini TTS limit)
+  // Cap at 5000 chars (Azure TTS single-request limit is ~10 min of audio; 5k chars is a safe ceiling)
   const capped = plainText.slice(0, 5000)
 
   try {
