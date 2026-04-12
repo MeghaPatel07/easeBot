@@ -13,11 +13,11 @@ const CATEGORIES = ['All', 'Vendor', 'Decor', 'Tip', 'Recipe', 'Other'] as const
 type Category = (typeof CATEGORIES)[number]
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
-  Vendor: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  Vendor: { bg: 'bg-primary/10', text: 'text-primary' },
   Decor:  { bg: 'bg-pink-100', text: 'text-pink-700' },
   Tip:    { bg: 'bg-amber-100', text: 'text-amber-700' },
   Recipe: { bg: 'bg-green-100', text: 'text-green-700' },
-  Other:  { bg: 'bg-stone-100', text: 'text-stone-700' },
+  Other:  { bg: 'bg-white/[0.06]', text: 'text-white/70' },
 }
 
 function categoryStyle(cat: string) {
@@ -106,10 +106,11 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+              style={{ touchAction: 'manipulation' }}
+              className={`px-2.5 py-1 h-9 sm:h-8 rounded-full text-xs font-medium transition-colors ${
                 active
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-white/70 text-gray-500 border border-gray-200 hover:border-blue-200 hover:text-blue-600'
+                  ? 'bg-primary text-white'
+                  : 'bg-white/[0.06] text-white/50 border border-white/10 hover:border-blue-200 hover:text-blue-600'
               }`}
             >
               {cat}
@@ -121,17 +122,17 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
       {/* Search bar + add button */}
       <div className="flex items-center gap-2 mb-3 flex-shrink-0">
         <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-300" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search saved items..."
-            className="w-full text-sm bg-white/70 border border-gray-200 rounded-xl pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 placeholder:text-gray-300"
+            className="w-full text-sm bg-white/[0.06] border border-white/10 rounded-xl pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 placeholder:text-white/30"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -139,7 +140,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
         </div>
         <button
           onClick={() => setShowAddForm(v => !v)}
-          className="h-9 w-9 flex items-center justify-center rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition-colors flex-shrink-0"
+          className="h-9 w-9 flex items-center justify-center rounded-xl bg-primary hover:bg-primary/90 text-white transition-colors flex-shrink-0"
           title="Add item manually"
         >
           <Plus className="h-4 w-4" />
@@ -148,17 +149,17 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
 
       {/* Add form */}
       {showAddForm && (
-        <div className="mb-3 flex-shrink-0 bg-white/70 border border-blue-200 rounded-2xl p-4 space-y-3">
+        <div className="mb-3 flex-shrink-0 bg-white/[0.06] border border-blue-200 rounded-2xl p-4 space-y-3">
           <textarea
             ref={textInputRef}
             value={newText}
             onChange={e => setNewText(e.target.value)}
             placeholder="Paste or type the snippet to save..."
             rows={3}
-            className="w-full text-sm bg-white border border-gray-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-gray-300"
+            className="w-full text-sm bg-white border border-white/10 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-white/30"
           />
           <div className="flex items-center gap-2">
-            <Tag className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+            <Tag className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
             <div className="flex gap-1.5 flex-wrap">
               {CATEGORIES.filter(c => c !== 'All').map(cat => {
                 const style = categoryStyle(cat)
@@ -170,7 +171,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                     className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
                       selected
                         ? `${style.bg} ${style.text} ring-2 ring-offset-1 ring-blue-300`
-                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                        : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.06]'
                     }`}
                   >
                     {cat}
@@ -183,19 +184,19 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
             value={newNote}
             onChange={e => setNewNote(e.target.value)}
             placeholder="Optional note..."
-            className="w-full text-sm bg-white border border-gray-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-gray-300"
+            className="w-full text-sm bg-white border border-white/10 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-white/30"
           />
           <div className="flex items-center gap-2 justify-end">
             <button
               onClick={() => { setShowAddForm(false); setNewText(''); setNewNote('') }}
-              className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              className="text-xs text-white/40 hover:text-white/60 px-3 py-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleAdd}
               disabled={!newText.trim()}
-              className="text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors"
             >
               Save
             </button>
@@ -206,10 +207,10 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
       {/* Items grid */}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-16 text-white/40">
             <Bookmark className="h-10 w-10 mb-3 opacity-20" />
             <p className="text-sm font-medium">No saved items yet</p>
-            <p className="text-xs text-gray-300 mt-1 text-center max-w-[220px]">
+            <p className="text-xs text-white/30 mt-1 text-center max-w-[220px]">
               Bookmark snippets from your chats or add them manually with the + button above.
             </p>
           </div>
@@ -238,9 +239,9 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                     href={productData.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group relative flex flex-col bg-white/70 border border-gray-100 hover:border-blue-200 rounded-2xl overflow-hidden transition-all hover:shadow-md"
+                    className="group relative flex flex-col bg-white/[0.06] border border-border hover:border-blue-200 rounded-2xl overflow-hidden transition-all hover:shadow-md"
                   >
-                    <div className="relative overflow-hidden bg-gray-200 flex-shrink-0 h-40">
+                    <div className="relative overflow-hidden bg-white/[0.06] flex-shrink-0 h-32 sm:h-40">
                       <img
                         src={productData.image}
                         alt={item.text}
@@ -252,7 +253,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                           e.stopPropagation();
                           handleDelete(item.id);
                         }}
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg bg-white/90 text-gray-400 hover:text-red-500 transition-all"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg bg-white/90 text-white/40 hover:text-red-500 transition-all"
                         title="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -260,13 +261,13 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                     </div>
                     <div className="p-3 flex flex-col flex-1">
                       <div className="mb-1.5">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${style.bg} ${style.text}`}>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-2xs font-medium ${style.bg} ${style.text}`}>
                           {item.category}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1">{item.text}</p>
+                      <p className="text-sm font-semibold text-white/85 line-clamp-2 flex-1">{item.text}</p>
                       {item.sourceThreadTitle && (
-                        <p className="text-[10px] text-gray-400 mt-auto pt-1.5">{item.sourceThreadTitle}</p>
+                        <p className="text-2xs text-white/40 mt-auto pt-1.5">{item.sourceThreadTitle}</p>
                       )}
                     </div>
                   </a>
@@ -277,12 +278,12 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
               return (
                 <div
                   key={item.id}
-                  className="group relative bg-white/70 border border-gray-100 hover:border-blue-100 rounded-2xl p-3.5 transition-all hover:shadow-sm"
+                  className="group relative bg-white/[0.06] border border-border hover:border-border rounded-2xl p-4 transition-all hover:shadow-sm"
                 >
                   {/* Delete button */}
                   <button
                     onClick={() => handleDelete(item.id)}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all"
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-50 transition-all"
                     title="Delete"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -292,7 +293,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                   <div className="mb-2 relative">
                     <button
                       onClick={() => setEditingCategoryId(editingCategoryId === item.id ? null : item.id)}
-                      className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${style.bg} ${style.text} hover:ring-1 hover:ring-offset-1 transition-all cursor-pointer`}
+                      className={`inline-block px-2 py-0.5 rounded-full text-2xs font-medium ${style.bg} ${style.text} hover:ring-1 hover:ring-offset-1 transition-all cursor-pointer`}
                       title="Click to change category"
                     >
                       {item.category}
@@ -308,10 +309,10 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                                 updateSavedItemCategory(userId, item.id, cat)
                                 setEditingCategoryId(null)
                               }}
-                              className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium transition-all ${
+                              className={`text-3xs px-1.5 py-0.5 rounded-full font-medium transition-all ${
                                 item.category === cat
                                   ? `${cs.bg} ${cs.text} ring-1 ring-offset-1`
-                                  : 'bg-white/60 text-gray-400 border border-gray-200 hover:bg-white'
+                                  : 'bg-white/[0.05] text-white/40 border border-white/10 hover:bg-white'
                               }`}
                             >{cat}</button>
                           )
@@ -321,15 +322,15 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                   </div>
 
                   {/* Text snippet */}
-                  <p className="text-sm text-gray-700 leading-snug line-clamp-4 mb-2 pr-6">
+                  <p className="text-sm text-white/70 leading-snug line-clamp-4 mb-2 pr-6">
                     {item.text}
                   </p>
 
                   {/* Source thread */}
                   {item.sourceThreadTitle && (
                     <div className="flex items-center gap-1 mb-2">
-                      <MessageSquare className="h-2.5 w-2.5 text-gray-300 flex-shrink-0" />
-                      <span className="text-[10px] text-gray-400 truncate">
+                      <MessageSquare className="h-2.5 w-2.5 text-white/30 flex-shrink-0" />
+                      <span className="text-2xs text-white/40 truncate">
                         {item.sourceThreadTitle}
                       </span>
                     </div>
@@ -347,17 +348,17 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                           if (e.key === 'Escape') { setEditingNoteId(null); setNoteText('') }
                         }}
                         placeholder="Add a note..."
-                        className="flex-1 text-xs bg-white border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 placeholder:text-gray-300"
+                        className="flex-1 text-xs bg-white border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 placeholder:text-white/30"
                       />
                       <button
                         onClick={() => handleSaveNote(item.id)}
-                        className="text-[10px] text-blue-500 hover:text-blue-700 font-medium"
+                        className="text-2xs text-blue-500 hover:text-blue-700 font-medium"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => { setEditingNoteId(null); setNoteText('') }}
-                        className="text-gray-300 hover:text-gray-500"
+                        className="text-white/30 hover:text-white/50"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -367,15 +368,15 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                       className="flex items-start gap-1.5 mb-2 cursor-pointer group/note"
                       onClick={() => { setEditingNoteId(item.id); setNoteText(item.note ?? '') }}
                     >
-                      <Edit3 className="h-2.5 w-2.5 text-gray-300 flex-shrink-0 mt-0.5" />
-                      <span className="text-xs text-gray-400 italic leading-snug group-hover/note:text-gray-600 transition-colors">
+                      <Edit3 className="h-2.5 w-2.5 text-white/30 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs text-white/40 italic leading-snug group-hover/note:text-white/60 transition-colors">
                         {item.note}
                       </span>
                     </div>
                   ) : (
                     <button
                       onClick={() => { setEditingNoteId(item.id); setNoteText('') }}
-                      className="flex items-center gap-1 text-[10px] text-gray-300 hover:text-blue-500 transition-colors mb-2"
+                      className="flex items-center gap-1 text-2xs text-white/30 hover:text-blue-500 transition-colors mb-2"
                     >
                       <Edit3 className="h-2.5 w-2.5" />
                       Add note
@@ -383,7 +384,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                   )}
 
                   {/* Date */}
-                  <p className="text-[10px] text-gray-300">
+                  <p className="text-2xs text-white/30">
                     {formatDate(item.createdAt)}
                   </p>
                 </div>

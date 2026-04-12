@@ -3,8 +3,14 @@ import { db } from '../lib/firebase'
 import { Request, Response } from 'express'
 import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
-import { callAzureAI, callAzureAIWithToolResults, streamCallAzureAI, streamCallAzureAIWithToolResults } from '../services/azureAI'
-import { isImageRequest, generateImage } from '../services/imageGeneration'
+import { callAzureAI, callAzureAIWithToolResults, streamCallAzureAI, streamCallAzureAIWithToolResults, MODE_TEMPERATURES } from '../services/azureAI'
+import { summarizeConversation } from '../services/conversationSummarizer'
+import sharp from 'sharp'
+import { IMAGE_TOOL, generateImageGptImage1, editImageGptImage1, extractStyleDescriptors, type ImageSize } from '../services/imageGeneration'
+import { expandWithPromptArchitect, type PromptArchitectOutput } from '../services/promptArchitect'
+import { postProcessImage } from '../services/imagePostProcessor'
+import { storeMultipleImages } from '../services/imageStorage'
+import { checkImageQuota, incrementImageUsage } from '../services/imageQuota'
 import { getRelevantProductsViaAlgolia, formatProductsContext } from '../services/algoliaProducts'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
@@ -15,28 +21,81 @@ import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
 import { PLANNER_TOOLS, executeToolCall } from '../services/plannerTools'
 import { incrementUserUsage } from '../services/usageService'
-import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode, ToolAction } from '../types'
+import type { ChatCompletionTool } from 'openai/resources/chat/completions'
+import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
+import { buildPersonalizationSuffix } from '../utils/toneInjector'
+import { determineTargetLanguage, buildLanguageInstruction } from '../pipeline/languageInstruction'
+
+interface UserProfileContext {
+  weddingDate?: string | null
+  budget?: string | number | null
+  stylePreferences?: string | null
+}
+
+function buildUserContextSuffix(profile?: UserProfileContext | null): string {
+  if (!profile) return ''
+  const parts: string[] = []
+  if (profile.weddingDate) {
+    parts.push(`The user's wedding is on ${profile.weddingDate}.`)
+  }
+  if (profile.budget) {
+    parts.push(`The user's budget is ${profile.budget}.`)
+  }
+  if (profile.stylePreferences) {
+    parts.push(`The user's style preferences: ${profile.stylePreferences}.`)
+  }
+  return parts.length > 0 ? '\n' + parts.join(' ') : ''
+}
+
+function buildGroundingContext(mode: Mode, userProfile: UserProfileContext | null): string {
+  const parts: string[] = []
+
+  if (userProfile?.weddingDate) {
+    const month = new Date(userProfile.weddingDate).getMonth()
+    if (month >= 11 || month <= 1) parts.push('Winter wedding: warm golden lighting, rich velvet/brocade textures, deep jewel tones, evergreen accents, candlelit ambiance')
+    else if (month >= 2 && month <= 4) parts.push('Spring wedding: soft natural light, pastel florals, light fabrics, cherry blossom/lavender accents, garden feel')
+    else if (month >= 5 && month <= 7) parts.push('Summer wedding: bright golden-hour light, airy fabrics, tropical florals, vibrant colors')
+    else parts.push('Autumn wedding: warm amber light, rustic textures, burgundy/burnt orange palette, harvest florals')
+  }
+
+  if (userProfile?.budget) {
+    const budget = Number(userProfile.budget)
+    if (budget > 50000) parts.push('Luxury tier: designer labels, premium fabrics, crystal/diamond accents, editorial quality')
+    else if (budget > 20000) parts.push('Mid-range: quality fabrics, tasteful details, elegant but not ostentatious')
+    else parts.push('Budget-conscious: creative styling, DIY-friendly aesthetics, meaningful over expensive')
+  }
+
+  if (userProfile?.stylePreferences) {
+    parts.push(`User style: ${userProfile.stylePreferences}`)
+  }
+
+  return parts.join('. ')
+}
 
 async function buildSystemPrompt(
   mode: Mode,
   userMessage: string,
-  userRole?: string | null
+  userRole?: string | null,
+  personalization?: UserPersonalization,
+  userProfile?: UserProfileContext | null
 ): Promise<string> {
+  const userContext = buildUserContextSuffix(userProfile)
+
   if (mode === 'stylist') {
     try {
       const products = await getRelevantProductsViaAlgolia(userMessage)
       const context = formatProductsContext(products)
-      return getStylistPrompt(context)
+      return getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext
     } catch {
-      return getStylistPrompt()
+      return getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext
     }
   }
   switch (mode) {
-    case 'planner':    return getPlannerPrompt(userRole)
-    case 'therapist':  return getTherapistPrompt()
-    case 'knowledge':  return getKnowledgePrompt()
-    case 'consultant': return getConsultantPrompt()
-    default:           return getAssistantPrompt()
+    case 'planner':    return getPlannerPrompt(userRole) + buildPersonalizationSuffix(personalization) + userContext
+    case 'therapist':  return getTherapistPrompt() + buildPersonalizationSuffix(personalization) + userContext
+    case 'knowledge':  return getKnowledgePrompt() + buildPersonalizationSuffix(personalization) + userContext
+    case 'consultant': return getConsultantPrompt() + buildPersonalizationSuffix(personalization) + userContext
+    default:           return getAssistantPrompt() + buildPersonalizationSuffix(personalization) + userContext
   }
 }
 
@@ -62,11 +121,195 @@ async function getChatHistory(
   return []
 }
 
-export async function handleChat(req: Request, res: Response): Promise<void> {
-  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory } = req.body as ChatPayload
+// ── Image tool call handler ─────────────────────────────────────────────────────
 
-  if (!message && !audioBase64) {
-    res.status(400).json({ error: 'message or audioBase64 is required' })
+interface ImageToolResult {
+  result: string
+  action: ToolAction
+  imageUrls: string[]
+  styleDescriptors: string[]
+  styleMemory?: import('../types').StyleMemory
+}
+
+/**
+ * Detect the aspect ratio of a source image and return the closest supported size.
+ * This ensures edits preserve the original image's orientation and proportions.
+ */
+async function detectImageAspectRatio(imageBase64: string): Promise<ImageSize> {
+  try {
+    const buffer = Buffer.from(imageBase64, 'base64')
+    const metadata = await sharp(buffer).metadata()
+    const w = metadata.width ?? 1024
+    const h = metadata.height ?? 1024
+    const ratio = w / h
+
+    // ratio > 1.15 → landscape, ratio < 0.85 → portrait, else square
+    if (ratio > 1.15) return '1536x1024'      // landscape
+    if (ratio < 0.85) return '1024x1536'       // portrait
+    return '1024x1024'                          // square
+  } catch (err) {
+    console.warn('[chatController] Could not detect image aspect ratio, defaulting to 1024x1024:', err)
+    return '1024x1024'
+  }
+}
+
+async function handleImageToolCall(
+  args: Record<string, any>,
+  opts: {
+    uid: string | null
+    isLoggedIn: boolean
+    isPremium: boolean
+    imageBase64?: string
+    lastGeneratedImageUrl?: string
+    mode: Mode
+    threadId?: string
+    styleMemory?: import('../types').StyleMemory
+    userProfile?: UserProfileContext | null
+    onPartialImage?: (b64: string) => void
+  }
+): Promise<ImageToolResult> {
+  const imgPrompt = args.prompt as string
+  const imgAction = (args.action as string) ?? 'generate'
+  const llmChosenSize = (args.aspect_ratio as ImageSize) ?? '1024x1024'
+  const imgVariants = 1 // Always generate exactly 1 image
+
+  // ── Stage 2+3: Prompt Architect (Thinking Mode + Domain Grounding) ──────
+  const groundingContext = buildGroundingContext(opts.mode, opts.userProfile ?? null)
+  let architectOutput: PromptArchitectOutput | null = null
+
+  try {
+    architectOutput = await expandWithPromptArchitect({
+      userIntent: imgPrompt,
+      action: imgAction as 'generate' | 'edit',
+      mode: opts.mode,
+      aspectRatio: llmChosenSize,
+      styleHistory: opts.styleMemory?.descriptors ?? [],
+      referenceImageBase64: opts.imageBase64,
+      referenceImageMime: 'image/png',
+      userProfile: opts.userProfile ?? undefined,
+      groundingContext,
+    })
+    console.log(`[chatController] Prompt Architect expanded: ${architectOutput.expandedPrompt.length} chars, quality=${architectOutput.qualityTier}`)
+  } catch (err) {
+    console.error('[chatController] Prompt Architect failed, using raw prompt:', err)
+  }
+
+  // Use expanded prompt if available, otherwise raw
+  const finalPrompt = architectOutput?.expandedPrompt ?? imgPrompt
+  const negativePrompt = architectOutput?.negativePrompt
+
+  // Check quota for logged-in users
+  if (opts.isLoggedIn && opts.uid) {
+    const quota = await checkImageQuota(opts.uid, opts.isPremium)
+    if (!quota.allowed) {
+      return {
+        result: `Image generation quota exceeded. You've used ${quota.dailyUsed}/${quota.dailyLimit} images today. Try again after ${quota.resetAt}.`,
+        action: { tool: 'generate_image', imagePrompt: imgPrompt, imageAction: imgAction as any },
+        imageUrls: [],
+        styleDescriptors: [],
+      }
+    }
+  }
+
+  let base64Images: string[] = []
+
+  if (opts.imageBase64) {
+    const sourceSize = await detectImageAspectRatio(opts.imageBase64)
+    console.log(`[chatController] User attached image → edit mode | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
+    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images })
+  } else if (imgAction === 'edit' && opts.lastGeneratedImageUrl) {
+    try {
+      console.log('[chatController] Iterative edit → fetching previous image from URL')
+      const imgRes = await fetch(opts.lastGeneratedImageUrl)
+      const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+      const sourceBase64 = imgBuf.toString('base64')
+      const sourceSize = await detectImageAspectRatio(sourceBase64)
+      console.log(`[chatController] Iterative edit | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
+      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt })
+    } catch (fetchErr) {
+      console.error('[chatController] Failed to fetch lastGeneratedImageUrl, falling back to generate:', fetchErr)
+      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage })
+    }
+  } else {
+    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage })
+  }
+
+  // Track which size was actually used for storage metadata
+  const imgSize = llmChosenSize // Overridden above for edit paths via sourceSize
+
+  // ── Stage 6: Post-Processing ──────────────────────────────────────────────
+  if (base64Images.length > 0) {
+    base64Images = await Promise.all(
+      base64Images.map(b64 => postProcessImage(b64, {
+        upscale: opts.isPremium,
+        outputFormat: 'png',
+      }))
+    )
+  }
+
+  if (base64Images.length === 0) {
+    return {
+      result: 'Image generation failed. The service may be temporarily unavailable.',
+      action: { tool: 'generate_image', imagePrompt: finalPrompt },
+      imageUrls: [],
+      styleDescriptors: [],
+    }
+  }
+
+  // Store images (for logged-in users)
+  let imageUrls: string[] = []
+  if (opts.isLoggedIn && opts.uid) {
+    const stored = await storeMultipleImages(base64Images, opts.uid, {
+      prompt: imgPrompt,
+      enhancedPrompt: imgPrompt,
+      mode: opts.mode,
+      threadId: opts.threadId || null,
+      aspectRatio: imgSize,
+      type: imgAction === 'edit' ? 'edited' : 'generated',
+    })
+    imageUrls = stored.map(s => s.url)
+    await incrementImageUsage(opts.uid, base64Images.length)
+  } else {
+    // Guest users: return data URIs (no storage)
+    imageUrls = base64Images.map(b64 => `data:image/png;base64,${b64}`)
+  }
+
+  // Extract style descriptors for consistency
+  const styleDescriptors = extractStyleDescriptors(finalPrompt)
+  const architectDescriptors = architectOutput?.styleDescriptors ?? []
+  const mergedDescriptors = [...new Set([...styleDescriptors, ...architectDescriptors])].slice(0, 20)
+
+  // Build updated style memory
+  const updatedStyleMemory: import('../types').StyleMemory = {
+    descriptors: [...new Set([...(opts.styleMemory?.descriptors ?? []), ...mergedDescriptors])].slice(0, 20),
+    colorPalette: opts.styleMemory?.colorPalette ?? [],
+    aestheticRegister: opts.styleMemory?.aestheticRegister ?? '',
+    culturalContext: opts.styleMemory?.culturalContext ?? '',
+    lastGeneratedImageUrl: imageUrls[0] ?? null,
+  }
+
+  return {
+    result: `Image${imageUrls.length > 1 ? 's' : ''} generated successfully. ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''} created.`,
+    action: {
+      tool: 'generate_image',
+      imagePrompt: finalPrompt,
+      imageAction: imgAction as any,
+      imageAspectRatio: imgSize,
+      imageVariants: imageUrls.length,
+    },
+    imageUrls,
+    styleDescriptors: mergedDescriptors,
+    styleMemory: updatedStyleMemory,
+  }
+}
+
+// ── Non-streaming chat handler ──────────────────────────────────────────────────
+
+export async function handleChat(req: Request, res: Response): Promise<void> {
+  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory } = req.body as ChatPayload
+
+  if (!message && !audioBase64 && !imageBase64) {
+    res.status(400).json({ error: 'message, audioBase64, or imageBase64 is required' })
     return
   }
 
@@ -78,26 +321,59 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const mode: Mode = requestedMode ?? detectMode(englishText)
     const history = await getChatHistory(threadId, providedHistory)
 
-    // Fetch user profile for premium status and role
+    // Fetch user profile for premium status, role, and context
     let isPremium = false
     let userRole: string | null = null
+    let userProfile: UserProfileContext | null = null
     if (isLoggedIn) {
       const profileSnap = await getDoc(doc(db, 'users', uid))
       if (profileSnap.exists()) {
-        isPremium = profileSnap.data().isPremium ?? false
-        userRole = profileSnap.data().role ?? null
+        const data = profileSnap.data()
+        isPremium = data.isPremium ?? false
+        userRole = data.role ?? null
+        userProfile = {
+          weddingDate: data.weddingDate ?? null,
+          budget: data.budget ?? null,
+          stylePreferences: data.stylePreferences ?? null,
+        }
       }
     }
 
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole)
+    const targetLanguage = determineTargetLanguage(language, detectedLanguage)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
+      + buildLanguageInstruction(targetLanguage)
 
-    // Enable function calling for planner mode (logged-in only)
-    const tools = (isLoggedIn && mode === 'planner') ? PLANNER_TOOLS : undefined
+    // Conversation summarization: compress older messages when history is long
+    let effectiveHistory = history
+    if (history.length > 10) {
+      try {
+        const olderMessages = history.slice(0, history.length - 5)
+        const recentMessages = history.slice(history.length - 5)
+        const { getClient } = await import('../services/azureAI')
+        const summary = await summarizeConversation(olderMessages, getClient())
+        effectiveHistory = [
+          { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
+          ...recentMessages,
+        ]
+      } catch (err) {
+        console.error('[chatController] summarization failed, using full history:', err)
+        // Fall back to full history on error
+      }
+    }
 
-    const [aiResult, imageUrl] = await Promise.all([
-      callAzureAI(history, englishText, systemPrompt, tools),
-      isImageRequest(englishText) ? generateImage(englishText).catch(() => null) : Promise.resolve(null),
-    ])
+    // Resolve mode-specific temperature
+    const temperature = MODE_TEMPERATURES[mode] ?? 0.7
+
+    // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
+    const tools: ChatCompletionTool[] = [IMAGE_TOOL]
+    if (isLoggedIn) {
+      tools.push(...PLANNER_TOOLS)
+    }
+
+    // Pass user-attached image as vision data so LLM can see it
+    const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
+
+    const aiResult = await callAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)
 
     // Store token usage for logged-in users
     console.log(`[chatController] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, aiResult.usage)
@@ -112,16 +388,41 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const toolActions: ToolAction[] = []
     let finalAiText = aiResult.text
     let calendarEvent: CalendarEvent | null = null
+    let imageUrls: string[] = []
+    let imageToolStyleMemory: import('../types').StyleMemory | undefined
 
     // Execute tool calls if any
-    if (aiResult.toolCalls.length > 0 && isLoggedIn) {
+    if (aiResult.toolCalls.length > 0) {
       const toolResults: { id: string; result: string }[] = []
 
       for (const tc of aiResult.toolCalls) {
+        // Handle generate_image inline (needs image-specific context)
+        if (tc.name === 'generate_image') {
+          const imgResult = await handleImageToolCall(tc.args, {
+            uid,
+            isLoggedIn,
+            isPremium,
+            imageBase64,
+            lastGeneratedImageUrl,
+            mode,
+            threadId,
+            userProfile,
+            styleMemory: styleMemory ?? undefined,
+          })
+          toolActions.push(imgResult.action)
+          imageUrls = imgResult.imageUrls
+          imageToolStyleMemory = imgResult.styleMemory
+          toolResults.push({ id: tc.id, result: imgResult.result })
+          continue
+        }
+
+        // Planner tools (logged-in only)
+        if (!isLoggedIn) continue
+
         const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium)
         toolActions.push(outcome.action)
 
-        // save_reminder tool provides the calendarEvent directly — no regex needed
+        // save_reminder tool provides the calendarEvent directly
         if (outcome.calendarEvent) {
           calendarEvent = outcome.calendarEvent
         }
@@ -131,7 +432,16 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
             "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!",
             detectedLanguage
           )
-          res.status(200).json({ text: limitText, audioUrl, imageUrl, calendarEvent: null, toolActions, mode, detectedLanguage } as ChatResponse)
+          res.status(200).json({
+            text: limitText,
+            audioUrl,
+            imageUrl: null,
+            imageUrls: undefined,
+            calendarEvent: null,
+            toolActions,
+            mode,
+            detectedLanguage,
+          } as ChatResponse)
           return
         }
 
@@ -139,9 +449,11 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       }
 
       // Second LLM call to get user-facing reply with tool results injected
-      finalAiText = await callAzureAIWithToolResults(
-        history, englishText, systemPrompt, aiResult.toolCalls, toolResults
-      )
+      if (toolResults.length > 0) {
+        finalAiText = await callAzureAIWithToolResults(
+          history, englishText, systemPrompt, aiResult.toolCalls, toolResults
+        )
+      }
     }
 
     // Fallback: parse legacy CALENDAR_EVENT text block (non-tool path or old responses)
@@ -159,11 +471,13 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const response: ChatResponse = {
       text: finalText,
       audioUrl,
-      imageUrl,
+      imageUrl: imageUrls[0] ?? null,
+      imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
       calendarEvent,
       toolActions,
       mode,
       detectedLanguage,
+      styleMemory: imageToolStyleMemory,
     }
     res.status(200).json(response)
   } catch (err: any) {
@@ -183,10 +497,10 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   const sse = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`)
 
   try {
-    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory } = req.body as ChatPayload
+    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory } = req.body as ChatPayload
 
-    if (!message && !audioBase64) {
-      sse({ t: 'e', msg: 'message or audioBase64 is required' })
+    if (!message && !audioBase64 && !imageBase64) {
+      sse({ t: 'e', msg: 'message, audioBase64, or imageBase64 is required' })
       res.end(); return
     }
 
@@ -199,26 +513,65 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     let isPremium = false
     let userRole: string | null = null
+    let userProfile: UserProfileContext | null = null
     if (isLoggedIn) {
       const profileSnap = await getDoc(doc(db, 'users', uid))
       if (profileSnap.exists()) {
-        isPremium = profileSnap.data().isPremium ?? false
-        userRole = profileSnap.data().role ?? null
+        const data = profileSnap.data()
+        isPremium = data.isPremium ?? false
+        userRole = data.role ?? null
+        userProfile = {
+          weddingDate: data.weddingDate ?? null,
+          budget: data.budget ?? null,
+          stylePreferences: data.stylePreferences ?? null,
+        }
       }
     }
 
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole)
-    const tools = (isLoggedIn && mode === 'planner') ? PLANNER_TOOLS : undefined
+    const targetLanguage = determineTargetLanguage(language, detectedLanguage)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
+      + buildLanguageInstruction(targetLanguage)
+
+    // Conversation summarization: compress older messages when history is long
+    let effectiveHistory = history
+    if (history.length > 10) {
+      try {
+        const olderMessages = history.slice(0, history.length - 5)
+        const recentMessages = history.slice(history.length - 5)
+        const { getClient } = await import('../services/azureAI')
+        const summary = await summarizeConversation(olderMessages, getClient())
+        effectiveHistory = [
+          { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
+          ...recentMessages,
+        ]
+      } catch (err) {
+        console.error('[chatController:stream] summarization failed, using full history:', err)
+      }
+    }
+
+    // Resolve mode-specific temperature
+    const temperature = MODE_TEMPERATURES[mode] ?? 0.7
+
+    // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
+    const tools: ChatCompletionTool[] = [IMAGE_TOOL]
+    if (isLoggedIn) {
+      tools.push(...PLANNER_TOOLS)
+    }
+
+    // Pass user-attached image as vision data so LLM can see it
+    const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
 
     const toolActions: ToolAction[] = []
     let calendarEvent: CalendarEvent | null = null
+    let imageUrls: string[] = []
+    let imageToolStyleMemory: import('../types').StyleMemory | undefined
     let fullText = ''
 
     // ── Stream first LLM call ────────────────────────────────────────────────
     let firstPassToolCalls: { id: string; name: string; args: Record<string, any> }[] = []
     let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
 
-    for await (const event of streamCallAzureAI(history, englishText, systemPrompt, tools)) {
+    for await (const event of streamCallAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)) {
       if (event.type === 'chunk') {
         sse({ t: 'c', v: event.text })
         fullText += event.text
@@ -239,12 +592,41 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     }
 
     // ── Execute tool calls and stream second pass ────────────────────────────
-    if (firstPassToolCalls.length > 0 && isLoggedIn) {
+    if (firstPassToolCalls.length > 0) {
       // Reset text — when tools are called the first pass emits no readable content
       fullText = ''
       const toolResults: { id: string; result: string }[] = []
 
       for (const tc of firstPassToolCalls) {
+        // Handle generate_image inline (needs image-specific context)
+        if (tc.name === 'generate_image') {
+          // Signal frontend immediately so it can show the skeleton
+          sse({ t: 'img', status: 'generating' })
+
+          const imgResult = await handleImageToolCall(tc.args, {
+            uid,
+            isLoggedIn,
+            isPremium,
+            imageBase64,
+            lastGeneratedImageUrl,
+            mode,
+            threadId,
+            userProfile,
+            styleMemory: styleMemory ?? undefined,
+            onPartialImage: (partialB64: string) => {
+              sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
+            },
+          })
+          toolActions.push(imgResult.action)
+          imageUrls = imgResult.imageUrls
+          imageToolStyleMemory = imgResult.styleMemory
+          toolResults.push({ id: tc.id, result: imgResult.result })
+          continue
+        }
+
+        // Planner tools (logged-in only)
+        if (!isLoggedIn) continue
+
         const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium)
         toolActions.push(outcome.action)
         if (outcome.calendarEvent) calendarEvent = outcome.calendarEvent
@@ -252,16 +634,19 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
         if (outcome.result === 'STORAGE_LIMIT_REACHED') {
           const limitMsg = "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!"
           sse({ t: 'c', v: limitMsg })
-          sse({ t: 'd', text: limitMsg, calendarEvent: null, toolActions, mode, detectedLanguage, audioUrl: null, imageUrl: null })
+          sse({ t: 'd', text: limitMsg, calendarEvent: null, toolActions, mode, detectedLanguage, audioUrl: null, imageUrl: null, imageUrls: [] })
           res.end(); return
         }
 
         toolResults.push({ id: tc.id, result: outcome.result })
       }
 
-      for await (const chunk of streamCallAzureAIWithToolResults(history, englishText, systemPrompt, firstPassToolCalls, toolResults)) {
-        sse({ t: 'c', v: chunk })
-        fullText += chunk
+      // Second pass: stream LLM response with tool results
+      if (toolResults.length > 0) {
+        for await (const chunk of streamCallAzureAIWithToolResults(history, englishText, systemPrompt, firstPassToolCalls, toolResults)) {
+          sse({ t: 'c', v: chunk })
+          fullText += chunk
+        }
       }
     }
 
@@ -278,7 +663,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // TTS after full text is ready
     const { audioUrl } = await processOutbound(cleanedText, detectedLanguage)
 
-    sse({ t: 'd', text: cleanedText, calendarEvent, toolActions, mode, detectedLanguage, audioUrl, imageUrl: null })
+    sse({ t: 'd', text: cleanedText, calendarEvent, toolActions, mode, detectedLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
     res.end()
   } catch (err: any) {
     console.error('[chatController:stream]', err)

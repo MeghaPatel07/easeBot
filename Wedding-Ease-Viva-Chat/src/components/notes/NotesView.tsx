@@ -1,0 +1,453 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { FileText, Plus, Layout, Loader2, ImagePlus, X } from 'lucide-react';
+import type { Editor } from '@tiptap/react';
+import { Button } from '@/components/ui/button';
+import { useNotes } from '@/hooks/useNotes';
+import { useNoteEditor } from '@/hooks/useNoteEditor';
+import {
+  addCollaborator,
+  removeCollaborator,
+  updateCollaboratorPermission,
+  enablePublicLink,
+  disablePublicLink,
+} from '@/services/notesSharingService';
+import {
+  subscribeToComments,
+  addComment,
+  editComment,
+  deleteComment,
+  resolveComment,
+  unresolveComment,
+  addReaction,
+} from '@/services/notesCommentsService';
+import type { NoteComment, NotePermission, NoteCategory, NoteTemplate } from '@/types/notes';
+import NotesSidebar from '@/components/notes/NotesSidebar';
+import NoteHeader from '@/components/notes/NoteHeader';
+import NoteEditor from '@/components/notes/NoteEditor';
+import NoteShareDialog from '@/components/notes/NoteShareDialog';
+import NoteCommentsSidebar from '@/components/notes/NoteCommentsSidebar';
+import NoteTemplateDialog from '@/components/notes/NoteTemplateDialog';
+import BlockWidgetBar from '@/components/notes/toolbar/BlockWidgetBar';
+import { toast } from 'sonner';
+
+interface NotesViewProps {
+  userId: string;
+  userEmail: string;
+  userName: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: extract text from Tiptap JSON for word counting
+// ─────────────────────────────────────────────────────────────────────────────
+function extractText(json: any): string {
+  if (!json) return '';
+  if (typeof json === 'string') return json;
+  if (json.type === 'text') return json.text || '';
+  if (Array.isArray(json.content)) return json.content.map(extractText).join(' ');
+  if (json.content) return extractText(json.content);
+  return '';
+}
+
+export default function NotesView({ userId, userEmail, userName }: NotesViewProps) {
+  const {
+    notes, sharedNotes, folders, activeNoteId, setActiveNoteId,
+    searchQuery, setSearchQuery, isLoading,
+    createNote, updateNote, deleteNote, restoreNote, duplicateNote,
+    createFolder, updateFolder, deleteFolder,
+    moveNoteToFolder,
+  } = useNotes(userId, userEmail);
+
+  const {
+    note, isSaving, lastSavedAt, hasUnsavedChanges, save,
+    updateContent, updateTitle, uploadImage,
+  } = useNoteEditor(activeNoteId, userId);
+
+  // Local state
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [comments, setComments] = useState<NoteComment[]>([]);
+  const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
+  const [coverHovered, setCoverHovered] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const handleEditorReady = useCallback((editor: Editor) => setEditorInstance(editor), []);
+
+  // Subscribe to comments when active note changes
+  useEffect(() => {
+    if (!activeNoteId) {
+      setComments([]);
+      return;
+    }
+    const unsubscribe = subscribeToComments(activeNoteId, (updatedComments) => {
+      setComments(updatedComments);
+    });
+    return () => unsubscribe();
+  }, [activeNoteId]);
+
+  // Template handler
+  const handleSelectTemplate = async (template: NoteTemplate) => {
+    try {
+      await createNote({
+        title: template.title,
+        content: template.content,
+        icon: template.icon,
+        category: template.category,
+      });
+      setShowTemplateDialog(false);
+    } catch (err) {
+      toast.error('Failed to create note from template');
+    }
+  };
+
+  // Sharing handlers
+  const handleAddCollaborator = async (email: string, permission: NotePermission) => {
+    if (!activeNoteId) return;
+    try {
+      await addCollaborator(activeNoteId, {
+        userId: '',
+        email,
+        name: email.split('@')[0],
+        permission,
+        addedBy: userId,
+      });
+    } catch (err) {
+      toast.error('Failed to add collaborator');
+    }
+  };
+
+  const handleRemoveCollaborator = async (collaboratorUserId: string) => {
+    if (!activeNoteId) return;
+    try {
+      await removeCollaborator(activeNoteId, collaboratorUserId);
+    } catch (err) {
+      toast.error('Failed to remove collaborator');
+    }
+  };
+
+  const handleUpdateCollaboratorPermission = async (collaboratorUserId: string, permission: NotePermission) => {
+    if (!activeNoteId) return;
+    try {
+      await updateCollaboratorPermission(activeNoteId, collaboratorUserId, permission);
+    } catch (err) {
+      toast.error('Failed to update permission');
+    }
+  };
+
+  const handleEnablePublicLink = async (permission: 'view' | 'comment' | 'edit') => {
+    if (!activeNoteId) return '';
+    try {
+      return await enablePublicLink(activeNoteId, permission);
+    } catch (err) {
+      toast.error('Failed to enable public link');
+      return '';
+    }
+  };
+
+  const handleDisablePublicLink = async () => {
+    if (!activeNoteId) return;
+    try {
+      await disablePublicLink(activeNoteId);
+    } catch (err) {
+      toast.error('Failed to disable public link');
+    }
+  };
+
+  // Toggle favorite via updateNote
+  const handleToggleFavorite = async (noteId: string, favorited: boolean) => {
+    try {
+      await updateNote(noteId, { favorited });
+    } catch (err) {
+      toast.error('Failed to update favorite');
+    }
+  };
+
+  // Cover image handler
+  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !note) return;
+    try {
+      const url = await uploadImage(file);
+      if (url) {
+        await updateNote(note.id, { coverImage: url });
+      }
+    } catch (err) {
+      toast.error('Failed to upload cover image');
+    }
+    // Reset file input
+    if (coverInputRef.current) coverInputRef.current.value = '';
+  };
+
+  const handleRemoveCover = async () => {
+    if (!note) return;
+    try {
+      await updateNote(note.id, { coverImage: null });
+    } catch (err) {
+      toast.error('Failed to remove cover image');
+    }
+  };
+
+  // Duplicate handler
+  const handleDuplicateNote = async (noteId: string) => {
+    try {
+      await duplicateNote(noteId);
+      toast.success('Note duplicated');
+    } catch (err) {
+      toast.error('Failed to duplicate note');
+    }
+  };
+
+  // Restore handler
+  const handleRestoreNote = async (noteId: string) => {
+    try {
+      await restoreNote(noteId);
+      toast.success('Note restored');
+    } catch (err) {
+      toast.error('Failed to restore note');
+    }
+  };
+
+  // Determine permissions
+  const isOwner = note?.ownerId === userId;
+  const isEditor = note?.collaborators?.some(
+    (c) => c.userId === userId && c.permission === 'editor'
+  );
+  const canEdit = isOwner || isEditor;
+  const readOnly = !canEdit;
+
+  // Word count -- content is Tiptap JSON, not HTML
+  const wordCount = note?.content
+    ? extractText((() => { try { return JSON.parse(note.content); } catch { return null; } })())
+        .split(/\s+/).filter(Boolean).length
+    : 0;
+
+  // Trashed notes count
+  const trashedCount = notes.filter(n => n.isDeleted).length;
+
+  return (
+    <div className="flex h-[calc(100vh-7.5rem)] -m-5 rounded-xl overflow-hidden border border-white/[0.06]">
+      {/* Left sidebar */}
+      <NotesSidebar
+        notes={notes}
+        sharedNotes={sharedNotes}
+        folders={folders}
+        activeNoteId={activeNoteId}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSelectNote={setActiveNoteId}
+        onCreateNote={() => createNote()}
+        onDeleteNote={deleteNote}
+        onRestoreNote={handleRestoreNote}
+        onDuplicateNote={handleDuplicateNote}
+        onCreateFolder={createFolder}
+        onDeleteFolder={deleteFolder}
+        onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
+        onMoveNote={moveNoteToFolder}
+        onToggleFavorite={handleToggleFavorite}
+        onBack={() => setActiveNoteId(null)}
+        trashedCount={trashedCount}
+      />
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white/[0.02]">
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <Loader2 className="h-8 w-8 text-primary/40 mx-auto animate-spin" />
+              <p className="text-sm text-white/30">Loading notes...</p>
+            </div>
+          </div>
+        ) : note ? (
+          <>
+            <NoteHeader
+              note={note}
+              onUpdateTitle={updateTitle}
+              onUpdateIcon={(icon: string) => updateNote(note.id, { icon })}
+              onUpdateCategory={(category: NoteCategory) => updateNote(note.id, { category })}
+              onToggleFavorite={() => handleToggleFavorite(note.id, !note.favorited)}
+              onShare={() => setShowShareDialog(true)}
+              onDelete={() => deleteNote(note.id)}
+              onSave={save}
+              isSaving={isSaving}
+              lastSavedAt={lastSavedAt}
+              hasUnsavedChanges={hasUnsavedChanges}
+              readOnly={readOnly}
+              wordCount={wordCount}
+              editor={editorInstance}
+              onToggleComments={() => setShowComments(v => !v)}
+              commentsCount={comments.length}
+            />
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {/* Cover image area */}
+              <div
+                className="relative max-w-3xl mx-auto"
+                onMouseEnter={() => setCoverHovered(true)}
+                onMouseLeave={() => setCoverHovered(false)}
+              >
+                {note.coverImage ? (
+                  <div className="relative w-full h-48 overflow-hidden">
+                    <img
+                      src={note.coverImage}
+                      alt="Note cover"
+                      className="w-full h-full object-cover"
+                    />
+                    {!readOnly && coverHovered && (
+                      <div className="absolute top-2 right-2 flex gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 text-[11px] bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                          onClick={() => coverInputRef.current?.click()}
+                        >
+                          Change cover
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 w-7 p-0 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                          onClick={handleRemoveCover}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  !readOnly && coverHovered && (
+                    <div className="flex justify-center py-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-[11px] text-white/30 hover:text-white/60 gap-1.5"
+                        onClick={() => coverInputRef.current?.click()}
+                      >
+                        <ImagePlus className="h-3.5 w-3.5" />
+                        Add cover
+                      </Button>
+                    </div>
+                  )
+                )}
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverImageChange}
+                />
+              </div>
+              <div className="mx-auto px-6 py-4">
+                <NoteEditor
+                  noteId={note.id}
+                  content={note.content}
+                  onUpdate={updateContent}
+                  onEditorReady={handleEditorReady}
+                  onImageUpload={uploadImage}
+                  readOnly={readOnly}
+                  placeholder="Start writing, or type '/' for commands..."
+                />
+              </div>
+            </div>
+            {!readOnly && editorInstance && (
+              <div className="flex-shrink-0 border-t border-white/[0.06]">
+                <div className="">
+                  <BlockWidgetBar editor={editorInstance} onImageUpload={uploadImage} />
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <FileText className="h-16 w-16 text-white/10 mx-auto" />
+              <h3 className="text-lg font-headline text-white/40">
+                Select a note or create a new one
+              </h3>
+              <div className="flex gap-2 justify-center">
+                <Button
+                  onClick={() => createNote()}
+                  variant="outline"
+                  className="border-primary/40 text-primary hover:bg-primary/10"
+                >
+                  <Plus className="h-4 w-4 mr-2" /> New Note
+                </Button>
+                <Button
+                  onClick={() => setShowTemplateDialog(true)}
+                  variant="ghost"
+                  className="text-white/60 hover:text-white"
+                >
+                  <Layout className="h-4 w-4 mr-2" /> From Template
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Right comments sidebar */}
+      {showComments && activeNoteId && (
+        <NoteCommentsSidebar
+          comments={comments}
+          open={showComments}
+          onClose={() => setShowComments(false)}
+          onAddComment={(blockId, anchorText, content) =>
+            addComment({
+              noteId: activeNoteId,
+              blockId,
+              anchorText,
+              authorId: userId,
+              authorName: userName,
+              authorEmail: userEmail,
+              content,
+              parentCommentId: null,
+              resolved: false,
+              resolvedBy: null,
+              resolvedAt: null,
+              reactions: {},
+            })
+          }
+          onReply={(parentCommentId, content) =>
+            addComment({
+              noteId: activeNoteId,
+              blockId: '',
+              anchorText: '',
+              authorId: userId,
+              authorName: userName,
+              authorEmail: userEmail,
+              content,
+              parentCommentId,
+              resolved: false,
+              resolvedBy: null,
+              resolvedAt: null,
+              reactions: {},
+            })
+          }
+          onResolve={(commentId) => resolveComment(activeNoteId, commentId, userId)}
+          onUnresolve={(commentId) => unresolveComment(activeNoteId, commentId)}
+          onDelete={(commentId) => deleteComment(activeNoteId, commentId)}
+          onEditComment={(commentId, content) => editComment(activeNoteId, commentId, content)}
+          onReact={(commentId, emoji) => addReaction(activeNoteId, commentId, emoji, userId)}
+          currentUserId={userId}
+        />
+      )}
+
+      {/* Dialogs */}
+      {activeNoteId && note && (
+        <NoteShareDialog
+          open={showShareDialog}
+          onClose={() => setShowShareDialog(false)}
+          note={note}
+          onAddCollaborator={handleAddCollaborator}
+          onRemoveCollaborator={handleRemoveCollaborator}
+          onUpdatePermission={handleUpdateCollaboratorPermission}
+          onEnablePublicLink={handleEnablePublicLink}
+          onDisablePublicLink={handleDisablePublicLink}
+        />
+      )}
+
+      <NoteTemplateDialog
+        open={showTemplateDialog}
+        onClose={() => setShowTemplateDialog(false)}
+        onSelectTemplate={handleSelectTemplate}
+      />
+    </div>
+  );
+}

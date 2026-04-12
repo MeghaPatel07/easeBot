@@ -166,20 +166,20 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
         <div className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
           <button
             onClick={() => setShowVendorTab(false)}
-            className="flex items-center gap-1 text-xs text-[#A2B29D] hover:text-[#8a9e84] font-medium transition-colors"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary-muted font-medium transition-colors"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Back
           </button>
-          <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-            <Store className="h-3.5 w-3.5 text-[#A2B29D]" />
-            Vendor Products
+          <h3 className="text-sm font-semibold text-white/85 flex items-center gap-1.5">
+            <Store className="h-3.5 w-3.5 text-primary" />
+            Saved Products
           </h3>
           <div className="w-12" />
         </div>
 
         {/* Vendor product form */}
-        <div className="mb-3 flex-shrink-0 space-y-1.5 bg-[#A2B29D]/5 border border-[#A2B29D]/10 rounded-xl p-2">
+        <div className="mb-3 flex-shrink-0 space-y-1.5 bg-primary/5 border border-primary/10 rounded-xl p-2">
           <input
             ref={vendorNameRef}
             value={newVendorName}
@@ -191,7 +191,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="Vendor name *"
-            className="w-full text-sm bg-white border border-[#A2B29D]/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+            className="w-full text-sm bg-white border border-primary/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
           />
           <input
             value={newProductName}
@@ -203,7 +203,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="Product name *"
-            className="w-full text-sm bg-white border border-[#A2B29D]/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+            className="w-full text-sm bg-white border border-primary/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
           />
           <div className="flex gap-1.5">
             <input
@@ -219,7 +219,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               type="number"
               step="0.01"
               min="0"
-              className="w-20 text-xs bg-white border border-[#A2B29D]/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+              className="w-20 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
             />
             <input
               value={newProductLink}
@@ -231,13 +231,13 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                 }
               }}
               placeholder="Product URL (optional)"
-              className="flex-1 text-xs bg-white border border-[#A2B29D]/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+              className="flex-1 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
             />
           </div>
           <button
             onClick={addVendorProduct}
             disabled={!newVendorName.trim() || !newProductName.trim()}
-            className="w-full flex items-center justify-center gap-1 text-xs font-medium text-white bg-[#A2B29D] hover:bg-[#8a9e84] disabled:opacity-30 disabled:cursor-not-allowed rounded-lg px-2.5 py-1.5 transition-colors"
+            className="w-full flex items-center justify-center gap-1 text-xs font-medium text-white bg-primary hover:bg-primary-muted disabled:opacity-30 disabled:cursor-not-allowed rounded-lg px-2.5 py-1.5 transition-colors"
           >
             <Plus className="h-3 w-3" />
             Add Vendor Product
@@ -247,29 +247,29 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
         {/* Vendor products list */}
         <div className="flex-1 overflow-y-auto space-y-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {vendorProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-8 text-white/40">
               <Store className="h-8 w-8 mb-2 opacity-20" />
-              <p className="text-sm">No vendor products yet.</p>
-              <p className="text-xs mt-1">Add products returned from vendors.</p>
+              <p className="text-sm">No saved products yet.</p>
+              <p className="text-xs mt-1 text-center max-w-[220px]">Save products you're interested in from vendors. You can add them to shopping lists later.</p>
             </div>
           ) : (
             vendorProducts.map(product => (
               <div
                 key={product.id}
-                className="rounded-xl border border-[#A2B29D]/15 bg-white/70 p-2.5 space-y-1.5 group"
+                className="rounded-xl border border-primary/15 bg-white/[0.06] p-2.5 space-y-1.5 group"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-600 flex items-center gap-1">
-                      <Store className="h-3 w-3 text-[#A2B29D] flex-shrink-0" />
+                    <p className="text-xs font-medium text-white/60 flex items-center gap-1">
+                      <Store className="h-3 w-3 text-primary flex-shrink-0" />
                       <span className="truncate">{product.vendorName}</span>
                     </p>
-                    <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                    <p className="text-sm font-semibold text-white/85 mt-0.5">
                       {product.productName}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       {product.price !== null && product.price !== undefined && (
-                        <span className="text-[10px] font-medium text-amber-500">
+                        <span className="text-2xs font-medium text-amber-500">
                           {formatPrice(product.price)}
                         </span>
                       )}
@@ -278,7 +278,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                           href={product.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-0.5 text-[10px] text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+                          className="flex items-center gap-0.5 text-2xs text-blue-500 hover:text-blue-700 hover:underline transition-colors"
                         >
                           <ExternalLink className="h-2.5 w-2.5" />
                           Link
@@ -288,7 +288,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                   </div>
                   <button
                     onClick={() => removeVendorProduct(product.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
+                    className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -296,12 +296,12 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
 
                 {/* Add to list button */}
                 {lists.length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-1 border-t border-[#A2B29D]/10">
+                  <div className="flex flex-wrap gap-1 pt-1 border-t border-primary/10">
                     {lists.map(list => (
                       <button
                         key={list.id}
                         onClick={() => addVendorProductToList(list.id, product)}
-                        className="text-[9px] font-medium text-white bg-[#A2B29D] hover:bg-[#8a9e84] rounded-lg px-2 py-1 transition-colors"
+                        className="text-3xs font-medium text-white bg-primary hover:bg-primary-muted rounded-lg px-2 py-1 transition-colors"
                       >
                         + {list.title}
                       </button>
@@ -320,14 +320,14 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
-        <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-          <ShoppingCart className="h-3.5 w-3.5 text-[#A2B29D]" />
+        <h3 className="text-sm font-semibold text-white/85 flex items-center gap-1.5">
+          <ShoppingCart className="h-3.5 w-3.5 text-primary" />
           Shopping Lists
         </h3>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowVendorTab(true)}
-            className="flex items-center gap-1 text-xs text-[#A2B29D] hover:text-[#8a9e84] bg-[#A2B29D]/10 hover:bg-[#A2B29D]/20 rounded-lg px-2.5 py-1.5 transition-colors font-medium"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary-muted bg-primary/10 hover:bg-primary/20 rounded-lg px-2.5 py-1.5 transition-colors font-medium"
             title="Vendor products"
           >
             <Store className="h-3.5 w-3.5" />
@@ -335,7 +335,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
           </button>
           <button
             onClick={() => setShowNewListInput(v => !v)}
-            className="flex items-center gap-1 text-xs text-[#A2B29D] hover:text-[#8a9e84] bg-[#A2B29D]/10 hover:bg-[#A2B29D]/20 rounded-lg px-2.5 py-1.5 transition-colors font-medium"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary-muted bg-primary/10 hover:bg-primary/20 rounded-lg px-2.5 py-1.5 transition-colors font-medium"
           >
             <Plus className="h-3.5 w-3.5" />
             New List
@@ -345,20 +345,20 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
 
       {/* Summary stats */}
       {lists.length > 0 && (
-        <div className="mb-3 flex gap-2 flex-shrink-0">
-          <div className="flex-1 rounded-xl bg-[#A2B29D]/10 border border-[#A2B29D]/20 px-2 py-1.5 text-center">
-            <p className="text-base font-bold text-[#A2B29D]">{totalItems}</p>
-            <p className="text-[9px] text-[#8a9e84] font-medium">Total Items</p>
+        <div className="mb-3 grid grid-cols-3 gap-2 sm:flex sm:gap-2 flex-shrink-0">
+          <div className="min-w-0 rounded-xl bg-primary/10 border border-primary/20 px-2 py-1.5 text-center">
+            <p className="text-base font-bold text-primary">{totalItems}</p>
+            <p className="text-3xs text-primary-muted font-medium">Total Items</p>
           </div>
-          <div className="flex-1 rounded-xl bg-amber-50 border border-amber-100 px-2 py-1.5 text-center">
+          <div className="min-w-0 rounded-xl bg-amber-50 border border-amber-100 px-2 py-1.5 text-center">
             <p className="text-base font-bold text-amber-600">
               ${totalEstimatedCost.toFixed(2)}
             </p>
-            <p className="text-[9px] text-amber-500 font-medium">Est. Cost</p>
+            <p className="text-3xs text-amber-500 font-medium">Est. Cost</p>
           </div>
-          <div className="flex-1 rounded-xl bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-center">
+          <div className="min-w-0 rounded-xl bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-center">
             <p className="text-base font-bold text-emerald-600">{totalPurchased}</p>
-            <p className="text-[9px] text-emerald-500 font-medium">Purchased</p>
+            <p className="text-3xs text-emerald-500 font-medium">Purchased</p>
           </div>
         </div>
       )}
@@ -378,12 +378,12 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="List title, e.g. Wedding Decor"
-            className="flex-1 text-sm bg-white border border-[#A2B29D]/30 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+            className="flex-1 text-sm bg-white border border-primary/30 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-white/30"
           />
           <button
             onClick={handleCreateList}
             disabled={!newListTitle.trim()}
-            className="h-8 w-8 flex items-center justify-center rounded-xl bg-[#A2B29D] hover:bg-[#8a9e84] disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-xl bg-primary hover:bg-primary-muted disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
           >
             <Check className="h-4 w-4" />
           </button>
@@ -392,7 +392,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               setShowNewListInput(false)
               setNewListTitle('')
             }}
-            className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="h-8 w-8 flex items-center justify-center rounded-xl text-white/40 hover:text-white/60 hover:bg-white/[0.08] transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -402,12 +402,12 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
       {/* Lists */}
       <div className="flex-1 overflow-y-auto space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {lists.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-12 text-white/40">
             <Package className="h-8 w-8 mb-2 opacity-20" />
             <p className="text-sm">No shopping lists yet.</p>
             <button
               onClick={() => setShowNewListInput(true)}
-              className="mt-3 text-xs text-[#A2B29D] hover:underline"
+              className="mt-3 text-xs text-primary hover:underline"
             >
               + Create your first list
             </button>
@@ -427,32 +427,32 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
             return (
               <div
                 key={list.id}
-                className="rounded-2xl border border-[#A2B29D]/15 bg-white/70 overflow-hidden transition-all"
+                className="rounded-2xl border border-primary/15 bg-white/[0.06] overflow-hidden transition-all"
               >
                 {/* List card header */}
                 <div
-                  className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-[#A2B29D]/5 transition-colors group"
+                  className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-primary/5 transition-colors group"
                   onClick={() => toggleExpanded(list.id)}
                 >
                   {isExpanded ? (
-                    <ChevronDown className="h-3.5 w-3.5 text-[#A2B29D] flex-shrink-0" />
+                    <ChevronDown className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                   ) : (
-                    <ChevronRight className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                    <ChevronRight className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
                   )}
                   <ShoppingCart
                     className={`h-3.5 w-3.5 flex-shrink-0 ${
-                      isExpanded ? 'text-[#A2B29D]' : 'text-gray-400'
+                      isExpanded ? 'text-primary' : 'text-white/40'
                     }`}
                   />
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-xs font-medium truncate ${
-                        isExpanded ? 'text-[#6b7c66]' : 'text-gray-700'
+                        isExpanded ? 'text-primary-muted' : 'text-white/70'
                       }`}
                     >
                       {list.title}
                     </p>
-                    <p className="text-[10px] text-gray-400">
+                    <p className="text-2xs text-white/40">
                       {list.items.length} item{list.items.length !== 1 ? 's' : ''} &middot;{' '}
                       {purchasedCount} purchased &middot; {formatPrice(listTotal) || '$0.00'} est.
                     </p>
@@ -462,7 +462,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                       e.stopPropagation()
                       deleteShoppingList(userId, list.id)
                     }}
-                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0"
+                    className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition-all flex-shrink-0"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -470,10 +470,10 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
 
                 {/* Expanded list detail */}
                 {isExpanded && (
-                  <div className="border-t border-[#A2B29D]/10 px-3 py-2 space-y-1.5">
+                  <div className="border-t border-primary/10 px-3 py-2 space-y-1.5">
                     {/* Add item button / form */}
                     {addingItemToListId === list.id ? (
-                      <div className="space-y-1.5 p-2 rounded-xl bg-[#A2B29D]/5 border border-[#A2B29D]/10">
+                      <div className="space-y-1.5 p-2 rounded-xl bg-primary/5 border border-primary/10">
                         <input
                           ref={newItemNameRef}
                           value={newItemName}
@@ -488,7 +488,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             }
                           }}
                           placeholder="Item name *"
-                          className="w-full text-sm bg-white border border-[#A2B29D]/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+                          className="w-full text-sm bg-white border border-primary/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                         />
                         <div className="flex gap-1.5">
                           <input
@@ -501,7 +501,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             type="number"
                             step="0.01"
                             min="0"
-                            className="w-20 text-xs bg-white border border-[#A2B29D]/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+                            className="w-20 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                           />
                           <input
                             value={newItemLink}
@@ -510,14 +510,14 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                               if (e.key === 'Enter') handleAddItem(list.id)
                             }}
                             placeholder="Product URL (optional)"
-                            className="flex-1 text-xs bg-white border border-[#A2B29D]/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-[#A2B29D]/30 placeholder:text-gray-300"
+                            className="flex-1 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                           />
                         </div>
                         <div className="flex items-center gap-1.5 justify-end">
                           <button
                             onClick={() => handleAddItem(list.id)}
                             disabled={!newItemName.trim()}
-                            className="flex items-center gap-1 text-xs font-medium text-white bg-[#A2B29D] hover:bg-[#8a9e84] disabled:opacity-30 disabled:cursor-not-allowed rounded-lg px-2.5 py-1.5 transition-colors"
+                            className="flex items-center gap-1 text-xs font-medium text-white bg-primary hover:bg-primary-muted disabled:opacity-30 disabled:cursor-not-allowed rounded-lg px-2.5 py-1.5 transition-colors"
                           >
                             <Check className="h-3 w-3" />
                             Add
@@ -529,7 +529,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                               setNewItemPrice('')
                               setNewItemLink('')
                             }}
-                            className="text-xs text-gray-400 hover:text-gray-600 rounded-lg px-2 py-1.5 hover:bg-gray-100 transition-colors"
+                            className="text-xs text-white/40 hover:text-white/60 rounded-lg px-2 py-1.5 hover:bg-white/[0.08] transition-colors"
                           >
                             Cancel
                           </button>
@@ -538,7 +538,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                     ) : (
                       <button
                         onClick={() => setAddingItemToListId(list.id)}
-                        className="flex items-center gap-1.5 text-xs text-[#A2B29D] hover:text-[#8a9e84] font-medium py-1 transition-colors"
+                        className="flex items-center gap-1.5 text-xs text-primary hover:text-primary-muted font-medium py-1 transition-colors"
                       >
                         <Plus className="h-3 w-3" />
                         Add item
@@ -547,7 +547,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
 
                     {/* Items */}
                     {sortedItems.length === 0 ? (
-                      <p className="text-xs text-gray-400 text-center py-3">
+                      <p className="text-xs text-white/40 text-center py-3">
                         No items yet. Add your first item above.
                       </p>
                     ) : (
@@ -557,7 +557,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                           className={`flex items-start gap-2 p-2 rounded-xl border transition-all group/item ${
                             item.purchased
                               ? 'bg-emerald-50/50 border-emerald-100'
-                              : 'bg-white/70 border-gray-100 hover:border-[#A2B29D]/20'
+                              : 'bg-white/[0.06] border-white/[0.06] hover:border-primary/20'
                           }`}
                         >
                           {/* Purchased checkbox */}
@@ -575,8 +575,8 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             <p
                               className={`text-sm leading-snug ${
                                 item.purchased
-                                  ? 'line-through text-gray-400'
-                                  : 'text-gray-700'
+                                  ? 'line-through text-white/40'
+                                  : 'text-white/70'
                               }`}
                             >
                               {item.name}
@@ -584,7 +584,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             <div className="flex items-center gap-2 mt-0.5">
                               {item.price !== null && item.price !== undefined && (
                                 <span
-                                  className={`text-[10px] font-medium ${
+                                  className={`text-2xs font-medium ${
                                     item.purchased
                                       ? 'text-emerald-400'
                                       : 'text-amber-500'
@@ -599,14 +599,14 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={e => e.stopPropagation()}
-                                  className="flex items-center gap-0.5 text-[10px] text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+                                  className="flex items-center gap-0.5 text-2xs text-blue-500 hover:text-blue-700 hover:underline transition-colors"
                                 >
                                   <ExternalLink className="h-2.5 w-2.5" />
                                   Link
                                 </a>
                               )}
                               {item.category && (
-                                <span className="text-[10px] text-gray-400">
+                                <span className="text-2xs text-white/40">
                                   {item.category}
                                 </span>
                               )}
@@ -618,7 +618,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             onClick={() =>
                               deleteShoppingItem(userId, list.id, item.id)
                             }
-                            className="opacity-0 group-hover/item:opacity-100 text-gray-300 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
+                            className="opacity-0 group-hover/item:opacity-100 text-white/30 hover:text-red-400 transition-all flex-shrink-0 mt-0.5"
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>

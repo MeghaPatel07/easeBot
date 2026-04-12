@@ -18,6 +18,33 @@ export interface TokenUsage {
   lastUpdatedAt: Timestamp | null
 }
 
+export interface ToneSettings {
+  warm: number          // 0–100
+  analytical: number    // 0–100
+  friendly: number      // 0–100
+  professional: number  // 0–100
+  enthusiastic: number  // 0–100
+  concise: number       // 0–100 (message length)
+  quirky: number        // 0–100
+  candid: number        // 0–100
+  emojis: number        // 0–100 (emoji usage)
+  headers: number       // 0–100 (use headers/lists)
+}
+
+export interface UserPersonalization {
+  nickname?: string
+  voiceId?: string       // browser SpeechSynthesis voice name
+  toneSettings?: ToneSettings
+}
+
+export interface StyleMemory {
+  descriptors: string[]
+  colorPalette: string[]
+  aestheticRegister: string
+  culturalContext: string
+  lastGeneratedImageUrl: string | null
+}
+
 // Matches authflow.md §12 + WeddingEase fields
 export interface UserProfile {
   uid: string
@@ -39,6 +66,9 @@ export interface UserProfile {
   lastLoginAt: Timestamp | null
   forgotPasswordOtp: number | null
   googleCalendarToken: string | null
+  nickname?: string
+  voiceId?: string
+  toneSettings?: ToneSettings
 }
 
 // ── Checklist types ───────────────────────────────────────────────────────────
@@ -79,8 +109,13 @@ export interface ChatMessage {
   mode: Mode
   language: string
   audioUrl: string | null
+  imageUrl: string | null
+  imageUrls: string[]
+  attachedImageUrl: string | null  // user-uploaded image stored in Firebase Storage
   timestamp: Timestamp
   liked: boolean
+  imageDeleted?: boolean
+  checklistData?: { id: string; title: string; items: string[] } | null
 }
 
 export interface Product {
@@ -101,6 +136,11 @@ export interface ChatFunctionPayload {
   language?: string
   mode?: Mode
   history?: { role: 'user' | 'assistant'; content: string }[]
+  userPersonalization?: UserPersonalization
+  imageBase64?: string
+  imageMimeType?: string
+  lastGeneratedImageUrl?: string
+  styleMemory?: StyleMemory
 }
 
 export interface CalendarEvent {
@@ -122,20 +162,29 @@ export interface CalendarEventDoc {
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'web_search'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'web_search' | 'generate_image'
   checklistId?: string
   itemId?: string
   searchQuery?: string
+  checklistTitle?: string
+  checklistItems?: string[]
+  imagePrompt?: string
+  imageAction?: 'generate' | 'edit'
+  imageAspectRatio?: string
+  imageVariants?: number
 }
 
 export interface ChatFunctionResponse {
   text: string
   audioUrl: string | null
   imageUrl: string | null
+  imageUrls?: string[]
   calendarEvent: CalendarEvent | null
   toolActions: ToolAction[]
   mode: Mode
   detectedLanguage: string
+  imageQuota?: { allowed: boolean; remaining: number; dailyUsed: number; dailyLimit: number; resetAt: string }
+  styleMemory?: StyleMemory
 }
 
 // Typed error thrown by authService

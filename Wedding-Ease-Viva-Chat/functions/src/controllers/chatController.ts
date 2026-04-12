@@ -126,13 +126,13 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       ? await getChatHistory(threadId)
       : (clientHistory ?? [])
 
-    // Logged-in users get full mode-specific prompts (max 800 tokens).
-    // Guests get a compact prompt and capped at 300 tokens to minimise cost.
+    // Logged-in users get full mode-specific prompts (max 2000 tokens).
+    // Guests get a compact prompt and capped at 500 tokens to minimise cost.
     const systemPrompt = isLoggedIn
       ? await buildSystemPrompt(mode, englishText, detectedLanguage, userRole) + IMAGE_CAPABILITY_NOTE + WEB_SEARCH_CAPABILITY_NOTE
       : getGuestPrompt() + buildLanguageRule(detectedLanguage) + IMAGE_CAPABILITY_NOTE
 
-    const maxTokens = isLoggedIn ? 800 : 300
+    const maxTokens = isLoggedIn ? 2000 : 2000
 
     // For logged-in users: planner gets full tools + web search; other modes get web search only
     const tools = isLoggedIn

@@ -80,23 +80,23 @@ function getStatus(dateStr: string, completed: boolean): EntryStatus {
 
 const dotColor: Record<EntryStatus, string> = {
   completed: 'bg-emerald-500',
-  upcoming: 'bg-blue-500',
-  overdue: 'bg-red-500',
-  today: 'bg-amber-500',
+  upcoming: 'bg-[#C6944A]',
+  overdue: 'bg-red-400',
+  today: 'bg-amber-400',
 }
 
 const statusLabel: Record<EntryStatus, { text: string; className: string }> = {
-  completed: { text: 'Completed', className: 'text-emerald-600' },
-  upcoming: { text: 'Upcoming', className: 'text-blue-600' },
-  overdue: { text: 'Overdue', className: 'text-red-600' },
-  today: { text: 'Today', className: 'text-amber-600' },
+  completed: { text: 'Completed', className: 'text-emerald-400' },
+  upcoming: { text: 'Upcoming', className: 'text-[#C6944A]' },
+  overdue: { text: 'Overdue', className: 'text-red-400' },
+  today: { text: 'Today', className: 'text-amber-400' },
 }
 
 const statusIcon: Record<EntryStatus, React.ReactNode> = {
-  completed: <CheckCircle2 className="h-3 w-3 text-emerald-500" />,
-  upcoming: <Clock className="h-3 w-3 text-blue-500" />,
-  overdue: <AlertTriangle className="h-3 w-3 text-red-500" />,
-  today: <Flag className="h-3 w-3 text-amber-500" />,
+  completed: <CheckCircle2 className="h-3 w-3 text-emerald-400" />,
+  upcoming: <Clock className="h-3 w-3 text-[#C6944A]" />,
+  overdue: <AlertTriangle className="h-3 w-3 text-red-400" />,
+  today: <Flag className="h-3 w-3 text-amber-400" />,
 }
 
 export default function TimelineView({
@@ -153,15 +153,11 @@ export default function TimelineView({
   const grouped = useMemo(() => {
     const map = new Map<string, TimelineEntry[]>()
 
-    // Insert wedding date as a synthetic entry for grouping awareness
     const allEntries = [...entries]
     if (weddingDate) {
       const wdStr = toDateStr(weddingDate)
-      // Don't add duplicate — we render wedding marker separately
-      // but include it to ensure its month group exists
       const key = formatMonthYear(weddingDate)
       if (!allEntries.some(e => formatMonthYear(e.date) === key)) {
-        // placeholder so the month group gets created
         allEntries.push({
           id: '__wedding__',
           title: 'Wedding Day',
@@ -195,7 +191,7 @@ export default function TimelineView({
     for (const e of entries) {
       if (e.status === 'completed') completed++
       else if (e.status === 'overdue') overdue++
-      else upcoming++ // today counts as upcoming
+      else upcoming++
     }
     return { total: entries.length, completed, upcoming, overdue }
   }, [entries])
@@ -216,11 +212,11 @@ export default function TimelineView({
   if (entries.length === 0 && !weddingDate) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center">
-        <div className="h-14 w-14 rounded-full bg-stone-100 flex items-center justify-center mb-4">
-          <Calendar className="h-7 w-7 text-stone-400" />
+        <div className="h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center mb-4">
+          <Calendar className="h-7 w-7 text-white/40" />
         </div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-1">No timeline items yet</h3>
-        <p className="text-xs text-gray-400 max-w-[260px] leading-relaxed">
+        <h3 className="text-sm font-semibold text-white/70 mb-1">No timeline items yet</h3>
+        <p className="text-xs text-white/40 max-w-[260px] leading-relaxed">
           Add due dates to your checklist items or create calendar events to see them on your timeline.
         </p>
       </div>
@@ -234,23 +230,23 @@ export default function TimelineView({
     <div className="flex flex-col h-full overflow-hidden">
       {/* Stats bar */}
       <div className="flex-shrink-0 px-4 pt-4 pb-3">
-        <div className="flex gap-2">
-          <div className="flex-1 rounded-xl bg-stone-50 border border-[#EBE4D9] px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-gray-700">{stats.total}</p>
-            <p className="text-[9px] text-gray-500 font-medium">Total</p>
+        <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+          <div className="flex-1 min-w-0 rounded-xl bg-white/[0.06] border border-white/[0.08] px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-white/70">{stats.total}</p>
+            <p className="text-3xs text-white/40 font-medium">Total</p>
           </div>
-          <div className="flex-1 rounded-xl bg-emerald-50 border border-emerald-100 px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-emerald-600">{stats.completed}</p>
-            <p className="text-[9px] text-emerald-500 font-medium">Completed</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-emerald-400">{stats.completed}</p>
+            <p className="text-3xs text-emerald-400/70 font-medium">Completed</p>
           </div>
-          <div className="flex-1 rounded-xl bg-blue-50 border border-blue-100 px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-blue-600">{stats.upcoming}</p>
-            <p className="text-[9px] text-blue-500 font-medium">Upcoming</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-[#C6944A]/10 border border-[#C6944A]/20 px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-[#C6944A]">{stats.upcoming}</p>
+            <p className="text-3xs text-[#C6944A]/70 font-medium">Upcoming</p>
           </div>
           {stats.overdue > 0 && (
-            <div className="flex-1 rounded-xl bg-red-50 border border-red-200 px-2.5 py-2 text-center">
-              <p className="text-base font-bold text-red-600">{stats.overdue}</p>
-              <p className="text-[9px] text-red-500 font-medium">Overdue</p>
+            <div className="flex-1 min-w-0 rounded-xl bg-red-500/10 border border-red-500/20 px-2.5 py-2 text-center">
+              <p className="text-base font-bold text-red-400">{stats.overdue}</p>
+              <p className="text-3xs text-red-400/70 font-medium">Overdue</p>
             </div>
           )}
         </div>
@@ -261,8 +257,8 @@ export default function TimelineView({
         {Array.from(grouped.entries()).map(([monthKey, monthEntries]) => (
           <div key={monthKey} className="mb-6">
             {/* Month header */}
-            <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm py-1.5 mb-2">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="sticky top-0 z-10 bg-white/[0.04] backdrop-blur-sm rounded-lg py-1.5 px-2 mb-2">
+              <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider">
                 {monthKey}
               </h4>
             </div>
@@ -275,7 +271,7 @@ export default function TimelineView({
             {/* Entries */}
             <div className="relative">
               {/* Vertical line */}
-              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-stone-200" />
+              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-white/[0.08]" />
 
               {monthEntries.map((entry, idx) => {
                 const isLast = idx === monthEntries.length - 1
@@ -284,43 +280,43 @@ export default function TimelineView({
                   <div key={entry.id} className={`relative flex gap-3 ${isLast ? '' : 'mb-3'}`}>
                     {/* Dot */}
                     <div className="relative z-[1] flex-shrink-0 mt-2.5">
-                      <div className={`h-3 w-3 rounded-full ${dotColor[entry.status]} ring-2 ring-white`} />
+                      <div className={`h-3 w-3 rounded-full ${dotColor[entry.status]} ring-2 ring-white/10`} />
                     </div>
 
                     {/* Card */}
-                    <div className="flex-1 rounded-xl bg-white/70 border border-[#EBE4D9] px-3 py-2.5 min-w-0">
+                    <div className="flex-1 rounded-xl bg-white/[0.06] border border-white/[0.08] px-3 py-2.5 min-w-0 hover:bg-white/[0.08] transition-colors">
                       {/* Date row */}
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] text-gray-400 font-medium">
+                        <span className="text-2xs text-white/40 font-medium">
                           {formatDate(entry.date)}
                         </span>
 
                         {/* Type badge */}
                         <span
-                          className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full leading-none ${
+                          className={`text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none ${
                             entry.type === 'task'
-                              ? 'bg-[#A2B29D]/15 text-[#A2B29D]'
-                              : 'bg-blue-50 text-blue-500'
+                              ? 'bg-[#C6944A]/15 text-[#C6944A]'
+                              : 'bg-blue-400/15 text-blue-400'
                           }`}
                         >
                           {entry.type === 'task' ? 'Task' : 'Event'}
                         </span>
 
                         {/* Status */}
-                        <span className={`flex items-center gap-0.5 text-[10px] font-medium ml-auto ${statusLabel[entry.status].className}`}>
+                        <span className={`flex items-center gap-0.5 text-2xs font-medium ml-auto ${statusLabel[entry.status].className}`}>
                           {statusIcon[entry.status]}
                           <span className="hidden sm:inline">{statusLabel[entry.status].text}</span>
                         </span>
                       </div>
 
                       {/* Title */}
-                      <p className="text-sm font-medium text-gray-800 leading-snug mb-0.5">
+                      <p className="text-sm font-medium text-white/85 leading-snug mb-0.5">
                         {entry.type === 'task' && (
                           <span className="inline-flex items-center mr-1.5 align-middle">
                             {entry.completed ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                             ) : (
-                              <span className="inline-block h-3.5 w-3.5 rounded border border-gray-300" />
+                              <span className="inline-block h-3.5 w-3.5 rounded border border-white/20" />
                             )}
                           </span>
                         )}
@@ -330,7 +326,7 @@ export default function TimelineView({
                             href={entry.htmlLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center ml-1.5 text-blue-400 hover:text-blue-600 transition-colors"
+                            className="inline-flex items-center ml-1.5 text-[#C6944A]/70 hover:text-[#C6944A] transition-colors"
                           >
                             <ExternalLink className="h-3 w-3" />
                           </a>
@@ -339,12 +335,12 @@ export default function TimelineView({
 
                       {/* Description / checklist source */}
                       {entry.description && (
-                        <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">
+                        <p className="text-xs text-white/40 leading-relaxed line-clamp-3">
                           {entry.description}
                         </p>
                       )}
                       {entry.checklistTitle && (
-                        <p className="text-[10px] text-gray-400 mt-0.5">
+                        <p className="text-2xs text-white/30 mt-0.5">
                           From: {entry.checklistTitle}
                         </p>
                       )}
@@ -365,20 +361,20 @@ function WeddingMarker({ date, countdown }: { date: Date; countdown: string }) {
     <div className="relative flex gap-3 mb-4">
       {/* Heart dot */}
       <div className="relative z-[1] flex-shrink-0 mt-2">
-        <div className="h-5 w-5 rounded-full bg-pink-500 ring-2 ring-white flex items-center justify-center">
+        <div className="h-5 w-5 rounded-full bg-pink-500/80 ring-2 ring-pink-500/20 flex items-center justify-center">
           <Heart className="h-3 w-3 text-white fill-white" />
         </div>
       </div>
 
       {/* Card */}
-      <div className="flex-1 rounded-xl bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200 px-4 py-3">
+      <div className="flex-1 rounded-xl bg-pink-500/10 border border-pink-500/20 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-pink-700">Wedding Day</span>
-          <span className="text-[10px] font-medium text-pink-400 bg-pink-100 px-1.5 py-0.5 rounded-full leading-none">
+          <span className="text-sm font-semibold text-pink-300">Wedding Day</span>
+          <span className="text-2xs font-medium text-pink-400/80 bg-pink-500/15 px-1.5 py-0.5 rounded-full leading-none">
             {countdown}
           </span>
         </div>
-        <p className="text-xs text-pink-500 mt-0.5">{formatDate(date)}</p>
+        <p className="text-xs text-pink-400/60 mt-0.5">{formatDate(date)}</p>
       </div>
     </div>
   )

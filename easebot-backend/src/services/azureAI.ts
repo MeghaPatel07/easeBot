@@ -1,6 +1,13 @@
 import { AzureOpenAI } from 'openai'
-import type { ChatCompletionTool, ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import type { ChatCompletionTool, ChatCompletionMessageParam, ChatCompletionContentPart } from 'openai/resources/chat/completions'
 import type { HistoryMessage } from '../types'
+
+// ── Mode-specific temperature map ──────────────────────────────────────────────
+export const MODE_TEMPERATURES: Record<string, number> = {
+  planner: 0.3,
+  stylist: 0.8,
+  knowledge: 0.2,
+}
 
 export interface AIResult {
   text: string
@@ -8,7 +15,7 @@ export interface AIResult {
   usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null
 }
 
-function getClient(): AzureOpenAI {
+export function getClient(): AzureOpenAI {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_API_KEY
   const deployment = process.env.AZURE_DEPLOYMENT_NAME
@@ -25,25 +32,40 @@ function getClient(): AzureOpenAI {
   })
 }
 
+export interface ImageData {
+  base64: string
+  mimeType: string
+}
+
 export async function callAzureAI(
   history: HistoryMessage[],
   userMessage: string,
   systemPrompt: string,
-  tools?: ChatCompletionTool[]
+  tools?: ChatCompletionTool[],
+  imageData?: ImageData,
+  temperature: number = 0.7
 ): Promise<AIResult> {
   const client = getClient()
+
+  // Build user content — multimodal array when image is attached
+  const userContent: string | ChatCompletionContentPart[] = imageData
+    ? [
+        { type: 'text' as const, text: userMessage || 'Describe this image.' },
+        { type: 'image_url' as const, image_url: { url: `data:${imageData.mimeType};base64,${imageData.base64}` } },
+      ]
+    : userMessage
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history,
-    { role: 'user', content: userMessage },
+    { role: 'user', content: userContent },
   ]
 
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
-    temperature: 0.7,
+    max_tokens: 4096,
+    temperature,
     ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
   })
 
@@ -77,21 +99,30 @@ export async function* streamCallAzureAI(
   history: HistoryMessage[],
   userMessage: string,
   systemPrompt: string,
-  tools?: ChatCompletionTool[]
+  tools?: ChatCompletionTool[],
+  imageData?: ImageData,
+  temperature: number = 0.7
 ): AsyncGenerator<StreamEvent> {
   const client = getClient()
+
+  const userContent: string | ChatCompletionContentPart[] = imageData
+    ? [
+        { type: 'text' as const, text: userMessage || 'Describe this image.' },
+        { type: 'image_url' as const, image_url: { url: `data:${imageData.mimeType};base64,${imageData.base64}` } },
+      ]
+    : userMessage
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history,
-    { role: 'user', content: userMessage },
+    { role: 'user', content: userContent },
   ]
 
   const stream = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
-    temperature: 0.7,
+    max_tokens: 4096,
+    temperature,
     stream: true,
     stream_options: { include_usage: true },
     ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
@@ -166,7 +197,7 @@ export async function* streamCallAzureAIWithToolResults(
   const stream = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
+    max_tokens: 4096,
     temperature: 0.7,
     stream: true,
   })
@@ -212,7 +243,7 @@ export async function callAzureAIWithToolResults(
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
-    max_tokens: 2000,
+    max_tokens: 4096,
     temperature: 0.7,
   })
 

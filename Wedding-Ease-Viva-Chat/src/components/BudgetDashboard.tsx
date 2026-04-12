@@ -25,7 +25,7 @@ function budgetStatus(spent: number, allocated: number): 'green' | 'amber' | 're
 const statusColors = {
   green: { bg: 'bg-emerald-50', border: 'border-emerald-200', bar: 'bg-emerald-400', dot: 'bg-emerald-400', text: 'text-emerald-600' },
   amber: { bg: 'bg-amber-50', border: 'border-amber-200', bar: 'bg-amber-400', dot: 'bg-amber-400', text: 'text-amber-600' },
-  red: { bg: 'bg-red-50', border: 'border-red-200', bar: 'bg-red-400', dot: 'bg-red-400', text: 'text-red-600' },
+  red: { bg: 'bg-red-500/10', border: 'border-red-200', bar: 'bg-red-400', dot: 'bg-red-400', text: 'text-red-600' },
 }
 
 interface BudgetDashboardProps {
@@ -56,7 +56,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
   // Loading state
   if (budget === undefined) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-400">
+      <div className="flex flex-col items-center justify-center h-full text-white/40">
         <DollarSign className="h-10 w-10 mb-3 opacity-30" />
         <p className="text-sm">Loading budget...</p>
       </div>
@@ -67,14 +67,15 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
   if (budget === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-6">
-        <div className="w-full max-w-sm bg-white/70 backdrop-blur-sm rounded-2xl border border-blue-100 shadow-sm p-8 text-center">
-          <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
-            <DollarSign className="h-6 w-6 text-blue-500" />
+        <div className="w-full max-w-sm bg-white/[0.06] backdrop-blur-sm rounded-2xl border border-border shadow-sm p-8 text-center">
+          <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+            <DollarSign className="h-6 w-6 text-primary" />
           </div>
-          <h2 className="text-base font-semibold text-gray-800 mb-1">Set Your Wedding Budget</h2>
-          <p className="text-xs text-gray-400 mb-6">Enter your total budget to get started tracking expenses.</p>
+          <h2 className="text-base font-semibold text-white/85 mb-1">Set Your Wedding Budget</h2>
+          <p className="text-xs text-white/40 mb-6">Enter your total budget to get started tracking expenses.</p>
           <input
             type="number"
+            min="0"
             value={setupAmount}
             onChange={(e) => setSetupAmount(e.target.value)}
             onKeyDown={(e) => {
@@ -83,7 +84,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
               }
             }}
             placeholder="e.g. 25000"
-            className="w-full text-sm bg-white border border-blue-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-gray-300 mb-4 text-center"
+            className="w-full text-sm bg-white border border-primary/20 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30 mb-4 text-center"
           />
           <button
             onClick={() => {
@@ -92,7 +93,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
               }
             }}
             disabled={!setupAmount.trim() || Number(setupAmount) <= 0}
-            className="w-full text-sm font-medium bg-blue-500 hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl px-4 py-2.5 transition-colors"
+            className="w-full text-sm font-medium bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl px-4 py-2.5 transition-colors"
           >
             Get Started
           </button>
@@ -137,41 +138,41 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white/60 backdrop-blur-sm rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white/[0.05] backdrop-blur-sm rounded-2xl border border-border shadow-sm overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-blue-50 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-xl bg-blue-50 flex items-center justify-center">
-            <DollarSign className="h-4 w-4 text-blue-500" />
+          <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+            <DollarSign className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-gray-800">Budget Tracker</h2>
-            <p className="text-xs text-gray-400">{budget.categories.length} categories</p>
+            <h2 className="text-base font-semibold text-white/85">Budget Tracker</h2>
+            <p className="text-xs text-white/40">{budget.categories.length} categories</p>
           </div>
         </div>
       </div>
 
       {/* Summary bar */}
-      <div className="px-6 py-4 border-b border-blue-50 flex-shrink-0">
+      <div className="px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-4">
             <div>
-              <span className="text-[10px] text-gray-400 font-medium block">Total Budget</span>
-              <span className="text-sm font-semibold text-gray-800">{fmt.format(budget.totalBudget)}</span>
+              <span className="text-2xs text-white/40 font-medium block">Total Budget</span>
+              <span className="text-sm font-semibold text-white/85">{fmt.format(budget.totalBudget)}</span>
             </div>
             <div>
-              <span className="text-[10px] text-gray-400 font-medium block">Spent</span>
+              <span className="text-2xs text-white/40 font-medium block">Spent</span>
               <span className={`text-sm font-semibold ${statusColors[overallStatus].text}`}>{fmt.format(totalSpent)}</span>
             </div>
             <div>
-              <span className="text-[10px] text-gray-400 font-medium block">Remaining</span>
+              <span className="text-2xs text-white/40 font-medium block">Remaining</span>
               <span className={`text-sm font-semibold ${remaining >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt.format(remaining)}</span>
             </div>
           </div>
-          <span className={`text-[10px] font-semibold ${statusColors[overallStatus].text}`}>{overallPct}%</span>
+          <span className={`text-2xs font-semibold ${statusColors[overallStatus].text}`}>{overallPct}%</span>
         </div>
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-2 bg-white/[0.06] rounded-full overflow-hidden">
           <div
             className={`h-full ${statusColors[overallStatus].bar} rounded-full transition-all duration-500`}
             style={{ width: `${overallPct}%` }}
@@ -198,8 +199,8 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                 onClick={() => setExpandedCat(isExpanded ? null : cat.id)}
               >
                 {isExpanded
-                  ? <ChevronDown className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                  : <ChevronRight className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                  ? <ChevronDown className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
+                  : <ChevronRight className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
                 }
                 <div className={`h-2 w-2 rounded-full ${colors.dot} flex-shrink-0`} />
 
@@ -210,19 +211,20 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                       value={editCatName}
                       onChange={(e) => setEditCatName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCategoryEdit(cat.id); if (e.key === 'Escape') setEditingCatId(null) }}
-                      className="flex-1 text-sm bg-white border border-blue-200 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-300"
+                      className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/20"
                     />
                     <input
                       type="number"
+                      min="0"
                       value={editCatAllocated}
                       onChange={(e) => setEditCatAllocated(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCategoryEdit(cat.id); if (e.key === 'Escape') setEditingCatId(null) }}
-                      className="w-24 text-sm bg-white border border-blue-200 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-blue-300"
+                      className="w-20 sm:w-24 text-sm bg-white border border-primary/20 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/20"
                     />
-                    <button onClick={() => handleSaveCategoryEdit(cat.id)} className="h-6 w-6 flex items-center justify-center rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                    <button onClick={() => handleSaveCategoryEdit(cat.id)} className="h-6 w-6 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
                       <Check className="h-3 w-3" />
                     </button>
-                    <button onClick={() => setEditingCatId(null)} className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
+                    <button onClick={() => setEditingCatId(null)} className="h-6 w-6 flex items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.08] transition-colors">
                       <X className="h-3 w-3" />
                     </button>
                   </div>
@@ -230,10 +232,10 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                   <>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-800 truncate">{cat.name}</span>
+                        <span className="text-sm font-medium text-white/85 truncate">{cat.name}</span>
                         <span className={`text-xs font-semibold ${colors.text}`}>{fmt.format(cat.spent)} / {fmt.format(cat.allocated)}</span>
                       </div>
-                      <div className="h-1 bg-white/60 rounded-full overflow-hidden">
+                      <div className="h-1 bg-white/[0.05] rounded-full overflow-hidden">
                         <div
                           className={`h-full ${colors.bar} rounded-full transition-all duration-500`}
                           style={{ width: `${catPct}%` }}
@@ -245,14 +247,14 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                     <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => { setEditingCatId(cat.id); setEditCatName(cat.name); setEditCatAllocated(String(cat.allocated)) }}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-500 hover:bg-white/80 transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-primary hover:bg-white/80 transition-colors"
                         title="Edit category"
                       >
                         <Edit3 className="h-3 w-3" />
                       </button>
                       <button
-                        onClick={() => deleteBudgetCategory(userId, cat.id)}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-white/80 transition-colors"
+                        onClick={() => { if (!window.confirm('Delete this budget category? This cannot be undone.')) return; deleteBudgetCategory(userId, cat.id) }}
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-white/80 transition-colors"
                         title="Delete category"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -266,37 +268,37 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
               {isExpanded && !isEditing && (
                 <div className="px-4 pb-3 space-y-1.5">
                   {cat.items.length === 0 && (
-                    <p className="text-xs text-gray-400 py-2 text-center">No expenses yet.</p>
+                    <p className="text-xs text-white/40 py-2 text-center">No expenses yet.</p>
                   )}
                   {cat.items.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center gap-2 p-2 rounded-xl bg-white/70 border border-gray-100"
+                      className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.06] border border-border"
                     >
                       <button
                         onClick={() => toggleLineItemPaid(userId, cat.id, item.id)}
                         className={`h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 border transition-colors ${
                           item.paid
                             ? 'bg-emerald-400 border-emerald-400 text-white'
-                            : 'border-gray-300 text-transparent hover:border-emerald-300'
+                            : 'border-white/30 text-transparent hover:border-emerald-300'
                         }`}
                         title={item.paid ? 'Mark unpaid' : 'Mark paid'}
                       >
                         <Check className="h-3 w-3" />
                       </button>
                       <div className="flex-1 min-w-0">
-                        <span className={`text-sm block truncate ${item.paid ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                        <span className={`text-sm block truncate ${item.paid ? 'line-through text-white/40' : 'text-white/70'}`}>
                           {item.description}
                         </span>
-                        <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                        <div className="flex items-center gap-2 text-2xs text-white/40">
                           {item.vendor && <span>{item.vendor}</span>}
                           {item.date && <span>{new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
                         </div>
                       </div>
-                      <span className="text-xs font-semibold text-gray-600 flex-shrink-0">{fmt.format(item.amount)}</span>
+                      <span className="text-xs font-semibold text-white/60 flex-shrink-0">{fmt.format(item.amount)}</span>
                       <button
                         onClick={() => deleteLineItem(userId, cat.id, item.id)}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors flex-shrink-0"
+                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
                         title="Delete item"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -306,7 +308,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
 
                   {/* Add line item form */}
                   {showAddItem === cat.id ? (
-                    <div className="flex flex-col gap-2 p-2 rounded-xl bg-white/70 border border-blue-100">
+                    <div className="flex flex-col gap-2 p-2 rounded-xl bg-white/[0.06] border border-border">
                       <div className="flex items-center gap-2">
                         <input
                           autoFocus
@@ -314,15 +316,16 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                           onChange={(e) => setNewItemDesc(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleAddLineItem(cat.id); if (e.key === 'Escape') { setShowAddItem(null); setNewItemDesc(''); setNewItemAmount(''); setNewItemVendor('') } }}
                           placeholder="Description"
-                          className="flex-1 text-sm bg-white border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 placeholder:text-gray-300"
+                          className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
                         />
                         <input
                           type="number"
+                          min="0"
                           value={newItemAmount}
                           onChange={(e) => setNewItemAmount(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleAddLineItem(cat.id) }}
                           placeholder="Amount"
-                          className="w-20 text-sm bg-white border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 placeholder:text-gray-300"
+                          className="w-20 text-sm bg-white border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -331,18 +334,18 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                           onChange={(e) => setNewItemVendor(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleAddLineItem(cat.id) }}
                           placeholder="Vendor (optional)"
-                          className="flex-1 text-sm bg-white border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 placeholder:text-gray-300"
+                          className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
                         />
                         <button
                           onClick={() => handleAddLineItem(cat.id)}
                           disabled={!newItemDesc.trim() || !newItemAmount.trim() || Number(newItemAmount) <= 0}
-                          className="h-7 w-7 flex items-center justify-center rounded-lg bg-blue-500 hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
+                          className="h-7 w-7 flex items-center justify-center rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => { setShowAddItem(null); setNewItemDesc(''); setNewItemAmount(''); setNewItemVendor('') }}
-                          className="h-7 w-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors"
+                          className="h-7 w-7 flex items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.08] transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -351,7 +354,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                   ) : (
                     <button
                       onClick={() => setShowAddItem(cat.id)}
-                      className="flex items-center gap-1.5 text-xs text-blue-500 hover:text-blue-700 font-medium py-1"
+                      className="flex items-center gap-1.5 text-xs text-primary hover:text-blue-700 font-medium py-1"
                     >
                       <Plus className="h-3 w-3" />
                       Add expense
@@ -364,28 +367,29 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
         })}
 
         {/* Add category form */}
-        <div className="rounded-2xl border border-dashed border-blue-200 bg-white/40 p-4">
-          <p className="text-xs text-gray-400 font-medium mb-2">Add Category</p>
+        <div className="rounded-2xl border border-dashed border-primary/20 bg-white/[0.04] p-4">
+          <p className="text-xs text-white/40 font-medium mb-2">Add Category</p>
           <div className="flex items-center gap-2">
             <input
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory() }}
               placeholder="Category name"
-              className="flex-1 text-sm bg-white border border-blue-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-gray-300"
+              className="flex-1 text-sm bg-white border border-primary/20 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
             />
             <input
               type="number"
+              min="0"
               value={newCatAllocated}
               onChange={(e) => setNewCatAllocated(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory() }}
               placeholder="Budget"
-              className="w-24 text-sm bg-white border border-blue-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-gray-300"
+              className="w-24 text-sm bg-white border border-primary/20 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
             />
             <button
               onClick={handleAddCategory}
               disabled={!newCatName.trim() || !newCatAllocated.trim() || Number(newCatAllocated) <= 0}
-              className="h-9 w-9 flex items-center justify-center rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
+              className="h-9 w-9 flex items-center justify-center rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -394,13 +398,13 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-blue-50 flex-shrink-0 flex items-center justify-between">
-        <p className="text-xs text-gray-400">
+      <div className="px-6 py-3 border-t border-border flex-shrink-0 flex items-center justify-between">
+        <p className="text-xs text-white/40">
           {budget.categories.length === 0
             ? 'Add categories to start tracking'
             : `${budget.categories.length} categor${budget.categories.length === 1 ? 'y' : 'ies'} tracked`}
         </p>
-        <div className="flex gap-3 text-[10px] font-medium">
+        <div className="flex gap-3 text-2xs font-medium">
           <span className={statusColors[overallStatus].text}>{overallPct}% used</span>
           <span className={remaining >= 0 ? 'text-emerald-500' : 'text-red-500'}>{fmt.format(Math.abs(remaining))} {remaining >= 0 ? 'left' : 'over'}</span>
         </div>

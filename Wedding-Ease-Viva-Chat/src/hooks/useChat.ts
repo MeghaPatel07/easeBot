@@ -14,10 +14,12 @@ import {
   updateThreadTags as updateThreadTagsDoc,
   loadLatestMessages,
   loadOlderMessages,
+  uploadAttachedImage,
+  removeMessageImage,
   type NewMessage,
 } from '@/services/chatService'
-import { streamChatMessage, generateImage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
-import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc, ToolAction } from '@/types'
+import { streamChatMessage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
+import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc, ToolAction, UserPersonalization } from '@/types'
 
 export interface Message {
   id: string
@@ -28,12 +30,18 @@ export interface Message {
   liked?: boolean
   audioUrl?: string | null
   imageUrl?: string | null
+  attachedImage?: string    // base64 data URI of user-uploaded image (displayed in user bubble)
   calendarEvent?: CalendarEvent | null
   calendarAdded?: boolean   // true once successfully added to Google Calendar
   convertToTable?: boolean  // true when AI returned a budget/guest list
   truncated?: boolean       // true when response appears cut off (token limit)
   language?: string         // detected response language (BCP-47)
   threadId?: string
+  checklistData?: { id: string; title: string; items: string[] } | null  // inline checklist
+  imageUrls?: string[]  // Multiple image variants
+  imageGenerating?: boolean // true while image is being generated server-side
+  imageDeleted?: boolean    // true when image was deleted from chat
+  partialImageUrl?: string    // partial progressive render from GPT-Image-1.5
 }
 
 export interface UseChatResult {
@@ -45,7 +53,7 @@ export interface UseChatResult {
   calendarEvents: CalendarEventDoc[]
   lastToolActions: ToolAction[]
   hasMoreMessages: boolean
-  sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string) => Promise<void>
+  sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string, imageBase64?: string, imageMimeType?: string) => Promise<void>
   stopGeneration: () => void
   loadChat: (threadId: string) => Promise<void>
   startNewChat: () => void
@@ -58,10 +66,11 @@ export interface UseChatResult {
   archiveThread: (threadId: string, archived: boolean) => Promise<void>
   updateThreadTags: (threadId: string, tags: string[]) => Promise<void>
   loadMoreMessages: () => Promise<void>
+  deleteMessageImage: (messageId: string, imageUrl: string) => Promise<void>
 }
 
 export function useChat(): UseChatResult {
-  const { user, googleCalendarToken } = useAuth()
+  const { user, profile, googleCalendarToken } = useAuth()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [threads, setThreads] = useState<ChatThread[]>([])
@@ -71,6 +80,8 @@ export function useChat(): UseChatResult {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEventDoc[]>([])
   const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null)
+  const [styleMemory, setStyleMemory] = useState<import('@/types').StyleMemory | null>(null)
   const firstDocRef = useRef<DocumentSnapshot | null>(null)
 
   // Keep refs so callbacks always see latest values without needing them as deps
@@ -113,6 +124,8 @@ export function useChat(): UseChatResult {
                 timestamp: data.timestamp?.toDate?.() ?? new Date(),
                 mode: data.mode,
                 liked: true,
+                imageUrl: data.imageUrl ?? null,
+                imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
                 threadId: threadDoc.id,
               } satisfies Message
             })
@@ -164,10 +177,6 @@ export function useChat(): UseChatResult {
     }
   }, [user])
 
-  // ── Image intent detection (mirrors backend regex) ────────────────────────
-  const IMAGE_INTENT_RE =
-    /\b(generate|create|make|show|draw|design|visualize|render)\b.{0,60}\b(images?|pictures?|photos?|visuals?|illustrations?|mockups?|renders?|sketches?)\b/i
-
   // ── Truncation detection (response ends mid-sentence) ────────────────────
   const isTruncated = (text: string): boolean => {
     const trimmed = text.trim()
@@ -193,15 +202,16 @@ export function useChat(): UseChatResult {
     /(\bbudget\b.*(\d+%|\₹|\$|cost|spend|allocat))|(\bguest\s*list\b.*\d+)|(category\s*\|.*\|)|(item\s*\|.*amount)/i
 
   // ── Send message ───────────────────────────────────────────────────────────
-  const sendMessage = useCallback(async (text: string, audioBase64?: string, mode?: Mode, language?: string) => {
-    if (!text.trim() && !audioBase64) return
+  const sendMessage = useCallback(async (text: string, audioBase64?: string, mode?: Mode, language?: string, imageBase64?: string, imageMimeType?: string) => {
+    if (!text.trim() && !audioBase64 && !imageBase64) return
 
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: text || '🎙️ Voice message',
+      text: text || (imageBase64 ? '📷 Image' : '🎙️ Voice message'),
       sender: 'user',
       timestamp: new Date(),
       liked: false,
+      attachedImage: imageBase64 ? `data:${imageMimeType || 'image/png'};base64,${imageBase64}` : undefined,
     }
     setMessages((prev) => [...prev, userMsg])
     setIsTyping(true)
@@ -231,6 +241,16 @@ export function useChat(): UseChatResult {
           activeThreadIdRef.current = threadId
         }
 
+        // Upload attached image to Firebase Storage (non-blocking for speed)
+        let attachedImageUrl: string | null = null
+        if (imageBase64 && threadId) {
+          try {
+            attachedImageUrl = await uploadAttachedImage(user.uid, threadId, imageBase64, imageMimeType || 'image/png')
+          } catch (err) {
+            console.error('[useChat] image upload failed, continuing without:', err)
+          }
+        }
+
         await addMessage(threadId, {
           role: 'user',
           content: text,
@@ -238,44 +258,69 @@ export function useChat(): UseChatResult {
           mode: 'assistant',
           language: 'en',
           audioUrl: null,
+          attachedImageUrl,
           liked: false,
         } as NewMessage)
       }
 
       // ── Stream the response ───────────────────────────────────────────────
-      const isImgReq = IMAGE_INTENT_RE.test(text)
       const history = user ? undefined : messagesRef.current.map(m => ({
         role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: m.text,
+        content: m.attachedImage ? `[User attached an image] ${m.text}` : m.text,
       }))
 
       let streamedText = ''
       let finalMeta: StreamDoneEvent | null = null
 
-      const [, imgResult] = await Promise.all([
-        (async () => {
-          for await (const event of streamChatMessage(
-            { message: text, threadId: threadId ?? null, audioBase64, history, mode, language },
-            controller.signal
-          )) {
-            if (event.t === 'c') {
-              streamedText += event.v
-              setMessages(prev => prev.map(m =>
-                m.id === aiMsgId ? { ...m, text: streamedText } : m
-              ))
-            } else if (event.t === 'd') {
-              finalMeta = event
-            } else if (event.t === 'e') {
-              throw new Error(event.msg)
-            }
+      const userPersonalization: UserPersonalization | undefined = profile ? {
+        nickname: profile.nickname,
+        voiceId: profile.voiceId,
+        toneSettings: profile.toneSettings,
+      } : undefined
+
+      // Backend handles image generation in parallel with streaming now
+      for await (const event of streamChatMessage(
+        { message: text, threadId: threadId ?? null, audioBase64, history, mode, language, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory: styleMemory ?? undefined },
+        controller.signal
+      )) {
+        if (event.t === 'c') {
+          streamedText += event.v
+          setMessages(prev => prev.map(m =>
+            m.id === aiMsgId ? { ...m, text: streamedText } : m
+          ))
+        } else if (event.t === 'img') {
+          if (event.status === 'partial' && event.data) {
+            // Progressive image render — show partial image
+            setMessages(prev => prev.map(m =>
+              m.id === aiMsgId ? { ...m, imageGenerating: true, partialImageUrl: event.data } : m
+            ))
+          } else {
+            // Server confirmed image generation started — show skeleton immediately
+            setMessages(prev => prev.map(m =>
+              m.id === aiMsgId ? { ...m, imageGenerating: true } : m
+            ))
           }
-        })(),
-        isImgReq ? generateImage(text).catch(() => null) : Promise.resolve(null),
-      ])
+        } else if (event.t === 'd') {
+          finalMeta = event
+        } else if (event.t === 'e') {
+          throw new Error(event.msg)
+        }
+      }
 
       if (!finalMeta) return
 
-      const imageUrl = (imgResult as any)?.imageUrl ?? finalMeta.imageUrl ?? null
+      const imageUrl = finalMeta.imageUrl ?? null
+      const imageUrls = finalMeta.imageUrls ?? (imageUrl ? [imageUrl] : [])
+
+      // Track last generated image for iterative editing
+      if (imageUrl) {
+        setLastGeneratedImageUrl(imageUrl)
+      }
+
+      // Update style memory for cross-generation consistency
+      if (finalMeta.styleMemory) {
+        setStyleMemory(finalMeta.styleMemory as import('@/types').StyleMemory)
+      }
 
       // Handle calendar event
       let calendarAdded = false
@@ -301,6 +346,16 @@ export function useChat(): UseChatResult {
         setLastToolActions(finalMeta.toolActions as ToolAction[])
       }
 
+      // Extract inline checklist data from tool actions
+      console.log('[useChat] toolActions:', JSON.stringify(finalMeta.toolActions))
+      const createdChecklist = finalMeta.toolActions?.find(
+        (a: any) => a.tool === 'create_checklist' && a.checklistId && a.checklistItems
+      )
+      console.log('[useChat] createdChecklist:', createdChecklist)
+      const checklistData = createdChecklist
+        ? { id: createdChecklist.checklistId!, title: createdChecklist.checklistTitle || 'Checklist', items: createdChecklist.checklistItems || [] }
+        : null
+
       // Finalize the message with clean text + metadata
       setMessages(prev => prev.map(m => m.id === aiMsgId ? {
         ...m,
@@ -308,14 +363,17 @@ export function useChat(): UseChatResult {
         mode: finalMeta!.mode as Mode,
         audioUrl: finalMeta!.audioUrl,
         imageUrl,
+        imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        imageGenerating: false,
         calendarEvent: finalMeta!.calendarEvent ?? null,
         calendarAdded,
         convertToTable: TABLE_CONTENT_RE.test(finalMeta!.text || streamedText),
         truncated: isTruncated(finalMeta!.text || streamedText),
         language: finalMeta!.detectedLanguage || 'en',
+        checklistData,
       } : m))
 
-      // Persist assistant message to Firestore
+      // Persist assistant message to Firestore (including image URLs)
       if (user && threadId) {
         await addMessage(threadId, {
           role: 'assistant',
@@ -324,7 +382,10 @@ export function useChat(): UseChatResult {
           mode: finalMeta.mode as Mode,
           language: finalMeta.detectedLanguage,
           audioUrl: finalMeta.audioUrl,
+          imageUrl: imageUrl,
+          imageUrls: imageUrls,
           liked: false,
+          checklistData: checklistData ?? null,
         } as NewMessage)
       }
     } catch (err: any) {
@@ -372,7 +433,7 @@ export function useChat(): UseChatResult {
       setIsTyping(false)
       abortControllerRef.current = null
     }
-  }, [user])
+  }, [user, profile])
 
   // ── Toggle like ────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (messageId: string) => {
@@ -407,6 +468,33 @@ export function useChat(): UseChatResult {
     }
   }, [user])
 
+  // ── Delete image from message ──────────────────────────────────────────────
+  const deleteMessageImage = useCallback(async (messageId: string, imageUrl: string) => {
+    // Update local state immediately (works for both guest and logged-in)
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m
+      const newUrls = (m.imageUrls ?? (m.imageUrl ? [m.imageUrl] : [])).filter(u => u !== imageUrl)
+      const newImageUrl = m.imageUrl === imageUrl ? (newUrls[0] ?? null) : m.imageUrl
+      const allGone = newUrls.length === 0 && !newImageUrl
+      return {
+        ...m,
+        imageUrl: newImageUrl,
+        imageUrls: newUrls,
+        imageDeleted: allGone ? true : m.imageDeleted,
+      }
+    }))
+
+    // Persist to Firestore + delete from Storage (logged-in users only)
+    const threadId = activeThreadIdRef.current
+    if (threadId) {
+      try {
+        await removeMessageImage(threadId, messageId, imageUrl)
+      } catch (err) {
+        console.error('[useChat] deleteMessageImage error:', err)
+      }
+    }
+  }, [])
+
   // ── Stop generation ────────────────────────────────────────────────────────
   const stopGeneration = useCallback(() => {
     abortControllerRef.current?.abort()
@@ -430,7 +518,12 @@ export function useChat(): UseChatResult {
           mode: data.mode,
           liked: data.liked ?? false,
           audioUrl: data.audioUrl ?? null,
+          imageUrl: data.imageUrl ?? null,
+          imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
+          imageDeleted: data.imageDeleted ?? false,
+          attachedImage: data.attachedImageUrl ?? undefined,
           language: data.language || 'en',
+          checklistData: data.checklistData ?? null,
         } as Message))
       )
     } catch (err) {
@@ -454,7 +547,12 @@ export function useChat(): UseChatResult {
         mode: data.mode,
         liked: data.liked ?? false,
         audioUrl: data.audioUrl ?? null,
+        imageUrl: data.imageUrl ?? null,
+        imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
+        imageDeleted: data.imageDeleted ?? false,
+        attachedImage: data.attachedImageUrl ?? undefined,
         language: data.language || 'en',
+        checklistData: data.checklistData ?? null,
       }))
       setMessages(prev => [...older, ...prev])
     } catch (err) {
@@ -467,6 +565,8 @@ export function useChat(): UseChatResult {
     setMessages([])
     setActiveThreadId(null)
     activeThreadIdRef.current = null
+    setLastGeneratedImageUrl(null)
+    setStyleMemory(null)
   }, [])
 
   // ── Delete thread ──────────────────────────────────────────────────────────
@@ -533,5 +633,6 @@ export function useChat(): UseChatResult {
     archiveThread,
     updateThreadTags,
     loadMoreMessages,
+    deleteMessageImage,
   }
 }

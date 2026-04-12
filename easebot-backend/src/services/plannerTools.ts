@@ -93,16 +93,16 @@ export async function executeToolCall(
 ): Promise<ToolCallOutcome> {
   switch (toolName) {
     case 'create_checklist': {
-      if (!isPremium) {
-        const count = await getChecklistCount(uid)
-        if (count >= 5) {
-          return { result: 'STORAGE_LIMIT_REACHED', action: { tool: 'create_checklist' } }
-        }
-      }
+      // No storage limit — allow unlimited checklists for all users
       const checklist = await createChecklist(uid, args.title, args.items)
       return {
         result: `Checklist "${checklist.title}" saved with ${checklist.items.length} items. ID: ${checklist.id}`,
-        action: { tool: 'create_checklist', checklistId: checklist.id },
+        action: {
+          tool: 'create_checklist',
+          checklistId: checklist.id,
+          checklistTitle: checklist.title,
+          checklistItems: checklist.items.map(i => i.text),
+        },
       }
     }
     case 'edit_checklist_item': {

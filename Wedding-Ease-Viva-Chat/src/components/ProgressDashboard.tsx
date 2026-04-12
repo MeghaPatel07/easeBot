@@ -40,7 +40,7 @@ function ProgressRing({ percentage }: { percentage: number }) {
           fill="none"
           stroke="currentColor"
           strokeWidth="8"
-          className="text-stone-200"
+          className="text-white/10"
         />
         <circle
           cx="60"
@@ -56,8 +56,8 @@ function ProgressRing({ percentage }: { percentage: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold text-stone-800">{Math.round(percentage)}%</span>
-        <span className="text-[10px] text-stone-500">ready</span>
+        <span className="text-2xl font-bold text-white/85">{Math.round(percentage)}%</span>
+        <span className="text-2xs text-white/50">ready</span>
       </div>
     </div>
   )
@@ -66,7 +66,7 @@ function ProgressRing({ percentage }: { percentage: number }) {
 function MiniProgressBar({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
   return (
-    <div className="w-full h-1.5 rounded-full bg-stone-200 mt-2">
+    <div className="w-full h-1.5 rounded-full bg-white/[0.06] mt-2">
       <div
         className="h-1.5 rounded-full bg-primary"
         style={{ width: `${pct}%`, transition: 'width 0.4s ease' }}
@@ -165,10 +165,9 @@ export default function ProgressDashboard({
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
         <Heart className="w-12 h-12 text-primary mb-4" />
-        <h2 className="font-headline text-2xl text-stone-800 mb-2">Welcome to Wedding Ease</h2>
-        <p className="text-sm text-stone-500 max-w-sm">
-          Your wedding planning journey starts here. Chat with Viva to create a checklist, set your
-          wedding date, and start organizing the big day.
+        <h2 className="font-headline text-2xl text-white/85 mb-2">Welcome to EaseBot</h2>
+        <p className="text-sm text-white/50 max-w-sm">
+          Your wedding planning journey starts here. Try asking Viva: "Create a wedding checklist", "Set my wedding date", or "Help me with my budget".
         </p>
         <div className="mt-6 flex items-center gap-1.5 text-primary text-sm font-medium">
           <span>Start a conversation</span>
@@ -190,68 +189,68 @@ export default function ProgressDashboard({
         {daysUntilWedding !== null ? (
           <>
             <Heart className="w-6 h-6 text-primary mx-auto mb-2" fill="#A2B29D" />
-            <div className="text-2xl font-bold text-stone-800">
+            <div className="text-2xl font-bold text-white/85">
               {daysUntilWedding > 0 ? daysUntilWedding : 0}
             </div>
-            <div className="text-sm text-stone-600">
+            <div className="text-sm text-white/60">
               {daysUntilWedding > 0
                 ? 'days until your wedding'
                 : daysUntilWedding === 0
                   ? "Today's the day!"
                   : 'days since your wedding'}
             </div>
-            <div className="text-xs text-stone-400 mt-1">{formattedDate}</div>
+            <div className="text-xs text-white/40 mt-1">{formattedDate}</div>
           </>
         ) : (
-          <div className="text-sm text-stone-400">Set your wedding date to see countdown</div>
+          <div className="text-sm text-white/40">Set your wedding date to see countdown</div>
         )}
       </div>
 
       {/* Overall Readiness */}
       <div className="flex flex-col items-center gap-2">
         <ProgressRing percentage={readinessScore} />
-        <div className="flex items-center gap-1 text-sm text-stone-600">
+        <div className="flex items-center gap-1 text-sm text-white/60">
           <TrendingUp className="w-3.5 h-3.5" />
           <span>Overall readiness</span>
         </div>
       </div>
 
       {/* Category Cards 2x2 */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
         {/* Planning */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckSquare className="w-4 h-4 text-primary" />
-            <span className="text-xs text-stone-500 font-medium">Planning</span>
+            <span className="text-xs text-white/50 font-medium">Planning</span>
           </div>
-          <div className="text-2xl font-bold text-stone-800">
+          <div className="text-2xl font-bold text-white/85">
             {checklistStats.completed}
-            <span className="text-sm font-normal text-stone-400">/{checklistStats.total}</span>
+            <span className="text-sm font-normal text-white/40">/{checklistStats.total}</span>
           </div>
-          <div className="text-xs text-stone-500">tasks complete</div>
+          <div className="text-xs text-white/50">tasks complete</div>
           <MiniProgressBar value={checklistStats.completed} max={checklistStats.total} />
         </div>
 
         {/* Budget */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-4 h-4 text-primary" />
-            <span className="text-xs text-stone-500 font-medium">Budget</span>
+            <span className="text-xs text-white/50 font-medium">Budget</span>
           </div>
           {budgetStats ? (
             <>
-              <div className="text-2xl font-bold text-stone-800">
+              <div className="text-2xl font-bold text-white/85">
                 ${budgetStats.totalSpent.toLocaleString()}
               </div>
-              <div className="text-xs text-stone-500">
+              <div className="text-xs text-white/50">
                 of ${budgetStats.totalBudget.toLocaleString()} spent
               </div>
               <MiniProgressBar value={budgetStats.totalSpent} max={budgetStats.totalBudget} />
             </>
           ) : (
             <>
-              <div className="text-sm text-stone-400 mt-1">Not set up</div>
-              <div className="text-[10px] text-primary mt-1 flex items-center gap-0.5">
+              <div className="text-sm text-white/40 mt-1">Not set up</div>
+              <div className="text-2xs text-primary mt-1 flex items-center gap-0.5">
                 <span>Set up budget</span>
                 <ArrowRight className="w-3 h-3" />
               </div>
@@ -260,30 +259,30 @@ export default function ProgressDashboard({
         </div>
 
         {/* Calendar */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-primary" />
-            <span className="text-xs text-stone-500 font-medium">Calendar</span>
+            <span className="text-xs text-white/50 font-medium">Calendar</span>
           </div>
-          <div className="text-2xl font-bold text-stone-800">{calendarEventCount}</div>
-          <div className="text-xs text-stone-500">events scheduled</div>
+          <div className="text-2xl font-bold text-white/85">{calendarEventCount}</div>
+          <div className="text-xs text-white/50">events scheduled</div>
         </div>
 
         {/* Conversations */}
-        <div className="rounded-2xl bg-white/70 border border-[#EBE4D9] p-4">
+        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <MessageSquare className="w-4 h-4 text-primary" />
-            <span className="text-xs text-stone-500 font-medium">Conversations</span>
+            <span className="text-xs text-white/50 font-medium">Conversations</span>
           </div>
-          <div className="text-2xl font-bold text-stone-800">{threadCount}</div>
-          <div className="text-xs text-stone-500">threads</div>
+          <div className="text-2xl font-bold text-white/85">{threadCount}</div>
+          <div className="text-xs text-white/50">threads</div>
         </div>
       </div>
 
       {/* What to do next */}
       {nextSteps.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-medium text-stone-500 uppercase tracking-wide px-1">
+          <h3 className="text-xs font-medium text-white/50 uppercase tracking-wide px-1">
             What to do next
           </h3>
           {nextSteps.map((step, i) => (
@@ -292,7 +291,7 @@ export default function ProgressDashboard({
               className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-100 p-3"
             >
               <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-              <span className="text-sm text-stone-700">{step}</span>
+              <span className="text-sm text-white/70">{step}</span>
             </div>
           ))}
         </div>

@@ -60,7 +60,7 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
 
   if (categories.length > 0) {
     const categorySnap = await getDocs(
-      query(collection(db, 'products'), where('category', '==', categories[0]), limit(5))
+      query(collection(db, 'products'), where('category', '==', categories[0]), limit(8))
     )
     // If category-specific query has results, use them; otherwise fall back to any products
     if (categorySnap.docs.length > 0) {
@@ -68,7 +68,7 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
     }
   }
 
-  const snap = await getDocs(query(collection(db, 'products'), limit(5)))
+  const snap = await getDocs(query(collection(db, 'products'), limit(8)))
 
   return snap.docs.map(d => {
     const data = d.data()
