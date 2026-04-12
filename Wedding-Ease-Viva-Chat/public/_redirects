@@ -1,5 +1,0 @@
-# Netlify SPA fallback
-# Any request that doesn't match a real file/asset in dist/ falls back to
-# index.html with a 200 status, so React Router can handle client-side routing
-# on hard reloads and deep-links (e.g. /abc123/planner, /share/xyz).
-/*    /index.html   200
