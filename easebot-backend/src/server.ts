@@ -2,12 +2,13 @@ import 'dotenv/config'
 import http from 'http'
 import { app } from './app'
 
-const PORT = process.env.PORT ?? 3001
+const PORT = Number(process.env.PORT ?? 3001)
+const HOST = '0.0.0.0'
 
 const server = http.createServer(app)
 
-server.listen(PORT, () => {
-  console.log(`[easebot] Server running on http://localhost:${PORT}`)
+server.listen(PORT, HOST, () => {
+  console.log(`[easebot] Server running on http://${HOST}:${PORT}`)
   console.log(
     `[easebot] Speech & Translation pipeline: ${
       process.env.ENABLE_SPEECH_TRANSLATION === 'true' ? 'ON' : 'OFF'
