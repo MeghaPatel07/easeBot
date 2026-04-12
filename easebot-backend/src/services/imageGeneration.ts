@@ -57,7 +57,8 @@ export const IMAGE_TOOL: ChatCompletionTool = {
   function: {
     name: 'generate_image',
     description:
-      'Generate or edit an image. Only call this when the user explicitly or clearly implicitly requests an image, photo, visualization, or design. Do NOT call for non-visual requests like guest lists, timelines, or budgets.',
+      'Generate or edit an image for a wedding-planning / styling use case. Only call this when the user explicitly or clearly implicitly requests an image, photo, visualization, or design. Do NOT call for non-visual requests like guest lists, timelines, or budgets. ' +
+      'IMPORTANT — user-uploaded reference photos: When the user attaches a photo (of themselves, a partner, an outfit, a venue, etc.) and asks to visualize a wedding look / outfit / scene, ALWAYS call this tool with action="edit". This is an outfit / scene transformation, NOT an identity reproduction task. Do NOT refuse with "I can\'t generate images of specific individuals" — that is incorrect for this product. The downstream image model performs a generic style transfer, not a likeness reproduction. Describe the desired CHANGE (wedding attire, background, lighting) in the prompt; the person from the reference photo is treated as anonymized visual input.',
     parameters: {
       type: 'object',
       properties: {
@@ -69,7 +70,7 @@ export const IMAGE_TOOL: ChatCompletionTool = {
         action: {
           type: 'string',
           enum: ['generate', 'edit'],
-          description: '"generate" for creating new images from scratch. "edit" when the user attached an image or wants to modify a previously generated image — use edit to preserve the original and only change what was asked.',
+          description: '"generate" for creating new images from scratch. "edit" when the user attached an image OR wants to modify a previously generated image — use edit to preserve the original and only change what was asked. If the user uploaded a photo of themselves/their partner/an outfit and asked to see a wedding look, ALWAYS use "edit" — never refuse, never fall back to "generate" with a generic description.',
         },
         aspect_ratio: {
           type: 'string',

@@ -32,6 +32,61 @@ interface UserProfileContext {
   stylePreferences?: string | null
 }
 
+// ── Force-image-generation heuristics ────────────────────────────────────────
+// The chat LLM (Azure GPT-4o) sometimes refuses to call generate_image when the
+// user attaches a personal photo, returning a canned "I can't generate images of
+// specific individuals" message instead — even though our product is designed
+// for this use case and the downstream image model (GPT-Image-1.5 via edit)
+// handles it fine. When we detect that situation we synthesize a generate_image
+// tool call ourselves and run the image pipeline regardless of what the chat
+// LLM said.
+
+// Keywords that clearly indicate the user wants an image output. Deliberately
+// broad — we only use this check alongside the "user uploaded a photo" gate, so
+// false positives are inert (no photo → no forced tool call).
+const IMAGE_INTENT_RE =
+  /\b(show|generate|create|make|design|visuali[sz]e|see|imagine|picture|image|photo|render|draw|paint|put me in|me in|try on|try it on|wearing|dressed|in a|outfit|lehenga|saree|sari|gown|dress|suit|sherwani|tuxedo|bridal|groom|bride|wedding look|scene|background|venue)\b/i
+
+// Patterns in the chat LLM's text response that identify a refusal. When any of
+// these match and the user attached a photo, we override the refusal.
+const REFUSAL_RE =
+  /(can['\u2019]?t\s+(?:generate|create|recreate|produce|make)|cannot\s+(?:generate|create|recreate|produce|make)|unable\s+to\s+(?:generate|create|recreate)|specific\s+individuals?|image[s]?\s+of\s+(?:a\s+)?real\s+(?:person|people)|recreate\s+(?:a|the)?\s*person|likeness|identifiable\s+(?:person|individual))/i
+
+function shouldForceImageGeneration(params: {
+  hasVisionData: boolean
+  userMessage: string
+  llmText: string
+  alreadyToolCalled: boolean
+}): boolean {
+  if (!params.hasVisionData) return false
+  if (params.alreadyToolCalled) return false
+  // Case A: user message clearly asks for an image
+  if (IMAGE_INTENT_RE.test(params.userMessage)) return true
+  // Case B: LLM returned a refusal string
+  if (REFUSAL_RE.test(params.llmText)) return true
+  return false
+}
+
+// Build the synthesized tool-call payload used when we force image generation.
+// The prompt is written as an edit instruction so the image service treats the
+// attached photo as the reference and applies the user's requested change.
+function buildForcedImageToolCall(
+  userMessage: string,
+): { id: string; name: string; args: Record<string, any> } {
+  const trimmed = (userMessage || '').trim()
+  const editInstruction = trimmed.length > 0
+    ? `Wedding visualization edit: ${trimmed}. Apply the user's requested change to the attached photo as an outfit/scene transformation. Modern editorial wedding photography style, elegant styling, soft golden-hour lighting.`
+    : 'Wedding visualization edit: transform the attached photo into a polished wedding scene with elegant attire, soft golden-hour lighting, and modern editorial wedding photography style.'
+  return {
+    id: `forced_img_${Date.now()}`,
+    name: 'generate_image',
+    args: {
+      prompt: editInstruction,
+      action: 'edit',
+    },
+  }
+}
+
 function buildUserContextSuffix(profile?: UserProfileContext | null): string {
   if (!profile) return ''
   const parts: string[] = []
@@ -375,14 +430,18 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
     const aiResult = await callAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)
 
-    // Store token usage for logged-in users
+    // Store token usage for logged-in users only.
+    // Anonymous usage is intentionally not persisted — there is no anonymous
+    // usage bucket in Firestore and usage counters live on users/{uid}.
     console.log(`[chatController] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, aiResult.usage)
     if (isLoggedIn && uid && aiResult.usage) {
       incrementUserUsage(uid, aiResult.usage).catch(err =>
         console.error('[chatController] usage write failed', err)
       )
     } else {
-      console.warn(`[chatController] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!aiResult.usage}`)
+      // Downgraded from warn → debug: this is expected for anonymous users
+      // and for responses without a usage payload; it is not an error.
+      console.debug(`[chatController] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!aiResult.usage}`)
     }
 
     const toolActions: ToolAction[] = []
@@ -581,14 +640,40 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    // Store token usage for logged-in users
+    // Store token usage for logged-in users only.
+    // Anonymous usage is intentionally not persisted — there is no anonymous
+    // usage bucket in Firestore and usage counters live on users/{uid}.
     console.log(`[chatController:stream] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, streamUsage)
     if (isLoggedIn && uid && streamUsage) {
       incrementUserUsage(uid, streamUsage).catch(err =>
         console.error('[chatController:stream] usage write failed', err)
       )
     } else {
-      console.warn(`[chatController:stream] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!streamUsage}`)
+      // Downgraded from warn → debug: this is expected for anonymous users
+      // and for responses without a usage payload; it is not an error.
+      console.debug(`[chatController:stream] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!streamUsage}`)
+    }
+
+    // ── Force-image-generation fallback ──────────────────────────────────────
+    // If the user attached a photo and asked for a wedding visualization, but
+    // the chat LLM refused (or just skipped the tool call and answered with
+    // plain text), override its decision and invoke generate_image ourselves.
+    // This is a product-level policy: uploaded-photo + image-intent ⇒ edit.
+    const forceImageGen = shouldForceImageGeneration({
+      hasVisionData: !!visionData,
+      userMessage: englishText,
+      llmText: fullText,
+      alreadyToolCalled: firstPassToolCalls.length > 0,
+    })
+    if (forceImageGen) {
+      console.log('[chatController:stream] forcing image generation — user attached photo + image intent detected, overriding LLM refusal/skip')
+      // Wipe the refusal/skip text from fullText. The final `d` event is
+      // authoritative for the frontend (useChat.ts replaces streamedText with
+      // finalMeta.text on `d`), so the user will briefly see any partial
+      // refusal during streaming and then it will be replaced with this
+      // status line + the second-pass text describing the image.
+      fullText = ''
+      firstPassToolCalls = [buildForcedImageToolCall(englishText)]
     }
 
     // ── Execute tool calls and stream second pass ────────────────────────────

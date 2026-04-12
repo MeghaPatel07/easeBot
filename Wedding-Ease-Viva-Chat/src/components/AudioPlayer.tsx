@@ -207,7 +207,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-1 bg-white/[0.08] border border-white/[0.12] rounded-xl px-3 py-2.5 w-full max-w-sm shadow-lg backdrop-blur-sm">
+    <div className="flex flex-col gap-1 bg-white/[0.08] border border-white/[0.12] rounded-xl px-2 sm:px-3 py-2 sm:py-2.5 w-full max-w-sm shadow-lg backdrop-blur-sm">
       {/* Hidden audio element */}
       <audio
         ref={audioRef}
@@ -245,20 +245,20 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
       {!isError && (
         <>
           {/* Top row: controls + waveform */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Play / Pause button */}
             <button
               onClick={togglePlay}
               disabled={isLoading}
-              className="h-8 w-8 rounded-full bg-[#C6944A] text-white flex items-center justify-center flex-shrink-0 hover:bg-[#d4a85e] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-[#C6944A] text-white flex items-center justify-center flex-shrink-0 hover:bg-[#d4a85e] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#C6944A]/30"
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isLoading ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={16} className="sm:!w-3.5 sm:!h-3.5 animate-spin" />
               ) : isPlaying ? (
-                <Pause size={14} fill="currentColor" />
+                <Pause size={16} fill="currentColor" className="sm:!w-3.5 sm:!h-3.5" />
               ) : (
-                <Play size={14} fill="currentColor" className="ml-0.5" />
+                <Play size={16} fill="currentColor" className="sm:!w-3.5 sm:!h-3.5 ml-0.5" />
               )}
             </button>
 
@@ -304,36 +304,39 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
             <button
               onClick={cycleSpeed}
               disabled={isLoading}
-              className="text-[10px] font-bold text-white/50 hover:text-[#C6944A] w-9 text-center flex-shrink-0 transition-colors tabular-nums disabled:cursor-not-allowed"
+              className="h-10 sm:h-auto px-1.5 sm:px-0 text-[11px] sm:text-[10px] font-bold text-white/65 sm:text-white/50 hover:text-[#C6944A] w-10 sm:w-9 text-center flex-shrink-0 transition-colors tabular-nums disabled:cursor-not-allowed rounded"
               aria-label={`Playback speed ${speed}x`}
             >
               {speed}x
             </button>
 
-            {/* Stop button */}
+            {/* Stop button — bumped to 36×36 (mobile) / 24×24 (desktop) and
+                brighter (white/70 vs white/30) so it's actually visible during
+                playback on a phone. Previously h-6 w-6 with text-white/30 +
+                10px icon was effectively invisible on the burgundy theme. */}
             <button
               onClick={handleStop}
               disabled={!canInteract}
-              className="h-6 w-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 flex-shrink-0 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="h-9 w-9 sm:h-6 sm:w-6 rounded-full sm:rounded flex items-center justify-center text-white/70 sm:text-white/40 hover:text-white hover:bg-white/10 flex-shrink-0 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               aria-label="Stop"
             >
-              <Square size={10} fill="currentColor" />
+              <Square size={14} className="sm:!w-2.5 sm:!h-2.5" fill="currentColor" />
             </button>
 
             {/* Close button */}
             {onClose && (
               <button
                 onClick={onClose}
-                className="h-6 w-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 flex-shrink-0 transition-colors"
+                className="h-9 w-9 sm:h-6 sm:w-6 rounded-full sm:rounded flex items-center justify-center text-white/60 sm:text-white/30 hover:text-white hover:bg-white/10 flex-shrink-0 transition-colors"
                 aria-label="Close player"
               >
-                <X size={12} />
+                <X size={16} className="sm:!w-3 sm:!h-3" />
               </button>
             )}
           </div>
 
           {/* Bottom row: time display */}
-          <div className="flex justify-between text-[10px] text-white/40 px-10 select-none">
+          <div className="flex justify-between text-[10px] text-white/40 px-3 sm:px-10 select-none">
             <span className="tabular-nums">{fmt(currentTime)}</span>
             <span className="tabular-nums">{isLoading ? '--:--' : fmt(duration)}</span>
           </div>

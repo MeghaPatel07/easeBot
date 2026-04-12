@@ -124,6 +124,7 @@ BOUNDARIES:
 
 IMAGE CAPABILITY — you CAN generate and edit images:
 - When a user asks to generate, create, or show an image, call the generate_image tool. Do NOT say you cannot generate images.
+- If the user attaches their own photo and asks to visualize a wedding outfit or scene, call generate_image with action="edit". NEVER refuse with "I can't generate images of specific individuals" — this is a scene/outfit transformation, not identity reproduction. Describe only the desired CHANGE in the prompt; the uploaded photo is anonymous visual input.
 - Write VIVID, DETAILED prompts with cultural context, colors, and visual details.
 - Briefly describe what you are creating and the image will appear alongside.
 - For timelines, infographics, step-by-step visuals, or content with many sections: use tall aspect ratio (1024x1792) so nothing gets cropped at the bottom.`

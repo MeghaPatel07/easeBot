@@ -3,7 +3,7 @@ import React from 'react';
 const LoadingScreen: React.FC = () => {
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center bg-background"
+      className="min-h-[100vh] min-h-[100dvh] flex flex-col items-center justify-center bg-background"
       role="status"
       aria-label="Loading application"
     >

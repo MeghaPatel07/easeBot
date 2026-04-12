@@ -221,11 +221,11 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCategoryEdit(cat.id); if (e.key === 'Escape') setEditingCatId(null) }}
                       className="w-20 sm:w-24 text-sm bg-white border border-primary/20 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/20"
                     />
-                    <button onClick={() => handleSaveCategoryEdit(cat.id)} className="h-6 w-6 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
-                      <Check className="h-3 w-3" />
+                    <button onClick={() => handleSaveCategoryEdit(cat.id)} className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
+                      <Check className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
                     </button>
-                    <button onClick={() => setEditingCatId(null)} className="h-6 w-6 flex items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.08] transition-colors">
-                      <X className="h-3 w-3" />
+                    <button onClick={() => setEditingCatId(null)} className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.08] transition-colors">
+                      <X className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
                     </button>
                   </div>
                 ) : (
@@ -247,14 +247,14 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                     <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => { setEditingCatId(cat.id); setEditCatName(cat.name); setEditCatAllocated(String(cat.allocated)) }}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-primary hover:bg-white/80 transition-colors"
+                        className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-primary hover:bg-white/80 transition-colors"
                         title="Edit category"
                       >
                         <Edit3 className="h-3 w-3" />
                       </button>
                       <button
                         onClick={() => { if (!window.confirm('Delete this budget category? This cannot be undone.')) return; deleteBudgetCategory(userId, cat.id) }}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-white/80 transition-colors"
+                        className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-white/80 transition-colors"
                         title="Delete category"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -298,7 +298,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                       <span className="text-xs font-semibold text-white/60 flex-shrink-0">{fmt.format(item.amount)}</span>
                       <button
                         onClick={() => deleteLineItem(userId, cat.id, item.id)}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                        className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
                         title="Delete item"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -339,13 +339,13 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                         <button
                           onClick={() => handleAddLineItem(cat.id)}
                           disabled={!newItemDesc.trim() || !newItemAmount.trim() || Number(newItemAmount) <= 0}
-                          className="h-7 w-7 flex items-center justify-center rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
+                          className="h-10 w-10 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed text-white transition-colors"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => { setShowAddItem(null); setNewItemDesc(''); setNewItemAmount(''); setNewItemVendor('') }}
-                          className="h-7 w-7 flex items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.08] transition-colors"
+                          className="h-10 w-10 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg text-white/40 hover:bg-white/[0.08] transition-colors"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>

@@ -70,7 +70,10 @@
       "Bash(echo \"tsc exit: $?\")",
       "Bash(echo \"exit: $?\")",
       "Bash(/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/node_modules/.bin/tsc --version)",
-      "Bash(python3 -c \"import sys,json; deps=json.load\\(sys.stdin\\).get\\('dependencies',{}\\); [print\\(k\\) for k in sorted\\(deps\\)]\")"
+      "Bash(python3 -c \"import sys,json; deps=json.load\\(sys.stdin\\).get\\('dependencies',{}\\); [print\\(k\\) for k in sorted\\(deps\\)]\")",
+      "Bash(npx --no-install tsc --noEmit)",
+      "Bash(npx --no-install tsc -p tsconfig.app.json --noEmit)",
+      "Bash(npx --no-install vite build)"
     ]
   }
 }

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Star, Share2, MoreHorizontal, Trash2, Heart, Download,
   Loader2, Check, Eye, Save, Undo2, Redo2, Copy, Scissors, ClipboardPaste,
-  MessageSquare, Keyboard,
+  MessageSquare, Keyboard, ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +45,8 @@ export interface NoteHeaderProps {
   editor?: Editor | null;
   onToggleComments?: () => void;
   commentsCount?: number;
+  /** Mobile back-to-list handler. Shown as a left-aligned arrow button on <640px. */
+  onBack?: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,7 +100,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
   note, onUpdateTitle, onUpdateIcon, onUpdateCategory,
   onToggleFavorite, onShare, onDelete, onSave,
   isSaving, lastSavedAt, hasUnsavedChanges, readOnly, wordCount, editor,
-  onToggleComments, commentsCount,
+  onToggleComments, commentsCount, onBack,
 }) => {
   const [titleValue, setTitleValue] = useState(note?.title || '');
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -130,7 +132,18 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
 
   return (
     <>
-      <div className="flex items-center gap-1.5 h-14 border-b border-white/[0.06] px-4 flex-shrink-0">
+      <div className="flex items-center gap-1 sm:gap-1.5 h-12 sm:h-14 border-b border-white/[0.06] px-2 sm:px-4 flex-shrink-0">
+        {/* Mobile-only back-to-list button */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="sm:hidden h-9 w-9 flex items-center justify-center rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+            title="Back to notes"
+            aria-label="Back to notes list"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
         {/* Icon picker */}
         {!readOnly ? (
           <Popover>
@@ -182,8 +195,10 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
         )}
 
         {/* ── Edit actions: Undo, Redo, Copy, Cut, Paste ─────────────────────── */}
+        {/* Hidden on mobile — these duplicate the OS keyboard / soft-menu actions
+            and eat precious header space on a 375px viewport. */}
         {!readOnly && editor && (
-          <div className="flex items-center gap-0.5 border-r border-white/10 pr-2 mr-1">
+          <div className="hidden sm:flex items-center gap-0.5 border-r border-white/10 pr-2 mr-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

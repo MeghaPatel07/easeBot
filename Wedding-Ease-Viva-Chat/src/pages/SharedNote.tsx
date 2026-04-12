@@ -63,7 +63,7 @@ export default function SharedNote() {
   // ── Loading state ──────────────────────────────────────────────────────────
   if (pageState === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#1A0A10]">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
           <p className="text-sm text-white/50">Loading shared note...</p>
@@ -75,7 +75,7 @@ export default function SharedNote() {
   // ── Not found state ────────────────────────────────────────────────────────
   if (pageState === 'not-found') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#1A0A10]">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
         <div className="text-center space-y-4 max-w-md px-6">
           <AlertCircle className="h-12 w-12 text-white/20 mx-auto" />
           <h2 className="text-lg font-headline text-white/60">Note not found</h2>
@@ -95,7 +95,7 @@ export default function SharedNote() {
   // ── Error state ────────────────────────────────────────────────────────────
   if (pageState === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#1A0A10]">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
         <div className="text-center space-y-4 max-w-md px-6">
           <XCircle className="h-12 w-12 text-red-400/40 mx-auto" />
           <h2 className="text-lg font-headline text-white/60">Something went wrong</h2>
@@ -129,7 +129,7 @@ export default function SharedNote() {
   const canComment = permission === 'comment' || permission === 'edit';
 
   return (
-    <div className="min-h-screen bg-[#1A0A10]">
+    <div className="min-h-[100vh] min-h-[100dvh] bg-[#1A0A10]">
       {/* Branded header */}
       <header className="border-b border-white/[0.06] px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">

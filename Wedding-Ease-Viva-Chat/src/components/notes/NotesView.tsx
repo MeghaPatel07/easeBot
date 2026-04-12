@@ -224,31 +224,43 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const trashedCount = notes.filter(n => n.isDeleted).length;
 
   return (
-    <div className="flex h-[calc(100vh-7.5rem)] -m-5 rounded-xl overflow-hidden border border-white/[0.06]">
-      {/* Left sidebar */}
-      <NotesSidebar
-        notes={notes}
-        sharedNotes={sharedNotes}
-        folders={folders}
-        activeNoteId={activeNoteId}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSelectNote={setActiveNoteId}
-        onCreateNote={() => createNote()}
-        onDeleteNote={deleteNote}
-        onRestoreNote={handleRestoreNote}
-        onDuplicateNote={handleDuplicateNote}
-        onCreateFolder={createFolder}
-        onDeleteFolder={deleteFolder}
-        onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
-        onMoveNote={moveNoteToFolder}
-        onToggleFavorite={handleToggleFavorite}
-        onBack={() => setActiveNoteId(null)}
-        trashedCount={trashedCount}
-      />
+    <div className="flex h-[calc(100vh-7.5rem)] h-[calc(100dvh-7.5rem)] -m-3 sm:-m-5 rounded-xl overflow-hidden border border-white/[0.06]">
+      {/*
+        Responsive split-pane:
+        ── Desktop (≥640px): sidebar + editor side-by-side, both always visible.
+        ── Mobile  (<640px):  ONE pane visible at a time. When no note is
+            selected (activeNoteId == null), show the sidebar full-width. When
+            a note is selected, hide the sidebar and show the editor full-width.
+            The NoteHeader's mobile-only back button (onBack) clears
+            activeNoteId to return to the list.
+      */}
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-white/[0.02]">
+      {/* Left sidebar — hidden on mobile when a note is open */}
+      <div className={`${activeNoteId ? 'hidden sm:flex' : 'flex'} sm:flex flex-shrink-0 h-full`}>
+        <NotesSidebar
+          notes={notes}
+          sharedNotes={sharedNotes}
+          folders={folders}
+          activeNoteId={activeNoteId}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSelectNote={setActiveNoteId}
+          onCreateNote={() => createNote()}
+          onDeleteNote={deleteNote}
+          onRestoreNote={handleRestoreNote}
+          onDuplicateNote={handleDuplicateNote}
+          onCreateFolder={createFolder}
+          onDeleteFolder={deleteFolder}
+          onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
+          onMoveNote={moveNoteToFolder}
+          onToggleFavorite={handleToggleFavorite}
+          onBack={() => setActiveNoteId(null)}
+          trashedCount={trashedCount}
+        />
+      </div>
+
+      {/* Main content area — hidden on mobile when no note is selected */}
+      <div className={`${activeNoteId ? 'flex' : 'hidden sm:flex'} flex-1 flex-col min-w-0 bg-white/[0.02]`}>
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-3">
@@ -275,6 +287,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               editor={editorInstance}
               onToggleComments={() => setShowComments(v => !v)}
               commentsCount={comments.length}
+              onBack={() => setActiveNoteId(null)}
             />
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {/* Cover image area */}
@@ -334,7 +347,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                   onChange={handleCoverImageChange}
                 />
               </div>
-              <div className="mx-auto px-6 py-4">
+              <div className="mx-auto px-3 sm:px-6 py-3 sm:py-4">
                 <NoteEditor
                   noteId={note.id}
                   content={note.content}

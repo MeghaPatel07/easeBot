@@ -302,6 +302,17 @@ export function useChat(): UseChatResult {
           }
         } else if (event.t === 'd') {
           finalMeta = event
+          // The `d` event is authoritative — replace the accumulated stream
+          // text with the server's final text. This matters when the backend
+          // rewrites the response mid-stream (e.g. when it forces image
+          // generation after detecting an LLM refusal on a user-uploaded
+          // photo) so the user doesn't keep seeing stale refusal text.
+          if (typeof event.text === 'string' && event.text !== streamedText) {
+            streamedText = event.text
+            setMessages(prev => prev.map(m =>
+              m.id === aiMsgId ? { ...m, text: streamedText } : m
+            ))
+          }
         } else if (event.t === 'e') {
           throw new Error(event.msg)
         }

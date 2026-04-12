@@ -37,25 +37,16 @@ app.set('trust proxy', trustProxyValue)
 // Disable contentSecurityPolicy so SSE / EventSource connections are not blocked
 app.use(helmet({ contentSecurityPolicy: false }))
 
-// --- CORS whitelist ---
-const allowedOrigins: string[] = (
-  process.env.ALLOWED_ORIGINS ?? 'http://localhost:8080,http://localhost:5173'
-)
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean)
-
+// --- CORS: allow all origins ---
+// NOTE: `Access-Control-Allow-Origin: *` is incompatible with
+// `Access-Control-Allow-Credentials: true` per the CORS spec — browsers reject
+// credentialed requests to a wildcard origin. Since auth flows here use bearer
+// tokens in the Authorization header (not cookies), `credentials: false` is
+// safe and lets us use a true wildcard.
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow requests with no origin (curl, server-to-server, etc.)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true)
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`))
-      }
-    },
-    credentials: true,
+    origin: '*',
+    credentials: false,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   }),
 )

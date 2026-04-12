@@ -317,7 +317,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => onStartInlineEdit(message)} className="h-6 w-6 p-0 text-white/40 hover:text-primary hover:bg-primary/10 rounded-lg">
+                        <Button variant="ghost" size="sm" onClick={() => onStartInlineEdit(message)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 text-white/40 hover:text-primary hover:bg-primary/10 rounded-lg">
                           <Edit3 className="h-3 w-3" />
                         </Button>
                       </TooltipTrigger>
@@ -557,10 +557,10 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   Save as Table in Planner
                 </Button>
               )}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="flex items-center gap-1 flex-wrap opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
+                    <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
                       {copiedMsgId === message.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-white/50" />}
                     </Button>
                   </TooltipTrigger>
@@ -571,7 +571,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
+                    <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
                       <Download className="h-3 w-3 text-white/50" />
                     </Button>
                   </TooltipTrigger>
@@ -582,8 +582,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => onToggleLike(message.id)} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
-                      <ThumbsUp className={`h-3 w-3 ${message.liked ? 'text-primary fill-current' : 'text-white/50'}`} />
+                    <Button variant="ghost" size="sm" onClick={() => onToggleLike(message.id)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
+                      <ThumbsUp className={`h-3.5 w-3.5 sm:h-3 sm:w-3 ${message.liked ? 'text-primary fill-current' : 'text-white/50'}`} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -593,7 +593,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => onRegenerateMessage(message)} className="h-6 w-6 p-0 hover:bg-white/15 rounded-md">
+                    <Button variant="ghost" size="sm" onClick={() => onRegenerateMessage(message)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
                       <RefreshCw className="h-3 w-3 text-white/50" />
                     </Button>
                   </TooltipTrigger>
@@ -609,7 +609,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       variant="ghost" size="sm"
                       onClick={() => onTtsPlay(message)}
                       disabled={ttsLoadingId === message.id}
-                      className={`h-6 w-6 p-0 hover:bg-white/15 rounded-md ${ttsActiveId === message.id ? 'text-primary' : ''}`}
+                      className={`h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md ${ttsActiveId === message.id ? 'text-primary' : ''}`}
                     >
                       {ttsLoadingId === message.id
                         ? <Loader2 className="h-3 w-3 animate-spin text-primary" />

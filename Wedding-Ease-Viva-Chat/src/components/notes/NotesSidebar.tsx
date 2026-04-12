@@ -267,7 +267,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   ];
 
   return (
-    <div className="w-64 bg-black/40 backdrop-blur-md border-r border-white/10 flex flex-col h-full">
+    <div className="w-full sm:w-64 flex-shrink-0 bg-black/40 backdrop-blur-md sm:border-r border-white/10 flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1 flex-shrink-0">
         <Button onClick={onBack} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/70" title="Back">

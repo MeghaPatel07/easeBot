@@ -24,7 +24,7 @@ export default function SharedChat() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -32,7 +32,7 @@ export default function SharedChat() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+      <div className="min-h-[100vh] min-h-[100dvh] flex flex-col items-center justify-center bg-background gap-4">
         <MessageSquare className="h-12 w-12 text-stone-300" />
         <p className="text-stone-500 text-sm">{error || 'Conversation not found.'}</p>
         <Link to="/" className="text-primary text-sm hover:underline flex items-center gap-1">
@@ -43,7 +43,7 @@ export default function SharedChat() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100vh] min-h-[100dvh] bg-background">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-border px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">

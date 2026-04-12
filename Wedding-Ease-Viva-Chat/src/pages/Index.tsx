@@ -720,17 +720,23 @@ const Index = () => {
 
   // ── Profile icon (reused across views) ────────────────────────────────────
   const profileIconJSX = (
+    <ProfileIcon
+      user={user}
+      profile={profile}
+      preferredLang={preferredLang}
+      onLanguageChange={handleLanguageChange}
+      onShowShortcuts={() => setShowShortcuts(true)}
+      onShowSignIn={() => setShowSignInModal(true)}
+      onShowSignUp={() => setShowSignUpModal(true)}
+      onSignOut={signOut}
+    />
+  );
+
+  // ── Auth modals (always mounted, reused across every view) ────────────────
+  // NOTE: these MUST be rendered in every return branch, otherwise header/sidebar
+  // "Sign in" buttons flip the open state but have nothing listening for it.
+  const authModalsJSX = (
     <>
-      <ProfileIcon
-        user={user}
-        profile={profile}
-        preferredLang={preferredLang}
-        onLanguageChange={handleLanguageChange}
-        onShowShortcuts={() => setShowShortcuts(true)}
-        onShowSignIn={() => setShowSignInModal(true)}
-        onShowSignUp={() => setShowSignUpModal(true)}
-        onSignOut={signOut}
-      />
       <SignInModal open={showSignInModal} onOpenChange={setShowSignInModal} onSwitchToSignUp={(email) => { setSignUpPrefillEmail(email); setShowSignUpModal(true); }} />
       <SignUpModal open={showSignUpModal} onOpenChange={setShowSignUpModal} onSwitchToSignIn={() => setShowSignInModal(true)} initialEmail={signUpPrefillEmail} />
     </>
@@ -775,10 +781,11 @@ const Index = () => {
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
-      <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
+      {authModalsJSX}
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
         <main className="flex-1 flex flex-col overflow-hidden">
@@ -803,10 +810,11 @@ const Index = () => {
 
   // ── Helper: main-area shell ───────────────────────────────────────────────
   const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
-    <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}
+      {authModalsJSX}
       {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
       <main className="flex-1 flex flex-col overflow-x-hidden overflow-hidden">
@@ -935,10 +943,11 @@ const Index = () => {
   // ── Expanded chat view ────────────────────────────────────────────────────
   if (isExpanded) {
     return (
-      <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
+      {authModalsJSX}
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
 
@@ -1027,7 +1036,7 @@ const Index = () => {
 
           {/* Input Bar Area */}
           <div className="px-4 sm:px-6 pt-2 pb-1  flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
-            <ChatInput {...inputBarProps} placeholder="ask me anything about your wedding styling, planning, or outfits..." />
+            <ChatInput {...inputBarProps} placeholder="ask me anything" />
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
             <p className="text-center text-3xs text-white/20 mt-2.5 uppercase tracking-[0.25em] font-medium">wedding ease — your day, perfected</p>
           </div>
@@ -1038,10 +1047,11 @@ const Index = () => {
 
   // ── Landing page ──────────────────────────────────────────────────────────
   return (
-    <div className={`gradient-bg flex h-screen overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}
+      {authModalsJSX}
       {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
 
@@ -1069,42 +1079,43 @@ const Index = () => {
           signUpPrefillEmail={signUpPrefillEmail}
           onSignUpPrefillEmailChange={setSignUpPrefillEmail}
         />
-        {/* Landing content */}
-        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 noise-overlay relative floral-overlay overflow-y-auto">
+        {/* Landing content
+            Mobile: top-aligned, tight spacing — everything must fit on a
+            375×667 iPhone SE without scrolling. Desktop keeps the airy
+            center-aligned hero. */}
+        <div className="flex-1 flex flex-col items-center justify-start sm:justify-center px-3 pt-3 pb-2 sm:p-6 noise-overlay relative floral-overlay overflow-y-auto">
           <div className="text-center max-w-3xl mx-auto w-full relative z-10 flex flex-col items-center">
             <div className="relative z-10 w-full">
-              {/* Bot avatar */}
-              <div className="w-20 h-20 rounded-full border-2 border-[#C6944A]/60 flex items-center justify-center shadow-lg mx-auto mb-4 bot-avatar overflow-hidden bg-gradient-to-br from-[#D4A853]/20 to-[#B07D35]/20">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#D4A853] to-[#B07D35] flex items-center justify-center text-white text-2xl italic font-headline">E</div>
+              {/* Bot avatar — smaller on mobile */}
+              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border-2 border-[#C6944A]/60 flex items-center justify-center shadow-lg mx-auto mb-2 sm:mb-4 bot-avatar overflow-hidden bg-gradient-to-br from-[#D4A853]/20 to-[#B07D35]/20">
+                <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#D4A853] to-[#B07D35] flex items-center justify-center text-white text-lg sm:text-2xl italic font-headline">E</div>
               </div>
 
-              {/* Title */}
-              <h1 className="uppercase tracking-[0.2em] text-sm font-bold text-[#C6944A] text-center mb-0.5">Ease Bot</h1>
-              <p className="text-2xs uppercase tracking-[0.25em] text-[#C6944A]/60 font-label mb-6 text-center">Your Wedding Concierge</p>
+              {/* Brand labels — hidden on mobile; header already carries the app brand */}
+              <h1 className="hidden sm:block uppercase tracking-[0.2em] text-sm font-bold text-[#C6944A] text-center mb-0.5">Ease Bot</h1>
+              <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#C6944A]/60 font-label mb-6 text-center">Your Wedding Concierge</p>
 
-              {/* Hero heading */}
-              <h2 className="font-headline text-2xl sm:text-2xl md:text-[1.5rem] text-white/90 mb-3 tracking-tight text-center leading-tight">
-                {profile
-                  ? <>Hi, I'm here to <span className="italic text-[#C6944A]">guide you.</span></>
-                  : <>Hi, I'm here to <span className="italic text-[#C6944A]">guide you.</span></>
-                }
+              {/* Hero heading — tighter on mobile */}
+              <h2 className="font-headline text-lg sm:text-2xl md:text-[1.5rem] text-white/90 mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
+                Hi, I'm here to <span className="italic text-[#C6944A]">guide you.</span>
               </h2>
-              <p className="text-sm text-white/50 mb-10 leading-relaxed max-w-lg mx-auto text-center font-body">
+              <p className="text-xs sm:text-sm text-white/50 mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
                 Tell me your event, style or budget — I'll guide you step by step.
               </p>
 
-              {/* Quick prompt cards — 2x2 grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-5 max-w-2xl mx-auto">
+              {/* Quick prompt cards — 2×2 on mobile, 4-across on desktop */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-5 max-w-2xl mx-auto">
                 {actionButtons.map((btn, i) => (
-                  <button key={i} onClick={() => handleQuickPrompt(btn.action)} className="glass-action-card flex flex-col items-center justify-center gap-2.5 rounded-2xl py-5 px-3 group cursor-pointer">
-                    <btn.icon className="w-6 h-6 text-[#C6944A]/70 group-hover:text-[#C6944A] transition-colors" />
-                    <span className="text-xs font-medium text-white/55 group-hover:text-white/80 text-center leading-snug">{btn.text}</span>
+                  <button key={i} onClick={() => handleQuickPrompt(btn.action)} className="glass-action-card flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 rounded-xl sm:rounded-2xl py-2.5 sm:py-5 px-2 sm:px-3 group cursor-pointer">
+                    <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#C6944A]/70 group-hover:text-[#C6944A] transition-colors" />
+                    <span className="text-[11px] sm:text-xs font-medium text-white/55 group-hover:text-white/80 text-center leading-tight">{btn.text}</span>
                   </button>
                 ))}
               </div>
 
-              {/* "Not sure what you need?" banner */}
-              <div className="flex items-center gap-3 bg-white/[0.06] backdrop-blur-md border border-white/[0.1] rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
+              {/* "Not sure what you need?" banner — desktop only (mobile users have
+                  the prompt cards above which already cover this) */}
+              <div className="hidden sm:flex items-center gap-3 bg-white/[0.06] backdrop-blur-md border border-white/[0.1] rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
                 <Sparkles className="w-5 h-5 text-[#C6944A]/70 flex-shrink-0" />
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold text-white/80">Not sure what you need?</p>
@@ -1119,13 +1130,13 @@ const Index = () => {
               </div>
 
               {/* Occasion chips — horizontal scroll */}
-              <div className="w-full max-w-2xl mx-auto mb-6 overflow-x-auto scrollbar-hide">
-                <div className="flex gap-2 px-1 pb-1" style={{ minWidth: 'max-content' }}>
+              <div className="w-full max-w-2xl mx-auto mb-3 sm:mb-6 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-1.5 sm:gap-2 px-1 pb-1" style={{ minWidth: 'max-content' }}>
                   {occasions.map((occ) => (
                     <button
                       key={occ}
                       onClick={() => setSelectedOccasion(selectedOccasion === occ ? null : occ)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
+                      className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
                         ? 'bg-[#C6944A]/20 border-[#C6944A]/40 text-[#C6944A]'
                         : 'bg-white/[0.06] border-white/[0.1] text-white/55 hover:bg-white/10 hover:text-white/75'
                       }`}
@@ -1136,14 +1147,14 @@ const Index = () => {
                 </div>
               </div>
 
-              <ChatInput {...inputBarProps} placeholder="Ask me anything about your wedding..." />
+              <ChatInput {...inputBarProps} placeholder="Ask me anything " />
               <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
             </div>
           </div>
         </div>
 
-        {/* Bottom tagline */}
-        <p className="flex-shrink-0 text-center py-3 text-2xs text-white/25 uppercase tracking-[0.25em] font-medium">
+        {/* Bottom tagline — desktop only; on mobile it's redundant and steals 30px */}
+        <p className="hidden sm:block flex-shrink-0 text-center py-3 text-2xs text-white/25 uppercase tracking-[0.25em] font-medium">
           wedding ease — your day, perfected
         </p>
       </main>

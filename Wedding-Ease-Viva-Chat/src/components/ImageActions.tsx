@@ -269,7 +269,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, var
             <div className="border-t border-white/[0.06] mb-4" />
 
             {/* Social platforms */}
-            <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
               {SHARE_PLATFORMS.map(platform => (
                 <a
                   key={platform.name}
