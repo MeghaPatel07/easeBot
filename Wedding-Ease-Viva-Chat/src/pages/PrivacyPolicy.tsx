@@ -125,10 +125,12 @@ export default function PrivacyPolicy() {
               identifier.
             </li>
             <li>
-              <strong>Calendar integration:</strong> if you grant Google
-              Calendar access, we receive scopes you authorize so we can
-              create wedding-related events. We do not read events we did not
-              create.
+              <strong>Reminders &amp; notifications:</strong> reminders you
+              create (in-chat or via the Reminders page) are stored in our
+              own database. We send notifications via email (for email and
+              Google sign-in users) or WhatsApp (for phone sign-in users).
+              Reminders are retained until you delete them, and we do not
+              share reminder content with any third party.
             </li>
           </ul>
 

@@ -87,7 +87,17 @@
       "Bash(tee /tmp/tsc3.log)",
       "Read(//Users/krish/Desktop/Wedding-Ease-User-Interface/src/lib/**)",
       "Bash(awk '/^\\\\/Users/{f=$0} /error|warning/{print f\" :: \"$0}')",
-      "Bash(awk '/^\\\\/Users/{f=$0} /warning/{print f\" :: \"$0}')"
+      "Bash(awk '/^\\\\/Users/{f=$0} /warning/{print f\" :: \"$0}')",
+      "Bash(grep -l \"sendWhatsAppMessage\\\\|nodemailer\\\\|sendgrid\\\\|sendMail\" /Users/krish/Desktop/easebot/functions/src/*.ts /Users/krish/Desktop/easebot/functions/src/**/*.ts)",
+      "Bash(grep -l \"sendWhatsAppMessage\\\\|nodemailer\\\\|SENDGRID\\\\|sendMail\\\\|mailgun\\\\|smtp\" /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/functions/src/*.ts)",
+      "Bash(grep -n \"export.*service\\\\|export.*function\" /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/services/*.ts)",
+      "Bash(npx eslint:*)",
+      "Bash(ENABLE_REMINDER_SCHEDULER=true PORT=3099 node:*)",
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"BACKEND_EXIT=$?\")",
+      "Bash(echo \"FRONTEND_EXIT=$?\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ]
   }
 }

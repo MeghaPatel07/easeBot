@@ -10,6 +10,7 @@ import {
   updateCollaboratorPermission,
   enablePublicLink,
   disablePublicLink,
+  sendNoteInvites,
 } from '@/services/notesSharingService';
 import {
   subscribeToComments,
@@ -100,8 +101,8 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   };
 
   // Sharing handlers
-  const handleAddCollaborator = async (email: string, permission: NotePermission) => {
-    if (!activeNoteId) return;
+  const handleAddCollaborator = async (email: string, permission: NotePermission): Promise<boolean> => {
+    if (!activeNoteId) return false;
     try {
       await addCollaborator(activeNoteId, {
         userId: '',
@@ -110,8 +111,29 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         permission,
         addedBy: userId,
       });
-    } catch (err) {
-      toast.error('Failed to add collaborator');
+      return true;
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to add collaborator');
+      return false;
+    }
+  };
+
+  const handleSendInvites = async (emails: string[]) => {
+    if (!activeNoteId || emails.length === 0) return;
+    try {
+      const result = await sendNoteInvites(activeNoteId, emails);
+      if (result.sent.length > 0) {
+        toast.success(
+          result.sent.length === 1
+            ? `Invitation sent to ${result.sent[0]}`
+            : `Invitations sent to ${result.sent.length} people`,
+        );
+      }
+      if (result.skipped.length > 0) {
+        toast.error(`Could not email: ${result.skipped.join(', ')}`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to send invitations');
     }
   };
 
@@ -453,6 +475,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
           onUpdatePermission={handleUpdateCollaboratorPermission}
           onEnablePublicLink={handleEnablePublicLink}
           onDisablePublicLink={handleDisablePublicLink}
+          onSendInvites={handleSendInvites}
         />
       )}
 

@@ -117,7 +117,7 @@ function buildNewUserDoc(
     createdAt: serverTimestamp(),
     lastLoginAt: null,
     forgotPasswordOtp: null,
-    googleCalendarToken: null,
+    activeVibe: null,
   }
 }
 
@@ -240,7 +240,6 @@ export async function signInWithEmail(email: string, password: string) {
 
 export async function signInWithGoogleAuth(allowSignUp = true): Promise<{ user: import('firebase/auth').User, googleAccessToken: string | null }> {
   const provider = new GoogleAuthProvider()
-  provider.addScope('https://www.googleapis.com/auth/calendar')
   let credential
   try {
     credential = await signInWithPopup(auth, provider)
@@ -275,14 +274,12 @@ export async function signInWithGoogleAuth(allowSignUp = true): Promise<{ user: 
       isVerified: true,
       isValidated: true,
       verifiedAt: serverTimestamp(),
-      googleCalendarToken: googleAccessToken,
     })
   } else {
     await updateDoc(doc(db, 'users', user.uid), {
       isVerified: true,
       isValidated: true,
       lastLoginAt: serverTimestamp(),
-      googleCalendarToken: googleAccessToken,
     })
   }
 

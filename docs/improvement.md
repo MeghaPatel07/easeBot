@@ -38,19 +38,19 @@ Here's the full breakdown, copy-paste ready:
 
 **4. 🤖 AI Behaviour & Artifacts**
 
-- **Checklists should be saved as Notes, not generated as images** — When a user asks the chatbot to "create a checklist," it is currently generating an *image* of a checklist. This is wrong. Instead, it should create a proper Note artifact with the checklist content inside it, which the user can then go to the Notes tab and view, edit, or reference.
+- **Checklists should be saved as Notes, not generated as images** — When a user asks the chatbot to "create a checklist," it is currently generating an *image* of a checklist. This is wrong. Instead, it should create a proper  artifact with the checklist content inside it and save taht to checklist , which the user can then go in checklist and then copy it to the Notes tab and view, edit, or reference.
 
 - **Image generation should be triggered only when explicitly asked** — The AI should not auto-generate images in response to general requests. Images should only be created when the user specifically asks for an image or when using a dedicated image sub-agent.
 
-- **Chat must be able to create and reference Notes** — The chat should be able to save notes on the user's behalf. When a user asks for a checklist, a plan, a to-do list, or a reminder, the AI should create the corresponding artifact (Note, Plan, Reminder, etc.) and save it to the relevant tab so the user can access it directly.
+- **Chat must be able to create and reference Notes** — The chat should be able to save notes on the user's behalf. When a user asks for a , a plan, the AI should create the corresponding artifact (Note) and save it to the relevant tab so the user can access it directly with tiel are auto detected . just liek how auto checklist is being created .
 
 - **Treat all tab content as AI-creatable artifacts** — Plans, Reminders, Timelines, Notes, and Gallery content should all be things the AI can create, not just display. Think of each tab as a workspace the AI can write into.
 
 - **Sub-agents must interact with all tab features** — The specialised sub-agents in the product must be able to interact with Planner, Timelines, Gallery, Notes, and Reminders — not just respond in chat. They should be able to create and save things in these sections.
 
-- **System prompts must include WeddingEase branding awareness** — Every agent's system prompt should acknowledge that WeddingEase is powering the platform. In their responses, agents should subtly reference WeddingEase as the platform behind the experience.
+<!-- - **System prompts must include WeddingEase branding awareness** — Every agent's system prompt should acknowledge that WeddingEase is powering the platform. In their responses, agents should subtly reference WeddingEase as the platform behind the experience.
 
-- **Agents should subtly market WeddingEase consultants and premium tiers** — The vision is that users come to the chatbot, love it, and naturally discover WeddingEase's premium consulting services. Agents should, at appropriate moments, mention that for deeper, personalised help, users can work with WeddingEase's consultants or upgrade to a higher tier. This should be *subtle and natural*, not spammy.
+- **Agents should subtly market WeddingEase consultants and premium tiers** — The vision is that users come to the chatbot, love it, and naturally discover WeddingEase's premium consulting services. Agents should, at appropriate moments, mention that for deeper, personalised help, users can work with WeddingEase's consultants or upgrade to a higher tier. This should be *subtle and natural*, not spammy. -->
 
 ---
 
@@ -58,23 +58,23 @@ Here's the full breakdown, copy-paste ready:
 
 - **Fix the profile page** — When a user clicks on their profile/avatar in the top right corner, they should see their own details: name, email address, current plan/tier, and options to update these. Right now it only shows language settings, which makes no sense.
 
-- **Allow users to update their details and plan** — From the settings or profile page, users should be able to: update their email address, see their current pricing tier, upgrade or downgrade their plan, and manage account-related settings.
+- **Allow users to update their details and plan** — From the settings or profile page, users should be able to: update their name pprofile ohoto ,nickanem , see their current pricing tier, upgrade or downgrade their plan, and manage account-related settings.
 
 - **Research ChatGPT and Claude's settings pages** — Study in depth what settings, account management options, and profile features ChatGPT and Claude offer to their users (not product features — the surrounding configuration layer: identity, plan management, billing, preferences, etc.). Use this as the benchmark for what WeddingEase's settings page should look like.
 
-- **AI Voice feature — fix or remove** — The AI Voice option exists in settings, but there is no actual voice-to-voice interaction happening in the product. Either: (a) properly implement speech-to-speech so users can *speak* to the AI and the AI *speaks back*, or (b) remove the AI Voice option entirely until this is built properly.
+<!-- - **AI Voice feature — fix or remove** — The AI Voice option exists in settings, but there is no actual voice-to-voice interaction happening in the product. Either: (a) properly implement speech-to-speech so users can *speak* to the AI and the AI *speaks back*, or (b) remove the AI Voice option entirely until this is built properly. -->
 
-- **Language detection is a nice-to-have, not a must-have** — AI models naturally respond in whatever language the user writes or asks in. This feature is not critical right now and can be deprioritised.
+<!-- - **Language detection is a nice-to-have, not a must-have** — AI models naturally respond in whatever language the user writes or asks in. This feature is not critical right now and can be deprioritised. -->
 
 ---
-
+<!-- 
 **6. 🌐 Landing Page & WeddingEase Integration**
 
 - **Update the WeddingEase landing page** — The WeddingEase.ai website/landing page should promote the chatbot and allow users to discover it, sign up, and start using it directly from there. The chatbot should not exist as a separate, disconnected product.
 
 - **Unified account across chatbot and WeddingEase.ai** — This is critical. If a user creates an account on the chatbot, that *is* their WeddingEase account. There should be no separate sign-up for the two platforms. One login, one identity, everywhere.
 
-- **Seamless navigation between chatbot and WeddingEase.ai** — A logged-in user should be able to move between the chatbot and the WeddingEase website without friction. From the chatbot, there should be a way to go to your WeddingEase dashboard. From WeddingEase, there should be a way to go to the chatbot. Vice versa, always accessible.
+- **Seamless navigation between chatbot and WeddingEase.ai** — A logged-in user should be able to move between the chatbot and the WeddingEase website without friction. From the chatbot, there should be a way to go to your WeddingEase dashboard. From WeddingEase, there should be a way to go to the chatbot. Vice versa, always accessible. -->
 
 ---
 

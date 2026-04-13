@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import http from 'http'
 import { app } from './app'
+import { startReminderScheduler, stopReminderScheduler } from './services/reminderScheduler'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = '0.0.0.0'
@@ -14,6 +15,13 @@ server.listen(PORT, HOST, () => {
       process.env.ENABLE_SPEECH_TRANSLATION === 'true' ? 'ON' : 'OFF'
     }`,
   )
+  // Start the in-process reminder scheduler unless explicitly disabled
+  // (tests / one-off scripts can set ENABLE_REMINDER_SCHEDULER=false).
+  if (process.env.ENABLE_REMINDER_SCHEDULER !== 'false') {
+    startReminderScheduler()
+  } else {
+    console.log('[easebot] Reminder scheduler disabled via env')
+  }
 })
 
 // --------------- Graceful Shutdown ---------------
@@ -22,6 +30,7 @@ const SHUTDOWN_TIMEOUT_MS = 10_000
 
 function gracefulShutdown(signal: string): void {
   console.log(`[easebot] Received ${signal}. Starting graceful shutdown…`)
+  stopReminderScheduler()
 
   // Stop accepting new connections
   server.close(() => {

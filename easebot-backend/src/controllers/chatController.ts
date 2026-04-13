@@ -19,10 +19,19 @@ import { getTherapistPrompt } from '../prompts/therapist'
 import { getKnowledgePrompt } from '../prompts/knowledge'
 import { getConsultantPrompt } from '../prompts/consultant'
 import { getAssistantPrompt } from '../prompts/assistant'
-import { PLANNER_TOOLS, executeToolCall } from '../services/plannerTools'
+import {
+  executeToolCall,
+  CREATE_CHECKLIST_TOOL,
+  EDIT_CHECKLIST_ITEM_TOOL,
+  MARK_AS_DONE_TOOL,
+  GET_CHECKLIST_STATS_TOOL,
+  CREATE_REMINDER_TOOL,
+  CREATE_NOTE_TOOL,
+  CREATE_TIMELINE_EVENT_TOOL,
+} from '../services/plannerTools'
 import { incrementUserUsage } from '../services/usageService'
 import type { ChatCompletionTool } from 'openai/resources/chat/completions'
-import type { ChatPayload, ChatResponse, CalendarEvent, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
+import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
 import { buildPersonalizationSuffix } from '../utils/toneInjector'
 import { determineTargetLanguage, buildLanguageInstruction } from '../pipeline/languageInstruction'
 
@@ -44,8 +53,7 @@ interface UserProfileContext {
 // Keywords that clearly indicate the user wants an image output. Deliberately
 // broad — we only use this check alongside the "user uploaded a photo" gate, so
 // false positives are inert (no photo → no forced tool call).
-const IMAGE_INTENT_RE =
-  /\b(show|generate|create|make|design|visuali[sz]e|see|imagine|picture|image|photo|render|draw|paint|put me in|me in|try on|try it on|wearing|dressed|in a|outfit|lehenga|saree|sari|gown|dress|suit|sherwani|tuxedo|bridal|groom|bride|wedding look|scene|background|venue)\b/i
+const IMAGE_INTENT_RE = /\b(draw|render|generate\s+(?:an?\s+)?(?:image|picture|photo)|visualize|illustrate|mood\s?board|picture\s+of|image\s+of)\b/i
 
 // Patterns in the chat LLM's text response that identify a refusal. When any of
 // these match and the user attached a photo, we override the refusal.
@@ -84,6 +92,60 @@ function buildForcedImageToolCall(
       prompt: editInstruction,
       action: 'edit',
     },
+  }
+}
+
+// ── Vibe Mode helpers ────────────────────────────────────────────────────────
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function buildVibeId(vibeTitle?: string | null): string | null {
+  if (!vibeTitle) return null
+  const slug = slugify(vibeTitle)
+  return slug ? `vibe-${slug}` : null
+}
+
+function buildVibeSystemSuffix(vibeTitle?: string, vibeDescriptors?: string[]): string {
+  if (!vibeTitle || !vibeDescriptors || vibeDescriptors.length === 0) return ''
+  return `\nThe user has locked in a wedding vibe: '${vibeTitle}'. Style descriptors: ${vibeDescriptors.join(', ')}. ALL images generated in this turn MUST reflect this vibe — weave the descriptors into the visual output.`
+}
+
+function buildForceImageSuffix(force?: boolean): string {
+  if (!force) return ''
+  return `\nIMPORTANT: The user is in the Images Hub — call the generate_image tool for this turn to produce an image that satisfies their request.`
+}
+
+// Per-mode tool binding. IMAGE_TOOL is always available for logged-in users.
+// Guest users get no tools. Each mode gets a curated artifact tool set.
+function getToolsForMode(mode: string, isLoggedIn: boolean): ChatCompletionTool[] {
+  if (!isLoggedIn) return []
+  const base: ChatCompletionTool[] = [IMAGE_TOOL]
+  switch (mode) {
+    case 'planner':
+    case 'assistant':
+      return [
+        ...base,
+        CREATE_CHECKLIST_TOOL,
+        CREATE_REMINDER_TOOL,
+        CREATE_TIMELINE_EVENT_TOOL,
+        CREATE_NOTE_TOOL,
+        EDIT_CHECKLIST_ITEM_TOOL,
+        MARK_AS_DONE_TOOL,
+        GET_CHECKLIST_STATS_TOOL,
+      ]
+    case 'stylist':
+    case 'therapist':
+    case 'knowledge':
+      return [...base, CREATE_NOTE_TOOL]
+    case 'consultant':
+      return [...base, CREATE_NOTE_TOOL, CREATE_REMINDER_TOOL]
+    default:
+      return [...base, CREATE_NOTE_TOOL]
   }
 }
 
@@ -221,10 +283,18 @@ async function handleImageToolCall(
     styleMemory?: import('../types').StyleMemory
     userProfile?: UserProfileContext | null
     onPartialImage?: (b64: string) => void
+    preferredAspectRatio?: ImageSize
+    vibeTitle?: string
+    vibeDescriptors?: string[]
   }
 ): Promise<ImageToolResult> {
   const imgPrompt = args.prompt as string
   const imgAction = (args.action as string) ?? 'generate'
+  // The user's preferredAspectRatio (from the Images Hub) is authoritative;
+  // override the LLM-chosen size before invoking the image API.
+  if (opts.preferredAspectRatio) {
+    args.aspect_ratio = opts.preferredAspectRatio
+  }
   const llmChosenSize = (args.aspect_ratio as ImageSize) ?? '1024x1024'
   const imgVariants = 1 // Always generate exactly 1 image
 
@@ -243,6 +313,7 @@ async function handleImageToolCall(
       referenceImageMime: 'image/png',
       userProfile: opts.userProfile ?? undefined,
       groundingContext,
+      vibeDescriptors: opts.vibeDescriptors,
     })
     console.log(`[chatController] Prompt Architect expanded: ${architectOutput.expandedPrompt.length} chars, quality=${architectOutput.qualityTier}`)
   } catch (err) {
@@ -321,6 +392,8 @@ async function handleImageToolCall(
       threadId: opts.threadId || null,
       aspectRatio: imgSize,
       type: imgAction === 'edit' ? 'edited' : 'generated',
+      vibeId: buildVibeId(opts.vibeTitle),
+      vibeDescriptors: opts.vibeDescriptors && opts.vibeDescriptors.length > 0 ? opts.vibeDescriptors : null,
     })
     imageUrls = stored.map(s => s.url)
     await incrementImageUsage(opts.uid, base64Images.length)
@@ -361,7 +434,7 @@ async function handleImageToolCall(
 // ── Non-streaming chat handler ──────────────────────────────────────────────────
 
 export async function handleChat(req: Request, res: Response): Promise<void> {
-  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory } = req.body as ChatPayload
+  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors } = req.body as ChatPayload
 
   if (!message && !audioBase64 && !imageBase64) {
     res.status(400).json({ error: 'message, audioBase64, or imageBase64 is required' })
@@ -397,6 +470,8 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
     const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
       + buildLanguageInstruction(targetLanguage)
+      + buildVibeSystemSuffix(vibeTitle, vibeDescriptors)
+      + buildForceImageSuffix(forceImageGeneration)
 
     // Conversation summarization: compress older messages when history is long
     let effectiveHistory = history
@@ -419,10 +494,14 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // Resolve mode-specific temperature
     const temperature = MODE_TEMPERATURES[mode] ?? 0.7
 
-    // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
-    const tools: ChatCompletionTool[] = [IMAGE_TOOL]
-    if (isLoggedIn) {
-      tools.push(...PLANNER_TOOLS)
+    // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
+    const tools: ChatCompletionTool[] = getToolsForMode(mode, isLoggedIn)
+    // Guest users still get IMAGE_TOOL for image requests (mode-agnostic).
+    if (!isLoggedIn && !tools.some(t => t.type === 'function' && t.function.name === 'generate_image')) {
+      tools.push(IMAGE_TOOL)
+    }
+    if (forceImageGeneration && !tools.some(t => t.type === 'function' && t.function.name === 'generate_image')) {
+      tools.unshift(IMAGE_TOOL)
     }
 
     // Pass user-attached image as vision data so LLM can see it
@@ -446,9 +525,23 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
     const toolActions: ToolAction[] = []
     let finalAiText = aiResult.text
-    let calendarEvent: CalendarEvent | null = null
     let imageUrls: string[] = []
     let imageToolStyleMemory: import('../types').StyleMemory | undefined
+
+    // Images Hub: if the caller explicitly forced image generation and the LLM
+    // didn't call the tool, synthesize a generate_image tool call.
+    if (forceImageGeneration && aiResult.toolCalls.length === 0) {
+      aiResult.toolCalls.push({
+        id: `forced_img_${Date.now()}`,
+        name: 'generate_image',
+        args: {
+          prompt: englishText,
+          action: imageBase64 ? 'edit' : 'generate',
+          aspect_ratio: preferredAspectRatio ?? '1024x1024',
+        },
+      })
+      finalAiText = ''
+    }
 
     // Execute tool calls if any
     if (aiResult.toolCalls.length > 0) {
@@ -467,6 +560,9 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
             threadId,
             userProfile,
             styleMemory: styleMemory ?? undefined,
+            preferredAspectRatio,
+            vibeTitle,
+            vibeDescriptors,
           })
           toolActions.push(imgResult.action)
           imageUrls = imgResult.imageUrls
@@ -481,11 +577,6 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
         const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium)
         toolActions.push(outcome.action)
 
-        // save_reminder tool provides the calendarEvent directly
-        if (outcome.calendarEvent) {
-          calendarEvent = outcome.calendarEvent
-        }
-
         if (outcome.result === 'STORAGE_LIMIT_REACHED') {
           const { text: limitText, audioUrl } = await processOutbound(
             "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!",
@@ -496,7 +587,6 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
             audioUrl,
             imageUrl: null,
             imageUrls: undefined,
-            calendarEvent: null,
             toolActions,
             mode,
             detectedLanguage,
@@ -515,24 +605,13 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       }
     }
 
-    // Fallback: parse legacy CALENDAR_EVENT text block (non-tool path or old responses)
-    let cleanedText = finalAiText
-    if (!calendarEvent) {
-      const calendarMatch = finalAiText.match(/CALENDAR_EVENT:(\{[\s\S]*?\})\s*$/)
-      if (calendarMatch) {
-        try { calendarEvent = JSON.parse(calendarMatch[1]) as CalendarEvent } catch { /* ignore */ }
-        cleanedText = finalAiText.replace(/\s*CALENDAR_EVENT:\{[\s\S]*?\}\s*$/, '').trimEnd()
-      }
-    }
-
-    const { text: finalText, audioUrl } = await processOutbound(cleanedText, detectedLanguage)
+    const { text: finalText, audioUrl } = await processOutbound(finalAiText, detectedLanguage)
 
     const response: ChatResponse = {
       text: finalText,
       audioUrl,
       imageUrl: imageUrls[0] ?? null,
       imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-      calendarEvent,
       toolActions,
       mode,
       detectedLanguage,
@@ -556,7 +635,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   const sse = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`)
 
   try {
-    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory } = req.body as ChatPayload
+    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors } = req.body as ChatPayload
 
     if (!message && !audioBase64 && !imageBase64) {
       sse({ t: 'e', msg: 'message, audioBase64, or imageBase64 is required' })
@@ -590,6 +669,8 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
     const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
       + buildLanguageInstruction(targetLanguage)
+      + buildVibeSystemSuffix(vibeTitle, vibeDescriptors)
+      + buildForceImageSuffix(forceImageGeneration)
 
     // Conversation summarization: compress older messages when history is long
     let effectiveHistory = history
@@ -611,17 +692,20 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // Resolve mode-specific temperature
     const temperature = MODE_TEMPERATURES[mode] ?? 0.7
 
-    // Build tools array — always include IMAGE_TOOL + PLANNER_TOOLS for logged-in users
-    const tools: ChatCompletionTool[] = [IMAGE_TOOL]
-    if (isLoggedIn) {
-      tools.push(...PLANNER_TOOLS)
+    // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
+    const tools: ChatCompletionTool[] = getToolsForMode(mode, isLoggedIn)
+    // Guest users still get IMAGE_TOOL for image requests (mode-agnostic).
+    if (!isLoggedIn && !tools.some(t => t.type === 'function' && t.function.name === 'generate_image')) {
+      tools.push(IMAGE_TOOL)
+    }
+    if (forceImageGeneration && !tools.some(t => t.type === 'function' && t.function.name === 'generate_image')) {
+      tools.unshift(IMAGE_TOOL)
     }
 
     // Pass user-attached image as vision data so LLM can see it
     const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
 
     const toolActions: ToolAction[] = []
-    let calendarEvent: CalendarEvent | null = null
     let imageUrls: string[] = []
     let imageToolStyleMemory: import('../types').StyleMemory | undefined
     let fullText = ''
@@ -659,7 +743,11 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // the chat LLM refused (or just skipped the tool call and answered with
     // plain text), override its decision and invoke generate_image ourselves.
     // This is a product-level policy: uploaded-photo + image-intent ⇒ edit.
-    const forceImageGen = shouldForceImageGeneration({
+    // Explicit forceImageGeneration from the Images Hub: if the LLM did not
+    // call generate_image on its own, synthesize a tool call so the user's
+    // intent always produces an image.
+    const explicitForce = forceImageGeneration === true && firstPassToolCalls.length === 0
+    const forceImageGen = explicitForce || shouldForceImageGeneration({
       hasVisionData: !!visionData,
       userMessage: englishText,
       llmText: fullText,
@@ -673,7 +761,20 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       // refusal during streaming and then it will be replaced with this
       // status line + the second-pass text describing the image.
       fullText = ''
-      firstPassToolCalls = [buildForcedImageToolCall(englishText)]
+      if (explicitForce && !visionData) {
+        // Images Hub: user explicitly asked for generation, no reference photo
+        firstPassToolCalls = [{
+          id: `forced_img_${Date.now()}`,
+          name: 'generate_image',
+          args: {
+            prompt: englishText,
+            action: 'generate',
+            aspect_ratio: preferredAspectRatio ?? '1024x1024',
+          },
+        }]
+      } else {
+        firstPassToolCalls = [buildForcedImageToolCall(englishText)]
+      }
     }
 
     // ── Execute tool calls and stream second pass ────────────────────────────
@@ -698,6 +799,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
             threadId,
             userProfile,
             styleMemory: styleMemory ?? undefined,
+            preferredAspectRatio,
+            vibeTitle,
+            vibeDescriptors,
             onPartialImage: (partialB64: string) => {
               sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
             },
@@ -714,12 +818,11 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
         const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium)
         toolActions.push(outcome.action)
-        if (outcome.calendarEvent) calendarEvent = outcome.calendarEvent
 
         if (outcome.result === 'STORAGE_LIMIT_REACHED') {
           const limitMsg = "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!"
           sse({ t: 'c', v: limitMsg })
-          sse({ t: 'd', text: limitMsg, calendarEvent: null, toolActions, mode, detectedLanguage, audioUrl: null, imageUrl: null, imageUrls: [] })
+          sse({ t: 'd', text: limitMsg, toolActions, mode, detectedLanguage, audioUrl: null, imageUrl: null, imageUrls: [] })
           res.end(); return
         }
 
@@ -735,20 +838,10 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    // ── Post-process: strip legacy CALENDAR_EVENT block if present ───────────
-    let cleanedText = fullText
-    if (!calendarEvent) {
-      const m = fullText.match(/CALENDAR_EVENT:(\{[\s\S]*?\})\s*$/)
-      if (m) {
-        try { calendarEvent = JSON.parse(m[1]) } catch { /* ignore */ }
-        cleanedText = fullText.replace(/\s*CALENDAR_EVENT:\{[\s\S]*?\}\s*$/, '').trimEnd()
-      }
-    }
-
     // TTS after full text is ready
-    const { audioUrl } = await processOutbound(cleanedText, detectedLanguage)
+    const { audioUrl } = await processOutbound(fullText, detectedLanguage)
 
-    sse({ t: 'd', text: cleanedText, calendarEvent, toolActions, mode, detectedLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
+    sse({ t: 'd', text: fullText, toolActions, mode, detectedLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
     res.end()
   } catch (err: any) {
     console.error('[chatController:stream]', err)

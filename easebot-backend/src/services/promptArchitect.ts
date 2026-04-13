@@ -18,6 +18,7 @@ export interface PromptArchitectInput {
   }
   conversationContext?: string
   groundingContext?: string
+  vibeDescriptors?: string[]
 }
 
 export interface PromptArchitectOutput {
@@ -127,6 +128,12 @@ Return ONLY a JSON object (no markdown, no explanation):
 function buildArchitectUserPrompt(input: PromptArchitectInput): string {
   const parts: string[] = []
 
+  if (input.vibeDescriptors && input.vibeDescriptors.length > 0) {
+    parts.push(
+      `REQUIRED STYLE CONSTRAINTS (the user has locked in a wedding vibe — these descriptors MUST be honored in the expanded prompt and styleDescriptors output): ${input.vibeDescriptors.join(', ')}`
+    )
+  }
+
   parts.push(`ACTION: ${input.action}`)
   parts.push(`USER INTENT: ${input.userIntent}`)
   parts.push(`MODE: ${input.mode}`)
@@ -158,10 +165,13 @@ function buildArchitectUserPrompt(input: PromptArchitectInput): string {
 // ── Default fallback output ──────────────────────────────────────────────────
 
 function buildFallbackOutput(input: PromptArchitectInput): PromptArchitectOutput {
+  const vibeSuffix = input.vibeDescriptors && input.vibeDescriptors.length > 0
+    ? ` Locked wedding vibe style constraints that MUST be reflected: ${input.vibeDescriptors.join(', ')}.`
+    : ''
   return {
-    expandedPrompt: `${input.userIntent}. Modern editorial photography, soft golden-hour backlighting, shallow depth of field at f/1.8, film-inspired color grading with warm highlights and lifted blacks, clean minimalist composition, aspirational Pinterest-worthy aesthetic.`,
+    expandedPrompt: `${input.userIntent}.${vibeSuffix} Modern editorial photography, soft golden-hour backlighting, shallow depth of field at f/1.8, film-inspired color grading with warm highlights and lifted blacks, clean minimalist composition, aspirational Pinterest-worthy aesthetic.`,
     negativePrompt: 'old-fashioned, dated, stock photo, cluttered, flat lighting, oversaturated, HDR, blurry, distorted, watermark, cartoon, generic',
-    styleDescriptors: [],
+    styleDescriptors: input.vibeDescriptors ? [...input.vibeDescriptors].slice(0, 20) : [],
     qualityTier: 'high',
     suggestedBackground: 'opaque',
   }

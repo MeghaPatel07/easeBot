@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth'
 import {
   handleCreateNote, handleGetNote, handleUpdateNote, handleDeleteNote,
   handleRestoreNote, handlePermanentDelete, handleGetUserNotes,
-  handleAddCollaborator, handleRemoveCollaborator, handleUpdateCollaboratorPermission,
+  handleAddCollaborator, handleSendInvites, handleRemoveCollaborator, handleUpdateCollaboratorPermission,
   handleEnablePublicLink, handleDisablePublicLink, handleGetSharedNote,
   handleAddComment, handleGetComments, handleUpdateComment, handleDeleteComment,
   handleResolveComment,
@@ -25,6 +25,7 @@ router.delete('/:noteId/permanent', requireAuth, handlePermanentDelete)
 
 // Sharing
 router.post('/:noteId/share', requireAuth, handleAddCollaborator)
+router.post('/:noteId/share/notify', requireAuth, handleSendInvites)
 router.delete('/:noteId/share/:userId', requireAuth, handleRemoveCollaborator)
 router.patch('/:noteId/share/:userId', requireAuth, handleUpdateCollaboratorPermission)
 router.post('/:noteId/public-link', requireAuth, handleEnablePublicLink)

@@ -3,6 +3,7 @@ import {
   createNote, getNote, updateNote, softDeleteNote, restoreNote,
   permanentDeleteNote, getUserNotes,
   addCollaborator, removeCollaborator, updateCollaboratorPermission,
+  sendCollaboratorInvites,
   enablePublicLink, disablePublicLink, getNoteByShareId,
   addComment, getComments, updateComment, deleteComment, resolveComment,
   createFolder, getUserFolders, updateFolder, deleteFolder, moveNoteToFolder,
@@ -122,7 +123,7 @@ export async function handleAddCollaborator(req: Request, res: Response): Promis
   const uid = req.user?.uid
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
-  const { userId, email, permission } = req.body
+  const { userId, email, name, permission } = req.body
   if (!email || !permission) {
     res.status(400).json({ error: 'email and permission are required' }); return
   }
@@ -131,8 +132,34 @@ export async function handleAddCollaborator(req: Request, res: Response): Promis
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
-    await addCollaborator(noteId, { userId: userId || email, email, permission })
+    await addCollaborator(
+      noteId,
+      { userId: userId || email, email, name, permission },
+    )
     res.status(200).json({ ok: true })
+  } catch (err: any) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+export async function handleSendInvites(req: Request, res: Response): Promise<void> {
+  const uid = req.user?.uid
+  if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
+  const { noteId } = req.params
+  const { emails } = req.body
+  if (!Array.isArray(emails) || emails.length === 0) {
+    res.status(400).json({ error: 'emails array is required' }); return
+  }
+  try {
+    const access = await checkNoteAccess(noteId, uid)
+    if (!access.hasAccess || access.permission !== 'owner') {
+      res.status(403).json({ error: 'Forbidden' }); return
+    }
+    const result = await sendCollaboratorInvites(noteId, emails, {
+      email: req.user?.email || '',
+      name: (req.user as any)?.name,
+    })
+    res.status(200).json(result)
   } catch (err: any) {
     res.status(500).json({ error: err.message })
   }

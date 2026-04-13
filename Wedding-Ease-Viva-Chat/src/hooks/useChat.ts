@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { collection, query, orderBy, where, getDocs, DocumentSnapshot } from 'firebase/firestore'
+import { collection, query, where, getDocs, DocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -18,8 +18,9 @@ import {
   removeMessageImage,
   type NewMessage,
 } from '@/services/chatService'
-import { streamChatMessage, addCalendarEvent, type StreamDoneEvent } from '@/services/functionsService'
-import type { ChatThread, ChatMessage, Mode, CalendarEvent, CalendarEventDoc, ToolAction, UserPersonalization } from '@/types'
+import { streamChatMessage, type StreamDoneEvent } from '@/services/functionsService'
+import { listReminders } from '@/services/reminderService'
+import type { ChatThread, ChatMessage, Mode, CalendarEvent, ReminderDoc, ToolAction, UserPersonalization } from '@/types'
 
 export interface Message {
   id: string
@@ -32,7 +33,6 @@ export interface Message {
   imageUrl?: string | null
   attachedImage?: string    // base64 data URI of user-uploaded image (displayed in user bubble)
   calendarEvent?: CalendarEvent | null
-  calendarAdded?: boolean   // true once successfully added to Google Calendar
   convertToTable?: boolean  // true when AI returned a budget/guest list
   truncated?: boolean       // true when response appears cut off (token limit)
   language?: string         // detected response language (BCP-47)
@@ -44,16 +44,31 @@ export interface Message {
   partialImageUrl?: string    // partial progressive render from GPT-Image-1.5
 }
 
+export interface SendMessageOptions {
+  audioBase64?: string
+  mode?: Mode
+  language?: string
+  imageBase64?: string
+  imageMimeType?: string
+  forceImageGeneration?: boolean
+  preferredAspectRatio?: string
+  vibeTitle?: string
+  vibeDescriptors?: string[]
+}
+
 export interface UseChatResult {
   messages: Message[]
   threads: ChatThread[]
   activeThreadId: string | null
   isTyping: boolean
   allLikedMessages: Message[]
-  calendarEvents: CalendarEventDoc[]
+  reminders: ReminderDoc[]
   lastToolActions: ToolAction[]
   hasMoreMessages: boolean
-  sendMessage: (text: string, audioBase64?: string, mode?: Mode, language?: string, imageBase64?: string, imageMimeType?: string) => Promise<void>
+  sendMessage: {
+    (text: string, audioBase64?: string, mode?: Mode, language?: string, imageBase64?: string, imageMimeType?: string): Promise<void>
+    (text: string, options: SendMessageOptions): Promise<void>
+  }
   stopGeneration: () => void
   loadChat: (threadId: string) => Promise<void>
   startNewChat: () => void
@@ -67,17 +82,18 @@ export interface UseChatResult {
   updateThreadTags: (threadId: string, tags: string[]) => Promise<void>
   loadMoreMessages: () => Promise<void>
   deleteMessageImage: (messageId: string, imageUrl: string) => Promise<void>
+  refetchReminders: () => Promise<void>
 }
 
 export function useChat(): UseChatResult {
-  const { user, profile, googleCalendarToken } = useAuth()
+  const { user, profile } = useAuth()
 
   const [messages, setMessages] = useState<Message[]>([])
   const [threads, setThreads] = useState<ChatThread[]>([])
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
   const [allLikedMessages, setAllLikedMessages] = useState<Message[]>([])
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEventDoc[]>([])
+  const [reminders, setReminders] = useState<ReminderDoc[]>([])
   const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null)
@@ -140,34 +156,21 @@ export function useChat(): UseChatResult {
     fetchLiked()
   }, [user?.uid])
 
-  // ── Fetch calendar events from Firestore ──────────────────────────────────
-  useEffect(() => {
-    if (!user) { setCalendarEvents([]); return }
-    const fetchCalendarEvents = async () => {
-      try {
-        const snap = await getDocs(
-          query(
-            collection(db, 'users', user.uid, 'calendarEvents'),
-            orderBy('date', 'asc')
-          )
-        )
-        setCalendarEvents(
-          snap.docs.map(d => ({
-            id: d.id,
-            title: d.data().title,
-            date: d.data().date,
-            time: d.data().time ?? null,
-            description: d.data().description ?? null,
-            htmlLink: d.data().htmlLink,
-            createdAt: d.data().createdAt?.toDate?.() ?? new Date(),
-          }))
-        )
-      } catch (err) {
-        console.error('[useChat] fetchCalendarEvents error:', err)
-      }
+  // ── Fetch reminders from Firestore ────────────────────────────────────────
+  const refetchReminders = useCallback(async () => {
+    if (!user) { setReminders([]); return }
+    try {
+      const list = await listReminders(user.uid)
+      setReminders(list)
+    } catch (err) {
+      console.error('[useChat] refetchReminders error:', err)
     }
-    fetchCalendarEvents()
   }, [user?.uid])
+
+  useEffect(() => {
+    if (!user) { setReminders([]); return }
+    refetchReminders()
+  }, [user?.uid, refetchReminders])
 
   // ── Clear state on logout ─────────────────────────────────────────────────
   useEffect(() => {
@@ -202,7 +205,37 @@ export function useChat(): UseChatResult {
     /(\bbudget\b.*(\d+%|\₹|\$|cost|spend|allocat))|(\bguest\s*list\b.*\d+)|(category\s*\|.*\|)|(item\s*\|.*amount)/i
 
   // ── Send message ───────────────────────────────────────────────────────────
-  const sendMessage = useCallback(async (text: string, audioBase64?: string, mode?: Mode, language?: string, imageBase64?: string, imageMimeType?: string) => {
+  const sendMessage = useCallback(async (
+    text: string,
+    audioBase64OrOptions?: string | SendMessageOptions,
+    modeArg?: Mode,
+    languageArg?: string,
+    imageBase64Arg?: string,
+    imageMimeTypeArg?: string,
+  ) => {
+    // Normalize: support both positional and options-object call styles.
+    const isOptionsObject =
+      audioBase64OrOptions !== undefined &&
+      typeof audioBase64OrOptions !== 'string'
+    const opts: SendMessageOptions = isOptionsObject
+      ? (audioBase64OrOptions as SendMessageOptions)
+      : {
+          audioBase64: audioBase64OrOptions as string | undefined,
+          mode: modeArg,
+          language: languageArg,
+          imageBase64: imageBase64Arg,
+          imageMimeType: imageMimeTypeArg,
+        }
+    const audioBase64 = opts.audioBase64
+    const mode = opts.mode
+    const language = opts.language
+    const imageBase64 = opts.imageBase64
+    const imageMimeType = opts.imageMimeType
+    const forceImageGeneration = opts.forceImageGeneration
+    const preferredAspectRatio = opts.preferredAspectRatio
+    const vibeTitle = opts.vibeTitle
+    const vibeDescriptors = opts.vibeDescriptors
+
     if (!text.trim() && !audioBase64 && !imageBase64) return
 
     const userMsg: Message = {
@@ -280,7 +313,23 @@ export function useChat(): UseChatResult {
 
       // Backend handles image generation in parallel with streaming now
       for await (const event of streamChatMessage(
-        { message: text, threadId: threadId ?? null, audioBase64, history, mode, language, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory: styleMemory ?? undefined },
+        {
+          message: text,
+          threadId: threadId ?? null,
+          audioBase64,
+          history,
+          mode,
+          language,
+          userPersonalization,
+          imageBase64,
+          imageMimeType,
+          lastGeneratedImageUrl,
+          styleMemory: styleMemory ?? undefined,
+          ...(forceImageGeneration !== undefined ? { forceImageGeneration } : {}),
+          ...(preferredAspectRatio !== undefined ? { preferredAspectRatio } : {}),
+          ...(vibeTitle !== undefined ? { vibeTitle } : {}),
+          ...(vibeDescriptors !== undefined ? { vibeDescriptors } : {}),
+        },
         controller.signal
       )) {
         if (event.t === 'c') {
@@ -333,28 +382,22 @@ export function useChat(): UseChatResult {
         setStyleMemory(finalMeta.styleMemory as import('@/types').StyleMemory)
       }
 
-      // Handle calendar event
-      let calendarAdded = false
-      if (finalMeta.calendarEvent && user) {
-        try {
-          const calRes = await addCalendarEvent(googleCalendarToken, finalMeta.calendarEvent)
-          calendarAdded = true
-          setCalendarEvents(prev => [...prev, {
-            id: calRes.eventId,
-            title: finalMeta!.calendarEvent!.title,
-            date: finalMeta!.calendarEvent!.date,
-            time: finalMeta!.calendarEvent!.time ?? null,
-            description: finalMeta!.calendarEvent!.description ?? null,
-            htmlLink: calRes.htmlLink,
-            createdAt: new Date(),
-          }].sort((a, b) => a.date.localeCompare(b.date)))
-        } catch (err) {
-          console.error('[useChat] calendar add failed:', err)
-        }
-      }
-
       if (finalMeta.toolActions?.length) {
         setLastToolActions(finalMeta.toolActions as ToolAction[])
+      }
+
+      // If the backend created a reminder via tool, refetch the list.
+      if (
+        user &&
+        finalMeta.toolActions?.some(
+          (a: any) => a.tool === 'save_reminder' || a.tool === 'create_reminder',
+        )
+      ) {
+        try {
+          await refetchReminders()
+        } catch (err) {
+          console.error('[useChat] refetchReminders after tool call failed:', err)
+        }
       }
 
       // Extract inline checklist data from tool actions
@@ -377,7 +420,6 @@ export function useChat(): UseChatResult {
         imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
         imageGenerating: false,
         calendarEvent: finalMeta!.calendarEvent ?? null,
-        calendarAdded,
         convertToTable: TABLE_CONTENT_RE.test(finalMeta!.text || streamedText),
         truncated: isTruncated(finalMeta!.text || streamedText),
         language: finalMeta!.detectedLanguage || 'en',
@@ -444,7 +486,7 @@ export function useChat(): UseChatResult {
       setIsTyping(false)
       abortControllerRef.current = null
     }
-  }, [user, profile])
+  }, [user, profile, refetchReminders])
 
   // ── Toggle like ────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (messageId: string) => {
@@ -628,7 +670,7 @@ export function useChat(): UseChatResult {
     activeThreadId,
     isTyping,
     allLikedMessages,
-    calendarEvents,
+    reminders,
     lastToolActions,
     hasMoreMessages,
     sendMessage,
@@ -645,5 +687,6 @@ export function useChat(): UseChatResult {
     updateThreadTags,
     loadMoreMessages,
     deleteMessageImage,
+    refetchReminders,
   }
 }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Calendar,
   CheckCircle2,
@@ -7,7 +7,25 @@ import {
   Heart,
   ExternalLink,
   Flag,
+  Plus,
+  Loader2,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { toast } from 'sonner'
+import { useAuth } from '@/contexts/AuthContext'
+import { createReminder } from '@/services/reminderService'
+import { createChecklist, updateItemDueDate } from '@/services/checklistService'
+import type { ReminderDoc, TimelineEvent } from '@/types'
 
 interface TimelineViewProps {
   userId: string
@@ -22,16 +40,13 @@ interface TimelineViewProps {
     }>
     createdAt: any
   }>
-  calendarEvents: Array<{
-    id: string
-    title: string
-    date: string
-    time: string | null
-    description: string | null
-    htmlLink: string
-  }>
+  reminders: ReminderDoc[]
+  timelineEvents?: TimelineEvent[]
   weddingDate: Date | null
+  onRefresh: () => void | Promise<void>
 }
+
+type ChooserMode = 'chooser' | 'event' | 'task'
 
 type EntryType = 'task' | 'event'
 type EntryStatus = 'completed' | 'upcoming' | 'overdue' | 'today'
@@ -48,6 +63,8 @@ interface TimelineEntry {
   completed: boolean
   htmlLink: string | null
   checklistTitle: string | null
+  category: string | null
+  source: 'checklist' | 'reminder' | 'timelineEvent'
 }
 
 function parseDate(dateStr: string): Date {
@@ -100,11 +117,113 @@ const statusIcon: Record<EntryStatus, React.ReactNode> = {
 }
 
 export default function TimelineView({
-  userId: _userId,
+  userId,
   checklists,
-  calendarEvents,
+  reminders,
+  timelineEvents = [],
   weddingDate,
+  onRefresh,
 }: TimelineViewProps) {
+  const { user, profile } = useAuth()
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [chooserMode, setChooserMode] = useState<ChooserMode>('chooser')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Event form state
+  const [evTitle, setEvTitle] = useState('')
+  const [evDate, setEvDate] = useState('')
+  const [evTime, setEvTime] = useState('')
+  const [evDescription, setEvDescription] = useState('')
+
+  // Task form state
+  const [taskText, setTaskText] = useState('')
+  const [taskDueDate, setTaskDueDate] = useState('')
+
+  const resetForms = () => {
+    setEvTitle('')
+    setEvDate('')
+    setEvTime('')
+    setEvDescription('')
+    setTaskText('')
+    setTaskDueDate('')
+  }
+
+  const closeDialog = () => {
+    setDialogOpen(false)
+    setTimeout(() => {
+      setChooserMode('chooser')
+      resetForms()
+    }, 150)
+  }
+
+  const handleOpenDialog = () => {
+    setChooserMode('chooser')
+    resetForms()
+    setDialogOpen(true)
+  }
+
+  const handleCreateEvent = async () => {
+    const trimmedTitle = evTitle.trim()
+    if (!trimmedTitle) {
+      toast.error('Title is required')
+      return
+    }
+    if (!evDate) {
+      toast.error('Date is required')
+      return
+    }
+    if (!user) {
+      toast.error('Please sign in to create events')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await createReminder(user, profile, {
+        title: trimmedTitle,
+        eventDateStr: evDate,
+        eventTimeStr: evTime || null,
+        description: evDescription.trim() || null,
+        leadTimeMinutes: 1440,
+      })
+      toast.success('Event created')
+      closeDialog()
+      await onRefresh()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create event'
+      toast.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleCreateTask = async () => {
+    const trimmedText = taskText.trim()
+    if (!trimmedText) {
+      toast.error('Task text is required')
+      return
+    }
+    if (!taskDueDate) {
+      toast.error('Due date is required')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const created = await createChecklist(userId, trimmedText, [trimmedText])
+      const firstItem = created.items[0]
+      if (firstItem) {
+        await updateItemDueDate(userId, created.id, firstItem.id, taskDueDate)
+      }
+      toast.success('Task created')
+      closeDialog()
+      await onRefresh()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create task'
+      toast.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const entries = useMemo<TimelineEntry[]>(() => {
     const items: TimelineEntry[] = []
 
@@ -124,31 +243,64 @@ export default function TimelineView({
           completed: item.completed,
           htmlLink: null,
           checklistTitle: cl.title,
+          category: null,
+          source: 'checklist',
         })
       }
     }
 
-    for (const ev of calendarEvents) {
-      if (!ev.date) continue
-      const date = parseDate(ev.date)
+    for (const r of reminders) {
+      if (!r.eventDateStr) continue
+      const date = parseDate(r.eventDateStr)
       items.push({
-        id: `event-${ev.id}`,
+        id: `event-${r.id}`,
+        title: r.title,
+        date,
+        dateStr: r.eventDateStr,
+        type: 'event',
+        status: getStatus(r.eventDateStr, false),
+        sourceId: r.id,
+        description: r.description,
+        completed: false,
+        htmlLink: null,
+        checklistTitle: null,
+        category: null,
+        source: 'reminder',
+      })
+    }
+
+    for (const ev of timelineEvents) {
+      if (!ev.date) continue
+      // Backend stores `date` as ISO (YYYY-MM-DD or full timestamp). Normalize
+      // to a YYYY-MM-DD string for consistent status comparison.
+      const dateStr = ev.date.length >= 10 ? ev.date.slice(0, 10) : ev.date
+      let date: Date
+      try {
+        date = parseDate(dateStr)
+        if (isNaN(date.getTime())) continue
+      } catch {
+        continue
+      }
+      items.push({
+        id: `timeline-${ev.id}`,
         title: ev.title,
         date,
-        dateStr: ev.date,
+        dateStr,
         type: 'event',
-        status: getStatus(ev.date, false),
+        status: getStatus(dateStr, false),
         sourceId: ev.id,
-        description: ev.description,
+        description: ev.description ?? null,
         completed: false,
-        htmlLink: ev.htmlLink || null,
+        htmlLink: null,
         checklistTitle: null,
+        category: ev.category ?? null,
+        source: 'timelineEvent',
       })
     }
 
     items.sort((a, b) => a.date.getTime() - b.date.getTime())
     return items
-  }, [checklists, calendarEvents])
+  }, [checklists, reminders, timelineEvents])
 
   const grouped = useMemo(() => {
     const map = new Map<string, TimelineEntry[]>()
@@ -170,6 +322,8 @@ export default function TimelineView({
           completed: false,
           htmlLink: null,
           checklistTitle: null,
+          category: null,
+          source: 'reminder',
         })
         allEntries.sort((a, b) => a.date.getTime() - b.date.getTime())
       }
@@ -208,17 +362,219 @@ export default function TimelineView({
     return `${diff} days away`
   }, [weddingDate])
 
+  const toolbar = (
+    <div className="flex-shrink-0 px-4 pt-4">
+      <Button
+        size="sm"
+        onClick={handleOpenDialog}
+        className="h-9 rounded-xl gap-1.5 text-xs font-medium"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        New
+      </Button>
+    </div>
+  )
+
+  const dialogJSX = (
+    <Dialog
+      open={dialogOpen}
+      onOpenChange={(o) => {
+        if (!o) closeDialog()
+        else setDialogOpen(o)
+      }}
+    >
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl bg-[#1a1a1a]/95 backdrop-blur-md flex flex-col gap-4">
+        {chooserMode === 'chooser' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-headline text-lg text-white/90">
+                New Timeline Entry
+              </DialogTitle>
+              <DialogDescription className="text-white/40 text-xs">
+                What would you like to add to your timeline?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => setChooserMode('event')}
+                className="flex-1 h-20 rounded-xl flex flex-col gap-1"
+                disabled={!user}
+              >
+                <Calendar className="h-5 w-5" />
+                <span className="text-xs font-medium">New Event</span>
+              </Button>
+              <Button
+                onClick={() => setChooserMode('task')}
+                className="flex-1 h-20 rounded-xl flex flex-col gap-1"
+                variant="outline"
+              >
+                <CheckCircle2 className="h-5 w-5" />
+                <span className="text-xs font-medium">New Task</span>
+              </Button>
+            </div>
+            {!user && (
+              <p className="text-2xs text-white/40 text-center">
+                Sign in to create events.
+              </p>
+            )}
+          </>
+        )}
+
+        {chooserMode === 'event' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-headline text-lg text-white/90">
+                New Event
+              </DialogTitle>
+              <DialogDescription className="text-white/40 text-xs">
+                Add an event with a 1-day-before notification.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="tl-ev-title" className="text-xs font-medium text-white/70">Title</label>
+                <Input
+                  id="tl-ev-title"
+                  autoFocus
+                  value={evTitle}
+                  onChange={(e) => setEvTitle(e.target.value)}
+                  placeholder="e.g. Cake tasting"
+                  disabled={submitting}
+                />
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <label htmlFor="tl-ev-date" className="text-xs font-medium text-white/70">Date</label>
+                  <input
+                    id="tl-ev-date"
+                    type="date"
+                    value={evDate}
+                    onChange={(e) => setEvDate(e.target.value)}
+                    disabled={submitting}
+                    className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <label htmlFor="tl-ev-time" className="text-xs font-medium text-white/70">
+                    Time <span className="text-white/30">(optional)</span>
+                  </label>
+                  <input
+                    id="tl-ev-time"
+                    type="time"
+                    value={evTime}
+                    onChange={(e) => setEvTime(e.target.value)}
+                    disabled={submitting}
+                    className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="tl-ev-desc" className="text-xs font-medium text-white/70">
+                  Description <span className="text-white/30">(optional)</span>
+                </label>
+                <Textarea
+                  id="tl-ev-desc"
+                  value={evDescription}
+                  onChange={(e) => setEvDescription(e.target.value)}
+                  rows={3}
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setChooserMode('chooser')}
+                disabled={submitting}
+                className="rounded-xl"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handleCreateEvent}
+                disabled={submitting || !evTitle.trim() || !evDate}
+                className="rounded-xl gap-1.5"
+              >
+                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {submitting ? 'Creating…' : 'Create Event'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {chooserMode === 'task' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="font-headline text-lg text-white/90">
+                New Task
+              </DialogTitle>
+              <DialogDescription className="text-white/40 text-xs">
+                Create a task with a due date.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="tl-task-text" className="text-xs font-medium text-white/70">Task</label>
+                <Input
+                  id="tl-task-text"
+                  autoFocus
+                  value={taskText}
+                  onChange={(e) => setTaskText(e.target.value)}
+                  placeholder="e.g. Order centerpieces"
+                  disabled={submitting}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="tl-task-due" className="text-xs font-medium text-white/70">Due date</label>
+                <input
+                  id="tl-task-due"
+                  type="date"
+                  value={taskDueDate}
+                  onChange={(e) => setTaskDueDate(e.target.value)}
+                  disabled={submitting}
+                  className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setChooserMode('chooser')}
+                disabled={submitting}
+                className="rounded-xl"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handleCreateTask}
+                disabled={submitting || !taskText.trim() || !taskDueDate}
+                className="rounded-xl gap-1.5"
+              >
+                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {submitting ? 'Adding…' : 'Add Task'}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+
   // Empty state
   if (entries.length === 0 && !weddingDate) {
     return (
-      <div className="flex flex-col items-center justify-center h-full px-6 py-12 text-center">
-        <div className="h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center mb-4">
-          <Calendar className="h-7 w-7 text-white/40" />
+      <div className="flex flex-col h-full">
+        {toolbar}
+        <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center">
+          <div className="h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center mb-4">
+            <Calendar className="h-7 w-7 text-white/40" />
+          </div>
+          <h3 className="text-sm font-semibold text-white/70 mb-1">No timeline items yet</h3>
+          <p className="text-xs text-white/40 max-w-[260px] leading-relaxed">
+            Add due dates to your checklist items or create calendar events to see them on your timeline.
+          </p>
         </div>
-        <h3 className="text-sm font-semibold text-white/70 mb-1">No timeline items yet</h3>
-        <p className="text-xs text-white/40 max-w-[260px] leading-relaxed">
-          Add due dates to your checklist items or create calendar events to see them on your timeline.
-        </p>
+        {dialogJSX}
       </div>
     )
   }
@@ -228,8 +584,9 @@ export default function TimelineView({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
+      {toolbar}
       {/* Stats bar */}
-      <div className="flex-shrink-0 px-4 pt-4 pb-3">
+      <div className="flex-shrink-0 px-4 pt-3 pb-3">
         <div className="flex flex-wrap gap-2 sm:flex-nowrap">
           <div className="flex-1 min-w-0 rounded-xl bg-white/[0.06] border border-white/[0.08] px-2.5 py-2 text-center">
             <p className="text-base font-bold text-white/70">{stats.total}</p>
@@ -302,6 +659,13 @@ export default function TimelineView({
                           {entry.type === 'task' ? 'Task' : 'Event'}
                         </span>
 
+                        {/* Category badge (timeline events only) */}
+                        {entry.category && (
+                          <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none bg-purple-400/15 text-purple-300">
+                            {entry.category}
+                          </span>
+                        )}
+
                         {/* Status */}
                         <span className={`flex items-center gap-0.5 text-2xs font-medium ml-auto ${statusLabel[entry.status].className}`}>
                           {statusIcon[entry.status]}
@@ -352,6 +716,7 @@ export default function TimelineView({
           </div>
         ))}
       </div>
+      {dialogJSX}
     </div>
   )
 }

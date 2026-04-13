@@ -67,11 +67,37 @@ export interface UserProfile {
   createdAt: Timestamp
   lastLoginAt: Timestamp | null
   forgotPasswordOtp: number | null
-  googleCalendarToken: string | null
   nickname?: string
   voiceId?: string
   toneSettings?: ToneSettings
+  activeVibe?: ActiveVibe | null
 }
+
+// ── Vibe Mode ─────────────────────────────────────────────────────────────────
+export interface ActiveVibe {
+  id: string
+  title: string
+  subtitle?: string
+  descriptors: string[]
+  presetId: string | null
+  setAt: Date  // converted from Firestore Timestamp on read
+}
+
+export type VibeCategory = 'theme' | 'attire' | 'venue' | 'decor' | 'stationery'
+
+export interface VibePreset {
+  id: string
+  title: string
+  subtitle: string
+  category: VibeCategory
+  descriptors: string[]
+  description: string  // full descriptive paragraph appended to user prompt
+  accentColor: string  // hex like '#c9a26a'
+  gradientFrom: string // hex
+  gradientTo: string   // hex
+}
+
+export type GalleryFilter = 'all' | 'generated' | 'edited' | 'uploaded' | 'current-vibe'
 
 // ── Checklist types ───────────────────────────────────────────────────────────
 export interface ChecklistItem {
@@ -143,6 +169,10 @@ export interface ChatFunctionPayload {
   imageMimeType?: string
   lastGeneratedImageUrl?: string
   styleMemory?: StyleMemory
+  forceImageGeneration?: boolean
+  preferredAspectRatio?: string
+  vibeTitle?: string
+  vibeDescriptors?: string[]
 }
 
 export interface CalendarEvent {
@@ -153,18 +183,43 @@ export interface CalendarEvent {
   reminderMinutes?: number
 }
 
-export interface CalendarEventDoc {
+export interface ReminderDoc {
   id: string
+  userId: string
   title: string
-  date: string
-  time: string | null
   description: string | null
-  htmlLink: string
+  eventAt: Date
+  eventDateStr: string
+  eventTimeStr: string | null
+  leadTimeMinutes: number
+  notifyAt: Date
+  timezone: string
+  channel: 'email' | 'whatsapp'
+  status: 'pending' | 'sent' | 'failed' | 'cancelled'
+  attemptCount: number
+  lastError: string | null
+  sentAt: Date | null
+  source: 'chat' | 'manual'
   createdAt: Date
+  updatedAt: Date
+}
+
+export interface TimelineEvent {
+  id: string
+  ownerId: string
+  ownerEmail?: string | null
+  title: string
+  date: string // ISO date (YYYY-MM-DD) or full ISO timestamp
+  description?: string | null
+  category?: string | null
+  source?: 'chat' | 'manual'
+  isDeleted?: boolean
+  createdAt?: Date | null
+  updatedAt?: Date | null
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'web_search' | 'generate_image'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'create_reminder' | 'web_search' | 'generate_image'
   checklistId?: string
   itemId?: string
   searchQuery?: string

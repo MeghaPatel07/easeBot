@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Link2, Copy, Check, X, UserPlus, Shield, Globe, Loader2,
 } from 'lucide-react';
@@ -19,11 +19,12 @@ export interface NoteShareDialogProps {
   note: Note | null;
   open: boolean;
   onClose: () => void;
-  onAddCollaborator: (email: string, permission: NotePermission) => void;
+  onAddCollaborator: (email: string, permission: NotePermission) => Promise<boolean> | boolean | Promise<void> | void;
   onRemoveCollaborator: (userId: string) => void;
   onUpdatePermission: (userId: string, permission: NotePermission) => void;
   onEnablePublicLink: (permission: 'view' | 'comment' | 'edit') => Promise<string>;
   onDisablePublicLink: () => void;
+  onSendInvites: (emails: string[]) => Promise<void> | void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -49,15 +50,22 @@ const PUBLIC_PERMISSION_LABELS: Record<string, string> = {
 const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   note, open, onClose,
   onAddCollaborator, onRemoveCollaborator, onUpdatePermission,
-  onEnablePublicLink, onDisablePublicLink,
+  onEnablePublicLink, onDisablePublicLink, onSendInvites,
 }) => {
   const [email, setEmail] = useState('');
   const [invitePermission, setInvitePermission] = useState<NotePermission>('editor');
   const [emailError, setEmailError] = useState('');
   const [copied, setCopied] = useState(false);
   const [linkLoading, setLinkLoading] = useState(false);
+  const [pendingInviteEmails, setPendingInviteEmails] = useState<string[]>([]);
+  const [sendingInvites, setSendingInvites] = useState(false);
 
-  const handleSendInvite = () => {
+  // Reset the pending list each time the dialog opens on a new note
+  useEffect(() => {
+    if (open) setPendingInviteEmails([]);
+  }, [open, note?.id]);
+
+  const handleSendInvite = async () => {
     const trimmed = email.trim();
     if (!trimmed) return;
     if (!isValidEmail(trimmed)) {
@@ -69,8 +77,29 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
       return;
     }
     setEmailError('');
-    onAddCollaborator(trimmed, invitePermission);
-    setEmail('');
+    const result = await onAddCollaborator(trimmed, invitePermission);
+    // Only queue for email if the add actually succeeded
+    if (result !== false) {
+      setPendingInviteEmails(prev =>
+        prev.includes(trimmed) ? prev : [...prev, trimmed],
+      );
+      setEmail('');
+    }
+  };
+
+  const handleDone = async () => {
+    if (pendingInviteEmails.length === 0) {
+      onClose();
+      return;
+    }
+    setSendingInvites(true);
+    try {
+      await onSendInvites(pendingInviteEmails);
+    } finally {
+      setSendingInvites(false);
+      setPendingInviteEmails([]);
+      onClose();
+    }
   };
 
   const [copyError, setCopyError] = useState(false);
@@ -278,12 +307,18 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────── */}
-        <div className="flex justify-end pt-2">
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-[10px] text-white/40">
+            {pendingInviteEmails.length > 0
+              ? `${pendingInviteEmails.length} invite${pendingInviteEmails.length === 1 ? '' : 's'} will be emailed on Done`
+              : ''}
+          </p>
           <Button
-            onClick={onClose}
+            onClick={handleDone}
+            disabled={sendingInvites}
             className="bg-primary hover:bg-primary/90 text-white text-xs h-8 px-6 rounded-lg"
           >
-            Done
+            {sendingInvites ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Done'}
           </Button>
         </div>
       </DialogContent>

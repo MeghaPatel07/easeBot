@@ -3,6 +3,7 @@ import {
   getDocs, getDoc, query, where, orderBy, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { sendEmailNotification, buildNoteInviteEmail } from './emailService'
 
 // ---------------------------------------------------------------------------
 // Collection helpers
@@ -140,19 +141,26 @@ export async function getUserNotes(userId: string): Promise<any[]> {
 
 export async function addCollaborator(
   noteId: string,
-  collaborator: { userId: string; email: string; permission: string },
+  collaborator: { userId: string; email: string; name?: string; permission: string },
+  inviter?: { email: string; name?: string },
 ): Promise<void> {
   const note = await getNote(noteId)
   const collaborators = note.collaborators || []
   const collaboratorEmails = note.collaboratorEmails || []
 
-  // Avoid duplicates
-  const exists = collaborators.find((c: any) => c.userId === collaborator.userId)
-  if (exists) throw new Error('User is already a collaborator')
+  // Avoid duplicates (match by email — userId is often the email itself for invitees without an account)
+  const normalizedEmail = collaborator.email.trim().toLowerCase()
+  const exists = collaborators.find(
+    (c: any) =>
+      c.userId === collaborator.userId ||
+      (c.email && c.email.toLowerCase() === normalizedEmail),
+  )
+  if (exists) throw new Error('This person already has access')
 
   collaborators.push({
     userId: collaborator.userId,
     email: collaborator.email,
+    name: collaborator.name || collaborator.email.split('@')[0],
     permission: collaborator.permission,
     addedAt: new Date().toISOString(),
   })
@@ -165,6 +173,48 @@ export async function addCollaborator(
     collaboratorEmails,
     updatedAt: serverTimestamp(),
   })
+}
+
+export async function sendCollaboratorInvites(
+  noteId: string,
+  emails: string[],
+  inviter: { email: string; name?: string },
+): Promise<{ sent: string[]; skipped: string[] }> {
+  const note = await getNote(noteId)
+  const collaborators = (note.collaborators || []) as Array<{
+    email: string
+    name?: string
+    permission: string
+  }>
+
+  const sent: string[] = []
+  const skipped: string[] = []
+
+  for (const rawEmail of emails) {
+    const email = rawEmail.trim().toLowerCase()
+    const collab = collaborators.find(c => c.email?.toLowerCase() === email)
+    if (!collab) {
+      skipped.push(rawEmail)
+      continue
+    }
+    try {
+      const { subject, html, text } = buildNoteInviteEmail({
+        inviterName: inviter.name || inviter.email || note.ownerEmail || 'Someone',
+        inviterEmail: inviter.email || note.ownerEmail || '',
+        recipientName: collab.name || collab.email.split('@')[0],
+        noteTitle: note.title || 'Untitled note',
+        permission: collab.permission,
+        shareId: note.publicShareId || null,
+      })
+      await sendEmailNotification({ to: collab.email, subject, html, text })
+      sent.push(collab.email)
+    } catch (err) {
+      console.error('[notesService] sendCollaboratorInvites: failed for', collab.email, err)
+      skipped.push(collab.email)
+    }
+  }
+
+  return { sent, skipped }
 }
 
 export async function removeCollaborator(noteId: string, userId: string): Promise<void> {

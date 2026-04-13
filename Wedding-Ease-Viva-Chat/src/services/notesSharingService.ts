@@ -7,11 +7,22 @@ import {
   getDocs,
   collection,
   serverTimestamp,
-  arrayUnion,
   arrayRemove,
 } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db, auth } from '@/lib/firebase'
 import type { Note, Collaborator, NotePermission } from '@/types/notes'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+
+async function authedFetch(path: string, init: RequestInit): Promise<Response> {
+  const token = await auth.currentUser?.getIdToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init.headers as Record<string, string> | undefined),
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return fetch(`${API_BASE}${path}`, { ...init, headers })
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -29,27 +40,34 @@ export async function addCollaborator(
   noteId: string,
   collaborator: Omit<Collaborator, 'addedAt'>
 ): Promise<void> {
-  const ref = noteDoc(noteId)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) return
-
-  const note = snap.data() as Note
-  const existing = note.collaborators ?? []
-  const alreadyAdded = existing.some(c => c.userId === collaborator.userId)
-  if (alreadyAdded) {
-    throw new Error('This person already has access')
-  }
-
-  const newCollaborator = {
-    ...collaborator,
-    addedAt: serverTimestamp(),
-  }
-
-  await updateDoc(ref, {
-    collaborators: [...existing, newCollaborator],
-    collaboratorEmails: arrayUnion(collaborator.email),
-    updatedAt: serverTimestamp(),
+  const res = await authedFetch(`/api/notes/${noteId}/share`, {
+    method: 'POST',
+    body: JSON.stringify({
+      userId: collaborator.userId || collaborator.email,
+      email: collaborator.email,
+      name: collaborator.name,
+      permission: collaborator.permission,
+    }),
   })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as any).error || `Failed to add collaborator (${res.status})`)
+  }
+}
+
+export async function sendNoteInvites(
+  noteId: string,
+  emails: string[],
+): Promise<{ sent: string[]; skipped: string[] }> {
+  const res = await authedFetch(`/api/notes/${noteId}/share/notify`, {
+    method: 'POST',
+    body: JSON.stringify({ emails }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as any).error || `Failed to send invites (${res.status})`)
+  }
+  return res.json()
 }
 
 export async function removeCollaborator(

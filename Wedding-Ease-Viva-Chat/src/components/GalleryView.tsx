@@ -2,12 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { X, ChevronLeft, ChevronRight, Sparkles, Image, Loader2, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
 import { ImageActions } from '@/components/ImageActions'
 import { getUserImages, deleteUserImage, type UserImage } from '@/services/galleryService'
+import type { GalleryFilter } from '@/types'
 
 interface GalleryViewProps {
   userId: string
+  filter?: GalleryFilter
+  vibeId?: string | null
 }
 
-export default function GalleryView({ userId }: GalleryViewProps) {
+export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps) {
   const [images, setImages] = useState<UserImage[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -17,14 +20,14 @@ export default function GalleryView({ userId }: GalleryViewProps) {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    getUserImages(userId).then(imgs => {
+    getUserImages(userId, { filter, vibeId }).then(imgs => {
       if (!cancelled) {
         setImages(imgs)
         setLoading(false)
       }
     })
     return () => { cancelled = true }
-  }, [userId])
+  }, [userId, filter, vibeId])
 
   // Keyboard navigation for preview
   const handleKeyDown = useCallback(
@@ -79,12 +82,12 @@ export default function GalleryView({ userId }: GalleryViewProps) {
   // Empty state
   if (images.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
           <Sparkles className="h-5 w-5 text-[#C6944A]" />
         </div>
         <p className="text-sm text-white/50 max-w-xs leading-relaxed">
-          No images yet. Ask Viva to generate some visuals!
+          No images yet. Ask Viva to generate some visuals.
         </p>
       </div>
     )
@@ -94,7 +97,7 @@ export default function GalleryView({ userId }: GalleryViewProps) {
 
   return (
     <>
-      {/* Count badge */}
+      {/* Header: count */}
       <div className="flex items-center gap-2 mb-3">
         <Image className="h-4 w-4 text-white/40" />
         <span className="text-xs text-white/50">

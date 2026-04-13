@@ -21,7 +21,9 @@ import BudgetDashboard from '@/components/BudgetDashboard';
 import ShoppingListView from '@/components/ShoppingListView';
 import SavedItemsView from '@/components/SavedItemsView';
 import TimelineView from '@/components/TimelineView';
+import RemindersView from '@/components/RemindersView';
 import GalleryView from '@/components/GalleryView';
+import ImagesHub from '@/pages/ImagesHub';
 import NotesView from '@/components/notes/NotesView';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
@@ -30,9 +32,10 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { requestTTS } from '@/services/ttsService';
 import { subscribeToChecklists, computeStats } from '@/services/checklistService';
 import { subscribeToBudget, type BudgetData } from '@/services/budgetService';
+import { subscribeToTimelineEvents } from '@/services/timelineEventsService';
 import { addSavedItem } from '@/services/savedItemsService';
 import { getVoicePreset } from '@/services/voicePresets';
-import type { ChatThread, Mode, Checklist } from '@/types';
+import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
 import '@fontsource/lato';
 import chatbotBg from '@/assets/images/chatbot background.avif';
 
@@ -52,10 +55,10 @@ const Index = () => {
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
   const {
-    messages, threads, activeThreadId, isTyping, allLikedMessages, calendarEvents, lastToolActions,
+    messages, threads, activeThreadId, isTyping, allLikedMessages, reminders, lastToolActions,
     sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
-    hasMoreMessages, loadMoreMessages, deleteMessageImage,
+    hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders,
   } = useChat();
 
   // ── Flash checkbox on AI mark_as_done ─────────────────────────────────────
@@ -117,7 +120,7 @@ const Index = () => {
   const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
 
   // ── Sidebar view from URL ─────────────────────────────────────────────────
-  const VALID_VIEWS = new Set<SidebarView>(['gallery', 'planner', 'liked', 'reminders', 'budget', 'shopping', 'saved-items', 'timeline', 'progress', 'notifications', 'collaborate', 'moodboard', 'notes']);
+  const VALID_VIEWS = new Set<SidebarView>(['gallery', 'images', 'planner', 'liked', 'reminders', 'budget', 'shopping', 'saved-items', 'timeline', 'progress', 'notifications', 'collaborate', 'moodboard', 'notes']);
   const pathSegments = location.pathname.split('/').filter(Boolean);
   const viewSegment = pathSegments.length >= 2 && pathSegments[0] !== 'chat' && pathSegments[0] !== 'share' ? pathSegments[1] : null;
   const sidebarView: SidebarView = viewSegment && VALID_VIEWS.has(viewSegment as SidebarView) ? viewSegment as SidebarView : 'history';
@@ -157,6 +160,13 @@ const Index = () => {
   useEffect(() => {
     if (!user) { setBudgetData(null); return; }
     return subscribeToBudget(user.uid, setBudgetData);
+  }, [user?.uid]);
+
+  // ── Timeline events (AI-created via chat + manual) ────────────────────────
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  useEffect(() => {
+    if (!user) { setTimelineEvents([]); return; }
+    return subscribeToTimelineEvents(user.uid, setTimelineEvents);
   }, [user?.uid]);
 
   // ── Scroll to + highlight a specific message ─────────────────────────────
@@ -725,7 +735,6 @@ const Index = () => {
       profile={profile}
       preferredLang={preferredLang}
       onLanguageChange={handleLanguageChange}
-      onShowShortcuts={() => setShowShortcuts(true)}
       onShowSignIn={() => setShowSignInModal(true)}
       onShowSignUp={() => setShowSignUpModal(true)}
       onSignOut={signOut}
@@ -767,7 +776,7 @@ const Index = () => {
       onShowSettings={() => setShowSettingsModal(true)}
       onShowSignIn={() => setShowSignInModal(true)}
       allLikedMessagesCount={allLikedMessages.length}
-      calendarEventsCount={calendarEvents.length}
+      calendarEventsCount={reminders.length}
       overdueCount={overdueCount}
       galleryImageCount={galleryImageCount}
       searchQuery={searchQuery}
@@ -866,27 +875,10 @@ const Index = () => {
   // ── Reminders ─────────────────────────────────────────────────────────────
   if (sidebarView === 'reminders') {
     return mainAreaShell('Upcoming & Reminders', <Calendar className="h-5 w-5 text-primary" />,
-      calendarEvents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-white/40">
-          <Calendar className="h-10 w-10 mb-3 opacity-20" />
-          <p className="text-sm">No reminders yet.</p>
-          <p className="text-xs mt-1">Ask Easebot in <span className="font-semibold text-primary">Planner mode</span> to save a date.</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {calendarEvents.map((ev) => {
-            const isPast = new Date(ev.date) < new Date(new Date().toDateString());
-            return (
-              <a key={ev.id} href={ev.htmlLink || '#'} target="_blank" rel="noopener noreferrer" className={`block rounded-2xl border px-4 py-3.5 space-y-1.5 hover:shadow-sm transition-all duration-150 ${isPast ? 'bg-white/5 border-white/10 opacity-60' : 'bg-white/10 border-primary/30 hover:bg-white/15 hover:border-primary/40'}`}>
-                <p className="text-sm font-semibold text-white/80">{ev.title}</p>
-                <p className="text-xs text-primary font-medium">{ev.date}{ev.time ? ` · ${ev.time}` : ''}</p>
-                {ev.description && <p className="text-xs text-white/40 line-clamp-2">{ev.description}</p>}
-                {isPast && <p className="text-2xs text-white/30 italic">Past event</p>}
-              </a>
-            );
-          })}
-        </div>
-      )
+      <RemindersView
+        reminders={reminders}
+        onRefresh={refetchReminders}
+      />
     );
   }
 
@@ -894,17 +886,17 @@ const Index = () => {
   if (sidebarView === 'budget' && user) return mainAreaShell('Budget Tracker', <DollarSign className="h-5 w-5 text-primary" />, <BudgetDashboard userId={user.uid} />);
   if (sidebarView === 'shopping' && user) return mainAreaShell('Shopping Lists', <ShoppingCart className="h-5 w-5 text-primary" />, <ShoppingListView userId={user.uid} />);
   if (sidebarView === 'saved-items' && user) return mainAreaShell('Saved Items', <Bookmark className="h-5 w-5 text-primary" />, <SavedItemsView userId={user.uid} />);
-  if (sidebarView === 'timeline' && user) return mainAreaShell('Timeline', <Clock className="h-5 w-5 text-primary" />, <TimelineView userId={user.uid} checklists={checklistsData} calendarEvents={calendarEvents} weddingDate={profile?.weddingDate ? (profile.weddingDate as any).toDate?.() ?? null : null} />);
+  if (sidebarView === 'timeline' && user) return mainAreaShell('Timeline', <Clock className="h-5 w-5 text-primary" />, <TimelineView userId={user.uid} checklists={checklistsData} reminders={reminders} timelineEvents={timelineEvents} weddingDate={profile?.weddingDate ? (profile.weddingDate as any).toDate?.() ?? null : null} onRefresh={refetchReminders} />);
 
   if (sidebarView === 'progress' && user) {
     const budgetStats = budgetData ? { totalBudget: budgetData.totalBudget, totalSpent: budgetData.categories.reduce((sum, c) => sum + c.spent, 0) } : null;
-    return mainAreaShell('Progress', <BarChart3 className="h-5 w-5 text-primary" />, <ProgressDashboard weddingDate={profile?.weddingDate ? (profile.weddingDate as any).toDate?.() ?? null : null} checklistStats={computeStats(checklistsData)} budgetStats={budgetStats} calendarEventCount={calendarEvents.length} threadCount={threads.length} />);
+    return mainAreaShell('Progress', <BarChart3 className="h-5 w-5 text-primary" />, <ProgressDashboard weddingDate={profile?.weddingDate ? (profile.weddingDate as any).toDate?.() ?? null : null} checklistStats={computeStats(checklistsData)} budgetStats={budgetStats} calendarEventCount={reminders.length} threadCount={threads.length} />);
   }
 
   if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
   if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
-  if (sidebarView === 'gallery') return mainAreaShell('Gallery', <Image className="h-5 w-5 text-primary" />, user ? <GalleryView userId={user.uid} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-white/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
+  if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-white/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
   // ── Coming soon views ─────────────────────────────────────────────────────
   const comingSoonViews: Record<string, { title: string; icon: React.ReactNode; desc: string }> = {
@@ -963,7 +955,6 @@ const Index = () => {
             preferredLang={preferredLang}
             onLanguageChange={handleLanguageChange}
             onShowReminders={() => setSidebarView('reminders')}
-            onShowShortcuts={() => setShowShortcuts(true)}
             onShowSignIn={() => setShowSignInModal(true)}
             onShowSignUp={() => setShowSignUpModal(true)}
             onSignOut={signOut}
@@ -1067,7 +1058,6 @@ const Index = () => {
           preferredLang={preferredLang}
           onLanguageChange={handleLanguageChange}
           onShowReminders={() => setSidebarView('reminders')}
-          onShowShortcuts={() => setShowShortcuts(true)}
           onShowSignIn={() => setShowSignInModal(true)}
           onShowSignUp={() => setShowSignUpModal(true)}
           onSignOut={signOut}

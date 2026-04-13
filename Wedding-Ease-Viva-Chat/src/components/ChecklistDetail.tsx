@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { CheckSquare, X, Pencil, Trash2, Plus, Check, Calendar, AlertTriangle } from 'lucide-react'
+import { CheckSquare, X, Pencil, Trash2, Plus, Check, Calendar, AlertTriangle, Copy } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   subscribeToChecklists,
   toggleItemDone,
@@ -125,6 +126,49 @@ export default function ChecklistDetail({
     setEditingDueDateId(null)
   }
 
+  async function handleCopyAsMarkdown() {
+    if (!checklist) return
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+    const lines = [`# ${checklist.title}`, '']
+    for (const item of checklist.items) {
+      lines.push(`- [${item.completed ? 'x' : ' '}] ${item.text}`)
+    }
+    const markdown = lines.join('\n')
+
+    const taskItems = checklist.items
+      .map(
+        (item) =>
+          `<li data-type="taskItem" data-checked="${item.completed ? 'true' : 'false'}"><p>${escapeHtml(item.text)}</p></li>`
+      )
+      .join('')
+    const html =
+      `<h1>${escapeHtml(checklist.title)}</h1>` +
+      `<ul data-type="taskList">${taskItems}</ul>`
+
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([markdown], { type: 'text/plain' }),
+          }),
+        ])
+      } else {
+        await navigator.clipboard.writeText(markdown)
+      }
+      toast.success('Copied! Paste it into the Notes tab.')
+    } catch {
+      try {
+        await navigator.clipboard.writeText(markdown)
+        toast.success('Copied! Paste it into the Notes tab.')
+      } catch {
+        toast.error("Couldn't copy to clipboard.")
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-white/[0.05] backdrop-blur-sm rounded-2xl border border-border shadow-sm overflow-hidden">
 
@@ -143,6 +187,14 @@ export default function ChecklistDetail({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleCopyAsMarkdown}
+            className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/70 bg-primary/10 hover:bg-primary/15 rounded-lg px-2.5 py-1.5 transition-colors font-medium"
+            title="Copy as markdown"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy
+          </button>
           <button
             onClick={() => setShowAddInput(v => !v)}
             className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/70 bg-primary/10 hover:bg-primary/15 rounded-lg px-2.5 py-1.5 transition-colors font-medium"

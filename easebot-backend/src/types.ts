@@ -31,18 +31,15 @@ export interface ChatPayload {
   imageMimeType?: string
   lastGeneratedImageUrl?: string  // For iterative editing (R6)
   styleMemory?: StyleMemory
-}
-
-export interface CalendarEvent {
-  title: string
-  date: string
-  time?: string
-  description?: string
-  reminderMinutes?: number
+  // Vibe Mode — Images Hub payload
+  forceImageGeneration?: boolean
+  preferredAspectRatio?: '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
+  vibeTitle?: string
+  vibeDescriptors?: string[]
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'generate_image'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'create_reminder' | 'generate_image' | 'create_note' | 'create_timeline_event'
   checklistId?: string
   itemId?: string
   checklistTitle?: string
@@ -51,6 +48,10 @@ export interface ToolAction {
   imageAction?: 'generate' | 'edit'
   imageAspectRatio?: string
   imageVariants?: number
+  noteId?: string
+  noteTitle?: string
+  timelineEventId?: string
+  timelineEventTitle?: string
 }
 
 export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
@@ -76,7 +77,6 @@ export interface ChatResponse {
   audioUrl: string | null
   imageUrl: string | null
   imageUrls?: string[]
-  calendarEvent: CalendarEvent | null
   toolActions: ToolAction[]
   mode: Mode
   detectedLanguage: string

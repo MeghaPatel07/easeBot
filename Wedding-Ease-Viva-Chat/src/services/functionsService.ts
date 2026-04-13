@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions'
 import { auth, functions } from '@/lib/firebase'
 import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@/types'
+// CalendarEvent kept here transitionally — used in StreamDoneEvent below until backend drops the field.
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
 
@@ -75,13 +76,6 @@ export async function transcribeViaFunctions(
 // To switch to Firebase Functions: replace with chatViaFunctions / transcribeViaFunctions
 export async function generateImage(prompt: string): Promise<{ imageUrl: string }> {
   return post<{ imageUrl: string }>('/api/generate-image', { prompt })
-}
-
-export async function addCalendarEvent(
-  googleAccessToken: string | null,
-  event: CalendarEvent
-): Promise<{ eventId: string; htmlLink: string }> {
-  return post('/api/calendar/add-event', { googleAccessToken, event })
 }
 
 // ── Streaming chat (SSE) ───────────────────────────────────────────────────────

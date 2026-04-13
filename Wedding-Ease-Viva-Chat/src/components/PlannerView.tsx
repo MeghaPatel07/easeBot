@@ -1,9 +1,21 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Calendar, Trash2, CheckSquare, Lock } from 'lucide-react'
+import { Trash2, CheckSquare, Lock, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import {
   subscribeToChecklists,
   deleteChecklist,
+  createChecklist,
   computeStats,
 } from '@/services/checklistService'
 import type { Checklist } from '@/types'
@@ -19,11 +31,15 @@ interface PlannerViewProps {
 export default function PlannerView({
   userId,
   isPremium,
-  onBack,
+  onBack: _onBack,
   selectedChecklistId,
   onSelectChecklist,
 }: PlannerViewProps) {
   const [checklists, setChecklists] = useState<Checklist[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newItems, setNewItems] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     const unsub = subscribeToChecklists(userId, setChecklists)
@@ -33,17 +49,59 @@ export default function PlannerView({
   const stats = computeStats(checklists)
   const atLimit = !isPremium && checklists.length >= 5
 
+  const resetForm = () => {
+    setNewTitle('')
+    setNewItems('')
+  }
+
+  const handleCreate = async () => {
+    const title = newTitle.trim()
+    if (!title) {
+      toast.error('Title is required')
+      return
+    }
+    if (atLimit) {
+      toast.error('Free plan limited to 5 checklists. Upgrade to add more.')
+      return
+    }
+    const itemTexts = newItems
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+
+    setCreating(true)
+    try {
+      const created = await createChecklist(userId, title, itemTexts)
+      toast.success('Checklist created')
+      setDialogOpen(false)
+      resetForm()
+      onSelectChecklist(created.id)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create checklist'
+      toast.error(msg)
+    } finally {
+      setCreating(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3 px-1 flex-shrink-0">
-        <Button variant="ghost" size="sm" onClick={onBack} className="h-6 w-6 p-0 rounded-lg">
-          <ArrowLeft className="h-3.5 w-3.5 text-white/50" />
+      {/* Toolbar */}
+      <div className="mb-3 px-1 flex-shrink-0">
+        <Button
+          size="sm"
+          onClick={() => {
+            if (atLimit) {
+              toast.error('Free plan limited to 5 checklists. Upgrade to add more.')
+              return
+            }
+            setDialogOpen(true)
+          }}
+          className="w-full h-9 rounded-xl gap-1.5 text-xs font-medium"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New Checklist
         </Button>
-        <h3 className="text-sm font-semibold text-white/85 flex items-center gap-1.5">
-          <Calendar className="h-3.5 w-3.5 text-primary" />
-          My Planner
-        </h3>
       </div>
 
       {/* Kanban stats */}
@@ -81,7 +139,7 @@ export default function PlannerView({
         {checklists.length === 0 ? (
           <p className="text-xs text-white/40 text-center py-6 px-2">
             No checklists yet.<br />
-            Ask Viva in <span className="font-semibold text-primary">Planner mode</span> to save a list.
+            Tap <span className="font-semibold text-primary">+ New Checklist</span> above, or ask Viva in <span className="font-semibold text-primary">Planner mode</span> to save a list.
           </p>
         ) : (
           checklists.map(cl => {
@@ -117,6 +175,75 @@ export default function PlannerView({
           })
         )}
       </div>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={o => {
+          setDialogOpen(o)
+          if (!o) resetForm()
+        }}
+      >
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl bg-[#1a1a1a]/95 backdrop-blur-md flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-lg text-white/90">
+              New Checklist
+            </DialogTitle>
+            <DialogDescription className="text-white/40 text-xs">
+              Give your checklist a name and optionally add starting items, one per line.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="checklist-title" className="text-xs font-medium text-white/70">
+                Title
+              </label>
+              <Input
+                id="checklist-title"
+                autoFocus
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder="e.g. Venue shortlist"
+                disabled={creating}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="checklist-items" className="text-xs font-medium text-white/70">
+                Starting items <span className="text-white/30">(optional)</span>
+              </label>
+              <Textarea
+                id="checklist-items"
+                value={newItems}
+                onChange={e => setNewItems(e.target.value)}
+                placeholder={'Book tasting\nConfirm florist\nSend invites'}
+                rows={5}
+                disabled={creating}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false)
+                resetForm()
+              }}
+              disabled={creating}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={creating || !newTitle.trim()}
+              className="rounded-xl"
+            >
+              {creating ? 'Creating…' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

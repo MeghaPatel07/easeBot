@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  PanelLeft, SquarePen, Globe, Bell, Keyboard,
+  PanelLeft, SquarePen, Globe, Bell,
   User, LogIn, UserPlus, LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,6 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Tooltip, TooltipContent, TooltipTrigger,
-} from '@/components/ui/tooltip';
 import type { UserProfile } from '@/types';
 import { MODE_CONFIG, SUPPORTED_LANGUAGES, type ModeOrAuto } from './constants';
 
@@ -29,7 +26,6 @@ export interface ChatHeaderProps {
   preferredLang: string;
   onLanguageChange: (code: string) => void;
   onShowReminders: () => void;
-  onShowShortcuts: () => void;
   onShowSignIn: () => void;
   onShowSignUp: () => void;
   onSignOut: () => void;
@@ -72,11 +68,10 @@ export const ProfileIcon: React.FC<{
   profile: UserProfile | null;
   preferredLang: string;
   onLanguageChange: (code: string) => void;
-  onShowShortcuts: () => void;
   onShowSignIn: () => void;
   onShowSignUp: () => void;
   onSignOut: () => void;
-}> = ({ user, profile, preferredLang, onLanguageChange, onShowShortcuts, onShowSignIn, onShowSignUp, onSignOut }) => (
+}> = ({ user, profile, preferredLang, onLanguageChange, onShowSignIn, onShowSignUp, onSignOut }) => (
   <div>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -108,9 +103,6 @@ export const ProfileIcon: React.FC<{
                 {preferredLang === code && <span className="text-primary font-bold">&#10003;</span>}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={onShowShortcuts}>
-              <Keyboard className="mr-2 h-4 w-4" /><span>Keyboard Shortcuts</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={onSignOut}>
               <LogOut className="mr-2 h-4 w-4" /><span>Sign Out</span>
@@ -139,10 +131,6 @@ export const ProfileIcon: React.FC<{
                 {preferredLang === code && <span className="text-primary font-bold">&#10003;</span>}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator className="sm:hidden" />
-            <DropdownMenuItem className="cursor-pointer sm:hidden" onClick={onShowShortcuts}>
-              <Keyboard className="mr-2 h-4 w-4" /><span>Keyboard Shortcuts</span>
-            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
@@ -158,7 +146,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   user, profile,
   selectedMode, onModeChange,
   preferredLang, onLanguageChange,
-  onShowReminders, onShowShortcuts,
+  onShowReminders,
   onShowSignIn, onShowSignUp, onSignOut,
 }) => {
   return (
@@ -191,22 +179,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             <Bell className="h-4 w-4" />
           </button>
         )}
-        <div className="hidden sm:block">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className="p-1.5 text-white/60 hover:text-primary transition-colors" onClick={onShowShortcuts}>
-                <Keyboard className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom"><p>Shortcuts (Ctrl+/)</p></TooltipContent>
-          </Tooltip>
-        </div>
         <ProfileIcon
           user={user}
           profile={profile}
           preferredLang={preferredLang}
           onLanguageChange={onLanguageChange}
-          onShowShortcuts={onShowShortcuts}
           onShowSignIn={onShowSignIn}
           onShowSignUp={onShowSignUp}
           onSignOut={onSignOut}

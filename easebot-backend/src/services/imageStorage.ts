@@ -26,6 +26,9 @@ export interface UserImage {
   category: ImageCategory
   pinned: boolean
   createdAt: Timestamp
+  // Vibe Mode — Images Hub
+  vibeId: string | null
+  vibeDescriptors: string[] | null
 }
 
 export interface StoreImageMetadata {
@@ -37,6 +40,8 @@ export interface StoreImageMetadata {
   type: 'generated' | 'edited'
   parentImageId?: string | null
   category?: ImageCategory
+  vibeId?: string | null
+  vibeDescriptors?: string[] | null
 }
 
 // ── Category Detection ──────────────────────────────────────────────────────────
@@ -117,6 +122,8 @@ export async function storeGeneratedImage(
       category: metadata.category ?? categorizeFromPrompt(metadata.prompt),
       pinned: false,
       createdAt: Timestamp.now(),
+      vibeId: metadata.vibeId ?? null,
+      vibeDescriptors: metadata.vibeDescriptors ?? null,
     }
 
     await setDoc(doc(db, 'userImages', imageId), imageDoc)
