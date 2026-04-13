@@ -15,7 +15,7 @@ export interface ChatInputProps {
   isTyping: boolean;
   placeholder: string;
   isRecording: boolean;
-  voiceState: 'idle' | 'recording' | 'transcribing';
+  voiceState: 'idle' | 'recording' | 'transcribing' | 'requesting';
   onMicClick: () => void;
   attachedImage?: { preview: string } | null;
   onAttachImage: () => void;

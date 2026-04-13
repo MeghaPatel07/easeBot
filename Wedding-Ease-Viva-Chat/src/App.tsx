@@ -10,6 +10,8 @@ import LoadingScreen from "@/components/ui/loading-screen";
 const Index = lazy(() => import('./pages/Index'));
 const SharedChat = lazy(() => import('./pages/SharedChat'));
 const SharedNote = lazy(() => import('./pages/SharedNote'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -42,6 +44,8 @@ const App = () => (
               <Route path="/:userId/notes/:noteId" element={<Index />} />
               <Route path="/share/:shareId" element={<SharedChat />} />
               <Route path="/shared/note/:shareId" element={<SharedNote />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

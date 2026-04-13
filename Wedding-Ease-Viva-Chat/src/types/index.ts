@@ -51,6 +51,8 @@ export interface UserProfile {
   name: string
   email: string
   phone: string | null
+  phoneCountryCode: string | null
+  phoneNational: string | null
   isVerified: boolean
   isValidated: boolean
   verifiedAt: Timestamp | null
@@ -187,11 +189,13 @@ export interface ChatFunctionResponse {
   styleMemory?: StyleMemory
 }
 
-// Typed error thrown by authService
+// Typed error thrown by authService. `name` is inherited from Error (required)
+// and is hijacked at runtime to carry the user's display name for the
+// unverified-account recovery flow — see authService.makeAuthError.
 export interface AuthFlowError extends Error {
   code: string
   uid?: string
   email?: string
-  name?: string
   phone?: string | null
+  pendingCred?: unknown   // firebase AuthCredential, kept loose to avoid importing firebase types into shared types
 }

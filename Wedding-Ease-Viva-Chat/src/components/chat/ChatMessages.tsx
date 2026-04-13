@@ -407,7 +407,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                           <li className="list-none mb-3 not-prose">
                             <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-[#E8D9C0]/60 bg-white/80 shadow-sm hover:shadow-md hover:border-[#C6944A]/40 transition-all duration-200">
                               <a href={href} target="_blank" rel="noopener noreferrer" className="block no-underline flex-1 flex flex-row gap-3 items-center">
-                                <img src={imageUrl} alt={title ?? ''} className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0" />
+                                <img src={imageUrl} alt={typeof title === 'string' ? title : ''} className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0" />
                                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                                   <span className="text-sm font-semibold text-[#B07D35] leading-snug line-clamp-1">{title}</span>
                                   {description && <span className="text-xs text-[#8A7E72] leading-relaxed line-clamp-2">{description}</span>}

@@ -20,7 +20,16 @@ import {
   verifyPhoneOtp,
   sendForgotPasswordEmail,
   resendVerificationEmail,
+  signUpWithPhoneCredential,
+  completePhoneSignupAfterOtp,
+  signInWithPhoneCredential,
+  rotatePhoneCredentialAfterOtp,
 } from '@/services/authService'
+import {
+  sendWhatsAppOtp,
+  verifyWhatsAppOtp,
+  type OtpPurpose,
+} from '@/services/whatsappOtpService'
 
 interface AuthContextValue {
   user: User | null
@@ -36,6 +45,13 @@ interface AuthContextValue {
   verifyOtp: (result: ConfirmationResult, otp: string) => Promise<UserProfile>
   forgotPassword: (email: string) => Promise<void>
   resendVerification: (email: string, password: string) => Promise<void>
+  // WhatsApp-OTP phone auth
+  sendPhoneOtpWhatsApp: (e164: string, purpose: OtpPurpose) => Promise<void>
+  verifyPhoneOtpWhatsApp: (e164: string, code: string, purpose: OtpPurpose) => Promise<boolean>
+  signUpPhone: (name: string, realEmail: string, e164: string) => Promise<{ uid: string; derivedEmail: string; name: string; phone: string; realEmail: string }>
+  confirmPhoneSignup: (e164: string) => Promise<void>
+  signInPhone: (e164: string) => Promise<User>
+  rotatePhonePassword: (e164: string) => Promise<User>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -170,6 +186,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // ── WhatsApp-OTP Phone Auth ─────────────────────────────────────────────
+
+  const handleSendPhoneOtpWhatsApp = (e164: string, purpose: OtpPurpose) =>
+    sendWhatsAppOtp(e164, purpose)
+
+  const handleVerifyPhoneOtpWhatsApp = (e164: string, code: string, purpose: OtpPurpose) =>
+    verifyWhatsAppOtp(e164, code, purpose)
+
+  const handleSignUpPhone = async (name: string, realEmail: string, e164: string) => {
+    // signUpWithPhoneCredential creates the account, stores the credential
+    // locally, then signs out. We'll sign back in after OTP verify.
+    return await signUpWithPhoneCredential(name, e164, realEmail)
+  }
+
+  // Spec asked for confirmPhoneSignup(uid); we accept an E.164 instead because
+  // we need the phone to look up the local credential to re-sign in after
+  // the post-signup sign-out. UID-based lookup isn't possible (Firestore rules
+  // require auth.uid match). See report for justification.
+  const handleConfirmPhoneSignup = async (e164: string) => {
+    isHandlingAuth.current = true
+    try {
+      const firebaseUser = await completePhoneSignupAfterOtp(e164)
+      const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+      if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
+      setUser(firebaseUser)
+    } finally {
+      isHandlingAuth.current = false
+    }
+  }
+
+  const handleSignInPhone = async (e164: string) => {
+    isHandlingAuth.current = true
+    try {
+      const firebaseUser = await signInWithPhoneCredential(e164)
+      const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+      if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
+      setUser(firebaseUser)
+      return firebaseUser
+    } finally {
+      isHandlingAuth.current = false
+    }
+  }
+
+  const handleRotatePhonePassword = async (e164: string) => {
+    isHandlingAuth.current = true
+    try {
+      const firebaseUser = await rotatePhoneCredentialAfterOtp(e164)
+      const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+      if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
+      setUser(firebaseUser)
+      return firebaseUser
+    } finally {
+      isHandlingAuth.current = false
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -186,6 +258,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyOtp: handleVerifyOtp,
         forgotPassword: sendForgotPasswordEmail,
         resendVerification: resendVerificationEmail,
+        sendPhoneOtpWhatsApp: handleSendPhoneOtpWhatsApp,
+        verifyPhoneOtpWhatsApp: handleVerifyPhoneOtpWhatsApp,
+        signUpPhone: handleSignUpPhone,
+        confirmPhoneSignup: handleConfirmPhoneSignup,
+        signInPhone: handleSignInPhone,
+        rotatePhonePassword: handleRotatePhonePassword,
       }}
     >
       {children}

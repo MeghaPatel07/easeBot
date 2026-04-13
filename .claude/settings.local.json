@@ -73,7 +73,21 @@
       "Bash(python3 -c \"import sys,json; deps=json.load\\(sys.stdin\\).get\\('dependencies',{}\\); [print\\(k\\) for k in sorted\\(deps\\)]\")",
       "Bash(npx --no-install tsc --noEmit)",
       "Bash(npx --no-install tsc -p tsconfig.app.json --noEmit)",
-      "Bash(npx --no-install vite build)"
+      "Bash(npx --no-install vite build)",
+      "Bash(grep -E \"^\\\\-.*\\\\.\\(ts|js\\)$\")",
+      "Bash(node:*)",
+      "Bash(tee /tmp/tsc.log)",
+      "Bash(echo \"EXIT=$?\")",
+      "Read(//private/tmp/**)",
+      "Bash(echo \"---EXIT=$?\")",
+      "Bash(git stash:*)",
+      "Bash(tee /tmp/tsc-pre.log)",
+      "Bash(tee /tmp/tsc2.log)",
+      "Bash(npm run:*)",
+      "Bash(tee /tmp/tsc3.log)",
+      "Read(//Users/krish/Desktop/Wedding-Ease-User-Interface/src/lib/**)",
+      "Bash(awk '/^\\\\/Users/{f=$0} /error|warning/{print f\" :: \"$0}')",
+      "Bash(awk '/^\\\\/Users/{f=$0} /warning/{print f\" :: \"$0}')"
     ]
   }
 }

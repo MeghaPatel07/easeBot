@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Mail, Phone, Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,13 +11,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useAuth } from '@/contexts/AuthContext'
-import { mapAuthError, createRecaptchaVerifier } from '@/services/authService'
-import type { ConfirmationResult, RecaptchaVerifier } from 'firebase/auth'
-import type { AuthFlowError } from '@/types'
+import { mapAuthError, linkPendingGoogleCredential } from '@/services/authService'
+import type { AuthCredential } from 'firebase/auth'
+import PhoneInput, { toE164, type PhoneInputValue } from './PhoneInput'
 
 type Tab = 'email' | 'phone'
-type ForgotStep = 'email-input' | 'sent'
-type View = 'default' | 'forgot' | 'unverified'
+type ForgotTab = 'email' | 'phone'
+type ForgotStep = 'email-input' | 'sent' | 'phone-input' | 'phone-otp' | 'phone-done'
+type View = 'default' | 'forgot' | 'unverified' | 'link-google'
 
 interface Props {
   open: boolean
@@ -34,10 +36,20 @@ const GoogleIcon = () => (
 )
 
 const REMEMBER_KEY = 'wedding_ease_remembered_email'
-const OTP_COUNTDOWN = 30
+const OTP_RESEND_COOLDOWN = 30
+const OTP_EXPIRY_SECONDS = 5 * 60
 
 export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Props) {
-  const { signIn, signInWithGoogle, sendOtp, verifyOtp, forgotPassword, resendVerification } = useAuth()
+  const {
+    signIn,
+    signInWithGoogle,
+    forgotPassword,
+    resendVerification,
+    sendPhoneOtpWhatsApp,
+    verifyPhoneOtpWhatsApp,
+    signInPhone,
+    rotatePhonePassword,
+  } = useAuth()
 
   const [tab, setTab] = useState<Tab>('email')
   const [view, setView] = useState<View>('default')
@@ -47,17 +59,27 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(!!localStorage.getItem(REMEMBER_KEY))
 
-  // Phone sign-in
-  const [phone, setPhone] = useState('')
+  // Phone sign-in (WhatsApp OTP)
+  const [phone, setPhone] = useState<PhoneInputValue>({ countryCode: 'IN', national: '' })
   const [otp, setOtp] = useState('')
   const [otpSent, setOtpSent] = useState(false)
-  const [otpTimer, setOtpTimer] = useState(0)
-  const [confirmResult, setConfirmResult] = useState<ConfirmationResult | null>(null)
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null)
+  const [otpResendTimer, setOtpResendTimer] = useState(0)
+  const [otpExpiryTimer, setOtpExpiryTimer] = useState(0)
+  const [deviceMismatch, setDeviceMismatch] = useState(false)
+
+  // Link Google to existing password account
+  const [linkEmail, setLinkEmail] = useState('')
+  const [linkPassword, setLinkPassword] = useState('')
+  const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null)
 
   // Forgot password
+  const [fpTab, setFpTab] = useState<ForgotTab>('email')
   const [fpStep, setFpStep] = useState<ForgotStep>('email-input')
   const [fpEmail, setFpEmail] = useState('')
+  const [fpPhone, setFpPhone] = useState<PhoneInputValue>({ countryCode: 'IN', national: '' })
+  const [fpOtp, setFpOtp] = useState('')
+  const [fpResendTimer, setFpResendTimer] = useState(0)
+  const [fpExpiryTimer, setFpExpiryTimer] = useState(0)
 
   // Unverified recovery
   const [unverifiedUser, setUnverifiedUser] = useState<{ uid: string; email: string; name: string; phone: string | null } | null>(null)
@@ -67,32 +89,53 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // OTP countdown timer
+  // OTP countdown timers — signin phone tab
   useEffect(() => {
-    if (otpTimer <= 0) return
-    const id = setTimeout(() => setOtpTimer(t => t - 1), 1000)
+    if (otpResendTimer <= 0) return
+    const id = setTimeout(() => setOtpResendTimer(t => t - 1), 1000)
     return () => clearTimeout(id)
-  }, [otpTimer])
+  }, [otpResendTimer])
+  useEffect(() => {
+    if (otpExpiryTimer <= 0) return
+    const id = setTimeout(() => setOtpExpiryTimer(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  }, [otpExpiryTimer])
+  // Forgot-password phone tab
+  useEffect(() => {
+    if (fpResendTimer <= 0) return
+    const id = setTimeout(() => setFpResendTimer(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  }, [fpResendTimer])
+  useEffect(() => {
+    if (fpExpiryTimer <= 0) return
+    const id = setTimeout(() => setFpExpiryTimer(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  }, [fpExpiryTimer])
 
   function reset() {
     setTab('email')
     setView('default')
     setPassword('')
-    setPhone('')
+    setPhone({ countryCode: 'IN', national: '' })
     setOtp('')
+    setLinkEmail('')
+    setLinkPassword('')
+    setPendingCred(null)
     setOtpSent(false)
-    setOtpTimer(0)
-    setConfirmResult(null)
+    setOtpResendTimer(0)
+    setOtpExpiryTimer(0)
+    setDeviceMismatch(false)
+    setFpTab('email')
     setFpStep('email-input')
     setFpEmail('')
+    setFpPhone({ countryCode: 'IN', national: '' })
+    setFpOtp('')
+    setFpResendTimer(0)
+    setFpExpiryTimer(0)
     setUnverifiedUser(null)
     setResendPassword('')
     setResendSent(false)
     setError('')
-    if (recaptchaRef.current) {
-      try { recaptchaRef.current.clear() } catch { }
-      recaptchaRef.current = null
-    }
   }
 
   function handleClose(val: boolean) {
@@ -150,6 +193,12 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
       onOpenChange(false)
       reset()
     } catch (err: any) {
+      if (err.code === 'LINK_GOOGLE_TO_PASSWORD') {
+        setLinkEmail(err.email ?? '')
+        setPendingCred((err.pendingCred as AuthCredential) ?? null)
+        setView('link-google')
+        return
+      }
       const msg = mapAuthError(err.code ?? err.message)
       if (msg) setError(msg)
     } finally {
@@ -157,22 +206,23 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     }
   }
 
-  // ── Phone OTP ─────────────────────────────────────────────────────────────
+  // ── Phone OTP (WhatsApp) ──────────────────────────────────────────────────
 
   async function handleSendOtp() {
-    if (!phone) { setError('Enter your phone number'); return }
+    const e164 = toE164(phone)
+    if (!e164) { setError('Enter a valid phone number'); return }
     setError('')
+    setDeviceMismatch(false)
     setLoading(true)
     try {
-      if (!recaptchaRef.current) {
-        recaptchaRef.current = createRecaptchaVerifier('recaptcha-container')
-      }
-      const result = await sendOtp(phone, recaptchaRef.current)
-      setConfirmResult(result)
+      await sendPhoneOtpWhatsApp(e164, 'login')
       setOtpSent(true)
-      setOtpTimer(OTP_COUNTDOWN)
-    } catch (err: any) {
-      const msg = mapAuthError(err.code ?? err.message)
+      setOtp('')
+      setOtpResendTimer(OTP_RESEND_COOLDOWN)
+      setOtpExpiryTimer(OTP_EXPIRY_SECONDS)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
       if (msg) setError(msg)
     } finally {
       setLoading(false)
@@ -180,16 +230,29 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   }
 
   async function handleVerifyOtp() {
-    if (!otp || !confirmResult) { setError('Enter the OTP'); return }
+    const e164 = toE164(phone)
+    if (!e164) { setError('Enter a valid phone number'); return }
+    if (!otp || otp.length < 6) { setError('Enter the 6-digit code'); return }
     setError('')
     setLoading(true)
     try {
-      await verifyOtp(confirmResult, otp)
+      const ok = await verifyPhoneOtpWhatsApp(e164, otp, 'login')
+      if (!ok) {
+        setError('Incorrect or expired code')
+        return
+      }
+      await signInPhone(e164)
       onOpenChange(false)
       reset()
-    } catch (err: any) {
-      const msg = mapAuthError(err.code ?? err.message)
-      if (msg) setError(msg)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      if (e.code === 'PHONE_DEVICE_MISMATCH') {
+        setDeviceMismatch(true)
+        setError(mapAuthError('PHONE_DEVICE_MISMATCH'))
+      } else {
+        const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+        if (msg) setError(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -212,6 +275,75 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     }
   }
 
+  // ── Forgot password (Phone via WhatsApp OTP) ─────────────────────────────
+
+  async function handleFpPhoneSend() {
+    const e164 = toE164(fpPhone)
+    if (!e164) { setError('Enter a valid phone number'); return }
+    setError('')
+    setLoading(true)
+    try {
+      await sendPhoneOtpWhatsApp(e164, 'reset')
+      setFpStep('phone-otp')
+      setFpOtp('')
+      setFpResendTimer(OTP_RESEND_COOLDOWN)
+      setFpExpiryTimer(OTP_EXPIRY_SECONDS)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      if (msg) setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleFpPhoneResend() {
+    const e164 = toE164(fpPhone)
+    if (!e164) return
+    setError('')
+    setLoading(true)
+    try {
+      await sendPhoneOtpWhatsApp(e164, 'reset')
+      setFpResendTimer(OTP_RESEND_COOLDOWN)
+      setFpExpiryTimer(OTP_EXPIRY_SECONDS)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      if (msg) setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleFpPhoneVerify() {
+    const e164 = toE164(fpPhone)
+    if (!e164) { setError('Enter a valid phone number'); return }
+    if (fpOtp.length < 6) { setError('Enter the 6-digit code'); return }
+    setError('')
+    setLoading(true)
+    try {
+      const ok = await verifyPhoneOtpWhatsApp(e164, fpOtp, 'reset')
+      if (!ok) {
+        setError('Incorrect or expired code')
+        return
+      }
+      await rotatePhonePassword(e164)
+      setFpStep('phone-done')
+      // Sign-in succeeded; close shortly after showing success
+      setTimeout(() => { onOpenChange(false); reset() }, 1200)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      if (e.code === 'PHONE_DEVICE_MISMATCH') {
+        setError(mapAuthError('PHONE_DEVICE_MISMATCH'))
+      } else {
+        const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+        if (msg) setError(msg)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // ── Unverified recovery ───────────────────────────────────────────────────
 
   async function handleResendVerification() {
@@ -229,12 +361,31 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     }
   }
 
+  // ── Link Google to password account ──────────────────────────────────────
+
+  async function handleLinkGoogle() {
+    if (!linkPassword) { setError('Enter your password to link Google'); return }
+    if (!pendingCred) { setError('Missing pending credential; please try again'); return }
+    setError('')
+    setLoading(true)
+    try {
+      await linkPendingGoogleCredential(linkEmail, linkPassword, pendingCred)
+      onOpenChange(false)
+      reset()
+    } catch (err) {
+      const e = err as { code?: string; message?: string }
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      if (msg) setError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[95vw] sm:max-w-[480px] glass-panel rounded-[2rem] p-0 border border-white/60 shadow-[0_32px_64px_-12px_rgba(44,46,42,0.1)] overflow-hidden">
-        <div id="recaptcha-container" />
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
@@ -246,13 +397,32 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               <DialogHeader>
                 <DialogTitle className="elegant-heading">Reset Password</DialogTitle>
                 <DialogDescription>
-                  {fpStep === 'email-input'
-                    ? 'Enter your email and we\'ll send a reset link.'
-                    : 'Check your inbox for the reset link.'}
+                  Enter your email and we'll send a reset link.
                 </DialogDescription>
               </DialogHeader>
 
-              {fpStep === 'email-input' ? (
+              {/* Phone-based forgot password is temporarily disabled. */}
+              {/*
+              {fpStep !== 'sent' && fpStep !== 'phone-done' && (
+                <div className="flex bg-border p-1 rounded-full gap-1 mb-4 mt-3">
+                  {(['email', 'phone'] as ForgotTab[]).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => {
+                        setFpTab(t)
+                        setFpStep(t === 'email' ? 'email-input' : 'phone-input')
+                        setError('')
+                      }}
+                      className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${fpTab === t ? 'bg-primary text-white shadow-sm' : 'text-white/60 hover:bg-white/[0.08]'}`}
+                    >
+                      {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              */}
+
+              {fpStep === 'email-input' && (
                 <div className="space-y-4 py-2">
                   <div className="space-y-1">
                     <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Email</label>
@@ -273,7 +443,9 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
                   </Button>
                 </div>
-              ) : (
+              )}
+
+              {fpStep === 'sent' && (
                 <div className="py-6 space-y-4 text-center">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
                   <p className="text-sm text-muted-foreground">
@@ -285,6 +457,70 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                   </Button>
                 </div>
               )}
+
+              {/* Phone-based forgot password is temporarily disabled. */}
+              {/*
+              {fpStep === 'phone-input' && (
+                <div className="space-y-4 py-2">
+                  <div className="space-y-1">
+                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Phone Number</label>
+                    <PhoneInput value={fpPhone} onChange={setFpPhone} placeholder="98765 43210" />
+                  </div>
+                  {error && <p className="text-sm text-red-500">{error}</p>}
+                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneSend} disabled={loading}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
+                    Send OTP on WhatsApp
+                  </Button>
+                  <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError('') }}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
+                  </Button>
+                </div>
+              )}
+
+              {fpStep === 'phone-otp' && (
+                <div className="space-y-3 py-2">
+                  <p className="text-xs text-white/60">
+                    Code sent via WhatsApp to {toE164(fpPhone) ?? ''}. Expires in {Math.floor(fpExpiryTimer / 60)}:{(fpExpiryTimer % 60).toString().padStart(2, '0')}.
+                  </p>
+                  <div className="space-y-1">
+                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Verification Code</label>
+                    <Input
+                      value={fpOtp}
+                      onChange={e => setFpOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="6-digit code"
+                      maxLength={6}
+                      className="bg-white/70 text-center tracking-widest text-lg"
+                      onKeyDown={e => e.key === 'Enter' && handleFpPhoneVerify()}
+                    />
+                  </div>
+                  {error && <p className="text-sm text-red-500">{error}</p>}
+                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneVerify} disabled={loading || fpOtp.length < 6}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Verify & Reset
+                  </Button>
+                  <div className="flex justify-between items-center text-xs text-white/50">
+                    <button
+                      type="button"
+                      onClick={handleFpPhoneResend}
+                      disabled={loading || fpResendTimer > 0}
+                      className="hover:text-white/80 disabled:opacity-50"
+                    >
+                      {fpResendTimer > 0 ? `Resend in ${fpResendTimer}s` : 'Resend code'}
+                    </button>
+                    <button type="button" onClick={() => { setFpStep('phone-input'); setError('') }} className="hover:text-white/80">
+                      Change phone
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {fpStep === 'phone-done' && (
+                <div className="py-6 space-y-4 text-center">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                  <p className="text-sm text-muted-foreground">You're signed in. Redirecting...</p>
+                </div>
+              )}
+              */}
             </>
           )}
 
@@ -335,6 +571,38 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
             </>
           )}
 
+          {/* ── Link Google to existing password account ── */}
+          {view === 'link-google' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="elegant-heading">Link Google to your account</DialogTitle>
+                <DialogDescription>
+                  An account already exists for <span className="font-medium text-white/70">{linkEmail}</span>. Enter your password to link Google sign-in to it.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-1">
+                  <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Password</label>
+                  <Input
+                    type="password"
+                    value={linkPassword}
+                    onChange={e => setLinkPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm"
+                  />
+                </div>
+                {error && <p className="text-sm text-red-500">{error}</p>}
+                <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleLinkGoogle} disabled={loading}>
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Link Google & Sign in
+                </Button>
+                <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError(''); setLinkPassword(''); setPendingCred(null) }}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
+                </Button>
+              </div>
+            </>
+          )}
+
           {/* ── Default sign-in view ── */}
           {view === 'default' && (
             <>
@@ -368,7 +636,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 {(['email', 'phone'] as Tab[]).map(t => (
                   <button
                     key={t}
-                    onClick={() => { setTab(t); setError('') }}
+                    onClick={() => { setTab(t); setError(''); setDeviceMismatch(false) }}
                     className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${tab === t ? 'bg-primary text-white shadow-sm' : 'text-white/60 hover:bg-white/[0.08]'}`}
                   >
                     {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
@@ -425,46 +693,59 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 </div>
               )}
 
-              {/* Phone tab */}
+              {/* Phone tab (WhatsApp OTP) */}
               {tab === 'phone' && (
                 <div className="space-y-3">
                   <div className="space-y-1">
                     <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Phone Number</label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="tel"
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                        placeholder="+1 555 123 4567"
-                        className="bg-white/70 flex-1"
-                        disabled={otpSent}
-                      />
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <PhoneInput value={phone} onChange={setPhone} disabled={otpSent} placeholder="98765 43210" />
+                      </div>
                       <Button
                         variant="outline"
-                        onClick={otpSent ? handleSendOtp : handleSendOtp}
-                        disabled={loading || (otpSent && otpTimer > 0)}
-                        className="whitespace-nowrap"
+                        onClick={handleSendOtp}
+                        disabled={loading || (otpSent && otpResendTimer > 0)}
+                        className="whitespace-nowrap h-14"
                       >
-                        {loading && !otpSent ? <Loader2 className="h-4 w-4 animate-spin" /> : otpSent ? (otpTimer > 0 ? `Resend (${otpTimer}s)` : 'Resend') : 'Send OTP'}
+                        {loading && !otpSent ? <Loader2 className="h-4 w-4 animate-spin" /> : otpSent ? (otpResendTimer > 0 ? `Resend (${otpResendTimer}s)` : 'Resend') : 'Send OTP'}
                       </Button>
                     </div>
                   </div>
 
                   {otpSent && (
-                    <div className="space-y-1">
-                      <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Verification Code</label>
-                      <Input
-                        value={otp}
-                        onChange={e => setOtp(e.target.value)}
-                        placeholder="6-digit code"
-                        maxLength={6}
-                        className="bg-white/70 text-center tracking-widest text-lg"
-                        onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
-                      />
-                    </div>
+                    <>
+                      <p className="text-xs text-white/50">
+                        Code sent via WhatsApp. Expires in {Math.floor(otpExpiryTimer / 60)}:{(otpExpiryTimer % 60).toString().padStart(2, '0')}.
+                      </p>
+                      <div className="space-y-1">
+                        <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Verification Code</label>
+                        <Input
+                          value={otp}
+                          onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="6-digit code"
+                          maxLength={6}
+                          className="bg-white/70 text-center tracking-widest text-lg"
+                          onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
+                        />
+                      </div>
+                    </>
                   )}
 
-                  {error && <p className="text-sm text-red-500">{error}</p>}
+                  {error && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-red-500">{error}</p>
+                      {deviceMismatch && (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => { setTab('email'); setError(''); setDeviceMismatch(false) }}
+                        >
+                          Use Email Sign-In Instead
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   {otpSent && (
                     <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleVerifyOtp} disabled={loading || otp.length < 6}>
@@ -482,6 +763,17 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                   <button className="text-primary font-bold ml-1 hover:underline" onClick={() => switchToSignUp()}>
                     Sign up
                   </button>
+                </p>
+                <p className="mt-3 text-[11px] text-white/35">
+                  By continuing, you agree to our{' '}
+                  <Link to="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">
+                    Privacy Policy
+                  </Link>
+                  .
                 </p>
               </div>
             </>

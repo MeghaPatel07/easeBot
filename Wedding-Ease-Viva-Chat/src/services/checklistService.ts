@@ -139,7 +139,7 @@ export function subscribeToChecklists(
 
 // ── Stats (client-side) ───────────────────────────────────────────────────────
 
-export function computeStats(checklists: Checklist[]): { todo: number; completed: number; overdue: number } {
+export function computeStats(checklists: Checklist[]): { total: number; todo: number; completed: number; overdue: number } {
   let todo = 0
   let completed = 0
   let overdue = 0
@@ -153,5 +153,5 @@ export function computeStats(checklists: Checklist[]): { todo: number; completed
       }
     })
   })
-  return { todo, completed, overdue }
+  return { total: todo + completed, todo, completed, overdue }
 }
