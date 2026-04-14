@@ -33,16 +33,52 @@ const BATCH_LIMIT = 100
 let intervalHandle: NodeJS.Timeout | null = null
 let tickInFlight = false
 
+// SEC-005: user notification preference shape. Mirrors
+// Wedding-Ease-Viva-Chat/src/types/index.ts UserPreferences.notifications.
+// All flags are opt-out (default true) so legacy users without a preferences
+// field continue to receive reminders exactly as before.
+interface NotificationPrefs {
+  emailReminders?: boolean
+  whatsappReminders?: boolean
+  productUpdates?: boolean
+  tips?: boolean
+}
+
+type NotificationChannel = keyof NotificationPrefs
+
 interface UserContact {
   email: string | null
   phone: string | null
   name: string | null
+  // `null` when the user doc has no `preferences` field at all (legacy users)
+  // — the helper treats this as "all-true" and never gates them out.
+  notificationPrefs: NotificationPrefs | null
+}
+
+/**
+ * SEC-005: opt-out gate for any reminder/notification dispatch.
+ *
+ * Returns true when the channel should be sent. Default is true unless the
+ * user has explicitly set `preferences.notifications.<channel> === false`.
+ * Users whose profile has no `preferences` field are treated as all-true
+ * (legacy behavior, opt-out model).
+ */
+function shouldSendNotification(
+  user: { notificationPrefs: NotificationPrefs | null },
+  channel: NotificationChannel,
+): boolean {
+  const prefs = user.notificationPrefs
+  if (!prefs) return true
+  const flag = prefs[channel]
+  if (flag === false) return false
+  return true
 }
 
 async function loadUserContact(uid: string): Promise<UserContact> {
   try {
     const snap = await getDoc(doc(db, 'users', uid))
-    if (!snap.exists()) return { email: null, phone: null, name: null }
+    if (!snap.exists())
+      return { email: null, phone: null, name: null, notificationPrefs: null }
     const data = snap.data() as Record<string, unknown>
     const email = (data.email as string | undefined) ?? null
     const phone =
@@ -54,10 +90,19 @@ async function loadUserContact(uid: string): Promise<UserContact> {
       (data.displayName as string | undefined) ??
       (data.nickname as string | undefined) ??
       null
-    return { email, phone, name }
+    // Read-only consumer of preferences.notifications. Do not mutate the
+    // user doc here — accountController owns all writes (Ravi, parallel work).
+    const preferences = data.preferences as
+      | { notifications?: NotificationPrefs }
+      | undefined
+    const notificationPrefs: NotificationPrefs | null =
+      preferences && typeof preferences === 'object'
+        ? (preferences.notifications ?? {})
+        : null
+    return { email, phone, name, notificationPrefs }
   } catch (err) {
     console.error('[reminderScheduler] loadUserContact failed', err)
-    return { email: null, phone: null, name: null }
+    return { email: null, phone: null, name: null, notificationPrefs: null }
   }
 }
 
@@ -77,6 +122,15 @@ async function dispatchOne(row: PendingReminderRow): Promise<void> {
 
   try {
     if (channel === 'email') {
+      // SEC-005: honor user opt-out for email reminders. Default true for
+      // legacy users without a `preferences.notifications` field.
+      if (!shouldSendNotification(contact, 'emailReminders')) {
+        console.log(
+          `[reminder] skipped email for uid=${uid} (user opted out)`,
+        )
+        await markReminderSent(path)
+        return
+      }
       if (!contact.email) throw new Error('user has no email on file')
       const built = buildReminderEmail({
         name: contact.name,
@@ -92,6 +146,15 @@ async function dispatchOne(row: PendingReminderRow): Promise<void> {
         text: built.text,
       })
     } else if (channel === 'whatsapp') {
+      // SEC-005: honor user opt-out for WhatsApp reminders. Default true for
+      // legacy users without a `preferences.notifications` field.
+      if (!shouldSendNotification(contact, 'whatsappReminders')) {
+        console.log(
+          `[reminder] skipped whatsapp for uid=${uid} (user opted out)`,
+        )
+        await markReminderSent(path)
+        return
+      }
       if (!contact.phone) throw new Error('user has no phone on file')
       await sendWhatsAppReminder({
         phone: contact.phone,

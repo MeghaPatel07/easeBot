@@ -29,6 +29,10 @@
     --destructive: 0 74% 42%;       /* #BA1A1A */
     --destructive-foreground: 0 0% 100%;
 
+    /* Warning — semantic amber, Sprint 4 (Hana) replaces raw `amber-500` */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
     --border: 330 20% 25%;          /* subtle wine border */
     --input: 330 20% 22%;
     --ring: 36 56% 51%;
@@ -79,6 +83,10 @@
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 100%;
+
+    /* Warning — semantic amber (slightly muted in dark for contrast) */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
 
     --border: 330 20% 18%;
     --input: 330 20% 16%;
@@ -134,6 +142,17 @@
       font-size: 16px;
     }
   }
+}
+
+@layer base {
+  /* Density toggle (Sprint 4, Hana — Marcus QA "density does nothing").
+     AppearanceTab writes data-density="comfortable"|"compact" on <html>;
+     the CSS variable below feeds `space-y-[var(--dense-spacing,1rem)]`
+     containers inside the SettingsShell so the toggle is visible. */
+  :root { --dense-spacing: 1rem; }
+  [data-density="comfortable"] { --dense-spacing: 1rem; }
+  [data-density="compact"] { --dense-spacing: 0.5rem; }
+  [data-density="compact"] .settings-dense { --dense-spacing: 0.5rem; }
 }
 
 @layer utilities {

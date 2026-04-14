@@ -97,7 +97,21 @@
       "Bash(echo \"exit=$?\")",
       "Bash(echo \"BACKEND_EXIT=$?\")",
       "Bash(echo \"FRONTEND_EXIT=$?\")",
-      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(find:*)",
+      "Read(//tmp/**)",
+      "Bash(PORT=3099 ENABLE_REMINDER_SCHEDULER=false npm run dev)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(kill 5718)",
+      "Bash(kill belktlxtt:*)",
+      "Bash(echo \"BE_PID=$!\")",
+      "Bash(echo \"FE_PID=$!\")",
+      "Bash(pkill -f \"ts-node --transpile-only src/server.ts\")",
+      "Bash(pkill -f \"nodemon\")",
+      "Bash(mkdir -p ~/.secrets)",
+      "Bash(mv ~/Downloads/wedding-ease-dc99a-firebase-adminsdk-hp8cd-f0f3994dce.json ~/.secrets/easebot-sa.json)",
+      "Bash(chmod 600 ~/.secrets/easebot-sa.json)",
+      "Read(//Users/krish/.secrets/**)"
     ]
   }
 }

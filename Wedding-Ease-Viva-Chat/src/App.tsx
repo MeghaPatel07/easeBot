@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import LoadingScreen from "@/components/ui/loading-screen";
 
 const Index = lazy(() => import('./pages/Index'));
@@ -20,6 +21,7 @@ const App = () => (
 
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ThemeProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -53,6 +55,7 @@ const App = () => (
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
+      </ThemeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

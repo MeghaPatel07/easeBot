@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Sparkles, Heart, MessageSquare, Calendar, Lightbulb, Globe,
   Lock, ArrowLeft, CheckSquare,
@@ -28,13 +28,17 @@ import NotesView from '@/components/notes/NotesView';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
 import InvitePartner from '@/components/InvitePartner';
-import { SettingsModal } from '@/components/SettingsModal';
+// Legacy SettingsModal is no longer rendered (Sprint 4, Hana — Marcus QA M-8).
+// SettingsShell is the canonical surface. The file is intentionally not deleted
+// because other codepaths / translations may still reference its exports.
+import { SettingsShell } from '@/pages/settings/SettingsShell';
 import { requestTTS } from '@/services/ttsService';
 import { subscribeToChecklists, computeStats } from '@/services/checklistService';
 import { subscribeToBudget, type BudgetData } from '@/services/budgetService';
 import { subscribeToTimelineEvents } from '@/services/timelineEventsService';
 import { addSavedItem } from '@/services/savedItemsService';
 import { getVoicePreset } from '@/services/voicePresets';
+import { getLocalVoiceId } from '@/services/settingsService';
 import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
 import '@fontsource/lato';
 import chatbotBg from '@/assets/images/chatbot background.avif';
@@ -100,7 +104,25 @@ const Index = () => {
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  // Sprint 4 (Hana, Marcus QA M-8): the legacy SettingsModal is no longer
+  // mounted. The sidebar/profile-menu "Open settings" buttons still call
+  // setShowSettingsModal(true); we shim that to deep-link the new SettingsShell
+  // via the ?settings=account query param (the canonical surface).
+  const [showSettingsModal, _setShowSettingsModalRaw] = useState(false);
+  const setShowSettingsModal = useCallback((next: boolean) => {
+    _setShowSettingsModalRaw(next);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (next) {
+        if (!url.searchParams.get('settings')) url.searchParams.set('settings', 'account');
+      } else {
+        url.searchParams.delete('settings');
+      }
+      window.history.pushState({}, '', url.toString());
+      // Notify React Router's useSearchParams listeners.
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  }, []);
   const [selectedMode, setSelectedMode] = useState<ModeOrAuto>('auto');
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState('');
@@ -499,7 +521,8 @@ const Index = () => {
     if (ttsAudioUrls[message.id]) { setTtsActiveId(message.id); return; }
     setTtsLoadingId(message.id);
     try {
-      const preset = profile?.voiceId ? getVoicePreset(profile.voiceId) : undefined;
+      const effectiveVoiceId = profile?.voiceId ?? getLocalVoiceId() ?? undefined;
+      const preset = effectiveVoiceId ? getVoicePreset(effectiveVoiceId) : undefined;
       const voiceName = preset?.geminiVoiceName;
       const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en');
       const audioUrl = await requestTTS({ text: message.text, voiceName, language: activeLang });
@@ -784,8 +807,12 @@ const Index = () => {
     />
   );
 
-  // ── Settings modal (always mounted so sidebar button works from any view) ─
-  const settingsModalJSX = <SettingsModal open={showSettingsModal} onClose={() => setShowSettingsModal(false)} />;
+  // ── Settings shell (always mounted so sidebar button works from any view) ─
+  // Sprint 4 (Hana) — legacy <SettingsModal /> removed (Marcus QA M-8).
+  // showSettingsModal state still drives the open intent; setShowSettingsModal
+  // is shimmed above to deep-link via the ?settings=… query param.
+  void showSettingsModal;
+  const settingsModalJSX = <SettingsShell />;
 
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {

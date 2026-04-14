@@ -6,6 +6,7 @@ import transcribeRouter from './routes/transcribe'
 import imageRouter from './routes/image'
 import checklistsRouter from './routes/checklists'
 import notesRouter from './routes/notes'
+import accountRouter from './routes/account'
 import ttsRouter from './routes/tts'
 import healthRouter from './routes/health'
 import { getSpeechToken } from './controllers/speechTokenController'
@@ -46,7 +47,8 @@ app.use(
   cors({
     origin: '*',
     credentials: false,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
   }),
 )
 
@@ -73,6 +75,7 @@ const mountRoutes = (prefix: string): void => {
   app.use(`${prefix}/generate-image`, imageRouter)
   app.use(`${prefix}/checklists`, checklistsRouter)
   app.use(`${prefix}/notes`, notesRouter)
+  app.use(`${prefix}/account`, accountRouter)
   app.use(`${prefix}/tts`, ttsRouter)
   app.get(`${prefix}/speech-token`, getSpeechToken)
 }

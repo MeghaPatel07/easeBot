@@ -63,6 +63,14 @@ export default {
 					foreground:'hsl(var(--destructive-foreground))',
 				},
 
+				// Warning — semantic amber for non-destructive caution states.
+				// Sprint 4 (Hana) — additive token, replaces raw `bg-amber-500`
+				// in PlanBillingTab usage meter (Marcus QA M-10).
+				warning: {
+					DEFAULT:    'hsl(var(--warning))',
+					foreground: 'hsl(var(--warning-foreground))',
+				},
+
 				// Neutral surfaces
 				muted: {
 					DEFAULT:   'hsl(var(--muted))',
