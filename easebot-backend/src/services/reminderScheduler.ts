@@ -24,6 +24,7 @@ import {
 } from './reminderService'
 import { buildReminderEmail, sendEmailNotification } from './emailService'
 import { sendWhatsAppReminder } from './whatsappReminderService'
+import { chargeTokensAsSystem } from './tokenMeter'
 import { writeAppNotification } from './notificationService'
 import { formatHumanDate } from '../utils/dateTime'
 
@@ -162,6 +163,9 @@ async function dispatchOne(row: PendingReminderRow): Promise<void> {
         humanFormattedDate: human,
         description: data.description,
       })
+      chargeTokensAsSystem(uid, { kind: 'whatsapp', messages: 1 }).catch((err) =>
+        console.error('[reminderScheduler] whatsapp charge failed', err),
+      )
     } else {
       throw new Error(`unknown channel: ${String(channel)}`)
     }

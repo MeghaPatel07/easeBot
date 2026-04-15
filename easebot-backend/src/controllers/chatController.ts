@@ -10,7 +10,7 @@ import { IMAGE_TOOL, generateImageGptImage1, editImageGptImage1, extractStyleDes
 import { expandWithPromptArchitect, type PromptArchitectOutput } from '../services/promptArchitect'
 import { postProcessImage } from '../services/imagePostProcessor'
 import { storeMultipleImages } from '../services/imageStorage'
-import { checkImageQuota, incrementImageUsage } from '../services/imageQuota'
+import { getTier as meterGetTier } from '../services/tokenMeter'
 import { getRelevantProductsViaAlgolia, formatProductsContext } from '../services/algoliaProducts'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
@@ -29,7 +29,7 @@ import {
   CREATE_NOTE_TOOL,
   CREATE_TIMELINE_EVENT_TOOL,
 } from '../services/plannerTools'
-import { incrementUserUsage } from '../services/usageService'
+import { chargeTokens } from '../services/tokenMeter'
 import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
 import { buildPersonalizationSuffix } from '../utils/toneInjector'
@@ -194,13 +194,19 @@ async function buildSystemPrompt(
   userMessage: string,
   userRole?: string | null,
   personalization?: UserPersonalization,
-  userProfile?: UserProfileContext | null
+  userProfile?: UserProfileContext | null,
+  subject?: import('../types/billing').Subject,
 ): Promise<string> {
   const userContext = buildUserContextSuffix(userProfile)
 
   if (mode === 'stylist') {
     try {
       const products = await getRelevantProductsViaAlgolia(userMessage)
+      if (subject) {
+        chargeTokens(subject, { kind: 'algolia', queries: 1 }).catch((err) =>
+          console.error('[chatController] algolia charge failed', err),
+        )
+      }
       const context = formatProductsContext(products)
       return getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext
     } catch {
@@ -324,18 +330,8 @@ async function handleImageToolCall(
   const finalPrompt = architectOutput?.expandedPrompt ?? imgPrompt
   const negativePrompt = architectOutput?.negativePrompt
 
-  // Check quota for logged-in users
-  if (opts.isLoggedIn && opts.uid) {
-    const quota = await checkImageQuota(opts.uid, opts.isPremium)
-    if (!quota.allowed) {
-      return {
-        result: `Image generation quota exceeded. You've used ${quota.dailyUsed}/${quota.dailyLimit} images today. Try again after ${quota.resetAt}.`,
-        action: { tool: 'generate_image', imagePrompt: imgPrompt, imageAction: imgAction as any },
-        imageUrls: [],
-        styleDescriptors: [],
-      }
-    }
-  }
+  // Token-meter will enforce at charge time via tokenMeter; no pre-check here.
+  // Legacy imageQuota removed in Sprint 2.
 
   let base64Images: string[] = []
 
@@ -396,7 +392,15 @@ async function handleImageToolCall(
       vibeDescriptors: opts.vibeDescriptors && opts.vibeDescriptors.length > 0 ? opts.vibeDescriptors : null,
     })
     imageUrls = stored.map(s => s.url)
-    await incrementImageUsage(opts.uid, base64Images.length)
+    try {
+      const tier = await meterGetTier(opts.uid)
+      await chargeTokens(
+        { kind: 'user', id: opts.uid, tier },
+        { kind: 'image', quality: 'standard', count: base64Images.length },
+      )
+    } catch (err) {
+      console.error('[chatController] image token charge failed', err)
+    }
   } else {
     // Guest users: return data URIs (no storage)
     imageUrls = base64Images.map(b64 => `data:image/png;base64,${b64}`)
@@ -468,7 +472,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     }
 
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile, req.quotaContext?.subject)
       + buildLanguageInstruction(targetLanguage)
       + buildVibeSystemSuffix(vibeTitle, vibeDescriptors)
       + buildForceImageSuffix(forceImageGeneration)
@@ -509,18 +513,23 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
     const aiResult = await callAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)
 
-    // Store token usage for logged-in users only.
-    // Anonymous usage is intentionally not persisted — there is no anonymous
-    // usage bucket in Firestore and usage counters live on users/{uid}.
+    // Post-call reconciliation via quotaMiddleware-attached context.
+    // Works for both logged-in and guest principals.
     console.log(`[chatController] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, aiResult.usage)
-    if (isLoggedIn && uid && aiResult.usage) {
-      incrementUserUsage(uid, aiResult.usage).catch(err =>
-        console.error('[chatController] usage write failed', err)
-      )
-    } else {
-      // Downgraded from warn → debug: this is expected for anonymous users
-      // and for responses without a usage payload; it is not an error.
-      console.debug(`[chatController] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!aiResult.usage}`)
+    if (req.quotaContext) {
+      req.quotaContext
+        .reconcile({
+          kind: 'chat',
+          promptTokens: aiResult.usage?.promptTokens ?? 0,
+          completionTokens: aiResult.usage?.completionTokens ?? 0,
+        })
+        .catch((err) => console.error('[chatController] reconcile failed', err))
+      // Vision charge — per spec §5.1, bypasses reconcile for the second call.
+      if (visionData) {
+        chargeTokens(req.quotaContext.subject, { kind: 'vision', imageCount: 1 }).catch((err) =>
+          console.error('[chatController] vision charge failed', err),
+        )
+      }
     }
 
     const toolActions: ToolAction[] = []
@@ -667,7 +676,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     }
 
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
+    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile, req.quotaContext?.subject)
       + buildLanguageInstruction(targetLanguage)
       + buildVibeSystemSuffix(vibeTitle, vibeDescriptors)
       + buildForceImageSuffix(forceImageGeneration)
@@ -724,18 +733,20 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    // Store token usage for logged-in users only.
-    // Anonymous usage is intentionally not persisted — there is no anonymous
-    // usage bucket in Firestore and usage counters live on users/{uid}.
     console.log(`[chatController:stream] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, streamUsage)
-    if (isLoggedIn && uid && streamUsage) {
-      incrementUserUsage(uid, streamUsage).catch(err =>
-        console.error('[chatController:stream] usage write failed', err)
-      )
-    } else {
-      // Downgraded from warn → debug: this is expected for anonymous users
-      // and for responses without a usage payload; it is not an error.
-      console.debug(`[chatController:stream] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!streamUsage}`)
+    if (req.quotaContext) {
+      req.quotaContext
+        .reconcile({
+          kind: 'chat',
+          promptTokens: streamUsage?.promptTokens ?? 0,
+          completionTokens: streamUsage?.completionTokens ?? 0,
+        })
+        .catch((err) => console.error('[chatController:stream] reconcile failed', err))
+      if (visionData) {
+        chargeTokens(req.quotaContext.subject, { kind: 'vision', imageCount: 1 }).catch((err) =>
+          console.error('[chatController:stream] vision charge failed', err),
+        )
+      }
     }
 
     // ── Force-image-generation fallback ──────────────────────────────────────

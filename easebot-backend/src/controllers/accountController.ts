@@ -380,6 +380,36 @@ export async function handleGetPlan(req: Request, res: Response): Promise<void> 
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/account/usage
+// Live token-meter snapshot for the UsageMeter and BillingSettings views.
+// ---------------------------------------------------------------------------
+export async function handleGetUsage(req: Request, res: Response): Promise<void> {
+  const uid = req.user!.uid
+  try {
+    const { getUsage, getTier } = await import('../services/tokenMeter')
+    const tier = await getTier(uid)
+    const snapshot = await getUsage({ kind: 'user', id: uid, tier })
+    const monthlyPool = Math.max(0, (snapshot.monthlyTokensCap ?? 0) - (snapshot.monthlyTokensUsed ?? 0))
+    const resetAt = new Date()
+    resetAt.setUTCHours(24, 0, 0, 0)
+    res.status(200).json({
+      tier: snapshot.tier,
+      monthlyPool,
+      monthlyPoolMax: snapshot.monthlyTokensCap,
+      monthlyTokensUsed: snapshot.monthlyTokensUsed,
+      extrasBucket: snapshot.extrasBucket,
+      extrasPurchasedThisMonth: snapshot.extrasPurchasedThisMonth,
+      dailyUsed: snapshot.dailyTokensUsed,
+      dailyMax: null, // frontend reads from tier table; backend knows via caps
+      dailyResetAt: snapshot.dailyResetAt,
+      resetAt: resetAt.toISOString(),
+      byService: snapshot.byService,
+      updatedAt: snapshot.updatedAt,
+    })
+  } catch (err) { serverError(res, err) }
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/account/plan/switch
 // Sets the user's plan tier directly (no third-party billing). Until a real
 // payment processor lands, this is the source of truth for the user's plan.

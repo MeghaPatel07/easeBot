@@ -3,8 +3,10 @@ import { generateSpeech } from '../services/azureTTS'
 
 export async function handleTTS(req: Request, res: Response): Promise<void> {
   const { text, voiceName, language } = req.body as { text: string; voiceName?: string; language?: string }
+  const qc = req.quotaContext
 
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    if (qc) await qc.reconcile({ skip: true })
     res.status(400).json({ error: 'text is required' })
     return
   }
@@ -29,11 +31,13 @@ export async function handleTTS(req: Request, res: Response): Promise<void> {
 
   try {
     const wavBuffer = await generateSpeech({ text: capped, voiceName, language })
+    if (qc) await qc.reconcile({ kind: 'tts', characters: capped.length })
     res.set('Content-Type', 'audio/wav')
     res.set('Content-Length', String(wavBuffer.length))
     res.set('Cache-Control', 'no-store')
     res.send(wavBuffer)
   } catch (err: any) {
+    if (qc) await qc.reconcile({ skip: true }).catch(() => {})
     console.error('[ttsController]', err.message)
     res.status(500).json({ error: err.message ?? 'TTS generation failed' })
   }

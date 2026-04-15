@@ -1,21 +1,21 @@
 /**
  * quotaMiddleware — pre-call quota gate for cost-bearing routes.
  *
- * Sprint 1 SKELETON: type signatures and the req.quotaContext augmentation
- * are final. The factory body throws `not_implemented_sprint_2`. Sprint 2
- * PAY-001 wires the real estimate + reconcile closures.
+ * Sprint 2 live implementation. Runs AFTER requireAuth, resolves principal
+ * (user via tierMirror or guest via X-Guest-Id header), pessimistically
+ * estimates the raw cost, returns 402 on over-limit, otherwise attaches
+ * req.quotaContext with a reconcile closure.
  *
- * Grounded in: .orchestrator/specs/quota-middleware.md (authoritative).
- *
- * Usage (Sprint 2):
- *   router.post('/chat',  requireAuth, quotaCheck('chat'),  handleChat)
- *   router.post('/image', requireAuth, quotaCheck('image'), handleImage)
- *
- * Guardrail 8 (EXECUTION_PLAN.md §0): NO MINI MODEL FALLBACK. When the pool
- * is empty we return 402. No `req.quotaContext.useMiniModel` flag. Ever.
+ * Spec: .orchestrator/specs/quota-middleware.md
  */
 
 import type { Request, Response, NextFunction, RequestHandler } from 'express'
+import crypto from 'crypto'
+import {
+  estimateCost,
+  chargeTokens,
+  getTier,
+} from '../services/tokenMeter'
 import type {
   Principal,
   Subject,
@@ -23,35 +23,22 @@ import type {
   RawCost,
   EstimateResult,
   QuotaExceededResponse,
+  Tier,
 } from '../types/billing'
 
-// Re-export the 402 shape so Sprint 2 handlers can import it from here if
-// they prefer (the canonical home is ../types/billing).
 export type { QuotaExceededResponse }
 
 // ---------------------------------------------------------------------------
-// Request augmentation — what the middleware attaches.
+// Request augmentation
 // ---------------------------------------------------------------------------
 
-/**
- * Attached to `req.quotaContext` after a successful pre-call estimate.
- * The controller MUST call `reconcile(actual)` exactly once before
- * returning — success path with the real RawCost, failure path with
- * `{ skip: true }`. See spec §5 for the contract.
- */
 export interface QuotaContext {
   principal: Principal
   subject: Subject
   service: Service
-  /** Pessimistic upper-bound from tokenMeter.estimateCost. */
   estimate: EstimateResult
-  /** Convenience: `estimate.estimatedTokens` — matches backlog naming. */
   estimated: number
-  /**
-   * Post-call reconciliation closure. Call exactly once.
-   * - Pass the measured RawCost on success.
-   * - Pass `{ skip: true }` if the downstream call never ran.
-   */
+  _reconciled: boolean
   reconcile: (actual: RawCost | { skip: true }) => Promise<void>
 }
 
@@ -65,32 +52,241 @@ declare global {
 }
 
 // ---------------------------------------------------------------------------
-// Factory
+// Guest-id helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Factory — one middleware per Service. The service arg drives the raw-cost
- * skeleton shape used for the pre-call estimate.
+ * Resolve or mint a guestId. Frontend sends `X-Guest-Id` header (uuid persisted
+ * in localStorage). If absent, we generate one and return it via `X-Guest-Id`
+ * on the response so the frontend can capture + persist.
  *
- * Pre-call flow (Sprint 2):
- *   1. Resolve principal (user vs guest, tier from claim/Firestore mirror)
- *   2. Build pessimistic RawCost skeleton from req.body
- *   3. tokenMeter.estimateCost(...)
- *   4. On over-limit → 402 with QuotaExceededResponse body, short-circuit
- *   5. Attach req.quotaContext = { ..., reconcile }
- *   6. next()
- *
- * Sprint 1: stub — throws at runtime so no route accidentally picks it up.
+ * Simple — no HMAC signing. Guest id is low-stakes: it only gates 10 chats /
+ * 3 images. A malicious actor who swaps ids just gets a fresh 10+3 bucket,
+ * which is already accepted per LH-21 in the spec.
  */
+function resolveOrMintGuestId(req: Request, res: Response): string {
+  const header = (req.headers['x-guest-id'] ?? '') as string
+  if (header && /^[a-f0-9-]{20,}$/i.test(header)) return header
+  const fresh = crypto.randomUUID()
+  res.setHeader('X-Guest-Id', fresh)
+  return fresh
+}
+
+function guestIpHash(req: Request): string {
+  const secret = process.env.GUEST_IP_SALT ?? 'easebot-default-salt'
+  const ip = (req.ip ?? req.socket?.remoteAddress ?? '') as string
+  return crypto.createHash('sha256').update(ip + secret).digest('hex').slice(0, 32)
+}
+
+// ---------------------------------------------------------------------------
+// Pessimistic raw-cost skeleton builders
+// ---------------------------------------------------------------------------
+
+const MAX_COMPLETION_TOKENS_BY_DEFAULT = 2_000
+
+function roughTokenCount(s: string | undefined): number {
+  if (!s) return 0
+  // 1 token ≈ 4 chars English. Fast and good enough for the pessimistic path.
+  return Math.ceil(s.length / 4)
+}
+
+function buildRawSkeleton(service: Service, body: Record<string, unknown>): RawCost {
+  switch (service) {
+    case 'chat': {
+      const message = String(body.message ?? '')
+      const history = Array.isArray(body.history) ? body.history : []
+      const historyText = history
+        .map((m) => {
+          if (!m || typeof m !== 'object') return ''
+          return String((m as Record<string, unknown>).content ?? '')
+        })
+        .join('\n')
+      const hasVision = !!(body.imageBase64 && body.imageMimeType)
+      const promptTokens = roughTokenCount(message) + roughTokenCount(historyText) + 500 // system-prompt budget
+      return {
+        kind: 'chat',
+        promptTokens: promptTokens + (hasVision ? 1_000 : 0),
+        completionTokens: MAX_COMPLETION_TOKENS_BY_DEFAULT,
+      }
+    }
+    case 'image': {
+      const aspect = String(body.preferredAspectRatio ?? body.aspectRatio ?? '')
+      const quality: 'standard' | 'hd' = aspect.includes('1536') ? 'hd' : 'standard'
+      return { kind: 'image', quality, count: 1 }
+    }
+    case 'tts': {
+      const text = String(body.text ?? '')
+      return { kind: 'tts', characters: text.length }
+    }
+    case 'stt': {
+      // Pessimistic: if the caller declares duration use it, else assume 60s ceiling.
+      const seconds = Number(body.durationSeconds ?? 60)
+      return { kind: 'stt', seconds: Number.isFinite(seconds) ? seconds : 60 }
+    }
+    case 'vision': {
+      const count = Number(body.imageCount ?? 1)
+      return { kind: 'vision', imageCount: Math.max(1, count) }
+    }
+    case 'algolia':
+      return { kind: 'algolia', queries: 1 }
+    case 'whatsapp':
+      return { kind: 'whatsapp', messages: 1 }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 402 writer
+// ---------------------------------------------------------------------------
+
+function sendQuotaExceeded(
+  res: Response,
+  principal: Principal,
+  estimate: EstimateResult,
+  reason: QuotaExceededResponse['reason'],
+  resetAt: string | null,
+): void {
+  const upgradeUrl =
+    principal.kind === 'guest'
+      ? '/signup?from=guest-cap'
+      : principal.tier === 'free'
+        ? '/pricing?from=free-cap'
+        : '/pricing?from=pro-cap'
+
+  const body: QuotaExceededResponse =
+    principal.kind === 'guest'
+      ? {
+          error: 'quota_exceeded',
+          reason,
+          message:
+            reason === 'guest_limit_exceeded'
+              ? 'Guest limit reached. Sign up for a free account to keep chatting.'
+              : 'Quota exceeded.',
+          resetAt,
+          upgradeUrl,
+          remaining: {
+            guest: { msgCount: 10, imgCount: 3, voiceCount: 3, visionCount: 3 },
+            used: { msgCount: 0, imgCount: 0, voiceCount: 0, visionCount: 0 },
+          },
+        }
+      : {
+          error: 'quota_exceeded',
+          reason,
+          message:
+            reason === 'daily_cap_exceeded'
+              ? 'Daily token limit reached. Resets at midnight UTC.'
+              : reason === 'monthly_cap_exceeded'
+                ? 'Monthly token limit reached. Upgrade or wait for the next renewal.'
+                : 'Quota exceeded.',
+          resetAt,
+          upgradeUrl,
+          remaining: {
+            daily: estimate.remainingDaily,
+            monthly: estimate.remainingMonthly,
+            extras: estimate.remainingExtras,
+          },
+        }
+
+  res.status(402).json(body)
+}
+
+// ---------------------------------------------------------------------------
+// Factory
+// ---------------------------------------------------------------------------
+
 export function quotaCheck(service: Service): RequestHandler {
-  return async (
-    _req: Request,
-    _res: Response,
-    _next: NextFunction,
-  ): Promise<void> => {
-    // Silence "declared but never read" for the captured arg. Sprint 2
-    // replaces this whole body with the real estimate + reconcile flow.
-    void service
-    throw new Error('not_implemented_sprint_2')
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      // --- 1. Resolve principal --------------------------------------------
+      let principal: Principal
+      if (req.user?.uid) {
+        const tier: Tier = await getTier(req.user.uid)
+        principal = { kind: 'user', id: req.user.uid, tier }
+      } else {
+        const guestId = resolveOrMintGuestId(req, res)
+        principal = {
+          kind: 'guest',
+          id: guestId,
+          tier: 'guest',
+          ipHash: guestIpHash(req),
+        }
+      }
+
+      // --- 2. Build pessimistic skeleton ------------------------------------
+      const raw = buildRawSkeleton(service, (req.body ?? {}) as Record<string, unknown>)
+
+      // --- 3. Estimate ------------------------------------------------------
+      let estimate: EstimateResult
+      try {
+        estimate = await estimateCost({ principal, raw })
+      } catch (err) {
+        console.error('[quotaMiddleware] estimateCost threw', err)
+        res.status(503).json({ error: 'service_unavailable', reason: 'firestore_unreachable' })
+        return
+      }
+
+      // --- 4. Enforce -------------------------------------------------------
+      if (principal.kind === 'guest' && estimate.wouldExceedGuestLimit) {
+        sendQuotaExceeded(res, principal, estimate, 'guest_limit_exceeded', null)
+        return
+      }
+      if (estimate.wouldExceedDaily) {
+        const resetAt = new Date()
+        resetAt.setUTCHours(24, 0, 0, 0)
+        sendQuotaExceeded(res, principal, estimate, 'daily_cap_exceeded', resetAt.toISOString())
+        return
+      }
+      if (estimate.wouldExceedMonthly) {
+        const end = new Date()
+        end.setUTCMonth(end.getUTCMonth() + 1, 1)
+        end.setUTCHours(0, 0, 0, 0)
+        sendQuotaExceeded(res, principal, estimate, 'monthly_cap_exceeded', end.toISOString())
+        return
+      }
+
+      // --- 5. Attach reconcile closure -------------------------------------
+      const subject: Subject = principal
+      const ctx: QuotaContext = {
+        principal,
+        subject,
+        service,
+        estimate,
+        estimated: estimate.estimatedTokens,
+        _reconciled: false,
+        reconcile: async (actual) => {
+          if (ctx._reconciled) {
+            console.warn('[quotaMiddleware] reconcile called twice', {
+              uid: principal.id,
+              service,
+            })
+            return
+          }
+          ctx._reconciled = true
+          if ('skip' in actual) return
+          const result = await chargeTokens(subject, actual)
+          if (!result.allowed) {
+            console.warn('[quotaMiddleware] reconcile denied post-call (race or firestore)', {
+              uid: principal.id,
+              reason: result.reason,
+              service,
+            })
+            return
+          }
+          try {
+            if (!res.headersSent) {
+              res.setHeader('X-Easebot-Tokens-Charged', String(result.tokensCharged))
+              res.setHeader('X-Easebot-Remaining-Monthly', String(result.remainingMonthly))
+              res.setHeader('X-Easebot-Remaining-Daily', String(result.remainingDaily))
+            }
+          } catch {
+            // headers already sent is fine — reconcile is fire-and-forget from the controller's POV
+          }
+        },
+      }
+      req.quotaContext = ctx
+      next()
+    } catch (err) {
+      console.error('[quotaMiddleware] unexpected error', err)
+      res.status(500).json({ error: 'quota_middleware_error' })
+    }
   }
 }

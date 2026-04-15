@@ -6,6 +6,7 @@ import {
   handleGetMe,
   handleUpdateProfile,
   handleGetPlan,
+  handleGetUsage,
   handleSwitchPlan,
   handleSoftDelete,
   handleSignOutEverywhere,
@@ -23,6 +24,7 @@ const router = Router()
 // --- Reads ---
 router.get('/me',     requireStrictAuth, handleGetMe)
 router.get('/plan',   requireStrictAuth, handleGetPlan)
+router.get('/usage',  requireStrictAuth, handleGetUsage)
 router.get('/export', requireStrictAuth, handleExport)
 
 // --- Routine mutations (rate-limited 10/min/uid) ---

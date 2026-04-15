@@ -3,14 +3,15 @@ import { requireAuth } from '../middleware/auth'
 import { handleChat, handleChatStream } from '../controllers/chatController'
 import { validateBody } from '../middleware/validateRequest'
 import { ChatRequestSchema } from '../schemas/chat'
+import { quotaCheck } from '../middleware/quotaMiddleware'
 
 const router = Router()
-router.post('/', requireAuth, validateBody(ChatRequestSchema), handleChat)
+router.post('/', requireAuth, validateBody(ChatRequestSchema), quotaCheck('chat'), handleChat)
 
 /**
  * SSE streaming endpoint with heartbeat, event IDs, and reconnection support.
  */
-router.post('/stream', requireAuth, (req: Request, res: Response) => {
+router.post('/stream', requireAuth, quotaCheck('chat'), (req: Request, res: Response) => {
   // ── Last-Event-ID support (log for future replay) ──────────────────────────
   const lastEventId = req.headers['last-event-id'] as string | undefined
   if (lastEventId) {
