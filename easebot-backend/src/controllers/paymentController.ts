@@ -20,6 +20,8 @@ import {
 import { db } from '../lib/firebase'
 import { getLockedRate } from '../services/exchangeRateService'
 import { addExtras, getTier } from '../services/tokenMeter'
+import { applyTransition, readSubscription } from '../services/subscriptionStateMachine'
+import { queueInvoice } from '../services/invoiceService'
 import { generatePayuHash, verifyPayuResponseHash } from '../utils/payuHash'
 
 // --- Plan catalog (PRD §4) ---------------------------------------------------
@@ -249,24 +251,42 @@ export async function handleWebhook(
         // Still mark paid — the txn is complete; top-up cap issues surface in logs.
       }
     } else {
-      // pro / promax subscription: flip tierMirror directly. subscriptionStateMachine
-      // transitions are async follow-ons via pendingStateMachineTransition flag.
-      await updateDoc(doc(db, 'users', uid), {
-        tierMirror: plan,
-        tierUpdatedAt: serverTimestamp(),
-      }).catch(async () => {
-        await setDoc(doc(db, 'users', uid), { tierMirror: plan, tierUpdatedAt: serverTimestamp() }, { merge: true })
-      })
+      // pro / promax subscription: drive the state machine. Whether this is
+      // a fresh purchase or a renewal depends on the current sub state.
+      const cycle = (String(stored.cycle) as 'monthly' | 'annual')
+      try {
+        const sub = await readSubscription(uid)
+        const isRenewal =
+          (sub.plan === plan) &&
+          (sub.state === 'pro_monthly' ||
+           sub.state === 'pro_annual' ||
+           sub.state === 'promax_monthly' ||
+           sub.state === 'promax_annual')
+        await applyTransition(uid, sub.state, sub.state, isRenewal ? 'renew_success' : 'purchase', {
+          txnid,
+          plan: plan as 'pro' | 'promax',
+          billingCycle: cycle,
+          amount: Number(stored.priceUsd ?? 0),
+          currency: String(stored.currency ?? 'USD'),
+        })
+      } catch (err) {
+        console.error('[paymentController.webhook] state machine transition failed', err)
+      }
     }
 
     await updateDoc(ref, {
       state: 'paid',
       payuStatus: status,
       mihpayid: payload.mihpayid ?? null,
-      pendingStateMachineTransition: plan !== 'topup_2m',
+      pendingStateMachineTransition: false,
       paidAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
+
+    // Fire-and-forget invoice queue. Never blocks the webhook ack.
+    queueInvoice({ jobId: txnid, kind: 'render_invoice', invoiceId: txnid }).catch((err) =>
+      console.warn('[paymentController.webhook] queueInvoice failed', err),
+    )
     console.log('[paymentController] payment_success', { txnid, uid, plan })
 
     res.status(200).json({ ok: true, duplicate: false, state: 'paid' })

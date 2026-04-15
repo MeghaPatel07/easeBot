@@ -410,6 +410,18 @@ export async function handleGetUsage(req: Request, res: Response): Promise<void>
 }
 
 // ---------------------------------------------------------------------------
+// GET /api/account/invoices — list of user's invoices for BillingSettings.
+// ---------------------------------------------------------------------------
+export async function handleGetInvoices(req: Request, res: Response): Promise<void> {
+  const uid = req.user!.uid
+  try {
+    const { getInvoicesForUser } = await import('../services/invoiceService')
+    const invoices = await getInvoicesForUser(uid)
+    res.status(200).json({ invoices })
+  } catch (err) { serverError(res, err) }
+}
+
+// ---------------------------------------------------------------------------
 // POST /api/account/plan/switch
 // Sets the user's plan tier directly (no third-party billing). Until a real
 // payment processor lands, this is the source of truth for the user's plan.

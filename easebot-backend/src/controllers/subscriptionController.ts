@@ -1,85 +1,173 @@
 /**
  * subscriptionController — user-facing subscription mutations.
  *
- * Sprint 1 SKELETON: handler signatures only. Sprint 3 (PAY-013..PAY-015)
- * wires these to `/api/payment/subscription/*` routes and calls into
- * subscriptionStateMachine.applyTransition.
- *
- * Route binding lives in `routes/payment.ts`, which this file does NOT
- * touch in Sprint 1 — that's Sprint 2/3 wiring.
- *
- * Grounded in: .orchestrator/specs/payu-contract.md §1-§2,
- *              .orchestrator/specs/subscription-state.md §3.
+ * Sprint 3: real implementation. All writes go through
+ * subscriptionStateMachine.applyTransition (idempotent per clientRequestId).
  */
 
 import type { Request, Response, NextFunction } from 'express'
+import {
+  applyTransition,
+  readSubscription,
+  computeUpgradeCredit,
+} from '../services/subscriptionStateMachine'
 
-const NOT_IMPLEMENTED = 'not_implemented_sprint_3'
+function requireUid(req: Request, res: Response): string | null {
+  const uid = req.user?.uid
+  if (!uid) {
+    res.status(401).json({ error: 'auth_required' })
+    return null
+  }
+  return uid
+}
 
-/**
- * POST /api/payment/subscription/cancel — mark the current sub as
- * `cancel_at_period_end = true`. No refund, no immediate drop.
- * Maps to the `cancel` state-machine trigger.
- */
 export async function cancel(
-  _req: Request,
-  _res: Response,
+  req: Request,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
-  next(new Error(NOT_IMPLEMENTED))
+  try {
+    const uid = requireUid(req, res)
+    if (!uid) return
+    const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
+    if (!clientRequestId) { res.status(400).json({ error: 'missing_clientRequestId' }); return }
+    const sub = await readSubscription(uid)
+    const result = await applyTransition(uid, sub.state, sub.state, 'cancel', {
+      clientRequestId,
+    })
+    res.status(200).json({ state: result.state, applied: result.applied })
+  } catch (err) {
+    console.error('[subscriptionController.cancel]', err)
+    next(err)
+  }
 }
 
-/**
- * POST /api/payment/subscription/reactivate — clear the cancel flag and
- * (if present) the `downgradeToOnPeriodEnd` side field. Returns the user
- * to the underlying paid state. Maps to the `reactivate` trigger.
- */
 export async function reactivate(
-  _req: Request,
-  _res: Response,
+  req: Request,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
-  next(new Error(NOT_IMPLEMENTED))
+  try {
+    const uid = requireUid(req, res)
+    if (!uid) return
+    const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
+    if (!clientRequestId) { res.status(400).json({ error: 'missing_clientRequestId' }); return }
+    const sub = await readSubscription(uid)
+    const result = await applyTransition(uid, sub.state, sub.state, 'reactivate', {
+      clientRequestId,
+    })
+    res.status(200).json({ state: result.state, applied: result.applied })
+  } catch (err) {
+    console.error('[subscriptionController.reactivate]', err)
+    next(err)
+  }
 }
 
-/**
- * POST /api/payment/subscription/upgrade — Pro → Pro Max.
- * Computes proration credit per subscription-state.md §6. Returns either a
- * PayU redirect payload (charge > 0) or a "free upgrade" confirmation
- * (charge == 0). Maps to the `upgrade` trigger.
- */
 export async function upgrade(
-  _req: Request,
-  _res: Response,
+  req: Request,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
-  next(new Error(NOT_IMPLEMENTED))
+  try {
+    const uid = requireUid(req, res)
+    if (!uid) return
+    const { billingCycle } = (req.body ?? {}) as {
+      billingCycle?: 'monthly' | 'annual'
+    }
+    const cycle = billingCycle === 'annual' ? 'annual' : 'monthly'
+    const sub = await readSubscription(uid)
+    if (
+      sub.state !== 'pro_monthly' &&
+      sub.state !== 'pro_annual' &&
+      sub.state !== 'pro_cancel_scheduled'
+    ) {
+      res.status(409).json({ error: 'not_upgradable', currentState: sub.state })
+      return
+    }
+    if (!sub.currentPeriodStart || !sub.currentPeriodEnd) {
+      res.status(409).json({ error: 'no_active_period' }); return
+    }
+    const currentPlanUsd =
+      sub.billingCycle === 'annual' ? 119 : 14.99
+    const targetPlanUsd = cycle === 'annual' ? 299 : 39
+    const credit = computeUpgradeCredit({
+      currentPlanUsd,
+      targetPlanUsd,
+      currentPeriodStart: sub.currentPeriodStart.toDate(),
+      currentPeriodEnd: sub.currentPeriodEnd.toDate(),
+      existingForwardCreditUsd: sub.forwardCreditUsd ?? 0,
+    })
+    // If chargeNow == 0 → free upgrade: apply transition immediately with
+    // synthetic txnid. Otherwise return the credit preview; the frontend
+    // redirects through /payment/initiate with `upgradeCredit` applied.
+    if (credit.chargeNowUsd === 0) {
+      const synth = `UPG-${Date.now()}-${uid.slice(0, 6)}`
+      const result = await applyTransition(uid, sub.state, sub.state, 'upgrade', {
+        txnid: synth,
+        plan: 'promax',
+        billingCycle: cycle,
+        creditApplied: credit.newForwardCreditUsd,
+      })
+      res.status(200).json({
+        freeUpgrade: true,
+        state: result.state,
+        applied: result.applied,
+        credit,
+      })
+      return
+    }
+    res.status(200).json({ freeUpgrade: false, credit, targetPlan: 'promax', cycle })
+  } catch (err) {
+    console.error('[subscriptionController.upgrade]', err)
+    next(err)
+  }
 }
 
-/**
- * POST /api/payment/subscription/downgrade — schedule Pro Max → Pro at
- * period end. NEVER immediate. Sets `downgradeToOnPeriodEnd='pro_monthly'`
- * on the current sub doc. Maps to the `downgrade_schedule` trigger.
- */
 export async function downgrade(
-  _req: Request,
-  _res: Response,
+  req: Request,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
-  next(new Error(NOT_IMPLEMENTED))
+  try {
+    const uid = requireUid(req, res)
+    if (!uid) return
+    const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
+    if (!clientRequestId) { res.status(400).json({ error: 'missing_clientRequestId' }); return }
+    const sub = await readSubscription(uid)
+    const result = await applyTransition(uid, sub.state, sub.state, 'downgrade_schedule', {
+      clientRequestId,
+      targetPlan: 'pro',
+    })
+    res.status(200).json({ state: result.state, applied: result.applied })
+  } catch (err) {
+    console.error('[subscriptionController.downgrade]', err)
+    next(err)
+  }
 }
 
-/**
- * GET /api/account/subscription — read-only view of the current
- * subscription doc plus derived fields (days remaining, next renewal, etc).
- *
- * Note: the URL prefix will likely live under /account, not /payment. Sprint
- * 2 router wiring makes the final call — this file only exports the handler.
- */
 export async function getCurrentSubscription(
-  _req: Request,
-  _res: Response,
+  req: Request,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
-  next(new Error(NOT_IMPLEMENTED))
+  try {
+    const uid = requireUid(req, res)
+    if (!uid) return
+    const sub = await readSubscription(uid)
+    res.status(200).json({
+      state: sub.state,
+      plan: sub.plan,
+      billingCycle: sub.billingCycle,
+      currentPeriodStart: sub.currentPeriodStart?.toDate().toISOString() ?? null,
+      currentPeriodEnd: sub.currentPeriodEnd?.toDate().toISOString() ?? null,
+      nextRenewalAt: sub.nextRenewalAt?.toDate().toISOString() ?? null,
+      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+      downgradeToOnPeriodEnd: sub.downgradeToOnPeriodEnd,
+      forwardCreditUsd: sub.forwardCreditUsd,
+      status: sub.status,
+    })
+  } catch (err) {
+    console.error('[subscriptionController.getCurrent]', err)
+    next(err)
+  }
 }

@@ -3,6 +3,7 @@ import http from 'http'
 import { app } from './app'
 import { startReminderScheduler, stopReminderScheduler } from './services/reminderScheduler'
 import { startGuestCleanupCron, stopGuestCleanupCron } from './services/guestCleanupCron'
+import { startSubscriptionScheduler, stopSubscriptionScheduler } from './services/subscriptionScheduler'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = '0.0.0.0'
@@ -28,6 +29,11 @@ server.listen(PORT, HOST, () => {
   } else {
     console.log('[easebot] Guest cleanup cron disabled via env')
   }
+  if (process.env.ENABLE_SUBSCRIPTION_SCHEDULER !== 'false') {
+    startSubscriptionScheduler()
+  } else {
+    console.log('[easebot] Subscription scheduler disabled via env')
+  }
 })
 
 // --------------- Graceful Shutdown ---------------
@@ -38,6 +44,7 @@ function gracefulShutdown(signal: string): void {
   console.log(`[easebot] Received ${signal}. Starting graceful shutdown…`)
   stopReminderScheduler()
   stopGuestCleanupCron()
+  stopSubscriptionScheduler()
 
   // Stop accepting new connections
   server.close(() => {

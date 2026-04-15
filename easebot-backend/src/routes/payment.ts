@@ -6,12 +6,32 @@ import {
   handleWebhook,
   verify,
 } from '../controllers/paymentController'
+import {
+  cancel,
+  reactivate,
+  upgrade,
+  downgrade,
+  getCurrentSubscription,
+} from '../controllers/subscriptionController'
 
 const router = Router()
 
 // Authenticated: user-initiated purchase + verify.
 router.post('/initiate', requireAuth, initiate)
 router.get ('/verify',   requireAuth, verify)
+
+// Subscription mutations.
+router.post('/subscription/cancel',     requireAuth, cancel)
+router.post('/subscription/reactivate', requireAuth, reactivate)
+router.post('/subscription/upgrade',    requireAuth, upgrade)
+router.post('/subscription/downgrade',  requireAuth, downgrade)
+router.get ('/subscription/current',    requireAuth, getCurrentSubscription)
+
+// Top-up alias — hits the standard initiate flow with plan=topup_2m.
+router.post('/topup', requireAuth, (req, res, next) => {
+  req.body = { ...(req.body ?? {}), plan: 'topup_2m', cycle: 'once' }
+  return initiate(req, res, next)
+})
 
 // Unauthenticated (PayU is the HTTP client). Hash verification is the gate.
 router.post('/return',  handleReturn)
