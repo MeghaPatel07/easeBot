@@ -118,7 +118,7 @@ export function DataPrivacyTab() {
       description="Control how WeddingEase stores, uses, and shares your information."
     >
       {/* Data training */}
-      {/* <Card className="border-border bg-card p-6 text-card-foreground">
+      {/* <Card className="p-6">
         <div className="mb-2">
           <h3 className="text-base font-semibold">Improve the model for everyone</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -144,7 +144,7 @@ export function DataPrivacyTab() {
       </Card> */}
 
       {/* Export data */}
-      {/* <Card className="border-border bg-card p-6 text-card-foreground">
+      {/* <Card className="p-6">
         <div className="mb-3">
           <h3 className="text-base font-semibold">Export your data</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -165,7 +165,7 @@ export function DataPrivacyTab() {
       </Card> */}
 
       {/* Clear chat history */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-3">
           <h3 className="text-base font-semibold">Clear chat history</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ export function DataPrivacyTab() {
       </Card>
 
       {/* Cookie preferences */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-2 flex items-start gap-3">
           <Cookie aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground" />
           <div>
@@ -222,7 +222,7 @@ export function DataPrivacyTab() {
       </Card>
 
       {/* Your rights */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-2 flex items-start gap-3">
           <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground" />
           <div>

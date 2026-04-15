@@ -169,7 +169,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 <MoreHorizontal className="h-3 w-3" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-40 bg-[#3A0E20]/95 backdrop-blur-sm border-white/10 text-white/80" align="end">
+            <DropdownMenuContent className="w-40 bg-[#0F0D0C]/95 backdrop-blur-sm border-white/10 text-white/80" align="end">
               <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => onPinThread(thread.id, !thread.pinned)}>
                 {thread.pinned ? <PinOff className="mr-2 h-3.5 w-3.5" /> : <Pin className="mr-2 h-3.5 w-3.5" />}
                 {thread.pinned ? 'Unpin' : 'Pin'}
@@ -239,7 +239,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     <>
       {tagPickerModal}
       <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-['Lato',sans-serif] ${isOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-[#C6944A]/15 backdrop-blur-2xl bg-white/[0.04] overflow-hidden">
+        <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-[#A17A63]/15 backdrop-blur-2xl bg-white/[0.04] overflow-hidden">
 
           {/* Top bar: close + search + new chat */}
           <div className="flex items-center justify-between px-3 pt-3 pb-1 flex-shrink-0">
@@ -287,9 +287,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     <button
                       key={view}
                       onClick={() => onSetSidebarView(view)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase ${isActive ? 'bg-white/[0.1] text-[#C6944A] font-medium' : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]'}`}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase ${isActive ? 'bg-white/[0.1] text-[#A17A63] font-medium' : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]'}`}
                     >
-                      <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-[#C6944A]' : 'text-white/35'}`} />
+                      <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-[#A17A63]' : 'text-white/35'}`} />
                       <span>{label}</span>
                       {badge > 0 && (
                         <span className={`ml-auto text-2xs rounded-full px-1.5 py-0.5 font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-primary/15 text-primary/80'}`}>{badge}</span>
@@ -402,7 +402,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   <HelpCircle className="h-4 w-4 flex-shrink-0" />
                   <span>help</span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl bg-gradient-to-r from-[#C6944A]/12 to-transparent border border-[#C6944A]/20 hover:border-[#C6944A]/35 transition-all duration-200 text-xs text-white/70" onClick={onShowSignIn}>
+                <button className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl bg-gradient-to-r from-[#A17A63]/12 to-transparent border border-[#A17A63]/20 hover:border-[#A17A63]/35 transition-all duration-200 text-xs text-white/70" onClick={onShowSignIn}>
                   <LogIn className="h-4 w-4 text-primary flex-shrink-0" />
                   <span>sign in</span>
                 </button>

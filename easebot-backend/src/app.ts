@@ -54,6 +54,9 @@ app.use(
 )
 
 app.use(express.json({ limit: '20mb' }))
+// PayU posts back to /api/payment/return and /webhook as application/x-www-form-urlencoded.
+// Without this parser those bodies arrive empty and handleReturn falls through to bad_payload.
+app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
 // --- Input sanitization & prompt injection guard ---
 app.use(inputSanitizer)

@@ -5,14 +5,15 @@
  * in-process cache per target currency. Single consumer: paymentController.
  *
  * Env:
- *   EXCHANGE_RATE_API_KEY (required in prod; absence triggers stub fallback)
+ *   EXCHANGE_RATE_API_KEY (REQUIRED; absence throws `rate_api_unavailable`
+ *     which paymentController maps to HTTP 503 per spec LH-33/UC-42)
  *   EXCHANGE_RATE_API_URL (optional override, defaults to v6.exchangerate-api.com)
  */
 
 export interface LockedRate {
   rate: number
   fetchedAt: string
-  source: 'live' | 'cache' | 'stub'
+  source: 'live' | 'cache'
 }
 
 const DEFAULT_BASE_URL = 'https://v6.exchangerate-api.com/v6'
@@ -29,7 +30,7 @@ function cacheKey(from: string, to: string): string {
 }
 
 function assertSane(rate: number): void {
-  if (!Number.isFinite(rate) || rate <= 0 || rate >= 10_000) {
+  if (!Number.isFinite(rate) || rate <= 0 || rate > 10_000) {
     throw new Error(`exchange rate out of sane range: ${rate}`)
   }
 }
@@ -64,8 +65,9 @@ export async function fetchLiveRate(
   const apiKey = process.env.EXCHANGE_RATE_API_KEY
   const to = toCurrency.toUpperCase()
   if (!apiKey) {
-    console.warn('[exchangeRateService] EXCHANGE_RATE_API_KEY unset, falling back to 1.0 stub')
-    return { rate: 1.0, fetchedAt: new Date().toISOString(), source: 'stub' }
+    const err = new Error('rate_api_unavailable') as Error & { code?: string }
+    err.code = 'rate_api_unavailable'
+    throw err
   }
   const base = process.env.EXCHANGE_RATE_API_URL || DEFAULT_BASE_URL
   const url = `${base}/${apiKey}/pair/${fromCurrency}/${to}`

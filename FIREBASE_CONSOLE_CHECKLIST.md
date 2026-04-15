@@ -53,6 +53,18 @@ Composite indexes are needed where queries order+filter on multiple fields. Fire
 
 **🟡 Action:** Sprint 3 Backend agent will print the exact index URLs in QA logs. Click each, hit "Create index", wait for build. Index build can take minutes on a warm collection.
 
+### 2.1 🔴 Subscription scheduler composite index (REQUIRED)
+
+The subscription scheduler tick (`subscriptionStateMachine.scanForPeriodEnd`) runs a `collectionGroup('subscription')` query filtering `where state in ['pro_cancel_scheduled', 'promax_cancel_scheduled'] AND where currentPeriodEnd <= now`. Firestore will reject this at runtime until a composite index exists. Create it in the console:
+
+- **Collection group:** `subscription`
+- **Fields:**
+  - `state` — Ascending
+  - `currentPeriodEnd` — Ascending
+- **Query scope:** Collection group
+
+Without this index every scheduler tick will throw a failed-precondition error and period-end downgrades (ProMax→Pro) and cancellations will silently stop advancing. Console path: Firestore → Indexes → Composite → Add index.
+
 ---
 
 ## 3. Firestore — TTL Policies

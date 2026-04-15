@@ -191,7 +191,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="Vendor name *"
-            className="w-full text-sm bg-white border border-primary/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
           />
           <input
             value={newProductName}
@@ -203,7 +203,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="Product name *"
-            className="w-full text-sm bg-white border border-primary/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
           />
           <div className="flex gap-1.5">
             <input
@@ -219,7 +219,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               type="number"
               step="0.01"
               min="0"
-              className="w-20 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+              className="w-20 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
             />
             <input
               value={newProductLink}
@@ -231,7 +231,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                 }
               }}
               placeholder="Product URL (optional)"
-              className="flex-1 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+              className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
             />
           </div>
           <button
@@ -278,7 +278,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                           href={product.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-0.5 text-2xs text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+                          className="flex items-center gap-0.5 text-2xs text-[#A17A63] hover:text-[#D6C1C7] hover:underline transition-colors"
                         >
                           <ExternalLink className="h-2.5 w-2.5" />
                           Link
@@ -350,14 +350,14 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
             <p className="text-base font-bold text-primary">{totalItems}</p>
             <p className="text-3xs text-primary-muted font-medium">Total Items</p>
           </div>
-          <div className="min-w-0 rounded-xl bg-amber-50 border border-amber-100 px-2 py-1.5 text-center">
-            <p className="text-base font-bold text-amber-600">
+          <div className="min-w-0 rounded-xl bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 text-center">
+            <p className="text-base font-bold text-amber-300">
               ${totalEstimatedCost.toFixed(2)}
             </p>
             <p className="text-3xs text-amber-500 font-medium">Est. Cost</p>
           </div>
-          <div className="min-w-0 rounded-xl bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-center">
-            <p className="text-base font-bold text-emerald-600">{totalPurchased}</p>
+          <div className="min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 text-center">
+            <p className="text-base font-bold text-emerald-300">{totalPurchased}</p>
             <p className="text-3xs text-emerald-500 font-medium">Purchased</p>
           </div>
         </div>
@@ -378,7 +378,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="List title, e.g. Wedding Decor"
-            className="flex-1 text-sm bg-white border border-primary/30 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-white/30"
+            className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-white/30"
           />
           <button
             onClick={handleCreateList}
@@ -488,7 +488,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             }
                           }}
                           placeholder="Item name *"
-                          className="w-full text-sm bg-white border border-primary/20 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                          className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                         />
                         <div className="flex gap-1.5">
                           <input
@@ -501,7 +501,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             type="number"
                             step="0.01"
                             min="0"
-                            className="w-20 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                            className="w-20 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                           />
                           <input
                             value={newItemLink}
@@ -510,7 +510,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                               if (e.key === 'Enter') handleAddItem(list.id)
                             }}
                             placeholder="Product URL (optional)"
-                            className="flex-1 text-xs bg-white border border-primary/20 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                            className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                           />
                         </div>
                         <div className="flex items-center gap-1.5 justify-end">
@@ -556,7 +556,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                           key={item.id}
                           className={`flex items-start gap-2 p-2 rounded-xl border transition-all group/item ${
                             item.purchased
-                              ? 'bg-emerald-50/50 border-emerald-100'
+                              ? 'bg-emerald-500/5 border-emerald-500/20'
                               : 'bg-white/[0.06] border-white/[0.06] hover:border-primary/20'
                           }`}
                         >
@@ -599,7 +599,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={e => e.stopPropagation()}
-                                  className="flex items-center gap-0.5 text-2xs text-blue-500 hover:text-blue-700 hover:underline transition-colors"
+                                  className="flex items-center gap-0.5 text-2xs text-[#A17A63] hover:text-[#D6C1C7] hover:underline transition-colors"
                                 >
                                   <ExternalLink className="h-2.5 w-2.5" />
                                   Link

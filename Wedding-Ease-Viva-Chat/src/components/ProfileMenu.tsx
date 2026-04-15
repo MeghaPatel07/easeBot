@@ -63,14 +63,14 @@ function initialsFor(name?: string | null): string {
     .toUpperCase()
 }
 
-function planLabel(tier: 'free' | 'pro' | 'premium' | undefined): string {
+function planLabel(tier: 'free' | 'pro' | 'promax' | undefined): string {
   if (tier === 'pro') return 'Pro'
-  if (tier === 'premium') return 'Premium'
+  if (tier === 'promax') return 'Pro Max'
   return 'Free'
 }
 
-function planBadgeClass(tier: 'free' | 'pro' | 'premium' | undefined): string {
-  if (tier === 'pro' || tier === 'premium') {
+function planBadgeClass(tier: 'free' | 'pro' | 'promax' | undefined): string {
+  if (tier === 'pro' || tier === 'promax') {
     return 'bg-primary/15 text-primary border-primary/30'
   }
   return 'bg-muted text-muted-foreground border-border'
@@ -170,31 +170,7 @@ export function ProfileMenu({
           </div>
         </div>
 
-        {showMeter && (
-          <div className="mt-3">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Messages
-              </span>
-              <span className="text-[11px] font-medium text-foreground">
-                {messagesUsed}/{messagesAllowed}
-              </span>
-            </div>
-            <div
-              className="h-1.5 w-full rounded-full bg-muted overflow-hidden"
-              role="progressbar"
-              aria-valuenow={meterPct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label="Monthly message usage"
-            >
-              <div
-                className="h-full bg-primary transition-all"
-                style={{ width: `${meterPct}%` }}
-              />
-            </div>
-          </div>
-        )}
+
       </DropdownMenuLabel>
 
       <DropdownMenuSeparator />

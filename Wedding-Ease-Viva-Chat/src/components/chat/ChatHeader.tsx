@@ -85,7 +85,7 @@ export const ProfileIcon: React.FC<{
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 text-white/80" align="end" forceMount>
+      <DropdownMenuContent className="w-64 bg-[#0F0D0C]/95 backdrop-blur-sm border border-white/10 text-white/80" align="end" forceMount>
         {/* Sprint 1: dropdown body extracted into <ProfileMenu /> (PRD §5).
             Trigger button + props/callbacks above are intentionally untouched. */}
         <ProfileMenu
@@ -125,7 +125,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 shadow-lg text-white/80">
+            <DropdownMenuContent align="end" className="w-44 bg-[#0F0D0C]/95 backdrop-blur-sm border border-white/10 shadow-lg text-white/80">
               <DropdownMenuLabel className="text-3xs text-white/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {SUPPORTED_LANGUAGES.map(({ code, label }) => (

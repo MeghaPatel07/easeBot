@@ -111,7 +111,26 @@
       "Bash(mkdir -p ~/.secrets)",
       "Bash(mv ~/Downloads/wedding-ease-dc99a-firebase-adminsdk-hp8cd-f0f3994dce.json ~/.secrets/easebot-sa.json)",
       "Bash(chmod 600 ~/.secrets/easebot-sa.json)",
-      "Read(//Users/krish/.secrets/**)"
+      "Read(//Users/krish/.secrets/**)",
+      "Bash(awk '/^## 8\\\\./,/^## 9\\\\./' /Users/krish/Desktop/easebot/PRICING_PRD.md)",
+      "Bash(git worktree:*)",
+      "Bash(git branch:*)",
+      "Bash(npx --prefix easebot-backend tsc -p easebot-backend/tsconfig.json --noEmit)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git commit Wedding-Ease-Viva-Chat -m ':*)",
+      "Bash(/usr/bin/env npx:*)",
+      "Bash(tee /tmp/tsc.out)",
+      "Bash(/Users/krish/Desktop/easebot/easebot-backend/node_modules/.bin/tsc --noEmit -p /Users/krish/Desktop/easebot/easebot-backend)",
+      "Bash(/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/node_modules/.bin/tsc --noEmit -p /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/tsconfig.json)",
+      "mcp__claude_ai_Figma__get_metadata",
+      "Bash(npx --yes tsc --noEmit)",
+      "Bash(echo \"done $?\")",
+      "Bash(echo \"exit $?\")",
+      "Bash(lsof:*)",
+      "Bash(osascript /tmp/check_layout.applescript)",
+      "Bash(open -a Safari \"http://localhost:8080/chat/KDIAY4NMjjfVaHxfcPmE\")",
+      "Bash(screencapture -x /tmp/chat_view.png)"
     ]
   }
 }

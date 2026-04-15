@@ -77,7 +77,7 @@ export function AboutTab() {
       description="Version information and links to legal, status, and help resources."
     >
       {/* Version + environment */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold">WeddingEase</h3>
@@ -97,7 +97,7 @@ export function AboutTab() {
       </Card>
 
       {/* Links */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Resources</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -112,7 +112,7 @@ export function AboutTab() {
       </Card>
 
       {/* Credit */}
-      <Card className="border-border bg-card p-6 text-center text-card-foreground">
+      <Card className="p-6 text-center">
         <Separator className="mb-4 bg-border" />
         <p className="text-xs text-muted-foreground">Built with care by WeddingEase.</p>
       </Card>

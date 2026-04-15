@@ -159,7 +159,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   };
 
   return (
-    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-6 space-y-6 noise-overlay relative">
+    <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-6 space-y-6 noise-overlay relative">
       {/* Load earlier messages */}
       {hasMoreMessages && (
         <div className="flex justify-center">
@@ -333,7 +333,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
             <div className="max-w-[calc(100%-2rem)] sm:max-w-sm md:max-w-lg lg:max-w-xl group msg-enter">
               {message.mode && (
                 <div className="mb-1.5 flex items-center gap-1.5">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D4A853] to-[#B07D35] flex items-center justify-center text-white text-2xs italic font-headline shadow-sm bot-avatar">E</div>
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#B89382] to-[#8A6651] flex items-center justify-center text-white text-2xs italic font-headline shadow-sm bot-avatar">E</div>
                   {(() => {
                     const cfg = modeConfig(message.mode);
                     const Icon = cfg.icon;
@@ -346,7 +346,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-[#F5EFE5]/10 backdrop-blur-sm p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-lg shadow-black/8 border border-[#C6944A]/10 text-white">
+              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-white prose-headings:text-white prose-strong:text-white prose-em:text-white prose-li:text-white prose-p:text-white prose-blockquote:text-white prose-code:text-white">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -405,11 +405,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                         return (
                           <li className="list-none mb-3 not-prose">
-                            <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-[#E8D9C0]/60 bg-white/80 shadow-sm hover:shadow-md hover:border-[#C6944A]/40 transition-all duration-200">
+                            <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.37)] hover:bg-white/[0.06] hover:border-[#A17A63]/40 transition-all duration-200">
                               <a href={href} target="_blank" rel="noopener noreferrer" className="block no-underline flex-1 flex flex-row gap-3 items-center">
                                 <img src={imageUrl} alt={typeof title === 'string' ? title : ''} className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0" />
                                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                  <span className="text-sm font-semibold text-[#B07D35] leading-snug line-clamp-1">{title}</span>
+                                  <span className="text-sm font-semibold text-[#A17A63] leading-snug line-clamp-1">{title}</span>
                                   {description && <span className="text-xs text-[#8A7E72] leading-relaxed line-clamp-2">{description}</span>}
                                 </div>
                               </a>
@@ -453,7 +453,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         />
                         <div className="absolute inset-0 bg-black/20 flex items-end justify-center pb-4">
                           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm">
-                            <Sparkles className="h-3.5 w-3.5 text-[#C6944A] animate-pulse" />
+                            <Sparkles className="h-3.5 w-3.5 text-[#A17A63] animate-pulse" />
                             <p className="text-xs text-white/80 font-medium">refining image...</p>
                           </div>
                         </div>
@@ -463,14 +463,14 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
-                            <Sparkles className="h-5 w-5 text-[#C6944A]/50 animate-pulse" />
+                            <Sparkles className="h-5 w-5 text-[#A17A63]/50 animate-pulse" />
                           </div>
                           <div className="space-y-1.5 text-center">
                             <p className="text-xs text-white/40 font-medium">generating image...</p>
                             <p className="text-3xs text-white/25">this may take a few seconds</p>
                           </div>
                           <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                            <div className="h-full bg-[#C6944A]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                            <div className="h-full bg-[#A17A63]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
                           </div>
                         </div>
                       </>
@@ -550,7 +550,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="mt-2 mb-1 h-7 text-xs gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+                  className="mt-2 mb-1 h-7 text-xs gap-1.5 border-white/15 text-[#D6C1C7] hover:bg-white/[0.06]"
                   onClick={() => onConvertToTable(message)}
                 >
                   <CheckSquare className="h-3 w-3" />
@@ -682,20 +682,20 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-[#C6944A]/50 animate-pulse" />
+                      <Sparkles className="h-5 w-5 text-[#A17A63]/50 animate-pulse" />
                     </div>
                     <div className="space-y-1.5 text-center">
                       <p className="text-xs text-white/40 font-medium">viva is generating...</p>
                       <p className="text-3xs text-white/25">creating your image</p>
                     </div>
                     <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                      <div className="h-full bg-[#C6944A]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                      <div className="h-full bg-[#A17A63]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className={`${cfg.pill} bg-[#F5EFE5]/92 backdrop-blur-sm rounded-2xl rounded-tl-sm px-5 py-3 border border-[#C6944A]/10 shadow-lg shadow-black/8 msg-enter`}>
+              <div className={`${cfg.pill} bg-white/[0.03] backdrop-blur-md rounded-2xl rounded-tl-sm px-5 py-3 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] text-[#D9C3C3] msg-enter`}>
                 <div className={`flex items-center gap-2 `}>
                   <span className="text-caption italic">thinking</span>
                   {[0, 0.15, 0.3].map((d, i) => <div key={i} className="w-1.5 h-1.5 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: `${d}s` }} />)}

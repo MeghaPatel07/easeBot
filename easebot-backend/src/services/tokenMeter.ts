@@ -144,10 +144,18 @@ function currentUtcYearMonth(d: Date = new Date()): string {
   return `${yyyy}-${mm}`
 }
 
-function nextUtcMidnight(d: Date = new Date()): Date {
-  const next = new Date(d)
-  next.setUTCHours(24, 0, 0, 0)
-  return next
+function nextUtcMidnight(now: Date = new Date()): Date {
+  return new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + 1,
+      0,
+      0,
+      0,
+      0,
+    ),
+  )
 }
 
 function endOfUtcMonth(ym: string): Date {
@@ -342,6 +350,19 @@ export async function chargeTokens(
 }
 
 async function chargeUser(subject: Subject, raw: RawCost): Promise<ChargeResult> {
+  // P1-1: fail-closed guard against unknown tiers. If something upstream
+  // corrupted the tier cache or a new tier lands before the table is
+  // updated, we would otherwise read `undefined` from MONTHLY_CAPS and
+  // silently treat the user as having 0 tokens (or worse, NaN arithmetic).
+  if (!(subject.tier in MONTHLY_CAPS) || !(subject.tier in DAILY_CAPS)) {
+    console.warn('[tokenMeter] unknown_tier for charge', {
+      uid: subject.id,
+      tier: subject.tier,
+      service: raw.kind,
+    })
+    return fail('unknown_tier', 0, 0, 0)
+  }
+
   const tokens = Math.max(0, rawToTokens(raw))
   if (tokens === 0) {
     console.log('[tokenMeter] charge=0, skipping ledger write', {
@@ -620,9 +641,17 @@ export async function addExtras(
   const monthKey = currentUtcYearMonth()
   const userRef = doc(db, 'users', uid)
   const monthRef = doc(db, 'users', uid, 'usage', monthKey)
+  // P1-2: permanent per-txn idempotency record. Sharded per uid, keyed by
+  // PayU txnid so replays (controller retry, webhook double-fire, resumed
+  // status poll) are a no-op regardless of how old the first run was.
+  const txnRef = doc(db, 'users', uid, 'extrasTxns', txnid)
 
   return runTransaction(db, async (tx) => {
-    const [userSnap, monthSnap] = await Promise.all([tx.get(userRef), tx.get(monthRef)])
+    const [userSnap, monthSnap, txnSnap] = await Promise.all([
+      tx.get(userRef),
+      tx.get(monthRef),
+      tx.get(txnRef),
+    ])
     const now = new Date()
     const nowTs = Timestamp.fromDate(now)
 
@@ -633,7 +662,13 @@ export async function addExtras(
     if (monthSnap.exists()) {
       month = monthSnap.data() as MonthDoc
     } else {
-      const tier = await getTier(uid)
+      // Read tier from the userSnap already loaded via tx.get() above —
+      // calling getTier() here would violate Firestore's "reads before writes,
+      // all via tx" rule (it does an external getDoc outside the transaction).
+      const tierFromMirror = (userSnap.data() as { tierMirror?: Tier } | undefined)?.tierMirror
+      const tier: Tier = (tierFromMirror && tierFromMirror in MONTHLY_CAPS)
+        ? tierFromMirror
+        : 'free'
       month = {
         tier,
         monthlyTokensUsed: 0,
@@ -646,8 +681,10 @@ export async function addExtras(
       }
     }
 
-    const lastTxnIds = month.lastTxnIds ?? []
-    if (lastTxnIds.includes(txnid)) {
+    // P1-2: month-scoped lookup replaces the fragile 20-slot lastTxnIds
+    // rolling window. If this exact txnid was already credited, return
+    // current balances unchanged.
+    if (txnSnap.exists()) {
       return {
         newExtrasBalance: currentExtras,
         extrasPurchasedThisMonth: month.extrasPurchasedThisMonth ?? 0,
@@ -660,9 +697,15 @@ export async function addExtras(
     const newExtras = currentExtras + tokens
     month.extrasPurchasedThisMonth = (month.extrasPurchasedThisMonth ?? 0) + 1
     month.updatedAt = nowTs
-    month.lastTxnIds = [...lastTxnIds.slice(-19), txnid]
 
     tx.set(monthRef, month, { merge: true })
+    // Mark the txnid as credited atomically with the balance update.
+    tx.set(txnRef, {
+      txnid,
+      tokens,
+      creditedAt: nowTs,
+      monthKey,
+    })
     if (userSnap.exists()) {
       tx.update(userRef, { extrasBucket: newExtras })
     } else {
@@ -700,8 +743,15 @@ export async function resetMonthly(uid: string, tier: Tier): Promise<void> {
           byService: zeroByService(),
           updatedAt: nowTs,
         }
+    // A tier change / new billing cycle grants a fresh slate: zero both the
+    // monthly pool AND the daily counter so the user can spend the new caps
+    // immediately. Without resetting daily, a free user who exhausts 50k and
+    // then upgrades to Pro would still be blocked until the next UTC midnight.
     base.monthlyTokensUsed = 0
     base.monthlyTokensCap = MONTHLY_CAPS[tier]
+    base.dailyTokensUsed = 0
+    base.dailyResetAt = Timestamp.fromDate(nextUtcMidnight(now))
+    base.byService = zeroByService()
     base.tier = tier
     base.updatedAt = nowTs
     tx.set(monthRef, base, { merge: true })

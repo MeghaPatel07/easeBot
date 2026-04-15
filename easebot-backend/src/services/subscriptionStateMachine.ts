@@ -16,15 +16,17 @@ import {
   runTransaction,
   Timestamp,
   getDoc,
-  collection,
+  setDoc,
+  collectionGroup,
   getDocs,
   query,
   where,
-  limit,
+  serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { resetMonthly } from './tokenMeter'
 import { emit } from '../lib/observability'
+import { queueInvoice } from './invoiceService'
 import type {
   SubscriptionState,
   SubscriptionTrigger,
@@ -363,10 +365,18 @@ function computeNext(
     }
 
     case 'period_end': {
-      if (
-        cur.state === 'pro_cancel_scheduled' &&
-        cur.downgradeToOnPeriodEnd !== 'pro_monthly'
-      ) {
+      // P2: fail-safe validation. An unexpected downgradeToOnPeriodEnd value
+      // is normalized to null (+ warn) rather than throwing, so the tick loop
+      // can still drop the user to `free` deterministically.
+      const dgToRaw = cur.downgradeToOnPeriodEnd
+      const dgTo: 'pro_monthly' | null =
+        dgToRaw === null || dgToRaw === 'pro_monthly' ? dgToRaw : null
+      if (dgToRaw !== null && dgToRaw !== 'pro_monthly') {
+        console.warn('[stateMachine] unexpected downgradeToOnPeriodEnd — resetting', {
+          value: dgToRaw,
+        })
+      }
+      if (cur.state === 'pro_cancel_scheduled') {
         return {
           ...freshFreeDoc(),
           forwardCreditUsd: cur.forwardCreditUsd,
@@ -374,7 +384,7 @@ function computeNext(
         }
       }
       if (cur.state === 'promax_cancel_scheduled') {
-        if (cur.downgradeToOnPeriodEnd === 'pro_monthly') {
+        if (dgTo === 'pro_monthly') {
           // Fresh 30d Pro period; forward credit applies to new invoice.
           const end = addDays(now, 30)
           return {
@@ -424,7 +434,7 @@ export async function applyTransition(
     if (histSnap.exists()) {
       const curSnap = await tx.get(currentRef)
       const cur = (curSnap.data() as SubscriptionDoc | undefined) ?? freshFreeDoc()
-      return { applied: false, state: cur.state, next: cur }
+      return { applied: false, state: cur.state, next: cur, prev: cur }
     }
 
     const curSnap = await tx.get(currentRef)
@@ -440,7 +450,7 @@ export async function applyTransition(
       sideEffectSummary: `${cur.state}→${next.state}`,
       ...(payload.txnid ? { txnid: payload.txnid } : {}),
     })
-    return { applied: true, state: next.state, next }
+    return { applied: true, state: next.state, next, prev: cur }
   })
 
   // Post-commit side effects (tier mirror flip + token meter reset).
@@ -478,9 +488,118 @@ export async function applyTransition(
         console.error('[stateMachine] resetMonthly failed', { uid, err }),
       )
     }
+
+    // P0-1 + P0-4: period_end ProMax→Pro downgrade invoice.
+    // Log credit consumption BEFORE the fire-and-forget queue so we still have
+    // an audit trail if queueInvoice throws. Invoice retry itself is the
+    // queueInvoice runner's responsibility (Agent D scope).
+    if (
+      trigger === 'period_end' &&
+      result.next.state === 'pro_monthly' &&
+      result.prev.state === 'promax_cancel_scheduled'
+    ) {
+      const periodStartIso =
+        result.next.currentPeriodStart?.toDate().toISOString() ??
+        new Date().toISOString()
+      const creditConsumed = Math.max(
+        0,
+        Math.round((result.prev.forwardCreditUsd - result.next.forwardCreditUsd) * 100) / 100,
+      )
+      const synthTxnid = `DGRD-${uid.slice(0, 6)}-${periodStartIso}`
+      emit('subscription.credit_consumed', {
+        uid,
+        amount: creditConsumed,
+        transitionId,
+        periodStart: periodStartIso,
+        newState: result.next.state,
+      })
+      void queueSyntheticInvoice({
+        uid,
+        txnid: synthTxnid,
+        priceUsd: PLAN_USD.pro.monthly,
+        creditAppliedUsd: creditConsumed,
+        productinfo: 'Easebot Pro — Monthly (scheduled downgrade)',
+        cycle: 'monthly',
+        plan: 'pro',
+      }).catch((err) => {
+        emit('subscription.invoice_queue_failed', {
+          uid,
+          transitionId,
+          txnid: synthTxnid,
+          error: err instanceof Error ? err.message : String(err),
+        })
+        console.warn('[stateMachine] queueInvoice (downgrade) failed', { uid, err })
+      })
+    }
   }
 
   return { applied: result.applied, state: result.state }
+}
+
+// ---------------------------------------------------------------------------
+// Synthetic invoice helper — used by period_end downgrades (P0-1) and
+// free-upgrade zero-charge transitions (P0-2 in subscriptionController).
+//
+// invoiceService.queueInvoice reads `payments/{txnid}`; so for synthetic
+// transitions with no PayU payment we first materialize a payments doc
+// mimicking the webhook shape, then call queueInvoice.
+// ---------------------------------------------------------------------------
+
+export interface SyntheticInvoiceArgs {
+  uid: string
+  txnid: string
+  priceUsd: number
+  creditAppliedUsd: number
+  productinfo: string
+  cycle: 'monthly' | 'annual'
+  plan: 'pro' | 'promax'
+}
+
+export async function queueSyntheticInvoice(args: SyntheticInvoiceArgs): Promise<void> {
+  const totalLocal = Math.max(
+    0,
+    Math.round((args.priceUsd - args.creditAppliedUsd) * 100) / 100,
+  )
+  // Try to hydrate buyer/billing fields from the user doc; optional.
+  let buyer: { firstname?: string; email?: string } | undefined
+  let billingAddress: Record<string, unknown> | undefined
+  try {
+    const userSnap = await getDoc(doc(db, 'users', args.uid))
+    if (userSnap.exists()) {
+      const u = userSnap.data() as Record<string, unknown>
+      const email = typeof u.email === 'string' ? u.email : undefined
+      const name =
+        (typeof u.displayName === 'string' && u.displayName) ||
+        (typeof u.firstname === 'string' && u.firstname) ||
+        undefined
+      if (email || name) buyer = { firstname: name, email }
+      if (u.billingAddress && typeof u.billingAddress === 'object') {
+        billingAddress = u.billingAddress as Record<string, unknown>
+      }
+    }
+  } catch (err) {
+    console.warn('[stateMachine] synthetic invoice user lookup failed', { uid: args.uid, err })
+  }
+
+  await setDoc(doc(db, 'payments', args.txnid), {
+    txnid: args.txnid,
+    uid: args.uid,
+    plan: args.plan,
+    cycle: args.cycle,
+    productinfo: args.productinfo,
+    priceUsd: args.priceUsd,
+    amountLocal: totalLocal,
+    currency: 'USD',
+    forwardCreditUsd: args.creditAppliedUsd,
+    state: 'paid',
+    synthetic: true,
+    ...(buyer ? { buyer } : {}),
+    ...(billingAddress ? { billingAddress } : {}),
+    createdAt: serverTimestamp(),
+    paidAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  await queueInvoice({ jobId: args.txnid, kind: 'render_invoice', invoiceId: args.txnid, uid: args.uid })
 }
 
 // ---------------------------------------------------------------------------
@@ -497,32 +616,34 @@ export async function readSubscription(uid: string): Promise<SubscriptionDoc> {
 // ---------------------------------------------------------------------------
 
 export async function scanForPeriodEnd(): Promise<number> {
-  // Firestore client SDK cannot do a collectionGroup query easily without
-  // indexes; instead, we scan recent `payments` docs for subs pending a
-  // period_end tick. As a simple heuristic we query the `users` collection
-  // and check each user's subscription/current doc — acceptable for low
-  // volume early-stage use. Production would replace with a scheduled job.
+  // P0-3: collectionGroup query keyed on state + currentPeriodEnd, which
+  // catches both cancel-to-free and ProMax→Pro downgrade scenarios.
+  // REQUIRES a composite index (Firebase console action — see
+  // FIREBASE_CONSOLE_CHECKLIST.md §2):
+  //   collection group: subscription
+  //   fields: state ASC, currentPeriodEnd ASC
   try {
-    const usersSnap = await getDocs(
-      query(collection(db, 'users'), where('tierMirror', 'in', ['pro', 'promax']), limit(200)),
+    const nowTs = Timestamp.now()
+    const q = query(
+      collectionGroup(db, 'subscription'),
+      where('state', 'in', ['pro_cancel_scheduled', 'promax_cancel_scheduled']),
+      where('currentPeriodEnd', '<=', nowTs),
     )
+    const snap = await getDocs(q)
     let ticked = 0
-    const now = Date.now()
-    for (const u of usersSnap.docs) {
+    for (const d of snap.docs) {
+      // path = users/{uid}/subscription/current
+      const segments = d.ref.path.split('/')
+      if (segments.length < 4 || segments[0] !== 'users' || d.id !== 'current') continue
+      const uid = segments[1]!
       try {
-        const sub = await readSubscription(u.id)
-        if (
-          (sub.state === 'pro_cancel_scheduled' || sub.state === 'promax_cancel_scheduled') &&
-          sub.currentPeriodEnd &&
-          sub.currentPeriodEnd.toMillis() <= now
-        ) {
-          await applyTransition(u.id, sub.state, 'free', 'period_end', {
-            scheduledFor: sub.currentPeriodEnd.toDate().toISOString(),
-          })
-          ticked += 1
-        }
+        const sub = d.data() as SubscriptionDoc
+        await applyTransition(uid, sub.state, 'free', 'period_end', {
+          scheduledFor: sub.currentPeriodEnd?.toDate().toISOString() ?? new Date().toISOString(),
+        })
+        ticked += 1
       } catch (err) {
-        console.warn('[stateMachine] period_end scan error', { uid: u.id, err })
+        console.warn('[stateMachine] period_end scan error', { uid, err })
       }
     }
     return ticked

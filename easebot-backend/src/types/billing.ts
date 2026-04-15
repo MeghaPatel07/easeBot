@@ -104,6 +104,7 @@ export type ChargeReason =
   | 'guest_limit_exceeded'
   | 'firestore_unreachable'
   | 'negative_raw_cost'
+  | 'unknown_tier'
 
 export interface ChargeResult {
   allowed: boolean

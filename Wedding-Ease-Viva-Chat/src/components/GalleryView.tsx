@@ -73,7 +73,7 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-        <Loader2 className="h-6 w-6 text-[#C6944A] animate-spin" />
+        <Loader2 className="h-6 w-6 text-[#A17A63] animate-spin" />
         <p className="text-sm text-white/50">Loading gallery...</p>
       </div>
     )
@@ -84,7 +84,7 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Sparkles className="h-5 w-5 text-[#C6944A]" />
+          <Sparkles className="h-5 w-5 text-[#A17A63]" />
         </div>
         <p className="text-sm text-white/50 max-w-xs leading-relaxed">
           No images yet. Ask Viva to generate some visuals.

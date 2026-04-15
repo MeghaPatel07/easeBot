@@ -224,7 +224,7 @@ export function PersonalizationTab() {
       description="Wedding details, active vibe, and how Easebot adapts to your big day."
     >
       {/* ── Wedding details ──────────────────────────────────────────────── */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-5">
           <h3 className="text-base font-semibold text-foreground">Wedding details</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -376,7 +376,7 @@ export function PersonalizationTab() {
       </Card>
 
       {/* ── Custom instructions (Sprint 4 — Kenji) ───────────────────────── */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-5">
           <h3 className="text-base font-semibold text-foreground">Custom instructions</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -455,7 +455,7 @@ export function PersonalizationTab() {
       </Card>
 
       {/* ── Active vibe ──────────────────────────────────────────────────── */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold text-foreground">Active vibe</h3>
@@ -511,7 +511,7 @@ export function PersonalizationTab() {
       </Card>
 
       {/* ── Wedding context summary ──────────────────────────────────────── */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <h3 className="text-base font-semibold text-foreground">
           Wedding context summary
         </h3>

@@ -15,8 +15,8 @@ type Category = (typeof CATEGORIES)[number]
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   Vendor: { bg: 'bg-primary/10', text: 'text-primary' },
   Decor:  { bg: 'bg-pink-100', text: 'text-pink-700' },
-  Tip:    { bg: 'bg-amber-100', text: 'text-amber-700' },
-  Recipe: { bg: 'bg-green-100', text: 'text-green-700' },
+  Tip:    { bg: 'bg-amber-500/15', text: 'text-amber-300' },
+  Recipe: { bg: 'bg-emerald-500/15', text: 'text-emerald-300' },
   Other:  { bg: 'bg-white/[0.06]', text: 'text-white/70' },
 }
 
@@ -156,7 +156,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
             onChange={e => setNewText(e.target.value)}
             placeholder="Paste or type the snippet to save..."
             rows={3}
-            className="w-full text-sm bg-white border border-white/10 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-white/30"
           />
           <div className="flex items-center gap-2">
             <Tag className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
@@ -184,7 +184,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
             value={newNote}
             onChange={e => setNewNote(e.target.value)}
             placeholder="Optional note..."
-            className="w-full text-sm bg-white border border-white/10 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-white/30"
           />
           <div className="flex items-center gap-2 justify-end">
             <button
@@ -312,7 +312,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                               className={`text-3xs px-1.5 py-0.5 rounded-full font-medium transition-all ${
                                 item.category === cat
                                   ? `${cs.bg} ${cs.text} ring-1 ring-offset-1`
-                                  : 'bg-white/[0.05] text-white/40 border border-white/10 hover:bg-white'
+                                  : 'bg-white/[0.05] text-white/40 border border-white/10 hover:bg-white/[0.08]'
                               }`}
                             >{cat}</button>
                           )
@@ -348,7 +348,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                           if (e.key === 'Escape') { setEditingNoteId(null); setNoteText('') }
                         }}
                         placeholder="Add a note..."
-                        className="flex-1 text-xs bg-white border border-blue-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-300 placeholder:text-white/30"
+                        className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                       />
                       <button
                         onClick={() => handleSaveNote(item.id)}

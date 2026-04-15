@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Receipt, AlertTriangle, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useUsageStats } from '@/hooks/useUsageStats'
@@ -6,8 +6,8 @@ import { useAccount } from '@/hooks/useAccount'
 import { UsageMeter, type UsageMeterState } from '@/components/pricing/UsageMeter'
 import { cn } from '@/lib/utils'
 import {
-  cancelSubscription,
   getInvoices,
+  downloadInvoicePdf,
   type InvoiceSummary,
 } from '@/services/paymentService'
 
@@ -15,59 +15,44 @@ function formatResetDate(iso?: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString(undefined, {
+  // Always display reset times in UTC so the value the server stores is the
+  // value the user sees — avoids "why did my monthly reset show tomorrow?"
+  // confusion for non-UTC browsers (e.g. IST = UTC+5:30).
+  return d.toLocaleString('en-GB', {
     month: 'short',
     day: 'numeric',
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
-  })
+    timeZone: 'UTC',
+    hour12: false,
+  }) + ' UTC'
 }
 
 export function BillingSettings({ className }: { className?: string }) {
   const { plan } = useAccount()
   const { snapshot, isLoading, isError, state: meterState, refetch } = useUsageStats()
-  const [cancelOpen, setCancelOpen] = useState(false)
-  const [cancelBusy, setCancelBusy] = useState(false)
-  const [cancelError, setCancelError] = useState<string | null>(null)
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
+  const [invoicesLoaded, setInvoicesLoaded] = useState(false)
+  const [invoicesLoading, setInvoicesLoading] = useState(false)
+  const [invoicesError, setInvoicesError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    getInvoices().then((rows) => { if (!cancelled) setInvoices(rows) }).catch(() => {})
-    return () => { cancelled = true }
-  }, [])
-
-  useEffect(() => {
-    if (!cancelOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !cancelBusy) setCancelOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [cancelOpen, cancelBusy])
-
-  const handleCancel = async () => {
-    setCancelBusy(true)
-    setCancelError(null)
+  const handleViewInvoices = async () => {
+    setInvoicesLoading(true)
+    setInvoicesError(null)
     try {
-      const clientRequestId =
-        typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`
-      await cancelSubscription(clientRequestId)
-      setCancelOpen(false)
-      await refetch()
+      const rows = await getInvoices()
+      setInvoices(rows)
+      setInvoicesLoaded(true)
     } catch (err) {
-      setCancelError(err instanceof Error ? err.message : String(err))
+      setInvoicesError(err instanceof Error ? err.message : String(err))
     } finally {
-      setCancelBusy(false)
+      setInvoicesLoading(false)
     }
   }
 
   const tier = snapshot?.tier ?? plan?.tier ?? 'free'
   const tierLabel =
     tier === 'promax' ? 'Pro Max'
-    : tier === 'premium' ? 'Pro Max'
     : tier === 'pro' ? 'Pro'
     : tier === 'guest' ? 'Guest'
     : 'Free'
@@ -77,7 +62,7 @@ export function BillingSettings({ className }: { className?: string }) {
   const extras = snapshot?.extrasBucket ?? 0
   const dailyUsed = snapshot?.dailyUsed ?? 0
   // dailyMax is null in the payload — frontend approximates from tier caps.
-  const dailyMaxMap: Record<string, number> = { guest: 0, free: 50_000, pro: 300_000, promax: 800_000, premium: 800_000 }
+  const dailyMaxMap: Record<string, number> = { guest: 0, free: 50_000, pro: 300_000, promax: 800_000 }
   const dailyMax = dailyMaxMap[tier] ?? 50_000
 
   return (
@@ -149,95 +134,89 @@ export function BillingSettings({ className }: { className?: string }) {
         >
           {tier === 'free' || tier === 'guest' ? 'Upgrade plan' : 'Change plan'}
         </Link>
-        {tier !== 'free' && tier !== 'guest' && (
+      </div>
+
+      {/* Invoices — lazy-loaded on click */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+            <p className="text-2xs uppercase tracking-wide text-muted-foreground">Invoice history</p>
+          </div>
+          {invoicesLoaded && (
+            <button
+              type="button"
+              onClick={() => void handleViewInvoices()}
+              disabled={invoicesLoading}
+              className="text-2xs uppercase tracking-wide text-primary hover:underline disabled:opacity-50"
+            >
+              Refresh
+            </button>
+          )}
+        </div>
+
+        {!invoicesLoaded && !invoicesLoading && !invoicesError && (
           <button
             type="button"
-            onClick={() => setCancelOpen(true)}
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-destructive/40 bg-destructive/10 px-4 text-sm font-medium text-destructive hover:bg-destructive/20"
+            onClick={() => void handleViewInvoices()}
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-transparent px-4 text-sm font-medium text-foreground hover:bg-white/5"
           >
-            Cancel subscription
+            View invoices
           </button>
         )}
-      </div>
 
-      {/* Invoices */}
-      <div className="rounded-xl border border-border bg-card p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Receipt className="h-4 w-4 text-muted-foreground" />
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">Invoice history</p>
-        </div>
-        {invoices.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Invoices appear here after your first paid cycle.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border text-sm">
-            {invoices.map((inv) => (
-              <li key={inv.invoiceId} className="flex items-center justify-between py-2">
-                <div>
-                  <p className="font-medium text-foreground">{inv.invoiceNumber}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {inv.date ? new Date(inv.date).toLocaleDateString() : '—'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-foreground">
-                    {inv.currencyCode} {inv.totalLocal.toFixed(2)}
-                  </p>
-                  <p className="text-2xs uppercase tracking-wide text-muted-foreground">{inv.status}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+        {invoicesLoading && (
+          <div className="h-10 w-full animate-pulse rounded-md bg-muted" aria-hidden="true" />
         )}
-      </div>
 
-      {/* Cancel confirmation modal */}
-      {cancelOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="cancel-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setCancelOpen(false)}
-        >
-          <div
-            className="max-w-md rounded-2xl border border-border bg-card p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="cancel-dialog-title" className="font-headline text-xl text-foreground">
-              Cancel subscription?
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Your plan stays active until the end of the current cycle, then
-              drops back to Free. <strong className="text-foreground">
-              Per our terms §6.5, no refunds are issued for partial cycles,
-              unused tokens, or top-up packs.
-              </strong> You can re-subscribe any time.
-            </p>
-            {cancelError && (
-              <p className="mt-2 text-xs text-destructive">{cancelError}</p>
-            )}
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setCancelOpen(false)}
-                className="min-h-11 rounded-md border border-border bg-transparent px-4 text-sm text-foreground hover:bg-white/5"
-              >
-                Keep subscription
-              </button>
-              <button
-                type="button"
-                disabled={cancelBusy}
-                onClick={handleCancel}
-                className="min-h-11 rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60"
-              >
-                {cancelBusy ? 'Cancelling…' : 'Cancel anyway'}
+        {invoicesError && (
+          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <div className="flex-1">
+              Could not load invoices.{' '}
+              <button type="button" onClick={() => void handleViewInvoices()} className="underline">
+                Retry
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {invoicesLoaded && !invoicesLoading && !invoicesError && (
+          invoices.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Invoices appear here after your first paid cycle.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border text-sm">
+              {invoices.map((inv) => (
+                <li key={inv.invoiceId} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="font-medium text-foreground">{inv.invoiceNumber}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {inv.date ? new Date(inv.date).toLocaleDateString() : '—'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-medium text-foreground">
+                        {inv.currencyCode || 'USD'} {inv.totalLocal.toFixed(2)}
+                      </p>
+                      <p className="text-2xs uppercase tracking-wide text-muted-foreground">{inv.status}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void downloadInvoicePdf(inv.invoiceId)}
+                      className="rounded-md border border-border bg-transparent px-3 py-1 text-xs text-foreground hover:bg-white/5"
+                    >
+                      PDF
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )
+        )}
+      </div>
     </div>
   )
 }

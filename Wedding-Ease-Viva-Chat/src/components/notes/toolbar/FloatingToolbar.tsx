@@ -34,7 +34,7 @@ const HIGHLIGHT_COLORS = [
 
 const TEXT_COLORS = [
   { name: "Default", color: "" },
-  { name: "Gold", color: "#C6944A" },
+  { name: "Bronze", color: "#A17A63" },
   { name: "Red", color: "#ef4444" },
   { name: "Green", color: "#22c55e" },
   { name: "Blue", color: "#3b82f6" },
@@ -60,7 +60,7 @@ function ToolbarButton({
       title={title}
       className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
         isActive
-          ? "bg-[#C6944A]/20 text-[#C6944A]"
+          ? "bg-[#A17A63]/20 text-[#A17A63]"
           : "text-white/70 hover:bg-white/10 hover:text-white"
       }`}
     >
@@ -158,7 +158,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
             title="Highlight"
             className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
               editor.isActive("highlight")
-                ? "bg-[#C6944A]/20 text-[#C6944A]"
+                ? "bg-[#A17A63]/20 text-[#A17A63]"
                 : "text-white/70 hover:bg-white/10 hover:text-white"
             }`}
           >
@@ -257,7 +257,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
             }}
             className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
               editor.isActive("link")
-                ? "bg-[#C6944A]/20 text-[#C6944A]"
+                ? "bg-[#A17A63]/20 text-[#A17A63]"
                 : "text-white/70 hover:bg-white/10 hover:text-white"
             }`}
           >
@@ -280,13 +280,13 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
                   applyLink();
                 }
               }}
-              className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#C6944A]/50"
+              className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#A17A63]/50"
             />
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={applyLink}
-                className="flex-1 bg-[#C6944A] text-white text-xs py-1 rounded hover:bg-[#C6944A]/90 transition-colors"
+                className="flex-1 bg-[#A17A63] text-white text-xs py-1 rounded hover:bg-[#A17A63]/90 transition-colors"
               >
                 Apply
               </button>

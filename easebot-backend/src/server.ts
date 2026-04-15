@@ -4,6 +4,10 @@ import { app } from './app'
 import { startReminderScheduler, stopReminderScheduler } from './services/reminderScheduler'
 import { startGuestCleanupCron, stopGuestCleanupCron } from './services/guestCleanupCron'
 import { startSubscriptionScheduler, stopSubscriptionScheduler } from './services/subscriptionScheduler'
+import { validatePaymentConfig } from './controllers/paymentController'
+
+// Fail fast on missing payment env vars before binding the port.
+validatePaymentConfig()
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = '0.0.0.0'

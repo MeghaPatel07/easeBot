@@ -70,6 +70,12 @@ export function generatePayuHash(input: PayuHashInput): string {
  *
  * Note the FIVE empty fields between `status` and `udf5` (udf10..udf6 padding
  * in reverse) — not six. This matches PayU's published formula exactly.
+ *
+ * IMPORTANT: if the response payload includes a non-empty `additionalCharges`
+ * field, PayU prepends it to the pre-hash string:
+ *   sha512(additionalCharges|SALT|status|...|key)
+ * This is a well-known PayU quirk and the #1 cause of hash_mismatch on test
+ * transactions. We handle it automatically.
  */
 export function buildPayuResponseHashString(
   payload: Record<string, string>,
@@ -88,10 +94,12 @@ export function buildPayuResponseHashString(
     udf3 = '',
     udf4 = '',
     udf5 = '',
+    additionalCharges = '',
   } = payload
   // Six pipes between `status` and `udf5` = five empty fields (udf10..udf6
   // reversed). PayU's canonical reverse formula, not a typo.
-  return `${salt}|${status}||||||${udf5}|${udf4}|${udf3}|${udf2}|${udf1}|${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`
+  const base = `${salt}|${status}||||||${udf5}|${udf4}|${udf3}|${udf2}|${udf1}|${email}|${firstname}|${productinfo}|${amount}|${txnid}|${key}`
+  return additionalCharges ? `${additionalCharges}|${base}` : base
 }
 
 /**

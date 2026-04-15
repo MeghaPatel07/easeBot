@@ -84,6 +84,31 @@ function guestIpHash(req: Request): string {
 
 const MAX_COMPLETION_TOKENS_BY_DEFAULT = 2_000
 
+/**
+ * P0-4: explicit next-UTC-midnight. `setUTCHours(24, 0, 0, 0)` mutates in place
+ * and, per the spec, is fragile around DST-adjacent Date arithmetic. This form
+ * uses `Date.UTC(...+1)` which is unambiguous.
+ */
+function nextUtcMidnight(now: Date): Date {
+  return new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + 1,
+      0,
+      0,
+      0,
+      0,
+    ),
+  )
+}
+
+function nextUtcMonthStart(now: Date): Date {
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
+  )
+}
+
 function roughTokenCount(s: string | undefined): number {
   if (!s) return 0
   // 1 token ≈ 4 chars English. Fast and good enough for the pessimistic path.
@@ -102,7 +127,18 @@ function buildRawSkeleton(service: Service, body: Record<string, unknown>): RawC
         })
         .join('\n')
       const hasVision = !!(body.imageBase64 && body.imageMimeType)
-      const promptTokens = roughTokenCount(message) + roughTokenCount(historyText) + 500 // system-prompt budget
+      // P0-2: stylist mode fires one algolia query per chat turn via
+      // buildSystemPrompt. We don't know the mode here (it's detected inside
+      // the controller), so bake one pessimistic algolia query (50 tokens at
+      // current rate — see rawToTokens) into every chat estimate. Cheap
+      // enough that non-stylist turns don't care, but guarantees that if a
+      // turn routes to stylist the estimate still covers reconcile.
+      const ALGOLIA_PESSIMISTIC_TOKENS = 50
+      const promptTokens =
+        roughTokenCount(message) +
+        roughTokenCount(historyText) +
+        500 + // system-prompt budget
+        ALGOLIA_PESSIMISTIC_TOKENS
       return {
         kind: 'chat',
         promptTokens: promptTokens + (hasVision ? 1_000 : 0),
@@ -230,15 +266,12 @@ export function quotaCheck(service: Service): RequestHandler {
         return
       }
       if (estimate.wouldExceedDaily) {
-        const resetAt = new Date()
-        resetAt.setUTCHours(24, 0, 0, 0)
+        const resetAt = nextUtcMidnight(new Date())
         sendQuotaExceeded(res, principal, estimate, 'daily_cap_exceeded', resetAt.toISOString())
         return
       }
       if (estimate.wouldExceedMonthly) {
-        const end = new Date()
-        end.setUTCMonth(end.getUTCMonth() + 1, 1)
-        end.setUTCHours(0, 0, 0, 0)
+        const end = nextUtcMonthStart(new Date())
         sendQuotaExceeded(res, principal, estimate, 'monthly_cap_exceeded', end.toISOString())
         return
       }

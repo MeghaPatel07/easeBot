@@ -116,7 +116,7 @@ export default function ResizableImageView({
       <div
         ref={containerRef}
         className={`relative group inline-block ${
-          selected ? "ring-2 ring-[#C6944A] ring-offset-1 ring-offset-transparent rounded-lg" : ""
+          selected ? "ring-2 ring-[#A17A63] ring-offset-1 ring-offset-transparent rounded-lg" : ""
         }`}
         style={widthStyle}
         onMouseEnter={() => setShowToolbar(true)}
@@ -227,7 +227,7 @@ function ToolbarButton({
       title={title}
       className={`p-1.5 rounded-md transition-colors ${
         active
-          ? "bg-[#C6944A]/30 text-[#C6944A]"
+          ? "bg-[#A17A63]/30 text-[#A17A63]"
           : "text-white/60 hover:bg-white/10 hover:text-white"
       } ${className}`}
     >

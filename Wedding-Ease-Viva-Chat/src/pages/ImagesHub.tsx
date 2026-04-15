@@ -33,7 +33,7 @@ export default function ImagesHub({ sendMessage, startNewChat }: ImagesHubProps)
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6">
+    <main className="mx-auto max-w-6xl space-y-6 px-4 pt-6 pb-2 sm:px-6">
       <header className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Images</h1>
         <p className="text-sm text-muted-foreground sm:text-base">

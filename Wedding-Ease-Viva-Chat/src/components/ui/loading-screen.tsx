@@ -11,14 +11,14 @@ const LoadingScreen: React.FC = () => {
         <div
           className="absolute inset-0 rounded-full border-4 border-transparent animate-spin"
           style={{
-            borderTopColor: '#C6944A',
-            borderRightColor: '#C6944A',
+            borderTopColor: '#A17A63',
+            borderRightColor: '#A17A63',
           }}
         />
         <div
           className="absolute inset-2 rounded-full border-4 border-transparent animate-spin"
           style={{
-            borderBottomColor: '#C6944A',
+            borderBottomColor: '#A17A63',
             animationDirection: 'reverse',
             animationDuration: '0.8s',
           }}
@@ -26,7 +26,7 @@ const LoadingScreen: React.FC = () => {
       </div>
       <p
         className="text-sm font-medium tracking-wide"
-        style={{ color: '#C6944A' }}
+        style={{ color: '#A17A63' }}
       >
         Loading EaseBot...
       </p>

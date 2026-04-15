@@ -66,12 +66,12 @@ function getInitials(name?: string | null, email?: string | null): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function planLabel(plan: 'free' | 'pro' | 'premium' | undefined): string {
+function planLabel(plan: 'free' | 'pro' | 'promax' | undefined): string {
   switch (plan) {
     case 'pro':
       return 'Pro'
-    case 'premium':
-      return 'Premium'
+    case 'promax':
+      return 'Pro Max'
     default:
       return 'Free'
   }
@@ -496,9 +496,9 @@ export function AccountTab() {
       description="Manage your identity, sign-in, and account lifecycle."
     >
       {/* 1. Profile header */}
-      <Card className="bg-card border-border p-6">
+      <Card className="p-6">
         <div className="flex flex-col items-center gap-4 text-center md:flex-row md:items-center md:gap-6 md:text-left">
-          <Avatar className="h-24 w-24 border border-border">
+          <Avatar className="h-24 w-24 border-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.4)]">
             <AvatarFallback className="bg-muted text-foreground text-xl font-semibold">
               {initials}
             </AvatarFallback>
@@ -511,7 +511,7 @@ export function AccountTab() {
               </h3>
               <Badge
                 variant="secondary"
-                className="bg-muted text-muted-foreground border-border"
+                className="bg-white/[0.06] text-[#D9C3C3] border-0"
               >
                 {planLabel(tier)} plan
               </Badge>
@@ -524,7 +524,7 @@ export function AccountTab() {
       </Card>
 
       {/* 2. Identity card */}
-      <Card className="bg-card border-border p-6">
+      <Card className="p-6">
         <div className="flex flex-col gap-4">
           <div>
             <h3 className="text-base font-semibold text-foreground">Identity</h3>
@@ -543,7 +543,7 @@ export function AccountTab() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="min-h-11 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
 
@@ -556,7 +556,7 @@ export function AccountTab() {
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="What should we call you?"
-                className="min-h-11 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
               <p className="text-xs text-muted-foreground">Shown in chat headers.</p>
             </div>
@@ -567,7 +567,7 @@ export function AccountTab() {
                 {isPhoneBased && (
                   <Badge
                     variant="secondary"
-                    className="bg-muted text-muted-foreground border-border"
+                    className="bg-white/[0.06] text-[#D9C3C3] border-0"
                   >
                     Locked
                   </Badge>
@@ -583,7 +583,7 @@ export function AccountTab() {
                   aria-label="Country code"
                   disabled={isPhoneBased}
                   readOnly={isPhoneBased}
-                  className="min-h-11 w-24 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
+                  className="min-h-11 w-24 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
                 />
                 <Input
                   id="account-phone-num"
@@ -594,7 +594,7 @@ export function AccountTab() {
                   aria-label="National phone number"
                   disabled={isPhoneBased}
                   readOnly={isPhoneBased}
-                  className="min-h-11 flex-1 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
+                  className="min-h-11 flex-1 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
                 />
               </div>
               {isPhoneBased && (
@@ -620,7 +620,7 @@ export function AccountTab() {
       </Card>
 
       {/* 3. Email card */}
-      <Card className="bg-card border-border p-6">
+      <Card className="p-6">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <Mail aria-hidden="true" className="mt-1 h-5 w-5 text-muted-foreground" />
@@ -638,7 +638,7 @@ export function AccountTab() {
               {verified ? (
                 <Badge
                   variant="secondary"
-                  className="bg-muted text-muted-foreground border-border"
+                  className="bg-white/[0.06] text-[#D9C3C3] border-0"
                 >
                   <ShieldCheck aria-hidden="true" className="mr-1 h-3 w-3" />
                   Verified
@@ -646,7 +646,7 @@ export function AccountTab() {
               ) : (
                 <Badge
                   variant="secondary"
-                  className="bg-muted text-muted-foreground border-border"
+                  className="bg-white/[0.06] text-[#D9C3C3] border-0"
                 >
                   Unverified
                 </Badge>
@@ -666,7 +666,7 @@ export function AccountTab() {
             // ) : (
             //   <Badge
             //     variant="secondary"
-            //     className="bg-muted text-muted-foreground border-border"
+            //     className="bg-white/[0.06] text-[#D9C3C3] border-0"
             //   >
             //     <Lock aria-hidden="true" className="mr-1 h-3 w-3" />
             //     Locked
@@ -685,7 +685,7 @@ export function AccountTab() {
 
       {/* 4. Password card — only for password users on email-based accounts */}
       {hasPasswordProvider && !isPhoneBased && (
-        <Card className="bg-card border-border p-6">
+        <Card className="p-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-start gap-3">
               <Lock aria-hidden="true" className="mt-1 h-5 w-5 text-muted-foreground" />
@@ -712,7 +712,7 @@ export function AccountTab() {
       )}
 
       {/* 5. Connected accounts */}
-      <Card className="bg-card border-border p-6">
+      <Card className="p-6">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <Link2 aria-hidden="true" className="mt-1 h-5 w-5 text-muted-foreground" />
@@ -725,13 +725,13 @@ export function AccountTab() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <div className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-border bg-background px-3">
+            <div className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-white/[0.04] border-0 px-3">
               <div className="flex items-center gap-2 text-sm text-foreground">
                 <span>Email &amp; password</span>
                 {hasPasswordProvider && (
                   <Badge
                     variant="secondary"
-                    className="bg-muted text-muted-foreground border-border"
+                    className="bg-white/[0.06] text-[#D9C3C3] border-0"
                   >
                     Linked
                   </Badge>
@@ -742,13 +742,13 @@ export function AccountTab() {
               )}
             </div>
 
-            <div className="flex min-h-11 items-center justify-between gap-3 rounded-md border border-border bg-background px-3">
+            <div className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-white/[0.04] border-0 px-3">
               <div className="flex items-center gap-2 text-sm text-foreground">
                 <span>Google</span>
                 {hasGoogleProvider && (
                   <Badge
                     variant="secondary"
-                    className="bg-muted text-muted-foreground border-border"
+                    className="bg-white/[0.06] text-[#D9C3C3] border-0"
                   >
                     Linked
                   </Badge>
@@ -791,7 +791,7 @@ export function AccountTab() {
       </Card>
 
       {/* 6. Danger zone */}
-      <Card className="border-destructive/60 bg-card p-6">
+      <Card className="p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_48px_-12px_rgba(220,38,38,0.25)]">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
             <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 text-destructive" />
@@ -823,7 +823,7 @@ export function AccountTab() {
         open={emailDialogOpen}
         onOpenChange={(o) => (o ? setEmailDialogOpen(true) : closeEmailDialog())}
       >
-        <AlertDialogContent className="bg-card text-foreground border-border">
+        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border border-white/10 backdrop-blur-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Change email</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
@@ -845,7 +845,7 @@ export function AccountTab() {
                   autoComplete="current-password"
                   value={reauthPassword}
                   onChange={(e) => setReauthPassword(e.target.value)}
-                  className="min-h-11 bg-input border-border text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
             )}
@@ -861,7 +861,7 @@ export function AccountTab() {
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="min-h-11 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
           </div>
@@ -893,7 +893,7 @@ export function AccountTab() {
         open={passwordDialogOpen}
         onOpenChange={(o) => (o ? setPasswordDialogOpen(true) : closePasswordDialog())}
       >
-        <AlertDialogContent className="bg-card text-foreground border-border">
+        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border border-white/10 backdrop-blur-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Change password</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
@@ -912,7 +912,7 @@ export function AccountTab() {
                 autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="min-h-11 bg-input border-border text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
 
@@ -926,7 +926,7 @@ export function AccountTab() {
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="min-h-11 bg-input border-border text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
 
@@ -940,7 +940,7 @@ export function AccountTab() {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="min-h-11 bg-input border-border text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
               {confirmPassword.length > 0 && !passwordsMatch && (
                 <p className="text-xs text-destructive">Passwords do not match.</p>
@@ -1018,7 +1018,7 @@ export function AccountTab() {
               value={deleteConfirmEmail}
               onChange={(e) => setDeleteConfirmEmail(e.target.value)}
               placeholder={profile?.email ?? ''}
-              className="min-h-11 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
 

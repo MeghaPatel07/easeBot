@@ -2,8 +2,19 @@
 
 **Owner:** System Architect
 **File:** `easebot-backend/src/services/tokenMeter.ts`
-**Status:** Draft v1 — Sprint 1 deliverable
-**Grounded in:** PRICING_PRD.md §3, §6; EXECUTION_PLAN.md §0, §7, LH-01..LH-08
+**Status:** Draft v2 — Sprint 2 implementation
+**Grounded in:** PRICING_PRD.md §3, §6; EXECUTION_PLAN.md §0, §7, §13.5, LH-01..LH-08
+
+### Sprint 2 architectural overrides (read before implementing)
+
+These supersede v1 language wherever they conflict:
+
+1. **Firestore SDK:** Use the **client SDK** via `import { db } from '../lib/firebase'`. Do NOT introduce `firebase-admin` / `adminDb`. `runTransaction` from `firebase/firestore` is functionally adequate for the two-bucket atomic decrement and keeps Sprint 2 within the "no Firebase IAM / permissions / config changes" guardrail. Wherever this spec says `adminDb.*`, read it as `db.*` using the client SDK equivalent.
+2. **Tier source of truth:** Per locked decision D1 (EXECUTION_PLAN §13.5), tier is read from `users/{uid}.tierMirror` in Firestore, **not** from a Firebase custom claim. `auth.ts` is NOT to be extended to read `decoded.tier`. `quotaMiddleware` (or a cached helper inside `tokenMeter`) reads tierMirror on the request path. This overrides §9 item 2 below.
+3. **Guest TTL:** 7 days, per this spec §9 item 1. (If backlog ticket copy says "24h", the spec governs — use 7d.) Write `guests/{guestId}.ttlExpiresAt = now + 7d`. Firestore TTL index on that field is preferred long-term, **but enabling it is a Firebase console action and therefore out of scope** — add a note to `FIREBASE_CONSOLE_CHECKLIST.md` for the human and ship `guestCleanupCron.ts` as the in-process fallback.
+4. **`usageService.ts` disposition:** Per Decision D2, delete it and fix imports in the same commit that wires `tokenMeter` into the cost sites. Recommendation (a) from §9 item 3 is now the decision.
+
+---
 
 The single source of truth for every cost-bearing Azure / Algolia / WhatsApp call in the backend. Every call that spends money goes through this module. No direct Firestore writes to usage counters from anywhere else. No mini model fallback — every user is on full GPT-4o, so `chargeTokens` is the only degradation lever (it returns `allowed:false` and the caller stops cleanly).
 

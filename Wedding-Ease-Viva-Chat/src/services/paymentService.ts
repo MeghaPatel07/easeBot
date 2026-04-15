@@ -4,7 +4,7 @@
  * - initiatePayment(): POST /api/payment/initiate → { txnid, formAction, formParams }
  * - autoSubmitToPayu(): builds a hidden <form> and POSTs to PayU sandbox
  * - verifyPayment(): GET /api/payment/verify?txnid=
- * - subscription CRUD: cancel / reactivate / upgrade / downgrade / current
+ * - subscription CRUD: upgrade / downgrade / current
  */
 
 import { auth } from '@/lib/firebase'
@@ -28,6 +28,15 @@ async function authFetch(path: string, init: RequestInit = {}): Promise<Response
 export type BillingCycle = 'monthly' | 'annual'
 export type Plan = 'pro' | 'promax'
 
+export interface BillingAddressInput {
+  name?: string
+  country: string        // ISO-3166 alpha-2, e.g. 'IN', 'US'
+  state?: string         // required if country === 'IN'
+  city?: string
+  postalCode?: string
+  line1?: string
+}
+
 export interface InitiatePaymentRequest {
   plan: Plan | 'topup_2m'
   cycle: BillingCycle | 'once'
@@ -35,6 +44,8 @@ export interface InitiatePaymentRequest {
   firstname: string
   email: string
   gstin?: string
+  isUpgrade?: boolean
+  billingAddress?: BillingAddressInput
 }
 
 export interface InitiatePaymentResponse {
@@ -109,24 +120,6 @@ export async function getCurrentSubscription(): Promise<SubscriptionSnapshot> {
   return res.json()
 }
 
-export async function cancelSubscription(clientRequestId: string): Promise<unknown> {
-  const res = await authFetch('/api/payment/subscription/cancel', {
-    method: 'POST',
-    body: JSON.stringify({ clientRequestId }),
-  })
-  if (!res.ok) throw new Error(`cancel_failed:${res.status}`)
-  return res.json()
-}
-
-export async function reactivateSubscription(clientRequestId: string): Promise<unknown> {
-  const res = await authFetch('/api/payment/subscription/reactivate', {
-    method: 'POST',
-    body: JSON.stringify({ clientRequestId }),
-  })
-  if (!res.ok) throw new Error(`reactivate_failed:${res.status}`)
-  return res.json()
-}
-
 export async function upgradeSubscription(cycle: BillingCycle): Promise<unknown> {
   const res = await authFetch('/api/payment/subscription/upgrade', {
     method: 'POST',
@@ -161,4 +154,18 @@ export async function getInvoices(): Promise<InvoiceSummary[]> {
   if (!res.ok) return []
   const json = (await res.json()) as { invoices?: InvoiceSummary[] }
   return json.invoices ?? []
+}
+
+export async function downloadInvoicePdf(invoiceId: string): Promise<void> {
+  const res = await authFetch(`/api/account/invoices/${encodeURIComponent(invoiceId)}/pdf`)
+  if (!res.ok) throw new Error(`invoice_pdf_failed:${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `invoice-${invoiceId}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

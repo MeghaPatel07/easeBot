@@ -113,11 +113,11 @@ export default function PlannerView({
               <p className="text-3xs text-red-500 font-medium"><span aria-label="Warning">⚠</span> Overdue</p>
             </div>
           )}
-          <div className="flex-1 min-w-0 rounded-xl bg-amber-500/10 border border-amber-100 px-2 py-1.5 text-center">
+          <div className="flex-1 min-w-0 rounded-xl bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 text-center">
             <p className="text-base font-bold text-amber-600">{stats.todo}</p>
             <p className="text-3xs text-amber-500 font-medium">📋 To-Do</p>
           </div>
-          <div className="flex-1 min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-100 px-2 py-1.5 text-center">
+          <div className="flex-1 min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 text-center">
             <p className="text-base font-bold text-emerald-600">{stats.completed}</p>
             <p className="text-3xs text-emerald-500 font-medium">✅ Done</p>
           </div>
@@ -126,7 +126,7 @@ export default function PlannerView({
 
       {/* Free tier limit */}
       {atLimit && (
-        <div className="mb-3 flex-shrink-0 rounded-xl bg-amber-500/10 border border-amber-200 px-3 py-2 flex items-start gap-2">
+        <div className="mb-3 flex-shrink-0 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2 flex items-start gap-2">
           <Lock className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
           <p className="text-2xs text-amber-700 leading-snug">
             Free limit: 5 checklists. Upgrade for unlimited.

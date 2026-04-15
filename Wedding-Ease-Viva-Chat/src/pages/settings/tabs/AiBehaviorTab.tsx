@@ -306,7 +306,7 @@ export function AiBehaviorTab() {
       description="Tone, voice, and the default mode Easebot reaches for first."
     >
       {/* ── Tone sliders ─────────────────────────────────────────────────── */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold text-foreground">
@@ -404,7 +404,7 @@ export function AiBehaviorTab() {
       </Card>
 
       {/* ── Voice ────────────────────────────────────────────────────────── */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-5">
           <h3 className="text-base font-semibold text-foreground">Voice</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -500,7 +500,7 @@ export function AiBehaviorTab() {
       </Card>
 
       {/* ── Language (moved from Appearance) ─────────────────────────────── */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Language</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -536,7 +536,7 @@ export function AiBehaviorTab() {
       </Card>
 
       {/* ── Default mode (placeholder) ──────────────────────────────────── */}
-      {/* <Card className="border-border bg-card p-6 text-card-foreground">
+      {/* <Card className="p-6">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <h3 className="text-base font-semibold text-foreground">

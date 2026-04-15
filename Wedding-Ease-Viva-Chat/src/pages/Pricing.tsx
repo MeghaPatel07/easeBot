@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import PricingTierCard, {
   type PricingTier,
@@ -9,7 +9,6 @@ import ExchangeRateService from '@/services/exchangeRateService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
-import { initiatePayment, autoSubmitToPayu } from '@/services/paymentService'
 import { auth } from '@/lib/firebase'
 
 const SERVICE_NAME = 'Viva by EaseBot'
@@ -25,14 +24,20 @@ interface TierPricing {
 
 // Canonical prices from PRICING_PRD.md §4
 const TIERS: TierPricing[] = [
-  { tier: 'free',   monthlyUsd: 0,     annualUsd: 0 },
-  { tier: 'pro',    monthlyUsd: 14.99, annualUsd: 119, isRecommended: true },
-  { tier: 'promax', monthlyUsd: 39,    annualUsd: 299 },
+  { tier: 'free', monthlyUsd: 0, annualUsd: 0 },
+  { tier: 'pro', monthlyUsd: 14.99, annualUsd: 119, isRecommended: true },
+  { tier: 'promax', monthlyUsd: 39, annualUsd: 299 },
 ]
 
 const CURRENCY_OPTIONS = ['USD', 'INR', 'GBP', 'EUR', 'AED', 'SGD', 'AUD', 'CAD'] as const
 
+const TIER_LABEL: Record<'pro' | 'promax', string> = {
+  pro: 'Easebot Pro',
+  promax: 'Easebot Pro Max',
+}
+
 export default function Pricing() {
+  const navigate = useNavigate()
   const { plan } = useAccount()
   const [cycle, setCycle] = useState<BillingCycle>('monthly')
   const [currency, setCurrency] = useState<string>('USD')
@@ -41,9 +46,9 @@ export default function Pricing() {
 
   const currentTier: PricingTier | 'guest' = (
     plan?.tier === 'pro' ? 'pro'
-    : plan?.tier === 'premium' ? 'promax'
-    : plan?.tier === 'free' ? 'free'
-    : 'guest'
+      : plan?.tier === 'promax' ? 'promax'
+        : plan?.tier === 'free' ? 'free'
+          : 'guest'
   )
 
   // Detect user currency once on mount.
@@ -86,9 +91,27 @@ export default function Pricing() {
   }
 
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
-  const [checkoutLoading, setCheckoutLoading] = useState<PricingTier | null>(null)
 
-  const handleSelect = async (tier: PricingTier) => {
+  const handleTopup = () => {
+    setCheckoutError(null)
+    const user = auth.currentUser
+    if (!user) {
+      window.location.href = '/?auth=signup&next=/pricing'
+      return
+    }
+    if (currentTier !== 'pro' && currentTier !== 'promax') return
+    navigate('/checkout', {
+      state: {
+        plan: 'topup_2m',
+        cycle: 'once',
+        currency,
+        priceUsd: 10,
+        label: 'Token top-up — 2M tokens',
+      },
+    })
+  }
+
+  const handleSelect = (tier: PricingTier) => {
     setCheckoutError(null)
     if (tier === 'free') {
       window.location.href = '/'
@@ -100,33 +123,27 @@ export default function Pricing() {
       return
     }
     if (tier === currentTier) return
-    try {
-      setCheckoutLoading(tier)
-      const init = await initiatePayment({
+    // Pro → ProMax is an upgrade, not a new purchase. The backend needs
+    // `isUpgrade: true` so the preflight allows it and the webhook drives the
+    // `upgrade` state machine trigger.
+    const isUpgrade = currentTier === 'pro' && tier === 'promax'
+    const row = TIERS.find((t) => t.tier === tier)
+    const priceUsd = !row ? 0 : cycle === 'monthly' ? row.monthlyUsd : row.annualUsd
+    navigate('/checkout', {
+      state: {
         plan: tier,
         cycle,
         currency,
-        firstname: user.displayName?.split(' ')[0] || 'Customer',
-        email: user.email || 'customer@easebot.app',
-      })
-      autoSubmitToPayu(init)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error('[Pricing] initiate failed', err)
-      if (msg.includes('409')) {
-        setCheckoutError('You already have an active plan. Manage it from Settings → Plan & Billing.')
-      } else {
-        setCheckoutError('Could not start checkout. Please try again.')
-      }
-      setCheckoutLoading(null)
-    }
+        isUpgrade,
+        priceUsd,
+        label: `${TIER_LABEL[tier as 'pro' | 'promax']} — ${cycle === 'monthly' ? 'Monthly' : 'Annual'}`,
+      },
+    })
   }
 
   return (
     <div className="min-h-screen bg-background text-white/85">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 -left-24 w-[28rem] h-[28rem] bg-secondary/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative mx-auto max-w-5xl px-6 py-12 md:py-16">
@@ -232,11 +249,36 @@ export default function Pricing() {
             Pro &amp; Pro Max subscribers can buy a 2 million token top-up pack
             (stackable, max 10 / month). No refunds.
           </p>
-          <div className="flex items-baseline gap-3">
-            <span className="font-headline text-3xl text-white">
-              {formatCurrency(10, currency, rate)}
-            </span>
-            <span className="text-xs text-white/50">/ 2M tokens, one-time</span>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-baseline gap-3">
+              <span className="font-headline text-3xl text-white">
+                {formatCurrency(10, currency, rate)}
+              </span>
+              <span className="text-xs text-white/50">/ 2M tokens, one-time</span>
+            </div>
+            {currentTier !== 'guest' && (
+              currentTier === 'free' ? (
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  title="Upgrade to Pro first"
+                  aria-label="Buy top-up — upgrade to Pro first"
+                  className="min-h-11 rounded-md bg-primary/40 px-5 text-sm font-medium text-primary-foreground/70 cursor-not-allowed disabled:opacity-60"
+                >
+                  Buy top-up
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleTopup}
+                  aria-label="Buy 2 million token top-up pack"
+                  className="min-h-11 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Buy top-up
+                </button>
+              )
+            )}
           </div>
         </section>
 

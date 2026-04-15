@@ -22,7 +22,7 @@ export interface AccountUsage {
 }
 
 export interface AccountPlan {
-  tier: 'free' | 'pro' | 'premium'
+  tier: 'free' | 'pro' | 'promax' | 'guest'
   renewsAt?: string
   trialEndsAt?: string
 }
@@ -161,8 +161,17 @@ async function requestBlob(path: string): Promise<Blob> {
 
 // ── Endpoints (PRD §8) ───────────────────────────────────────────────────────
 
-export function getAccountMe(): Promise<AccountMeResponse> {
-  return request<AccountMeResponse>('GET', '/api/account/me')
+export async function getAccountMe(): Promise<AccountMeResponse> {
+  const res = await request<AccountMeResponse>('GET', '/api/account/me')
+  // TODO: remove once backend returns 'promax'
+  // Defensive shim: backend may still emit legacy tier='premium'. Normalize
+  // to the canonical 'promax' so the rest of the frontend can stop carrying
+  // mapping hacks. Warn so this doesn't silently linger.
+  if (res && res.plan && (res.plan.tier as unknown as string) === 'premium') {
+    console.warn('[accountService] backend returned legacy tier="premium"; normalizing to "promax"')
+    res.plan.tier = 'promax'
+  }
+  return res
 }
 
 export interface ProfilePatch {
@@ -199,12 +208,12 @@ export function getAccountUsage(): Promise<UsageSnapshot> {
 
 export interface SwitchPlanResponse {
   ok: true
-  plan: 'free' | 'pro' | 'premium'
+  plan: 'free' | 'pro' | 'promax'
   planRenewsAt: string | null
   usage: AccountUsage
 }
 
-export function switchPlan(tier: 'free' | 'pro' | 'premium'): Promise<SwitchPlanResponse> {
+export function switchPlan(tier: 'free' | 'pro' | 'promax'): Promise<SwitchPlanResponse> {
   return request<SwitchPlanResponse>('POST', '/api/account/plan/switch', { tier })
 }
 

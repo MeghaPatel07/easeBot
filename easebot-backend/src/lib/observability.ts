@@ -24,6 +24,18 @@ export type ObservabilityEvent =
   | 'guest_limit_hit'
   | 'topup_purchased'
   | 'invoice_rendered'
+  | 'chat_burst_flag'
+  | 'guest_signup'
+  | 'free_upgrade_pro'
+  | 'pro_upgrade_promax'
+  | 'payment.webhook.side_effect_failed'
+  | 'payment.webhook.transition_conflict'
+  | 'payment.hash.mismatch'
+  | 'subscription.credit_consumed'
+  | 'subscription.invoice_queue_failed'
+  | 'subscription.scheduler.tick'
+  | 'invoice.render_failed'
+  | 'invoice.authz_denied'
 
 export function emit(
   event: ObservabilityEvent,

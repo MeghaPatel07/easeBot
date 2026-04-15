@@ -97,7 +97,7 @@ export interface UserProfile {
   // All new fields are optional to preserve back-compat with existing
   // Firestore documents and code paths. Defaults are applied at read time
   // by `applyProfileDefaults` in services/migrations/userProfileMigration.ts.
-  plan?: 'free' | 'pro' | 'premium'
+  plan?: 'free' | 'pro' | 'promax'
   planRenewsAt?: Timestamp
   trialEndsAt?: Timestamp
   linkedProviders?: Array<'password' | 'google.com'>

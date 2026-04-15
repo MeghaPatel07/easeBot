@@ -201,8 +201,8 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, var
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={onSaveToGallery} disabled={isSaved}
                 className={variant === 'preview'
-                  ? `h-9 w-9 p-0 rounded-full ${isSaved ? 'bg-[#C6944A]/40 text-white' : 'hover:bg-white/20 text-white'}`
-                  : `h-10 w-10 sm:h-7 sm:w-7 p-0 backdrop-blur-sm rounded-lg ${isSaved ? 'bg-[#C6944A]/50 text-white' : 'bg-black/50 hover:bg-black/70 text-white'}`
+                  ? `h-9 w-9 p-0 rounded-full ${isSaved ? 'bg-[#A17A63]/40 text-white' : 'hover:bg-white/20 text-white'}`
+                  : `h-10 w-10 sm:h-7 sm:w-7 p-0 backdrop-blur-sm rounded-lg ${isSaved ? 'bg-[#A17A63]/50 text-white' : 'bg-black/50 hover:bg-black/70 text-white'}`
                 }>
                 <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
               </Button>
@@ -231,7 +231,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, var
       {/* Share Modal — portaled to body so transforms/overflow can't clip it */}
       {showShareModal && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
-          <div ref={modalRef} className="bg-[#2D0A1A]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+          <div ref={modalRef} className="bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-white/90">Share image</h3>
@@ -291,7 +291,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, var
             {typeof navigator !== 'undefined' && 'share' in navigator && (
               <button
                 onClick={handleNativeShare}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#C6944A]/15 border border-[#C6944A]/25 text-sm text-[#C6944A] font-medium hover:bg-[#C6944A]/25 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#A17A63]/15 border border-[#A17A63]/25 text-sm text-[#A17A63] font-medium hover:bg-[#A17A63]/25 transition-colors"
               >
                 <Share2 className="h-4 w-4" />
                 More sharing options

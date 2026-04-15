@@ -248,7 +248,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
               <tr
                 key={rowIdx}
                 className={`transition-colors hover:bg-muted ${
-                  rowIdx % 2 === 0 ? "bg-white" : "bg-white/[0.04]"
+                  rowIdx % 2 === 0 ? "bg-white/[0.02]" : "bg-white/[0.05]"
                 }`}
               >
                 {row.map((cell, colIdx) => {
@@ -260,7 +260,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
                       key={colIdx}
                       className={`px-2 sm:px-3 py-2 text-xs sm:text-sm text-white/60 ${
                         highlighted
-                          ? "text-green-700 font-semibold bg-green-50/60"
+                          ? "text-emerald-300 font-semibold bg-emerald-500/10"
                           : ""
                       }`}
                     >

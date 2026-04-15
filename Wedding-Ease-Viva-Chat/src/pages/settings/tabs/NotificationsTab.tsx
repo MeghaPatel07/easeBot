@@ -124,7 +124,7 @@ export function NotificationsTab() {
       description="Decide how Easebot reaches out about reminders, tips, and product news."
     >
       {/* Email notifications */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-2">
           <h3 className="text-base font-semibold">Email notifications</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -157,7 +157,7 @@ export function NotificationsTab() {
       </Card>
 
       {/* WhatsApp notifications */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-2">
           <h3 className="text-base font-semibold">WhatsApp notifications</h3>
           <p className="mt-1 text-xs text-muted-foreground">

@@ -163,9 +163,27 @@ async function dispatchOne(row: PendingReminderRow): Promise<void> {
         humanFormattedDate: human,
         description: data.description,
       })
-      chargeTokensAsSystem(uid, { kind: 'whatsapp', messages: 1 }).catch((err) =>
-        console.error('[reminderScheduler] whatsapp charge failed', err),
-      )
+      // P1-3: await the charge and inspect the result. No retry on failure —
+      // the WhatsApp message has already been dispatched, so refusing to
+      // charge would be a revenue leak and retrying would risk a duplicate
+      // charge. A denied result is logged for ops follow-up.
+      try {
+        const chargeResult = await chargeTokensAsSystem(uid, {
+          kind: 'whatsapp',
+          messages: 1,
+        })
+        if (!chargeResult.allowed) {
+          console.warn('[reminderScheduler] whatsapp charge denied', {
+            uid,
+            reason: chargeResult.reason,
+          })
+        }
+      } catch (chargeErr) {
+        console.warn('[reminderScheduler] whatsapp charge threw', {
+          uid,
+          err: chargeErr instanceof Error ? chargeErr.message : String(chargeErr),
+        })
+      }
     } else {
       throw new Error(`unknown channel: ${String(channel)}`)
     }

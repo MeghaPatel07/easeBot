@@ -225,7 +225,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
           <span className="text-xs text-red-300 flex-1 truncate">{errorMsg}</span>
           <button
             onClick={handleRetry}
-            className="flex items-center gap-1 text-xs text-[#C6944A] hover:text-[#d4a85e] transition-colors"
+            className="flex items-center gap-1 text-xs text-[#A17A63] hover:text-[#B89382] transition-colors"
           >
             <RotateCcw size={12} />
             Retry
@@ -250,7 +250,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
             <button
               onClick={togglePlay}
               disabled={isLoading}
-              className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-[#C6944A] text-white flex items-center justify-center flex-shrink-0 hover:bg-[#d4a85e] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#C6944A]/30"
+              className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-[#A17A63] text-white flex items-center justify-center flex-shrink-0 hover:bg-[#B89382] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#A17A63]/30"
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isLoading ? (
@@ -283,7 +283,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
                     key={i}
                     className={`w-[2px] rounded-full flex-shrink-0 transition-all duration-150 ${
                       filled
-                        ? 'bg-[#C6944A]'
+                        ? 'bg-[#A17A63]'
                         : 'bg-white/[0.12]'
                     } ${isActive ? 'scale-y-125' : ''}`}
                     style={{
@@ -304,7 +304,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
             <button
               onClick={cycleSpeed}
               disabled={isLoading}
-              className="h-10 sm:h-auto px-1.5 sm:px-0 text-[11px] sm:text-[10px] font-bold text-white/65 sm:text-white/50 hover:text-[#C6944A] w-10 sm:w-9 text-center flex-shrink-0 transition-colors tabular-nums disabled:cursor-not-allowed rounded"
+              className="h-10 sm:h-auto px-1.5 sm:px-0 text-[11px] sm:text-[10px] font-bold text-white/65 sm:text-white/50 hover:text-[#A17A63] w-10 sm:w-9 text-center flex-shrink-0 transition-colors tabular-nums disabled:cursor-not-allowed rounded"
               aria-label={`Playback speed ${speed}x`}
             >
               {speed}x

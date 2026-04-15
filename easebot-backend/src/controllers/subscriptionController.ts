@@ -10,7 +10,9 @@ import {
   applyTransition,
   readSubscription,
   computeUpgradeCredit,
+  queueSyntheticInvoice,
 } from '../services/subscriptionStateMachine'
+import { emit } from '../lib/observability'
 
 function requireUid(req: Request, res: Response): string | null {
   const uid = req.user?.uid
@@ -19,48 +21,6 @@ function requireUid(req: Request, res: Response): string | null {
     return null
   }
   return uid
-}
-
-export async function cancel(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const uid = requireUid(req, res)
-    if (!uid) return
-    const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
-    if (!clientRequestId) { res.status(400).json({ error: 'missing_clientRequestId' }); return }
-    const sub = await readSubscription(uid)
-    const result = await applyTransition(uid, sub.state, sub.state, 'cancel', {
-      clientRequestId,
-    })
-    res.status(200).json({ state: result.state, applied: result.applied })
-  } catch (err) {
-    console.error('[subscriptionController.cancel]', err)
-    next(err)
-  }
-}
-
-export async function reactivate(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const uid = requireUid(req, res)
-    if (!uid) return
-    const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
-    if (!clientRequestId) { res.status(400).json({ error: 'missing_clientRequestId' }); return }
-    const sub = await readSubscription(uid)
-    const result = await applyTransition(uid, sub.state, sub.state, 'reactivate', {
-      clientRequestId,
-    })
-    res.status(200).json({ state: result.state, applied: result.applied })
-  } catch (err) {
-    console.error('[subscriptionController.reactivate]', err)
-    next(err)
-  }
 }
 
 export async function upgrade(
@@ -108,6 +68,39 @@ export async function upgrade(
         billingCycle: cycle,
         creditApplied: credit.newForwardCreditUsd,
       })
+      if (result.applied) {
+        emit('subscription_upgrade', { uid, fromState: sub.state, toState: result.state, chargeNowUsd: 0 })
+        // P0-2: spec mandates an invoice even for zero-charge upgrades. The
+        // credit applied fully covers the ProMax price; invoice total = 0.
+        // Fire-and-forget; retry is invoice runner's responsibility.
+        const creditCovered = targetPlanUsd
+        emit('subscription.credit_consumed', {
+          uid,
+          amount: creditCovered,
+          transitionId: synth,
+          newState: result.state,
+          reason: 'free_upgrade',
+        })
+        void queueSyntheticInvoice({
+          uid,
+          txnid: synth,
+          priceUsd: targetPlanUsd,
+          creditAppliedUsd: creditCovered,
+          productinfo: cycle === 'annual'
+            ? 'Easebot Pro Max — Annual (upgrade, credit applied)'
+            : 'Easebot Pro Max — Monthly (upgrade, credit applied)',
+          cycle,
+          plan: 'promax',
+        }).catch((err) => {
+          emit('subscription.invoice_queue_failed', {
+            uid,
+            transitionId: synth,
+            txnid: synth,
+            error: err instanceof Error ? err.message : String(err),
+          })
+          console.warn('[subscriptionController.upgrade] queueInvoice failed', err)
+        })
+      }
       res.status(200).json({
         freeUpgrade: true,
         state: result.state,
@@ -116,7 +109,19 @@ export async function upgrade(
       })
       return
     }
-    res.status(200).json({ freeUpgrade: false, credit, targetPlan: 'promax', cycle })
+    // Non-zero upgrade: return the effective plan USD (after credit) so the
+    // frontend can kick off a PayU initiate with plan=promax, applying credit
+    // server-side in the webhook. The webhook detects `upgradeFromState` on
+    // the payment doc and drives an `upgrade` transition rather than `purchase`.
+    emit('subscription_upgrade', { uid, fromState: sub.state, toState: 'pending', chargeNowUsd: credit.chargeNowUsd })
+    res.status(200).json({
+      freeUpgrade: false,
+      credit,
+      targetPlan: 'promax',
+      cycle,
+      effectiveChargeUsd: credit.chargeNowUsd,
+      requiresCheckout: true,
+    })
   } catch (err) {
     console.error('[subscriptionController.upgrade]', err)
     next(err)
@@ -132,12 +137,16 @@ export async function downgrade(
     const uid = requireUid(req, res)
     if (!uid) return
     const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
-    if (!clientRequestId) { res.status(400).json({ error: 'missing_clientRequestId' }); return }
+    if (typeof clientRequestId !== 'string' || clientRequestId.trim() === '') {
+      res.status(400).json({ error: 'missing_client_request_id' })
+      return
+    }
     const sub = await readSubscription(uid)
     const result = await applyTransition(uid, sub.state, sub.state, 'downgrade_schedule', {
       clientRequestId,
       targetPlan: 'pro',
     })
+    if (result.applied) emit('subscription_downgrade', { uid, fromState: sub.state, toState: result.state })
     res.status(200).json({ state: result.state, applied: result.applied })
   } catch (err) {
     console.error('[subscriptionController.downgrade]', err)

@@ -25,10 +25,10 @@ export function generateBlurHash(width: number, height: number): string {
   // Gold-tinted gradient placeholder
   if (aspectRatio > 1) {
     // Landscape
-    return 'linear-gradient(135deg, #f5e6d0 0%, #e8d5b8 40%, #C6944A33 70%, #f0dcc4 100%)';
+    return 'linear-gradient(135deg, #f5e6d0 0%, #e8d5b8 40%, #A17A6333 70%, #f0dcc4 100%)';
   }
   // Portrait or square
-  return 'linear-gradient(180deg, #f5e6d0 0%, #e8d5b8 50%, #C6944A33 80%, #f0dcc4 100%)';
+  return 'linear-gradient(180deg, #f5e6d0 0%, #e8d5b8 50%, #A17A6333 80%, #f0dcc4 100%)';
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

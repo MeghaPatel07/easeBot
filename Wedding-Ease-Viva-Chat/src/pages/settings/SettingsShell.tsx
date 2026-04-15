@@ -202,8 +202,8 @@ export function SettingsShell() {
         className={cn(
           'w-[100vw] h-[100dvh] max-w-none translate-x-0 translate-y-0 left-0 top-0 rounded-none p-0 border-0',
           'sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2',
-          'sm:w-[95vw] sm:max-w-[960px] sm:h-[85dvh] sm:rounded-2xl sm:border sm:border-border',
-          'bg-background text-foreground flex flex-col overflow-hidden',
+          'sm:w-[95vw] sm:max-w-[960px] sm:h-[85dvh] sm:rounded-2xl sm:border-0',
+          'bg-[#090807] text-foreground flex flex-col overflow-hidden',
         )}
         aria-labelledby="settings-shell-title"
         aria-describedby="settings-shell-desc"
@@ -225,7 +225,7 @@ export function SettingsShell() {
             onKeyDown={onNavKeyDown}
             onClose={closeModal}
           />
-          <div className="flex-1 min-w-0 overflow-y-auto p-8 bg-background">
+          <div className="flex-1 min-w-0 overflow-y-auto p-8 bg-transparent">
             <ActiveComponent />
           </div>
         </div>
@@ -239,7 +239,7 @@ export function SettingsShell() {
             onKeyDown={onHorizontalKeyDown}
             onClose={closeModal}
           />
-          <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-background">
+          <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-transparent">
             <ActiveComponent />
           </div>
         </div>
@@ -264,7 +264,7 @@ export function SettingsShell() {
                 onBack={() => setMobileShowingContent(false)}
                 onClose={closeModal}
               />
-              <div className="flex-1 overflow-y-auto p-4 bg-background">
+              <div className="flex-1 overflow-y-auto p-4 bg-transparent">
                 <ActiveComponent />
               </div>
             </>
@@ -288,28 +288,28 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
   function DesktopSideNav({ activeTab, onSelect, onKeyDown, onClose }, ref) {
     return (
       <aside
-        className="w-[240px] shrink-0 border-r border-border bg-muted/30 flex flex-col"
+        className="w-[220px] shrink-0 m-3 flex flex-col rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]"
         aria-label="Settings sections"
       >
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">
-            Settings
+        <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
+          <h1 className="text-sm font-medium lowercase tracking-tight text-white/70 px-2">
+            settings
           </h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
-        <div
+        <nav
           ref={ref}
           role="tablist"
           aria-orientation="vertical"
           onKeyDown={onKeyDown}
-          className="flex-1 overflow-y-auto px-3 pb-4 flex flex-col gap-1"
+          className="flex-1 overflow-y-auto custom-scrollbar px-3 pt-2 pb-3 flex flex-col gap-0.5"
         >
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = id === activeTab
@@ -324,19 +324,19 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
                 data-tab-id={id}
                 onClick={() => onSelect(id)}
                 className={cn(
-                  'min-h-11 w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-left',
-                  'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-left',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
                   active
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                    ? 'bg-white/[0.1] text-[#A17A63] font-medium'
+                    : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]',
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">{label}</span>
+                <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
+                <span className="truncate">{label.toLowerCase()}</span>
               </button>
             )
           })}
-        </div>
+        </nav>
       </aside>
     )
   },
@@ -354,18 +354,18 @@ interface TopTabBarProps {
 const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
   function TopTabBar({ activeTab, onSelect, onKeyDown, onClose }, ref) {
     return (
-      <div className="flex flex-col border-b border-border bg-background">
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">
-            Settings
+      <div className="flex flex-col m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <h1 className="text-sm font-medium lowercase tracking-tight text-white/70">
+            settings
           </h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
         <div
@@ -373,7 +373,7 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
           role="tablist"
           aria-orientation="horizontal"
           onKeyDown={onKeyDown}
-          className="flex gap-1 overflow-x-auto px-3 pb-3"
+          className="flex gap-0.5 overflow-x-auto custom-scrollbar px-3 pb-3"
         >
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = id === activeTab
@@ -388,15 +388,15 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
                 data-tab-id={id}
                 onClick={() => onSelect(id)}
                 className={cn(
-                  'min-h-11 shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium',
-                  'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs lowercase transition-all duration-200',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
                   active
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                    ? 'bg-white/[0.1] text-[#A17A63] font-medium'
+                    : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]',
                 )}
               >
-                <Icon className="h-4 w-4" aria-hidden="true" />
-                <span>{label}</span>
+                <Icon className={cn('h-4 w-4', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
+                <span>{label.toLowerCase()}</span>
               </button>
             )
           })}
@@ -418,18 +418,18 @@ interface MobileTabListProps {
 const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
   function MobileTabList({ activeTab, onSelect, onKeyDown, onClose }, ref) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 bg-background">
-        <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-border">
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">
-            Settings
+      <div className="flex flex-col flex-1 min-h-0 m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+          <h1 className="text-sm font-medium lowercase tracking-tight text-white/70">
+            settings
           </h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
         <ul
@@ -437,7 +437,7 @@ const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
           role="tablist"
           aria-orientation="vertical"
           onKeyDown={onKeyDown}
-          className="flex-1 overflow-y-auto divide-y divide-border"
+          className="flex-1 overflow-y-auto custom-scrollbar px-3 pt-2 pb-3 flex flex-col gap-0.5"
         >
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = id === activeTab
@@ -452,16 +452,16 @@ const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
                   data-tab-id={id}
                   onClick={() => onSelect(id)}
                   className={cn(
-                    'min-h-11 w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-left',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
                     active
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-foreground hover:bg-accent/60',
+                      ? 'bg-white/[0.1] text-[#A17A63] font-medium'
+                      : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]',
                   )}
                 >
-                  <Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                  <span className="flex-1">{label}</span>
-                  <span aria-hidden="true" className="text-muted-foreground">›</span>
+                  <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
+                  <span className="flex-1 truncate">{label.toLowerCase()}</span>
+                  <span aria-hidden="true" className="text-white/30">›</span>
                 </button>
               </li>
             )

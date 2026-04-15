@@ -390,8 +390,16 @@ export async function handleGetUsage(req: Request, res: Response): Promise<void>
     const tier = await getTier(uid)
     const snapshot = await getUsage({ kind: 'user', id: uid, tier })
     const monthlyPool = Math.max(0, (snapshot.monthlyTokensCap ?? 0) - (snapshot.monthlyTokensUsed ?? 0))
-    const resetAt = new Date()
-    resetAt.setUTCHours(24, 0, 0, 0)
+    const now = new Date()
+    // Monthly reset = first day of NEXT UTC month at 00:00. Token-meter keys
+    // the usage doc by `YYYY-MM`, so rollover happens exactly at that instant.
+    // Previous impl used now.getUTCDate() + 1, which is tomorrow — wrong.
+    const resetAt = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth() + 1,
+      1,
+      0, 0, 0, 0,
+    ))
     res.status(200).json({
       tier: snapshot.tier,
       monthlyPool,
@@ -421,16 +429,32 @@ export async function handleGetInvoices(req: Request, res: Response): Promise<vo
   } catch (err) { serverError(res, err) }
 }
 
+// GET /api/account/invoices/:id/pdf — binary PDF download.
+export async function handleGetInvoicePdf(req: Request, res: Response): Promise<void> {
+  const uid = req.user!.uid
+  const invoiceId = String(req.params.id || '')
+  if (!invoiceId) { badRequest(res, 'missing invoice id'); return }
+  try {
+    const { getInvoicePdfBase64 } = await import('../services/invoiceService')
+    const base64 = await getInvoicePdfBase64(uid, invoiceId)
+    if (!base64) { res.status(404).json({ error: 'not_found' }); return }
+    const buf = Buffer.from(base64, 'base64')
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoiceId}.pdf"`)
+    res.status(200).send(buf)
+  } catch (err) { serverError(res, err) }
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/account/plan/switch
 // Sets the user's plan tier directly (no third-party billing). Until a real
 // payment processor lands, this is the source of truth for the user's plan.
 // ---------------------------------------------------------------------------
-const ALLOWED_TIERS = new Set(['free', 'pro', 'premium'])
+const ALLOWED_TIERS = new Set(['free', 'pro', 'promax'])
 const TIER_MESSAGE_QUOTA: Record<string, number> = {
   free: 100,
   pro: 2000,
-  premium: 100000,
+  promax: 100000,
 }
 
 export async function handleSwitchPlan(req: Request, res: Response): Promise<void> {

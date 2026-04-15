@@ -177,7 +177,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
       r.status === 'sent' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
       : r.status === 'failed' ? 'text-red-400 bg-red-500/10 border-red-500/20'
       : r.status === 'cancelled' ? 'text-white/40 bg-white/5 border-white/10'
-      : 'text-[#C6944A] bg-[#C6944A]/10 border-[#C6944A]/20'
+      : 'text-[#A17A63] bg-[#A17A63]/10 border-[#A17A63]/20'
 
     return (
       <div

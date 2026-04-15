@@ -160,7 +160,7 @@ export function AppearanceTab() {
       description="Theme, density, and language for the WeddingEase interface."
     >
       {/* Theme card */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Theme</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -198,7 +198,7 @@ export function AppearanceTab() {
       </Card>
 
       {/* Density card */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Density</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -236,7 +236,7 @@ export function AppearanceTab() {
       </Card>
 
       {/* Language card */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Language</h3>
           <p className="mt-1 text-xs text-muted-foreground">
