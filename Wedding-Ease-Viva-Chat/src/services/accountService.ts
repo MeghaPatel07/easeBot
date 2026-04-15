@@ -35,7 +35,47 @@ export interface AccountMeResponse {
 
 export interface AccountServiceError extends Error {
   status: number
-  code: 'unauthenticated' | 'not_implemented' | 'network' | 'server'
+  code: 'unauthenticated' | 'not_implemented' | 'network' | 'server' | 'quota_exceeded'
+  details?: unknown
+}
+
+// Sprint 2 FE-011: canonical token-meter snapshot returned by
+// GET /api/account/usage. See backend accountController.handleGetUsage.
+export interface UsageSnapshot {
+  tier: 'free' | 'pro' | 'promax' | 'guest'
+  monthlyPool: number
+  monthlyPoolMax: number
+  monthlyTokensUsed: number
+  extrasBucket: number
+  extrasPurchasedThisMonth: number
+  dailyUsed: number
+  dailyMax: number | null
+  dailyResetAt: string
+  resetAt: string
+  byService: Record<string, number>
+  updatedAt: string
+}
+
+// 402 payload from quotaMiddleware — wired by the interceptor.
+export interface QuotaExceededPayload {
+  error: 'quota_exceeded'
+  reason:
+    | 'daily_cap_exceeded'
+    | 'monthly_cap_exceeded'
+    | 'guest_limit_exceeded'
+  message: string
+  resetAt: string | null
+  upgradeUrl: string
+  remaining?: unknown
+}
+
+// Hook: last 402 payload is broadcast via a CustomEvent so any component
+// (cap-hit banner, 402 interceptor, top-level layout) can react.
+export const QUOTA_EVENT = 'easebot:quota_exceeded'
+export function onQuotaExceeded(cb: (p: QuotaExceededPayload) => void): () => void {
+  const listener = (e: Event) => cb((e as CustomEvent<QuotaExceededPayload>).detail)
+  window.addEventListener(QUOTA_EVENT, listener)
+  return () => window.removeEventListener(QUOTA_EVENT, listener)
 }
 
 function makeError(status: number, code: AccountServiceError['code'], message: string): AccountServiceError {
@@ -81,6 +121,15 @@ async function request<T>(
 
   if (res.status === 401) throw makeError(401, 'unauthenticated', 'Not signed in')
   if (res.status === 501) throw makeError(501, 'not_implemented', 'Backend not yet available')
+  if (res.status === 402) {
+    const payload = (await res.json().catch(() => null)) as QuotaExceededPayload | null
+    if (payload && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(QUOTA_EVENT, { detail: payload }))
+    }
+    const err = makeError(402, 'quota_exceeded', payload?.message ?? 'Quota exceeded')
+    err.details = payload
+    throw err
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     throw makeError(res.status, 'server', text || `Request failed (${res.status})`)
@@ -142,6 +191,10 @@ export function patchAccountPreferences(patch: UserPreferences): Promise<UserPre
 
 export function getAccountPlan(): Promise<{ plan: AccountPlan; usage: AccountUsage }> {
   return request<{ plan: AccountPlan; usage: AccountUsage }>('GET', '/api/account/plan')
+}
+
+export function getAccountUsage(): Promise<UsageSnapshot> {
+  return request<UsageSnapshot>('GET', '/api/account/usage')
 }
 
 export interface SwitchPlanResponse {

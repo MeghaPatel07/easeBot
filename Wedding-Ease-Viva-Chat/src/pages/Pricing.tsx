@@ -1,85 +1,95 @@
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Check } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import PricingTierCard, {
   type PricingTier,
 } from '@/components/pricing/PricingTierCard'
+import GeolocationService from '@/services/geolocationService'
+import ExchangeRateService from '@/services/exchangeRateService'
+import { formatCurrency } from '@/utils/currencyFormat'
+import { useAccount } from '@/hooks/useAccount'
+import { cn } from '@/lib/utils'
 
 const SERVICE_NAME = 'Viva by EaseBot'
 
-// Sprint 1 batch B (FE-001): toggle on the new skeleton tier cards. Sprint 2
-// removes the old layout once the new cards are wired to real data.
-const USE_NEW_PRICING_CARDS = true
+type BillingCycle = 'monthly' | 'annual'
 
-interface NewPricingMock {
+interface TierPricing {
   tier: PricingTier
-  priceUsd: number
+  monthlyUsd: number
+  annualUsd: number
   isRecommended?: boolean
 }
 
-const NEW_PRICING_MOCKS: NewPricingMock[] = [
-  { tier: 'free', priceUsd: 0 },
-  { tier: 'pro', priceUsd: 12, isRecommended: true },
-  { tier: 'promax', priceUsd: 29 },
+// Canonical prices from PRICING_PRD.md §4
+const TIERS: TierPricing[] = [
+  { tier: 'free',   monthlyUsd: 0,     annualUsd: 0 },
+  { tier: 'pro',    monthlyUsd: 14.99, annualUsd: 119, isRecommended: true },
+  { tier: 'promax', monthlyUsd: 39,    annualUsd: 299 },
 ]
 
-interface PlanDef {
-  tier: 'free' | 'pro' | 'premium'
-  name: string
-  tagline: string
-  price: string
-  period: string
-  features: string[]
-  highlight?: boolean
-}
-
-const PLANS: PlanDef[] = [
-  {
-    tier: 'free',
-    name: 'Free',
-    tagline: 'Get a feel for Easebot.',
-    price: '$0',
-    period: '/ month',
-    features: [
-      '100 chat messages per month',
-      'Planner & Stylist modes', // Disabled: Therapist mode removed
-      // 'Planner, Stylist & Therapist modes',
-      'Basic checklist & notes',
-      'Single device',
-    ],
-  },
-  {
-    tier: 'pro',
-    name: 'Pro',
-    tagline: 'For couples deep in planning.',
-    price: '$12',
-    period: '/ month',
-    features: [
-      '2,000 chat messages per month',
-      'All AI modes incl. Knowledge', // Disabled: '& Consultant' removed
-      // 'All AI modes incl. Knowledge & Consultant',
-      'Voice replies & image generation',
-      'Reminders via email & WhatsApp',
-      'Priority response speed',
-    ],
-    highlight: true,
-  },
-  {
-    tier: 'premium',
-    name: 'Premium',
-    tagline: 'White-glove planning support.',
-    price: '$29',
-    period: '/ month',
-    features: [
-      'Unlimited chat messages',
-      'Everything in Pro',
-      'Personal vibe board & moodboards',
-      'Vendor outreach drafts',
-      'Concierge support within 24h',
-    ],
-  },
-]
+const CURRENCY_OPTIONS = ['USD', 'INR', 'GBP', 'EUR', 'AED', 'SGD', 'AUD', 'CAD'] as const
 
 export default function Pricing() {
+  const { plan } = useAccount()
+  const [cycle, setCycle] = useState<BillingCycle>('monthly')
+  const [currency, setCurrency] = useState<string>('USD')
+  const [rate, setRate] = useState<number>(1)
+  const [loadingRate, setLoadingRate] = useState(false)
+
+  const currentTier: PricingTier | 'guest' = (
+    plan?.tier === 'pro' ? 'pro'
+    : plan?.tier === 'premium' ? 'promax'
+    : plan?.tier === 'free' ? 'free'
+    : 'guest'
+  )
+
+  // Detect user currency once on mount.
+  useEffect(() => {
+    let cancelled = false
+    void GeolocationService.getUserCurrency().then((geo) => {
+      if (!cancelled) setCurrency(geo.currencyCode.toUpperCase())
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  // Fetch USD → currency rate whenever currency changes.
+  useEffect(() => {
+    let cancelled = false
+    setLoadingRate(true)
+    void ExchangeRateService.getRate('USD', currency).then((r) => {
+      if (!cancelled) {
+        setRate(r)
+        setLoadingRate(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [currency])
+
+  const cards = useMemo(() => {
+    return TIERS.map((t) => {
+      const usd = cycle === 'monthly' ? t.monthlyUsd : t.annualUsd
+      const monthlyEquivUsd = cycle === 'annual' && t.annualUsd > 0 ? t.annualUsd / 12 : t.monthlyUsd
+      const priceLocal = usd === 0 ? undefined : formatCurrency(usd, currency, rate)
+      const subtitle = cycle === 'annual' && usd > 0
+        ? `${formatCurrency(monthlyEquivUsd, currency, rate)}/mo billed yearly`
+        : undefined
+      return { ...t, usd, priceLocal, subtitle }
+    })
+  }, [cycle, currency, rate])
+
+  const handleCurrencyOverride = (next: string) => {
+    GeolocationService.setCurrencyOverride(next === 'USD' ? null : next)
+    setCurrency(next)
+  }
+
+  const handleSelect = (tier: PricingTier) => {
+    // Route to in-app settings flow, which (Sprint 3) will call
+    // /api/payment/initiate and post the form to PayU.
+    const params = new URLSearchParams({ settings: 'plan-billing', plan: tier, cycle })
+    window.location.href = `/?${params.toString()}`
+  }
+
   return (
     <div className="min-h-screen bg-background text-white/85">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -103,82 +113,99 @@ export default function Pricing() {
             Plans that grow with your wedding
           </h1>
           <p className="text-sm text-white/60 max-w-2xl">
-            Start free, upgrade when you need more chats, voice replies, or
-            personalized planning. Cancel or downgrade anytime — your data
-            stays exactly where you left it.
+            Vertical wedding AI — planner, stylist, and knowledge modes — priced
+            against what you'd pay a human planner, not a ChatGPT subscription.
+            Cancel anytime. No refunds per our terms §6.5.
           </p>
         </header>
 
-        {USE_NEW_PRICING_CARDS && (
-          <section
-            aria-label="Pricing tiers (new skeleton)"
-            className="mb-12 grid gap-5 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+        {/* Billing cycle + currency controls ─────────────────────────────── */}
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <div
+            role="tablist"
+            aria-label="Billing cycle"
+            className="inline-flex rounded-full border border-white/10 bg-white/[0.02] p-1"
           >
-            {NEW_PRICING_MOCKS.map((mock) => (
-              <PricingTierCard
-                key={mock.tier}
-                tier={mock.tier}
-                currentUserTier="free"
-                priceUsd={mock.priceUsd}
-                currency="USD"
-                isRecommended={mock.isRecommended}
-              />
-            ))}
-          </section>
-        )}
-
-        <section className="grid gap-5 md:grid-cols-3">
-          {PLANS.map((plan) => (
-            <div
-              key={plan.tier}
-              className={`relative flex flex-col rounded-2xl border p-6 backdrop-blur-sm transition-colors ${
-                plan.highlight
-                  ? 'border-primary/60 bg-primary/5'
-                  : 'border-white/10 bg-white/[0.02]'
-              }`}
-            >
-              {plan.highlight && (
-                <span className="absolute -top-3 left-6 rounded-full border border-primary/60 bg-background px-3 py-0.5 text-2xs uppercase tracking-wide text-primary">
-                  Most popular
-                </span>
-              )}
-              <h2 className="font-headline text-2xl text-white">{plan.name}</h2>
-              <p className="mt-1 text-xs text-white/50">{plan.tagline}</p>
-              <div className="mt-5 flex items-baseline gap-1">
-                <span className="font-headline text-4xl text-white">{plan.price}</span>
-                <span className="text-xs text-white/50">{plan.period}</span>
-              </div>
-              <ul className="mt-6 flex flex-1 flex-col gap-2.5">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-white/70">
-                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" aria-hidden="true" />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/?settings=plan-billing"
-                className={`mt-6 inline-flex min-h-11 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors ${
-                  plan.highlight
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'border border-white/20 bg-transparent text-white hover:bg-white/5'
-                }`}
+            {(['monthly', 'annual'] as BillingCycle[]).map((c) => (
+              <button
+                key={c}
+                role="tab"
+                aria-selected={cycle === c}
+                onClick={() => setCycle(c)}
+                className={cn(
+                  'min-h-9 rounded-full px-4 text-xs font-medium transition-colors',
+                  cycle === c
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-white/60 hover:text-white/90',
+                )}
               >
-                {plan.tier === 'free' ? 'Start free' : `Choose ${plan.name}`}
-              </Link>
+                {c === 'monthly' ? 'Monthly' : 'Annual — save ~34%'}
+              </button>
+            ))}
+          </div>
+
+          <label className="inline-flex items-center gap-2 text-xs text-white/50">
+            Show prices in
+            <select
+              aria-label="Currency"
+              value={currency}
+              onChange={(e) => handleCurrencyOverride(e.target.value)}
+              className="min-h-9 rounded-md border border-white/10 bg-white/[0.02] px-2 text-white/80 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              {CURRENCY_OPTIONS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {loadingRate && <span aria-live="polite">…</span>}
+          </label>
+        </div>
+
+        <section
+          aria-label="Pricing tiers"
+          className="mb-12 grid gap-5 sm:grid-cols-1 md:grid-cols-3"
+        >
+          {cards.map((c) => (
+            <div key={c.tier} className="flex flex-col gap-2">
+              <PricingTierCard
+                tier={c.tier}
+                currentUserTier={currentTier}
+                priceUsd={c.usd}
+                priceLocal={c.priceLocal}
+                currency={currency}
+                isRecommended={c.isRecommended}
+                onSelect={handleSelect}
+              />
+              {c.subtitle && (
+                <p className="text-center text-2xs text-white/40">{c.subtitle}</p>
+              )}
             </div>
           ))}
         </section>
 
-        <p className="mt-10 text-center text-xs text-white/40">
-          Prices shown in USD. Taxes may apply. Contact{' '}
-          <a
-            href="mailto:support@easebot.app"
-            className="text-primary hover:underline"
-          >
+        <section
+          aria-label="Token top-up pack"
+          className="mb-12 rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+        >
+          <h2 className="font-headline text-xl text-white mb-1">Need more tokens?</h2>
+          <p className="text-xs text-white/50 mb-4">
+            Pro &amp; Pro Max subscribers can buy a 2 million token top-up pack
+            (stackable, max 10 / month). No refunds.
+          </p>
+          <div className="flex items-baseline gap-3">
+            <span className="font-headline text-3xl text-white">
+              {formatCurrency(10, currency, rate)}
+            </span>
+            <span className="text-xs text-white/50">/ 2M tokens, one-time</span>
+          </div>
+        </section>
+
+        <p className="mt-4 text-center text-xs text-white/40">
+          Base currency is USD. Local prices update every minute via
+          exchangerate-api. Final PayU checkout locks the rate server-side.
+          Questions?{' '}
+          <a href="mailto:support@easebot.app" className="text-primary hover:underline">
             support@easebot.app
-          </a>{' '}
-          for enterprise or annual billing.
+          </a>
         </p>
       </div>
     </div>

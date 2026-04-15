@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import LoadingScreen from "@/components/ui/loading-screen";
+import { CapHitBanner } from "@/components/pricing/CapHitBanner";
 
 const Index = lazy(() => import('./pages/Index'));
 const SharedChat = lazy(() => import('./pages/SharedChat'));
@@ -27,6 +28,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <CapHitBanner />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
               <Route path="/" element={<Index />} />

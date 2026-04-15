@@ -36,8 +36,8 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
-// Sprint 1 batch B (FE-001): placeholder slots. Sprint 2 wires real data.
-import { BillingSettingsSkeleton } from '@/components/billing/BillingSettingsSkeleton'
+// Sprint 2 FE-013: real billing surface wired to live token-meter data.
+import { BillingSettings } from '@/components/billing/BillingSettings'
 
 import TabShell from './_TabShell'
 
@@ -201,11 +201,8 @@ export function PlanBillingTab() {
       title="Plan & Billing"
       description="See your current tier, monthly usage, and upgrade options."
     >
-      {/* 0. Sprint 1 batch B skeleton — will merge into card 1 in Sprint 2 */}
-      <BillingSettingsSkeleton
-        currentTier={currentTier === 'premium' ? 'promax' : currentTier}
-        nextRenewalDate={renewsAt}
-      />
+      {/* 0. Sprint 2 FE-013: real billing surface (usage + cancel + extras) */}
+      <BillingSettings />
 
       {/* 1. Current plan hero card ─────────────────────────────────────────── */}
       <Card className="border-border bg-card text-card-foreground">
