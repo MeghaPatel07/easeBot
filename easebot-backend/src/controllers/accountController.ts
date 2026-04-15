@@ -158,7 +158,19 @@ const ALLOWED_PROFILE_FIELDS = new Set([
   'weddingDate', 'budget', 'partnerName', 'role',
   // Sprint 4 (Kenji) → Sprint 4b (Nikhil): custom instructions allow-list.
   'about', 'responseStyle',
+  // Identity-origin lock: editable only on phone-created accounts (the email
+  // is purely a Firestore-side display field there). Locked on email accounts.
+  'email',
 ])
+
+// Phone-created accounts use a derived Firebase Auth email of the form
+// `phone_<digits>@phone.weddingease.local`. Single source of truth on the
+// backend — never hardcode this literal anywhere else.
+const PHONE_DERIVED_EMAIL_SUFFIX = '@phone.weddingease.local'
+const isDerivedPhoneEmail = (email?: string | null): boolean =>
+  !!email && email.endsWith(PHONE_DERIVED_EMAIL_SUFFIX)
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PHONE_LOCK_FIELDS = new Set(['phone', 'phoneCountryCode', 'phoneNational'])
 // Custom-instruction free-form fields share a 1500-char hard cap (matches the
 // frontend Personalization tab counter).
 const CUSTOM_INSTRUCTION_MAX = 1500
@@ -235,11 +247,51 @@ export async function handleUpdateProfile(req: Request, res: Response): Promise<
   const body = (req.body ?? {}) as Record<string, unknown>
   const update: Record<string, any> = {}
 
+  // Resolve identity origin once. We trust `authMethod` if persisted; otherwise
+  // derive from the Firebase Auth email shape (and lazy-backfill below).
+  let authMethod: 'email' | 'phone' | null = null
+  let needsAuthMethodBackfill = false
+  try {
+    const snap = await userRef(uid).get()
+    const data = snap.exists ? (snap.data() ?? {}) : {}
+    if (data.authMethod === 'email' || data.authMethod === 'phone') {
+      authMethod = data.authMethod
+    } else {
+      authMethod = isDerivedPhoneEmail(req.user?.email) ? 'phone' : 'email'
+      needsAuthMethodBackfill = true
+    }
+  } catch (err) {
+    return serverError(res, err)
+  }
+
   for (const [key, value] of Object.entries(body)) {
     if (!ALLOWED_PROFILE_FIELDS.has(key)) {
       return badRequest(res, `Unknown field: ${key}`)
     }
+    if (key === 'email' && authMethod === 'email') {
+      res.status(403).json({
+        error: 'Email cannot be changed for accounts created with email.',
+        code: 'EMAIL_LOCKED',
+      })
+      return
+    }
+    if (PHONE_LOCK_FIELDS.has(key) && authMethod === 'phone') {
+      res.status(403).json({
+        error: 'Phone number cannot be changed for accounts created with phone.',
+        code: 'PHONE_LOCKED',
+      })
+      return
+    }
     switch (key) {
+      case 'email':
+        if (typeof value !== 'string' || !EMAIL_RE.test(value) || value.length > 254) {
+          return badRequest(res, 'Invalid email')
+        }
+        if (isDerivedPhoneEmail(value)) {
+          return badRequest(res, 'Reserved email domain')
+        }
+        update[key] = value
+        break
       case 'name':
       case 'nickname':
       case 'partnerName':
@@ -298,32 +350,22 @@ export async function handleUpdateProfile(req: Request, res: Response): Promise<
 
   try {
     update.profileUpdatedAt = serverTimestamp()
+    if (needsAuthMethodBackfill && authMethod) update.authMethod = authMethod
     await userRef(uid).set(update, { merge: true })
-    res.status(200).json({ ok: true, updated: Object.keys(update).filter(k => k !== 'profileUpdatedAt') })
+    res.status(200).json({
+      ok: true,
+      updated: Object.keys(update).filter(
+        (k) => k !== 'profileUpdatedAt' && k !== 'authMethod',
+      ),
+    })
   } catch (err) { serverError(res, err) }
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/account/email/change  — STUB (re-auth UX owned by Sprint 2)
+// Email and password changes happen entirely client-side via the Firebase Auth
+// SDK (verifyBeforeUpdateEmail / updatePassword). The frontend handles re-auth,
+// so no backend endpoint is required.
 // ---------------------------------------------------------------------------
-export function handleEmailChangeStub(_req: Request, res: Response): void {
-  res.status(501).json({
-    status: 'pending',
-    message: 'email change requires re-auth flow — Sprint 2',
-    code: 'NOT_IMPLEMENTED',
-  })
-}
-
-// ---------------------------------------------------------------------------
-// POST /api/account/password/change  — STUB
-// ---------------------------------------------------------------------------
-export function handlePasswordChangeStub(_req: Request, res: Response): void {
-  res.status(501).json({
-    status: 'pending',
-    message: 'password change requires re-auth flow — Sprint 2',
-    code: 'NOT_IMPLEMENTED',
-  })
-}
 
 // ---------------------------------------------------------------------------
 // GET /api/account/plan
@@ -338,14 +380,53 @@ export async function handleGetPlan(req: Request, res: Response): Promise<void> 
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/account/plan/checkout  — STUB
+// POST /api/account/plan/switch
+// Sets the user's plan tier directly (no third-party billing). Until a real
+// payment processor lands, this is the source of truth for the user's plan.
 // ---------------------------------------------------------------------------
-export function handleCheckoutStub(_req: Request, res: Response): void {
-  res.status(501).json({
-    status: 'pending',
-    message: 'payments sprint will own checkout',
-    code: 'NOT_IMPLEMENTED',
-  })
+const ALLOWED_TIERS = new Set(['free', 'pro', 'premium'])
+const TIER_MESSAGE_QUOTA: Record<string, number> = {
+  free: 100,
+  pro: 2000,
+  premium: 100000,
+}
+
+export async function handleSwitchPlan(req: Request, res: Response): Promise<void> {
+  const uid = req.user!.uid
+  const body = (req.body ?? {}) as Record<string, unknown>
+  const tier = body.tier
+  if (typeof tier !== 'string' || !ALLOWED_TIERS.has(tier)) {
+    return badRequest(res, `Invalid tier (allowed: ${Array.from(ALLOWED_TIERS).join(', ')})`)
+  }
+  try {
+    const now = new Date()
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+    await userRef(uid).set(
+      {
+        plan: tier,
+        planRenewsAt: tier === 'free' ? null : periodEnd.toISOString(),
+        usage: {
+          messagesUsed: 0,
+          messagesAllowed: TIER_MESSAGE_QUOTA[tier],
+          periodStart: now.toISOString(),
+          periodEnd: periodEnd.toISOString(),
+        },
+        planUpdatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    )
+    res.status(200).json({
+      ok: true,
+      plan: tier,
+      planRenewsAt: tier === 'free' ? null : periodEnd.toISOString(),
+      usage: {
+        messagesUsed: 0,
+        messagesAllowed: TIER_MESSAGE_QUOTA[tier],
+        periodStart: now.toISOString(),
+        periodEnd: periodEnd.toISOString(),
+      },
+    })
+  } catch (err) { serverError(res, err) }
 }
 
 // ---------------------------------------------------------------------------
@@ -437,12 +518,97 @@ export async function handleUpdatePreferences(req: Request, res: Response): Prom
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/account/export  — STUB
+// GET /api/account/export
+// Streams a JSON dump of the signed-in user's profile, preferences, and chat
+// threads. Heavy collections are capped to keep the response bounded.
 // ---------------------------------------------------------------------------
-export function handleExportStub(_req: Request, res: Response): void {
-  res.status(501).json({
-    status: 'pending',
-    message: 'data export job will be implemented in Phase 4',
-    code: 'NOT_IMPLEMENTED',
-  })
+const EXPORT_THREAD_LIMIT = 500
+const EXPORT_MESSAGES_PER_THREAD_LIMIT = 1000
+
+export async function handleExport(req: Request, res: Response): Promise<void> {
+  const uid = req.user!.uid
+  try {
+    const userSnap = await userRef(uid).get()
+    const profile = userSnap.exists ? (userSnap.data() ?? {}) : {}
+
+    const subcollections = ['images', 'checklists', 'shoppingLists', 'calendarEvents', 'notifications']
+    const subData: Record<string, unknown[]> = {}
+    for (const name of subcollections) {
+      const snap = await userRef(uid).collection(name).limit(500).get()
+      subData[name] = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    }
+
+    const budgetSnap = await userRef(uid).collection('budget').doc('main').get()
+    const budget = budgetSnap.exists ? budgetSnap.data() : null
+
+    const threadsSnap = await adminDb
+      .collection('chats')
+      .where('userId', '==', uid)
+      .limit(EXPORT_THREAD_LIMIT)
+      .get()
+    const threads: Array<Record<string, unknown>> = []
+    for (const threadDoc of threadsSnap.docs) {
+      const messagesSnap = await threadDoc.ref
+        .collection('messages')
+        .limit(EXPORT_MESSAGES_PER_THREAD_LIMIT)
+        .get()
+      threads.push({
+        id: threadDoc.id,
+        ...threadDoc.data(),
+        messages: messagesSnap.docs.map((m) => ({ id: m.id, ...m.data() })),
+      })
+    }
+
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      uid,
+      email: req.user?.email ?? null,
+      profile,
+      budget,
+      ...subData,
+      chats: threads,
+    }
+
+    res.setHeader('Content-Type', 'application/json')
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="weddingease-export-${uid}.json"`,
+    )
+    res.status(200).send(JSON.stringify(payload, null, 2))
+  } catch (err) { serverError(res, err) }
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /api/account/history
+// Deletes every chat thread (and its messages) owned by the signed-in user.
+// ---------------------------------------------------------------------------
+export async function handleClearHistory(req: Request, res: Response): Promise<void> {
+  const uid = req.user!.uid
+  try {
+    const threadsSnap = await adminDb
+      .collection('chats')
+      .where('userId', '==', uid)
+      .get()
+
+    let deletedThreads = 0
+    let deletedMessages = 0
+    for (const threadDoc of threadsSnap.docs) {
+      const messagesSnap = await threadDoc.ref.collection('messages').get()
+      while (messagesSnap.docs.length > 0) {
+        const batch = adminDb.batch()
+        const chunk = messagesSnap.docs.splice(0, 400)
+        for (const m of chunk) batch.delete(m.ref)
+        await batch.commit()
+        deletedMessages += chunk.length
+      }
+      await threadDoc.ref.delete()
+      deletedThreads += 1
+    }
+
+    res.status(200).json({
+      ok: true,
+      deletedThreads,
+      deletedMessages,
+    })
+  } catch (err) { serverError(res, err) }
 }

@@ -119,9 +119,9 @@ export default {
 				'mode-planner':     '#C6944A',   // gold (= primary)
 				'mode-stylist':     '#D4AF37',   // gold
 				'mode-stylist-dark':'#B8860B',   // dark gold (hover / border)
-				'mode-therapist':   '#9B8B7A',   // warm taupe
+				// 'mode-therapist':   '#9B8B7A',   // warm taupe — disabled
 				'mode-knowledge':   '#6B5E52',   // warm brown
-				'mode-consultant':  '#A87C33',   // warm amber
+				// 'mode-consultant':  '#A87C33',   // warm amber — disabled
 			},
 
 			// ─── Border Radius ───────────────────────────────────────────────────────

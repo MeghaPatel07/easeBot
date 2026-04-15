@@ -1,4 +1,5 @@
-export type Mode = 'planner' | 'stylist' | 'therapist' | 'knowledge' | 'consultant' | 'assistant'
+// Disabled: 'therapist' | 'consultant' removed per EXECUTION_PLAN §0 guardrail #7
+export type Mode = 'planner' | 'stylist' | 'knowledge' | 'assistant'
 
 export interface ChatPayload {
   message: string

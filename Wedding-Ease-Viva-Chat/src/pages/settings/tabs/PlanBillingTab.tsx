@@ -11,8 +11,10 @@
 // `accountService` are read-only this sprint — so we surface a graceful
 // "launching soon" toast that fires before any network attempt could crash.
 
-import { useMemo } from 'react'
-import { Check, CreditCard, ExternalLink, Receipt, Sparkles } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Check, ExternalLink, Receipt, Sparkles } from 'lucide-react'
+import { switchPlan } from '@/services/accountService'
 
 import {
   Card,
@@ -34,6 +36,8 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
+// Sprint 1 batch B (FE-001): placeholder slots. Sprint 2 wires real data.
+import { BillingSettingsSkeleton } from '@/components/billing/BillingSettingsSkeleton'
 
 import TabShell from './_TabShell'
 
@@ -61,7 +65,8 @@ const PLANS: PlanDef[] = [
     period: '/ month',
     features: [
       '100 chat messages per month',
-      'Planner, Stylist & Therapist modes',
+      'Planner & Stylist modes', // Disabled: Therapist mode removed
+      // 'Planner, Stylist & Therapist modes',
       'Basic checklist & notes',
       'Single device',
     ],
@@ -74,7 +79,8 @@ const PLANS: PlanDef[] = [
     period: '/ month',
     features: [
       '2,000 chat messages per month',
-      'All AI modes incl. Knowledge & Consultant',
+      'All AI modes incl. Knowledge', // Disabled: '& Consultant' removed
+      // 'All AI modes incl. Knowledge & Consultant',
       'Voice replies & image generation',
       'Reminders via email & WhatsApp',
       'Priority response speed',
@@ -126,6 +132,8 @@ function getMeterToneClass(percent: number): string {
 export function PlanBillingTab() {
   const { plan, usage, profile, isLoading } = useAccount()
   const { toast } = useToast()
+  const qc = useQueryClient()
+  const [pendingTier, setPendingTier] = useState<PlanTier | null>(null)
 
   const currentTier: PlanTier = (plan?.tier ?? profile?.plan ?? 'free') as PlanTier
   const currentPlan = useMemo(
@@ -156,33 +164,33 @@ export function PlanBillingTab() {
   const periodEndLabel = formatDate(usage?.periodEnd)
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleCheckout = (targetTier: PlanTier) => {
-    // Backend POST /api/account/plan/checkout is currently a 501 stub
-    // (Rohan, Sprint 1). We don't call accountService directly here because
-    // `accountService` is a read-only contract this sprint. Surface the
-    // "launching soon" toast immediately so the UI never crashes.
-    void targetTier
-    toast({
-      title: 'Payments launching soon',
-      description:
-        'Billing is not live yet. Tap "Join the waitlist" in the meantime — we will email you the moment Pro & Premium open up.',
-    })
-  }
-
-  const handleAddPaymentMethod = () => {
-    toast({
-      title: 'Payments launching soon',
-      description:
-        'Payment methods open up alongside Pro & Premium billing. Hold tight — we will let you know.',
-    })
+  const handleSwitchPlan = async (targetTier: PlanTier) => {
+    if (pendingTier || targetTier === currentTier) return
+    setPendingTier(targetTier)
+    try {
+      await switchPlan(targetTier)
+      await qc.invalidateQueries({ queryKey: ['account', 'me'] })
+      toast({
+        title: targetTier === 'free' ? 'Switched to Free' : `Welcome to ${targetTier === 'pro' ? 'Pro' : 'Premium'}`,
+        description:
+          targetTier === 'free'
+            ? 'Your plan has been moved to the free tier.'
+            : 'Your new plan is active right away.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Could not switch plan',
+        description: (err as Error)?.message ?? 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setPendingTier(null)
+    }
   }
 
   const handleManageSubscription = () => {
-    toast({
-      title: 'Subscription portal coming soon',
-      description:
-        'You will manage renewals, invoices, and cancellations from here once billing goes live.',
-    })
+    // "Manage" = downgrade to Free for the no-billing flow.
+    void handleSwitchPlan('free')
   }
 
   const isPaid = currentTier !== 'free'
@@ -193,6 +201,12 @@ export function PlanBillingTab() {
       title="Plan & Billing"
       description="See your current tier, monthly usage, and upgrade options."
     >
+      {/* 0. Sprint 1 batch B skeleton — will merge into card 1 in Sprint 2 */}
+      <BillingSettingsSkeleton
+        currentTier={currentTier === 'premium' ? 'promax' : currentTier}
+        nextRenewalDate={renewsAt}
+      />
+
       {/* 1. Current plan hero card ─────────────────────────────────────────── */}
       <Card className="border-border bg-card text-card-foreground">
         <CardHeader className="gap-3">
@@ -246,31 +260,31 @@ export function PlanBillingTab() {
             <Button
               type="button"
               onClick={handleManageSubscription}
-              aria-label="Manage your subscription"
+              disabled={pendingTier !== null}
+              aria-label="Cancel and switch to the Free plan"
               className="min-h-11 min-w-11"
             >
-              Manage subscription
+              {pendingTier === 'free' ? 'Switching…' : 'Switch to Free'}
             </Button>
           ) : (
             <Button
               type="button"
-              onClick={() => handleCheckout('pro')}
+              onClick={() => handleSwitchPlan('pro')}
+              disabled={pendingTier !== null}
               aria-label="Upgrade to Pro"
               className="min-h-11 min-w-11"
             >
               <Sparkles aria-hidden="true" className="mr-2 h-4 w-4" />
-              Upgrade to Pro
+              {pendingTier === 'pro' ? 'Upgrading…' : 'Upgrade to Pro'}
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => handleCheckout(currentTier)}
+          <a
+            href="#plan-comparison-heading"
             aria-label="Compare plans"
-            className="min-h-11 min-w-11"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
           >
             Compare plans
-          </Button>
+          </a>
         </CardFooter>
       </Card>
 
@@ -398,14 +412,18 @@ export function PlanBillingTab() {
                   <Button
                     type="button"
                     variant={isCurrent ? 'outline' : p.tier === 'pro' ? 'default' : 'outline'}
-                    disabled={isCurrent}
-                    onClick={() => handleCheckout(p.tier)}
+                    disabled={isCurrent || pendingTier !== null}
+                    onClick={() => handleSwitchPlan(p.tier)}
                     aria-label={
                       isCurrent ? `${p.name} is your current plan` : `Select the ${p.name} plan`
                     }
                     className="min-h-11 w-full min-w-11"
                   >
-                    {isCurrent ? 'Current plan' : `Select ${p.name}`}
+                    {isCurrent
+                      ? 'Current plan'
+                      : pendingTier === p.tier
+                        ? 'Switching…'
+                        : `Select ${p.name}`}
                   </Button>
                 </CardFooter>
               </Card>
@@ -441,37 +459,7 @@ export function PlanBillingTab() {
         </CardContent>
       </Card>
 
-      {/* 5. Payment method ──────────────────────────────────────────────── */}
-      {/* <Card className="border-border bg-card text-card-foreground">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <CreditCard aria-hidden="true" className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-base font-semibold">Payment method</CardTitle>
-          </div>
-          <CardDescription className="text-xs text-muted-foreground">
-            Card or wallet used for renewals.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
-            No payment method on file. Add one when you upgrade.
-          </p>
-          <div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleAddPaymentMethod}
-              aria-label="Add a payment method"
-              className="min-h-11 min-w-11"
-            >
-              <CreditCard aria-hidden="true" className="mr-2 h-4 w-4" />
-              Add payment method
-            </Button>
-          </div>
-        </CardContent>
-      </Card> */}
-
-      {/* 6. Plan FAQ ────────────────────────────────────────────────────── */}
+      {/* 5. Plan FAQ ────────────────────────────────────────────────────── */}
       <Card className="border-border bg-card text-card-foreground">
         <CardHeader>
           <CardTitle className="text-base font-semibold">Plan FAQ</CardTitle>
@@ -519,7 +507,7 @@ export function PlanBillingTab() {
         </CardContent>
         <CardFooter>
           <a
-            href="https://weddingease.com/pricing"
+            href="/pricing"
             target="_blank"
             rel="noreferrer"
             className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

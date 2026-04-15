@@ -11,6 +11,7 @@ import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
+  linkWithPopup,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   updatePassword,
@@ -22,9 +23,9 @@ import { useToast } from '@/hooks/use-toast'
 import {
   deleteAccount as apiDeleteAccount,
   signOutEverywhere as apiSignOutEverywhere,
-  type AccountServiceError,
   type ProfilePatch,
 } from '@/services/accountService'
+import { isDerivedPhoneEmail } from '@/services/authService'
 import type { UserProfile } from '@/types'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -108,11 +109,6 @@ function readFirebaseProviders(): Array<'password' | 'google.com'> {
     .filter((id): id is 'password' | 'google.com' => id === 'password' || id === 'google.com')
 }
 
-// 501 detection — accountService.makeError sets code='not_implemented' on 501.
-function is501(err: unknown): boolean {
-  return !!err && (err as AccountServiceError).code === 'not_implemented'
-}
-
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function AccountTab() {
@@ -121,6 +117,17 @@ export function AccountTab() {
   const { toast } = useToast()
 
   const profile: UserProfile | null = accountProfile ?? authProfile ?? null
+
+  // Identity-origin lock (single source of truth for the whole tab):
+  //   - phone-based accounts can edit their email but NOT their phone
+  //   - email-based accounts can edit their phone but NOT their email
+  // Trust the persisted `authMethod` if present; otherwise infer from the
+  // Firebase Auth email shape via `isDerivedPhoneEmail`.
+  const isPhoneBased = useMemo(() => {
+    if (profile?.authMethod === 'phone') return true
+    if (profile?.authMethod === 'email') return false
+    return isDerivedPhoneEmail(auth.currentUser?.email ?? null)
+  }, [profile?.authMethod, profile?.uid])
 
   // Derive split phone fields from the combined `phone` E.164 value when the
   // split fields aren't persisted (legacy/Firestore-only records).
@@ -154,8 +161,10 @@ export function AccountTab() {
   const identityDirty =
     name !== (profile?.name ?? '') ||
     nickname !== (profile?.nickname ?? '') ||
-    phoneCountryCode !== derivedPhone.cc ||
-    phoneNational !== derivedPhone.nat
+    (!isPhoneBased && (
+      phoneCountryCode !== derivedPhone.cc ||
+      phoneNational !== derivedPhone.nat
+    ))
 
   const handleSaveIdentity = async () => {
     if (!identityDirty || savingIdentity) return
@@ -170,27 +179,22 @@ export function AccountTab() {
     const patch: ProfilePatch = {
       name: name.trim(),
       nickname: nickname.trim() || undefined,
-      phone:
+    }
+    if (!isPhoneBased) {
+      patch.phone =
         phoneCountryCode.trim() && phoneNational.trim()
           ? `${phoneCountryCode.trim()}${phoneNational.trim()}`
-          : null,
+          : null
     }
     try {
       await updateProfile(patch)
       toast({ title: 'Profile updated', description: 'Your details have been saved.' })
     } catch (err) {
-      if (is501(err)) {
-        toast({
-          title: 'Saving coming soon',
-          description: 'Profile editing will land in the next backend release.',
-        })
-      } else {
-        toast({
-          title: 'Could not save',
-          description: (err as Error)?.message ?? 'Please try again.',
-          variant: 'destructive',
-        })
-      }
+      toast({
+        title: 'Could not save',
+        description: (err as Error)?.message ?? 'Please try again.',
+        variant: 'destructive',
+      })
       // Rollback local state — full snapshot including phone (M-9).
       setName(original.name)
       setNickname(original.nickname)
@@ -248,6 +252,20 @@ export function AccountTab() {
     }
     setEmailSubmitting(true)
     try {
+      // Phone-created accounts: the Firebase Auth identity is bound to a
+      // derived `phone_*@phone.weddingease.local` address that the user can
+      // never see. The "email" field they edit here is purely a Firestore
+      // display value used for reminders / contact, so we bypass the Firebase
+      // Auth verifyBeforeUpdateEmail flow entirely and PATCH the profile.
+      if (isPhoneBased) {
+        await updateProfile({ email: target })
+        toast({
+          title: 'Email updated',
+          description: 'Your contact email has been saved.',
+        })
+        closeEmailDialog()
+        return
+      }
       // Reauth based on linked provider.
       if (hasPasswordProvider) {
         if (!currentUser.email) throw new Error('No email on account')
@@ -364,11 +382,40 @@ export function AccountTab() {
   }
 
   // ── Connected accounts ────────────────────────────────────────────────────
-  const handleLinkGoogle = () => {
-    toast({
-      title: 'Linking coming soon',
-      description: 'Google account linking will be available in a future update.',
-    })
+  const [linkingGoogle, setLinkingGoogle] = useState(false)
+  const handleLinkGoogle = async () => {
+    if (linkingGoogle) return
+    const currentUser = auth.currentUser
+    if (!currentUser) {
+      toast({
+        title: 'Not signed in',
+        description: 'Please sign in again and retry.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setLinkingGoogle(true)
+    try {
+      const provider = new GoogleAuthProvider()
+      await linkWithPopup(currentUser, provider)
+      toast({
+        title: 'Google linked',
+        description: 'You can now sign in with Google.',
+      })
+    } catch (err) {
+      const code = (err as { code?: string })?.code ?? ''
+      let message = (err as Error)?.message ?? 'Please try again.'
+      if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') {
+        message = 'That Google account is already linked to another user.'
+      } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        message = 'Google sign-in was cancelled.'
+      } else if (code === 'auth/provider-already-linked') {
+        message = 'Google is already linked to this account.'
+      }
+      toast({ title: 'Could not link Google', description: message, variant: 'destructive' })
+    } finally {
+      setLinkingGoogle(false)
+    }
   }
 
   // ── Delete account ────────────────────────────────────────────────────────
@@ -515,7 +562,17 @@ export function AccountTab() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Phone</Label>
+              {/* <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">Phone</Label>
+                {isPhoneBased && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-muted text-muted-foreground border-border"
+                  >
+                    Locked
+                  </Badge>
+                )}
+              </div> */}
               <div className="flex gap-2">
                 <Input
                   id="account-phone-cc"
@@ -524,7 +581,9 @@ export function AccountTab() {
                   placeholder="+1"
                   inputMode="tel"
                   aria-label="Country code"
-                  className="min-h-11 w-24 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  disabled={isPhoneBased}
+                  readOnly={isPhoneBased}
+                  className="min-h-11 w-24 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
                 />
                 <Input
                   id="account-phone-num"
@@ -533,9 +592,17 @@ export function AccountTab() {
                   placeholder="555 123 4567"
                   inputMode="tel"
                   aria-label="National phone number"
-                  className="min-h-11 flex-1 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  disabled={isPhoneBased}
+                  readOnly={isPhoneBased}
+                  className="min-h-11 flex-1 bg-input border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
                 />
               </div>
+              {isPhoneBased && (
+                <p className="text-xs text-muted-foreground">
+                  This account was created with phone sign-in, so the phone number
+                  is the primary identifier and cannot be changed.
+                </p>
+              )}
             </div>
           </div>
 
@@ -586,20 +653,38 @@ export function AccountTab() {
               )}
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEmailDialogOpen(true)}
-              className="min-h-11 min-w-11 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Change email
-            </Button>
+            {isPhoneBased ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEmailDialogOpen(true)}
+                className="min-h-11 min-w-11 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Change email
+              </Button>
+            ):null
+            // ) : (
+            //   <Badge
+            //     variant="secondary"
+            //     className="bg-muted text-muted-foreground border-border"
+            //   >
+            //     <Lock aria-hidden="true" className="mr-1 h-3 w-3" />
+            //     Locked
+            //   </Badge>
+            // )}
+}
           </div>
+          {!isPhoneBased && (
+            <p className="text-xs text-muted-foreground">
+              This account was created with email sign-in, so your email is the
+              primary identifier and cannot be changed.
+            </p>
+          )}
         </div>
       </Card>
 
-      {/* 4. Password card — only for password users */}
-      {hasPasswordProvider && (
+      {/* 4. Password card — only for password users on email-based accounts */}
+      {hasPasswordProvider && !isPhoneBased && (
         <Card className="bg-card border-border p-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-start gap-3">
@@ -674,9 +759,10 @@ export function AccountTab() {
                   type="button"
                   variant="outline"
                   onClick={handleLinkGoogle}
+                  disabled={linkingGoogle}
                   className="min-h-11 min-w-11 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  Link Google
+                  {linkingGoogle ? 'Linking…' : 'Link Google'}
                 </Button>
               )}
             </div>

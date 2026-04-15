@@ -1,11 +1,12 @@
 import { Timestamp } from 'firebase/firestore'
 
+// Disabled: 'therapist' | 'consultant' removed per EXECUTION_PLAN §0 guardrail #7
 export type Mode =
   | 'planner'
   | 'stylist'
-  | 'therapist'
+  // | 'therapist'
   | 'knowledge'
-  | 'consultant'
+  // | 'consultant'
   | 'assistant'
 
 export type MessageRole = 'user' | 'assistant'
@@ -106,6 +107,9 @@ export interface UserProfile {
   // Persisted via PATCH /api/account/profile once backend whitelists.
   about?: string
   responseStyle?: string
+  // Identity origin — set on signup, used to lock the primary identifier
+  // (email for email-created accounts, phone for phone-created accounts).
+  authMethod?: 'email' | 'phone'
 }
 
 // ── Vibe Mode ─────────────────────────────────────────────────────────────────

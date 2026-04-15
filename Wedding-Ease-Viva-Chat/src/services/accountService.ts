@@ -90,6 +90,26 @@ async function request<T>(
   return res.json() as Promise<T>
 }
 
+async function requestBlob(path: string): Promise<Blob> {
+  const token = await getAuthToken()
+  if (!token) throw makeError(401, 'unauthenticated', 'Not signed in')
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  } catch (e) {
+    throw makeError(0, 'network', (e as Error).message || 'Network error')
+  }
+  if (res.status === 401) throw makeError(401, 'unauthenticated', 'Not signed in')
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw makeError(res.status, 'server', text || `Request failed (${res.status})`)
+  }
+  return res.blob()
+}
+
 // ── Endpoints (PRD §8) ───────────────────────────────────────────────────────
 
 export function getAccountMe(): Promise<AccountMeResponse> {
@@ -106,6 +126,10 @@ export interface ProfilePatch {
   role?: string | null
   about?: string | null
   responseStyle?: string | null
+  // Phone-created accounts only — patches the Firestore display email without
+  // touching the derived Firebase Auth identity. Backend rejects with
+  // EMAIL_LOCKED when the caller's account was created with email.
+  email?: string
 }
 
 export function patchAccountProfile(patch: ProfilePatch): Promise<UserProfile> {
@@ -120,6 +144,25 @@ export function getAccountPlan(): Promise<{ plan: AccountPlan; usage: AccountUsa
   return request<{ plan: AccountPlan; usage: AccountUsage }>('GET', '/api/account/plan')
 }
 
+export interface SwitchPlanResponse {
+  ok: true
+  plan: 'free' | 'pro' | 'premium'
+  planRenewsAt: string | null
+  usage: AccountUsage
+}
+
+export function switchPlan(tier: 'free' | 'pro' | 'premium'): Promise<SwitchPlanResponse> {
+  return request<SwitchPlanResponse>('POST', '/api/account/plan/switch', { tier })
+}
+
+export function exportAccountData(): Promise<Blob> {
+  return requestBlob('/api/account/export')
+}
+
+export function clearChatHistory(): Promise<{ ok: true; deletedThreads: number; deletedMessages: number }> {
+  return request<{ ok: true; deletedThreads: number; deletedMessages: number }>('DELETE', '/api/account/history')
+}
+
 // ── Sprint 4 (Kenji) — C-1 delete account & sign-out-everywhere ──────────────
 
 /**
@@ -128,7 +171,7 @@ export function getAccountPlan(): Promise<{ plan: AccountPlan; usage: AccountUsa
  * calling auth.signOut() and redirecting on success.
  */
 export function deleteAccount(): Promise<void> {
-  return request<void>('DELETE', '/api/account/delete')
+  return request<void>('POST', '/api/account/delete')
 }
 
 /**

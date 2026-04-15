@@ -39,6 +39,16 @@ import type { UserProfile, AuthFlowError } from '@/types'
 
 export const SESSION_KEY = 'wedding_ease_user'
 
+// Phone-created accounts use a derived Firebase Auth email so the SDK can
+// authenticate them via email/password. The user's real email lives on the
+// Firestore profile. This constant + helper are the single source of truth
+// for that derived address — never hardcode the literal anywhere else.
+export const DERIVED_EMAIL_DOMAIN = 'phone.weddingease.local'
+
+export function isDerivedPhoneEmail(email?: string | null): boolean {
+  return !!email && email.endsWith(`@${DERIVED_EMAIL_DOMAIN}`)
+}
+
 // ── Error mapping (authflow.md §11) ─────────────────────────────────────────
 
 export function mapAuthError(code: string): string {
@@ -61,6 +71,8 @@ export function mapAuthError(code: string): string {
     'LINK_GOOGLE_TO_PASSWORD': 'This email already has a password account. Enter your password to link Google.',
     'WEAK_PASSWORD_POLICY': 'Password does not meet strength requirements',
     'PHONE_DEVICE_MISMATCH': 'This phone is not registered on this device. Please use email sign-in, or sign up again on this device.',
+    'USE_PHONE_SIGNIN': 'This account was created with a phone number. Please sign in with your phone.',
+    'USE_EMAIL_SIGNIN': 'This account was created with email. Please sign in with email and password.',
   }
   return map[code] ?? 'Something went wrong. Please try again.'
 }
@@ -79,7 +91,8 @@ function buildNewUserDoc(
   name: string,
   email: string,
   phone: string | null,
-  isVerified: boolean
+  isVerified: boolean,
+  authMethod: 'email' | 'phone' = 'email',
 ): Omit<UserProfile, 'createdAt' | 'lastLoginAt' | 'verifiedAt'> & {
   createdAt: ReturnType<typeof serverTimestamp>
   lastLoginAt: null
@@ -118,6 +131,7 @@ function buildNewUserDoc(
     lastLoginAt: null,
     forgotPasswordOtp: null,
     activeVibe: null,
+    authMethod,
   }
 }
 
@@ -214,6 +228,19 @@ export async function signInWithEmail(email: string, password: string) {
   }
 
   const profile = profileSnap.data() as UserProfile
+
+  // Lock by identity origin: phone-created accounts cannot sign in via the
+  // email/password form. Lazy-backfill `authMethod` when missing — derive it
+  // from the Firebase Auth email shape so older docs stay consistent.
+  let authMethod = profile.authMethod
+  if (!authMethod) {
+    authMethod = isDerivedPhoneEmail(user.email) ? 'phone' : 'email'
+    try { await updateDoc(doc(db, 'users', user.uid), { authMethod }) } catch { /* best-effort */ }
+  }
+  if (authMethod === 'phone') {
+    await firebaseSignOut(auth)
+    throw makeAuthError('USE_PHONE_SIGNIN')
+  }
 
   // Firebase emailVerified → sync to Firestore
   if (user.emailVerified && !profile.isVerified) {
@@ -341,6 +368,18 @@ export async function verifyPhoneOtp(
   }
 
   const profile = snap.docs[0].data() as UserProfile
+
+  // Identity-origin lock: only phone-created accounts may sign in via OTP.
+  let authMethod = profile.authMethod
+  if (!authMethod) {
+    authMethod = isDerivedPhoneEmail(profile.email) ? 'phone' : 'email'
+    try { await updateDoc(doc(db, 'users', snap.docs[0].id), { authMethod }) } catch { /* best-effort */ }
+  }
+  if (authMethod === 'email') {
+    await firebaseSignOut(auth)
+    throw makeAuthError('USE_EMAIL_SIGNIN')
+  }
+
   await updateDoc(doc(db, 'users', snap.docs[0].id), { lastLoginAt: serverTimestamp() })
   return profile
 }
@@ -390,7 +429,6 @@ export async function updatePreferredLanguage(uid: string, language: string): Pr
 // the user back in after OTP verification. This gives real Firestore write
 // access via Firebase Auth without a custom token backend.
 
-const DERIVED_EMAIL_DOMAIN = 'phone.weddingease.local'
 const PHONE_PASSWORD_LEN = 32
 const PHONE_PASSWORD_ALPHABET =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -442,7 +480,7 @@ export async function signUpWithPhoneCredential(
     await updateProfile(user, { displayName: name })
     await setDoc(
       doc(db, 'users', user.uid),
-      buildNewUserDoc(user.uid, name, realEmail, e164, false),
+      buildNewUserDoc(user.uid, name, realEmail, e164, false, 'phone'),
     )
 
     const stored: PhoneCredential = {

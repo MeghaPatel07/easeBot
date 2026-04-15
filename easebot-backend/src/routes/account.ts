@@ -5,14 +5,13 @@ import {
   rateLimitSensitive,
   handleGetMe,
   handleUpdateProfile,
-  handleEmailChangeStub,
-  handlePasswordChangeStub,
   handleGetPlan,
-  handleCheckoutStub,
+  handleSwitchPlan,
   handleSoftDelete,
   handleSignOutEverywhere,
   handleUpdatePreferences,
-  handleExportStub,
+  handleExport,
+  handleClearHistory,
 } from '../controllers/accountController'
 
 // All /api/account/* endpoints require a verified Firebase ID token.
@@ -24,16 +23,15 @@ const router = Router()
 // --- Reads ---
 router.get('/me',     requireStrictAuth, handleGetMe)
 router.get('/plan',   requireStrictAuth, handleGetPlan)
-router.get('/export', requireStrictAuth, handleExportStub)
+router.get('/export', requireStrictAuth, handleExport)
 
 // --- Routine mutations (rate-limited 10/min/uid) ---
 router.patch ('/profile',         requireStrictAuth, rateLimitMutations, handleUpdateProfile)
-router.post  ('/plan/checkout',   requireStrictAuth, rateLimitMutations, handleCheckoutStub)
+router.post  ('/plan/switch',     requireStrictAuth, rateLimitMutations, handleSwitchPlan)
 router.patch ('/preferences',     requireStrictAuth, rateLimitMutations, handleUpdatePreferences)
 
 // --- Sensitive mutations (rate-limited 10/min AND 5/hour per uid) ---
-router.post('/email/change',       requireStrictAuth, rateLimitMutations, rateLimitSensitive, handleEmailChangeStub)
-router.post('/password/change',    requireStrictAuth, rateLimitMutations, rateLimitSensitive, handlePasswordChangeStub)
+router.delete('/history',          requireStrictAuth, rateLimitMutations, rateLimitSensitive, handleClearHistory)
 router.post('/delete',             requireStrictAuth, rateLimitMutations, rateLimitSensitive, handleSoftDelete)
 router.post('/sign-out-everywhere',requireStrictAuth, rateLimitMutations, rateLimitSensitive, handleSignOutEverywhere)
 

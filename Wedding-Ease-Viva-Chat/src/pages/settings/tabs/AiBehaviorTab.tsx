@@ -39,7 +39,10 @@ import {
 import { Slider } from '@/components/ui/slider'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { useAccount } from '@/hooks/useAccount'
 import { useToast } from '@/hooks/use-toast'
+import { updatePreferredLanguage } from '@/services/authService'
+import { SUPPORTED_LANGUAGES } from '@/components/chat/constants'
 // REUSE: existing persistence helper. Do NOT duplicate or replace.
 // settingsService.ts:5 — savePersonalization(uid, { nickname?, voiceId?, toneSettings? })
 import { savePersonalization, getLocalVoiceId, setLocalVoiceId } from '@/services/settingsService'
@@ -49,7 +52,7 @@ import { VOICE_PRESETS, getVoicePreset } from '@/services/voicePresets'
 // REUSE: existing TTS request used by SettingsModal voice preview.
 import { requestTTS } from '@/services/ttsService'
 import { MODE_CONFIG } from '@/components/chat/constants'
-import type { ToneSettings } from '@/types'
+import type { ToneSettings, UserPreferences } from '@/types'
 
 import TabShell from './_TabShell'
 
@@ -94,6 +97,7 @@ const TONE_SLIDERS: SliderDef[] = [
 
 export function AiBehaviorTab() {
   const { user, profile } = useAuth()
+  const { profile: accountProfile, updatePreferences } = useAccount()
   const { toast } = useToast()
 
   // ── Tone state ────────────────────────────────────────────────────────────
@@ -236,6 +240,60 @@ export function AiBehaviorTab() {
       setPreviewingVoiceId(null)
     } finally {
       setPreviewLoadingId(null)
+    }
+  }
+
+  // ── Language ──────────────────────────────────────────────────────────────
+  // Moved over from the (now hidden) Appearance tab. Persists through the same
+  // `updatePreferences` pipeline and keeps the legacy `preferredLanguage` field
+  // in sync so older code paths that read it keep working.
+  const initialLanguage =
+    accountProfile?.preferences?.language ??
+    accountProfile?.preferredLanguage ??
+    profile?.preferredLanguage ??
+    'auto'
+  const [language, setLanguageState] = useState<string>(initialLanguage)
+
+  useEffect(() => {
+    const l =
+      accountProfile?.preferences?.language ??
+      accountProfile?.preferredLanguage ??
+      profile?.preferredLanguage ??
+      'auto'
+    setLanguageState(l)
+  }, [
+    accountProfile?.preferences?.language,
+    accountProfile?.preferredLanguage,
+    profile?.preferredLanguage,
+  ])
+
+  const onLanguageChange = async (next: string) => {
+    const previous = language
+    setLanguageState(next)
+    const merged: UserPreferences = {
+      ...(accountProfile?.preferences ?? {}),
+      language: next,
+    }
+    try {
+      await updatePreferences(merged)
+      if (user?.uid) {
+        try {
+          await updatePreferredLanguage(user.uid, next)
+        } catch {
+          // Best-effort legacy back-compat.
+        }
+      }
+      toast({
+        title: 'Language updated',
+        description: 'Easebot will reply in your new preferred language.',
+      })
+    } catch (err) {
+      setLanguageState(previous)
+      toast({
+        title: 'Could not save language',
+        description: 'Reverted to your previous selection.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -438,6 +496,42 @@ export function AiBehaviorTab() {
               'Save voice'
             )}
           </Button>
+        </div>
+      </Card>
+
+      {/* ── Language (moved from Appearance) ─────────────────────────────── */}
+      <Card className="border-border bg-card p-6 text-card-foreground">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold">Language</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Easebot will try to reply in this language. Auto-detect lets the AI
+            mirror whatever language you write in.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="language-select" className="text-sm font-medium">
+            Preferred language
+          </Label>
+          <Select value={language} onValueChange={onLanguageChange}>
+            <SelectTrigger
+              id="language-select"
+              aria-label="Preferred language"
+              className="min-h-11 w-full border-border bg-input text-foreground focus-visible:ring-ring sm:max-w-xs"
+            >
+              <SelectValue placeholder="Select a language" />
+            </SelectTrigger>
+            <SelectContent className="border-border bg-popover text-popover-foreground">
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <SelectItem
+                  key={lang.code}
+                  value={lang.code}
+                  className="min-h-11 text-sm"
+                >
+                  {lang.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </Card>
 

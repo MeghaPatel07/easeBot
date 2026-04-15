@@ -202,8 +202,7 @@ export function AppearanceTab() {
         <div className="mb-4">
           <h3 className="text-base font-semibold">Density</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Controls vertical rhythm across menus and lists. Visual changes will arrive in
-            the next sprint; your preference is saved now.
+            Controls vertical rhythm across menus and lists.
           </p>
         </div>
         <RadioGroup

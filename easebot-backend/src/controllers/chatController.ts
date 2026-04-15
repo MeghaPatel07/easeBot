@@ -15,9 +15,9 @@ import { getRelevantProductsViaAlgolia, formatProductsContext } from '../service
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
 import { getStylistPrompt } from '../prompts/stylist'
-import { getTherapistPrompt } from '../prompts/therapist'
+// import { getTherapistPrompt } from '../prompts/therapist' // disabled
 import { getKnowledgePrompt } from '../prompts/knowledge'
-import { getConsultantPrompt } from '../prompts/consultant'
+// import { getConsultantPrompt } from '../prompts/consultant' // disabled
 import { getAssistantPrompt } from '../prompts/assistant'
 import {
   executeToolCall,
@@ -139,11 +139,11 @@ function getToolsForMode(mode: string, isLoggedIn: boolean): ChatCompletionTool[
         GET_CHECKLIST_STATS_TOOL,
       ]
     case 'stylist':
-    case 'therapist':
+    // case 'therapist': // disabled
     case 'knowledge':
       return [...base, CREATE_NOTE_TOOL]
-    case 'consultant':
-      return [...base, CREATE_NOTE_TOOL, CREATE_REMINDER_TOOL]
+    // case 'consultant': // disabled
+    //   return [...base, CREATE_NOTE_TOOL, CREATE_REMINDER_TOOL]
     default:
       return [...base, CREATE_NOTE_TOOL]
   }
@@ -209,9 +209,9 @@ async function buildSystemPrompt(
   }
   switch (mode) {
     case 'planner':    return getPlannerPrompt(userRole) + buildPersonalizationSuffix(personalization) + userContext
-    case 'therapist':  return getTherapistPrompt() + buildPersonalizationSuffix(personalization) + userContext
+    // case 'therapist':  return getTherapistPrompt() + buildPersonalizationSuffix(personalization) + userContext // disabled
     case 'knowledge':  return getKnowledgePrompt() + buildPersonalizationSuffix(personalization) + userContext
-    case 'consultant': return getConsultantPrompt() + buildPersonalizationSuffix(personalization) + userContext
+    // case 'consultant': return getConsultantPrompt() + buildPersonalizationSuffix(personalization) + userContext // disabled
     default:           return getAssistantPrompt() + buildPersonalizationSuffix(personalization) + userContext
   }
 }

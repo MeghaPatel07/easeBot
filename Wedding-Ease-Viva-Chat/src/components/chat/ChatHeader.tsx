@@ -120,7 +120,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 text-white/60 text-xs font-medium px-2 py-1 rounded-full hover:bg-white/10 transition-colors">
                 <Globe className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Lang</span>
+                <span className="hidden sm:inline">
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === preferredLang)?.label ?? 'Lang'}
+                </span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 shadow-lg text-white/80">

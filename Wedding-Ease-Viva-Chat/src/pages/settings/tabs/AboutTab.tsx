@@ -7,13 +7,7 @@ import React from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { ExternalLink, FileText, Shield, Activity, History, LifeBuoy } from 'lucide-react'
+import { ExternalLink, FileText, Shield, LifeBuoy } from 'lucide-react'
 import TabShell from './_TabShell'
 
 // Sprint 4 (Hana) — sourced from package.json via Vite `define` (Marcus QA M-7).
@@ -29,8 +23,6 @@ interface LinkItem {
   href: string
   Icon: React.ElementType
   external?: boolean
-  // When true, render as a tooltip "Coming soon" instead of an active link.
-  comingSoon?: boolean
 }
 
 const LINKS: LinkItem[] = [
@@ -46,66 +38,17 @@ const LINKS: LinkItem[] = [
     href: '/privacy',
     Icon: Shield,
   },
-  // {
-  //   label: 'Status page',
-  //   description: 'Live uptime and incident history.',
-  //   href: '#',
-  //   Icon: Activity,
-  //   comingSoon: true,
-  // },
-  // {
-  //   label: 'Changelog',
-  //   description: 'What shipped recently in WeddingEase.',
-  //   href: '#',
-  //   Icon: History,
-  //   comingSoon: true,
-  // },
   {
     label: 'Help center',
-    description: 'Guides, tutorials, and contact options.',
-    href: '#',
+    description: 'Email our team for guides, tutorials, and contact options.',
+    href: 'mailto:support@weddingease.com',
     Icon: LifeBuoy,
-    comingSoon: true,
+    external: true,
   },
 ]
 
 function LinkRow({ item }: { item: LinkItem }) {
-  const { label, description, href, Icon, external, comingSoon } = item
-
-  const inner = (
-    <>
-      <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground" />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">{label}</span>
-          {external && <ExternalLink aria-hidden="true" className="h-3 w-3 text-muted-foreground" />}
-        </div>
-        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-      </div>
-    </>
-  )
-
-  if (comingSoon) {
-    return (
-      <TooltipProvider delayDuration={150}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label={`${label} (coming soon)`}
-              disabled
-              className="flex min-h-11 w-full items-start gap-3 rounded-md border border-border bg-background p-3 text-left opacity-60"
-            >
-              {inner}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="bg-popover text-popover-foreground border-border">
-            Coming soon
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
+  const { label, description, href, Icon, external } = item
 
   return (
     <a
@@ -115,7 +58,14 @@ function LinkRow({ item }: { item: LinkItem }) {
       aria-label={label}
       className="flex min-h-11 w-full items-start gap-3 rounded-md border border-border bg-background p-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      {inner}
+      <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          {external && <ExternalLink aria-hidden="true" className="h-3 w-3 text-muted-foreground" />}
+        </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+      </div>
     </a>
   )
 }

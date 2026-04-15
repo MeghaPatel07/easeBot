@@ -24,7 +24,7 @@ import {
   CreditCard,
   Sparkles,
   Bot,
-  Palette,
+  // Palette,
   Bell,
   ShieldCheck,
   Info,
@@ -45,7 +45,8 @@ import AccountTab from './tabs/AccountTab'
 import PlanBillingTab from './tabs/PlanBillingTab'
 import PersonalizationTab from './tabs/PersonalizationTab'
 import AiBehaviorTab from './tabs/AiBehaviorTab'
-import AppearanceTab from './tabs/AppearanceTab'
+// Appearance tab hidden — Language moved to AI Behavior.
+// import AppearanceTab from './tabs/AppearanceTab'
 import NotificationsTab from './tabs/NotificationsTab'
 import DataPrivacyTab from './tabs/DataPrivacyTab'
 import AboutTab from './tabs/AboutTab'
@@ -74,6 +75,7 @@ const TABS: TabDef[] = [
   { id: 'plan-billing',    label: 'Plan & Billing',  icon: CreditCard,  Component: PlanBillingTab },
   // { id: 'personalization', label: 'Personalization', icon: Sparkles,    Component: PersonalizationTab },
   { id: 'ai-behavior',     label: 'AI Behavior',     icon: Bot,         Component: AiBehaviorTab },
+  // Appearance tab temporarily hidden — Language has moved to AI Behavior.
   // { id: 'appearance',      label: 'Appearance',      icon: Palette,     Component: AppearanceTab },
   { id: 'notifications',   label: 'Notifications',   icon: Bell,        Component: NotificationsTab },
   { id: 'data-privacy',    label: 'Data & Privacy',  icon: ShieldCheck, Component: DataPrivacyTab },

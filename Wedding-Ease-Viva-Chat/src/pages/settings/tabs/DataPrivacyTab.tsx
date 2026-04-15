@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAccount } from '@/hooks/useAccount'
 import { useToast } from '@/hooks/use-toast'
+import { exportAccountData, clearChatHistory } from '@/services/accountService'
 import type { UserPreferences } from '@/types'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
@@ -60,23 +61,56 @@ export function DataPrivacyTab() {
     [optOut, profile?.preferences, updatePreferences, toast],
   )
 
-  const onExport = useCallback(() => {
-    // accountService has no exportData yet (PRD §8 GET /api/account/export
-    // is owned by Rohan and currently 501). Degrade to a polite toast per
-    // Sprint 2 spec — never crash, never block the UI.
-    toast({
-      title: 'Export coming soon',
-      description: 'We are building a full GDPR/DPDP export. Watch this space.',
-    })
-  }, [toast])
+  const [exporting, setExporting] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
-  const onClearHistory = useCallback(() => {
-    // No DELETE /api/account/history endpoint yet; degrade to toast.
-    toast({
-      title: 'Clear history coming soon',
-      description: 'This will wipe every chat thread once the backend lands.',
-    })
-  }, [toast])
+  const onExport = useCallback(async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const blob = await exportAccountData()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `weddingease-export-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast({
+        title: 'Download started',
+        description: 'Your data export is being saved to your device.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Could not export',
+        description: (err as Error)?.message ?? 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setExporting(false)
+    }
+  }, [exporting, toast])
+
+  const onClearHistory = useCallback(async () => {
+    if (clearing) return
+    setClearing(true)
+    try {
+      const result = await clearChatHistory()
+      toast({
+        title: 'Chat history cleared',
+        description: `Deleted ${result.deletedThreads} thread${result.deletedThreads === 1 ? '' : 's'}.`,
+      })
+    } catch (err) {
+      toast({
+        title: 'Could not clear history',
+        description: (err as Error)?.message ?? 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setClearing(false)
+    }
+  }, [clearing, toast])
 
   return (
     <TabShell
@@ -84,7 +118,7 @@ export function DataPrivacyTab() {
       description="Control how WeddingEase stores, uses, and shares your information."
     >
       {/* Data training */}
-      <Card className="border-border bg-card p-6 text-card-foreground">
+      {/* <Card className="border-border bg-card p-6 text-card-foreground">
         <div className="mb-2">
           <h3 className="text-base font-semibold">Improve the model for everyone</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -107,7 +141,7 @@ export function DataPrivacyTab() {
             className="focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           />
         </div>
-      </Card>
+      </Card> */}
 
       {/* Export data */}
       {/* <Card className="border-border bg-card p-6 text-card-foreground">
@@ -121,11 +155,12 @@ export function DataPrivacyTab() {
           type="button"
           variant="outline"
           onClick={onExport}
+          disabled={exporting}
           aria-label="Download all my data"
           className="min-h-11 min-w-11 border-border bg-background text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Download aria-hidden="true" className="mr-2 h-4 w-4" />
-          Download all my data
+          {exporting ? 'Preparing…' : 'Download all my data'}
         </Button>
       </Card> */}
 
@@ -142,11 +177,12 @@ export function DataPrivacyTab() {
             <Button
               type="button"
               variant="destructive"
+              disabled={clearing}
               aria-label="Clear chat history"
               className="min-h-11 min-w-11 bg-destructive text-destructive-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <Trash2 aria-hidden="true" className="mr-2 h-4 w-4" />
-              Clear chat history
+              {clearing ? 'Clearing…' : 'Clear chat history'}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent className="bg-popover text-popover-foreground border-border">

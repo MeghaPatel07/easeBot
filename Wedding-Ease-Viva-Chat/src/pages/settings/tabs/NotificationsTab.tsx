@@ -11,7 +11,6 @@ import type { UserPreferences } from '@/types'
 import { Card } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
 import { AlertTriangle } from 'lucide-react'
 import TabShell from './_TabShell'
 
@@ -132,7 +131,7 @@ export function NotificationsTab() {
             Sent to {profile?.email ?? 'your account email'}.
           </p>
         </div>
-        {/* <div className="divide-y divide-border">
+        <div className="divide-y divide-border">
           <SwitchRow
             id="email-reminders"
             label="Wedding reminders"
@@ -154,7 +153,7 @@ export function NotificationsTab() {
             checked={state.productUpdates}
             onCheckedChange={onToggle('productUpdates')}
           />
-        </div> */}
+        </div>
       </Card>
 
       {/* WhatsApp notifications */}
@@ -184,25 +183,6 @@ export function NotificationsTab() {
         />
       </Card>
 
-      {/* In-app notifications */}
-      {/* <Card className="border-border bg-card p-6 text-card-foreground">
-        <div className="mb-2">
-          <h3 className="text-base font-semibold">In-app notifications</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Subtle banners and toasts inside WeddingEase.
-          </p>
-        </div>
-        <Separator className="bg-border" />
-        <div className="flex min-h-11 items-center justify-between gap-4 py-3">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">In-app alerts</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Coming soon — we&rsquo;re wiring this up next sprint.
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground">Coming soon</span>
-        </div>
-      </Card> */}
     </TabShell>
   )
 }
