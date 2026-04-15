@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Receipt, AlertTriangle, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useUsageStats } from '@/hooks/useUsageStats'
 import { useAccount } from '@/hooks/useAccount'
 import { UsageMeter, type UsageMeterState } from '@/components/pricing/UsageMeter'
 import { cn } from '@/lib/utils'
+import {
+  cancelSubscription,
+  getInvoices,
+  type InvoiceSummary,
+} from '@/services/paymentService'
 
 function formatResetDate(iso?: string | null): string {
   if (!iso) return '—'
@@ -22,6 +27,33 @@ export function BillingSettings({ className }: { className?: string }) {
   const { plan } = useAccount()
   const { snapshot, isLoading, isError, state: meterState, refetch } = useUsageStats()
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelBusy, setCancelBusy] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    getInvoices().then((rows) => { if (!cancelled) setInvoices(rows) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  const handleCancel = async () => {
+    setCancelBusy(true)
+    setCancelError(null)
+    try {
+      const clientRequestId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      await cancelSubscription(clientRequestId)
+      setCancelOpen(false)
+      await refetch()
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCancelBusy(false)
+    }
+  }
 
   const tier = snapshot?.tier ?? plan?.tier ?? 'free'
   const tierLabel =
@@ -119,15 +151,36 @@ export function BillingSettings({ className }: { className?: string }) {
         )}
       </div>
 
-      {/* Invoices placeholder (Sprint 3) */}
-      <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
-        <div className="mb-2 flex items-center gap-2">
+      {/* Invoices */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="mb-3 flex items-center gap-2">
           <Receipt className="h-4 w-4 text-muted-foreground" />
           <p className="text-2xs uppercase tracking-wide text-muted-foreground">Invoice history</p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Invoices appear here after your first paid cycle.
-        </p>
+        {invoices.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Invoices appear here after your first paid cycle.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border text-sm">
+            {invoices.map((inv) => (
+              <li key={inv.invoiceId} className="flex items-center justify-between py-2">
+                <div>
+                  <p className="font-medium text-foreground">{inv.invoiceNumber}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {inv.date ? new Date(inv.date).toLocaleDateString() : '—'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium text-foreground">
+                    {inv.currencyCode} {inv.totalLocal.toFixed(2)}
+                  </p>
+                  <p className="text-2xs uppercase tracking-wide text-muted-foreground">{inv.status}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Cancel confirmation modal */}
@@ -153,6 +206,9 @@ export function BillingSettings({ className }: { className?: string }) {
               unused tokens, or top-up packs.
               </strong> You can re-subscribe any time.
             </p>
+            {cancelError && (
+              <p className="mt-2 text-xs text-destructive">{cancelError}</p>
+            )}
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
@@ -163,14 +219,11 @@ export function BillingSettings({ className }: { className?: string }) {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setCancelOpen(false)
-                  // Sprint 3 wires a real /api/payment/cancel endpoint.
-                  window.alert('Cancellation flow launches in Sprint 3.')
-                }}
-                className="min-h-11 rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+                disabled={cancelBusy}
+                onClick={handleCancel}
+                className="min-h-11 rounded-md bg-destructive px-4 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60"
               >
-                Cancel anyway
+                {cancelBusy ? 'Cancelling…' : 'Cancel anyway'}
               </button>
             </div>
           </div>

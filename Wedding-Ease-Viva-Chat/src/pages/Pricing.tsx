@@ -9,6 +9,8 @@ import ExchangeRateService from '@/services/exchangeRateService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
+import { initiatePayment, autoSubmitToPayu } from '@/services/paymentService'
+import { auth } from '@/lib/firebase'
 
 const SERVICE_NAME = 'Viva by EaseBot'
 
@@ -83,11 +85,41 @@ export default function Pricing() {
     setCurrency(next)
   }
 
-  const handleSelect = (tier: PricingTier) => {
-    // Route to in-app settings flow, which (Sprint 3) will call
-    // /api/payment/initiate and post the form to PayU.
-    const params = new URLSearchParams({ settings: 'plan-billing', plan: tier, cycle })
-    window.location.href = `/?${params.toString()}`
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useState<PricingTier | null>(null)
+
+  const handleSelect = async (tier: PricingTier) => {
+    setCheckoutError(null)
+    if (tier === 'free') {
+      window.location.href = '/'
+      return
+    }
+    const user = auth.currentUser
+    if (!user) {
+      window.location.href = '/?auth=signup&next=/pricing'
+      return
+    }
+    if (tier === currentTier) return
+    try {
+      setCheckoutLoading(tier)
+      const init = await initiatePayment({
+        plan: tier,
+        cycle,
+        currency,
+        firstname: user.displayName?.split(' ')[0] || 'Customer',
+        email: user.email || 'customer@easebot.app',
+      })
+      autoSubmitToPayu(init)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[Pricing] initiate failed', err)
+      if (msg.includes('409')) {
+        setCheckoutError('You already have an active plan. Manage it from Settings → Plan & Billing.')
+      } else {
+        setCheckoutError('Could not start checkout. Please try again.')
+      }
+      setCheckoutLoading(null)
+    }
   }
 
   return (
@@ -159,6 +191,15 @@ export default function Pricing() {
             {loadingRate && <span aria-live="polite">…</span>}
           </label>
         </div>
+
+        {checkoutError && (
+          <div
+            role="alert"
+            className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {checkoutError}
+          </div>
+        )}
 
         <section
           aria-label="Pricing tiers"
