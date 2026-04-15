@@ -1,61 +1,90 @@
 /**
  * exchangeRateService — USD → local currency conversion for PayU initiate.
  *
- * Sprint 1 SKELETON: public surface + empty per-minute cache Map. Sprint 3
- * (PAY-011) wires the real exchangerate-api fetch, sanity checks, and the
- * 60-second in-memory cache per currency (LH-34).
+ * Sprint 2 (PAY-011): real exchangerate-api.com v6 fetch with a 60-second
+ * in-process cache per target currency. Single consumer: paymentController.
  *
- * Grounded in: .orchestrator/specs/payu-contract.md §4 & §4.1.
- *
- * Only caller: paymentController.initiate. No other module reads rates
- * from here — display-side conversion is a frontend concern.
+ * Env:
+ *   EXCHANGE_RATE_API_KEY (required in prod; absence triggers stub fallback)
+ *   EXCHANGE_RATE_API_URL (optional override, defaults to v6.exchangerate-api.com)
  */
 
 export interface LockedRate {
   rate: number
   fetchedAt: string
-  source: 'live' | 'cache'
+  source: 'live' | 'cache' | 'stub'
 }
 
-/**
- * Process-local 60-second cache. Keyed by `${from}->${to}` (e.g.
- * "USD->INR"). Empty in Sprint 1; the real implementation in Sprint 3
- * prunes entries older than 60s on each access.
- */
-const rateCache: Map<string, { rate: number; fetchedAt: number }> = new Map()
-// Keep the reference alive so tsc doesn't flag it as unused once we start
-// implementing. Sprint 3 will actually read/write through this Map.
-void rateCache
+const DEFAULT_BASE_URL = 'https://v6.exchangerate-api.com/v6'
+const TTL_MS = 60_000
 
-/**
- * Lock an exchange rate for a single `/payment/initiate` call. The returned
- * rate is stamped onto `payments/{txnid}` and used for the entire lifecycle
- * of that transaction (no re-fetching on webhook / return).
- *
- * Sanity rules (spec §4 step 3):
- *   - rate must be > 0 and < 10000 — reject otherwise
- *   - API response must be fresher than 24h
- *   - process-local 60s cache; multiple requests in the same minute reuse
- *
- * Sprint 1: stub.
- */
+interface CacheEntry {
+  rate: number
+  fetchedAtMs: number
+}
+const rateCache: Map<string, CacheEntry> = new Map()
+
+function cacheKey(from: string, to: string): string {
+  return `${from}->${to}`
+}
+
+function assertSane(rate: number): void {
+  if (!Number.isFinite(rate) || rate <= 0 || rate >= 10_000) {
+    throw new Error(`exchange rate out of sane range: ${rate}`)
+  }
+}
+
 export async function getLockedRate(
-  _fromCurrency: 'USD',
-  _toCurrency: string,
+  fromCurrency: 'USD',
+  toCurrency: string,
 ): Promise<LockedRate> {
-  throw new Error('not_implemented_sprint_3')
+  const to = toCurrency.toUpperCase()
+  if (to === fromCurrency) {
+    return { rate: 1.0, fetchedAt: new Date().toISOString(), source: 'cache' }
+  }
+  const key = cacheKey(fromCurrency, to)
+  const cached = rateCache.get(key)
+  const nowMs = Date.now()
+  if (cached && nowMs - cached.fetchedAtMs < TTL_MS) {
+    return {
+      rate: cached.rate,
+      fetchedAt: new Date(cached.fetchedAtMs).toISOString(),
+      source: 'cache',
+    }
+  }
+  const fresh = await fetchLiveRate(fromCurrency, to)
+  rateCache.set(key, { rate: fresh.rate, fetchedAtMs: nowMs })
+  return fresh
 }
 
-/**
- * Direct live fetch, bypassing the cache. Exposed for a future admin
- * reconciliation script and for tests; NOT called from the initiate path
- * (use `getLockedRate` — it respects the cache).
- *
- * Sprint 1: stub.
- */
 export async function fetchLiveRate(
-  _fromCurrency: 'USD',
-  _toCurrency: string,
+  fromCurrency: 'USD',
+  toCurrency: string,
 ): Promise<LockedRate> {
-  throw new Error('not_implemented_sprint_3')
+  const apiKey = process.env.EXCHANGE_RATE_API_KEY
+  const to = toCurrency.toUpperCase()
+  if (!apiKey) {
+    console.warn('[exchangeRateService] EXCHANGE_RATE_API_KEY unset, falling back to 1.0 stub')
+    return { rate: 1.0, fetchedAt: new Date().toISOString(), source: 'stub' }
+  }
+  const base = process.env.EXCHANGE_RATE_API_URL || DEFAULT_BASE_URL
+  const url = `${base}/${apiKey}/pair/${fromCurrency}/${to}`
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`exchangerate-api ${res.status}: ${res.statusText}`)
+  }
+  const data = (await res.json()) as {
+    result?: string
+    conversion_rate?: number
+    'error-type'?: string
+  }
+  if (data.result !== 'success' || typeof data.conversion_rate !== 'number') {
+    throw new Error(`exchangerate-api error: ${data['error-type'] ?? 'unknown'}`)
+  }
+  assertSane(data.conversion_rate)
+  return {
+    rate: data.conversion_rate,
+    fetchedAt: new Date().toISOString(),
+    source: 'live',
+  }
 }
