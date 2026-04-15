@@ -23,6 +23,7 @@ import { addExtras, getTier } from '../services/tokenMeter'
 import { applyTransition, readSubscription } from '../services/subscriptionStateMachine'
 import { queueInvoice } from '../services/invoiceService'
 import { generatePayuHash, verifyPayuResponseHash } from '../utils/payuHash'
+import { emit } from '../lib/observability'
 
 // --- Plan catalog (PRD §4) ---------------------------------------------------
 
@@ -141,6 +142,7 @@ export async function initiate(
       updatedAt: serverTimestamp(),
     })
 
+    emit('payment_initiate', { uid, txnid, plan: row.plan, cycle: row.cycle, currency: toCurrency, usd: row.usd })
     res.status(200).json({
       txnid,
       formAction: `${sandboxBase()}/_payment`,
@@ -234,9 +236,11 @@ export async function handleWebhook(
       res.status(400).json({ error: 'amount_mismatch' }); return
     }
 
+    emit('payment_webhook_received', { txnid, status: payload.status })
     const status = (payload.status || '').toLowerCase()
     if (status !== 'success') {
       await updateDoc(ref, { state: 'failed', payuStatus: status, updatedAt: serverTimestamp() })
+      emit('payment_failure', { txnid, status, uid: String(stored.uid) })
       res.status(200).json({ ok: true, duplicate: false, state: 'failed' }); return
     }
 
@@ -246,6 +250,7 @@ export async function handleWebhook(
     if (plan === 'topup_2m') {
       try {
         await addExtras(uid, TOPUP_TOKENS, txnid)
+        emit('topup_purchased', { uid, txnid, tokens: TOPUP_TOKENS })
       } catch (err) {
         console.error('[paymentController.webhook] addExtras failed', err)
         // Still mark paid — the txn is complete; top-up cap issues surface in logs.
@@ -288,6 +293,7 @@ export async function handleWebhook(
       console.warn('[paymentController.webhook] queueInvoice failed', err),
     )
     console.log('[paymentController] payment_success', { txnid, uid, plan })
+    emit('payment_success', { txnid, uid, plan })
 
     res.status(200).json({ ok: true, duplicate: false, state: 'paid' })
   } catch (err) {

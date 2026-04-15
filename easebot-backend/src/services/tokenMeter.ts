@@ -17,6 +17,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { emit } from '../lib/observability'
 import type {
   Principal,
   Subject,
@@ -401,21 +402,11 @@ async function chargeUser(subject: Subject, raw: RawCost): Promise<ChargeResult>
     const dailyRoom = Math.max(0, dailyCap - month.dailyTokensUsed)
 
     if (tokens > dailyRoom) {
-      console.log('[tokenMeter] cap_hit_daily', {
-        uid: subject.id,
-        service: raw.kind,
-        attempted: tokens,
-        dailyRoom,
-      })
+      emit('token_cap_hit_daily', { uid: subject.id, service: raw.kind, attempted: tokens, dailyRoom, tier })
       return fail('daily_cap_exceeded', dailyRoom, monthRoom, extras, nextUtcMidnight(now))
     }
     if (tokens > totalRoom) {
-      console.log('[tokenMeter] cap_hit_monthly', {
-        uid: subject.id,
-        service: raw.kind,
-        attempted: tokens,
-        totalRoom,
-      })
+      emit('token_cap_hit_monthly', { uid: subject.id, service: raw.kind, attempted: tokens, totalRoom, tier })
       return fail('monthly_cap_exceeded', dailyRoom, monthRoom, extras, endOfUtcMonth(monthKey))
     }
 
@@ -509,12 +500,7 @@ async function chargeGuest(subject: Subject, raw: RawCost): Promise<ChargeResult
     const limit = GUEST_LIMITS[raw.kind] ?? 0
     const current = g.counters[key] ?? 0
     if (current + 1 > limit) {
-      console.log('[tokenMeter] guest_limit_hit', {
-        guestId: subject.id,
-        counter: key,
-        current,
-        limit,
-      })
+      emit('guest_limit_hit', { guestId: subject.id, counter: key, current, limit, service: raw.kind })
       return fail('guest_limit_exceeded', 0, 0, 0)
     }
 

@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { sendEmailNotification } from './emailService'
+import { emit } from '../lib/observability'
 
 export interface InvoiceJob {
   jobId: string
@@ -150,6 +151,7 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
     }
   }
   console.log('[invoiceService] invoice_rendered', { invoiceId: job.invoiceId, invoiceNumber })
+  emit('invoice_rendered', { invoiceId: job.invoiceId, invoiceNumber, uid: p.uid })
 }
 
 export async function renderInvoicePdf(_jobId: string): Promise<string> {

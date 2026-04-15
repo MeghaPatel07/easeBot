@@ -24,6 +24,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { resetMonthly } from './tokenMeter'
+import { emit } from '../lib/observability'
 import type {
   SubscriptionState,
   SubscriptionTrigger,
@@ -445,6 +446,13 @@ export async function applyTransition(
   // Post-commit side effects (tier mirror flip + token meter reset).
   if (result.applied) {
     const nextTier = tierFromState(result.state)
+    emit('subscription_transition', {
+      uid,
+      trigger,
+      toState: result.state,
+      toTier: nextTier,
+      txnid: payload.txnid,
+    })
     try {
       const userRef = doc(db, 'users', uid)
       const userSnap = await getDoc(userRef)

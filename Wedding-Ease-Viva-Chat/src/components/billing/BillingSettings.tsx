@@ -37,6 +37,15 @@ export function BillingSettings({ className }: { className?: string }) {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    if (!cancelOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !cancelBusy) setCancelOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cancelOpen, cancelBusy])
+
   const handleCancel = async () => {
     setCancelBusy(true)
     setCancelError(null)
