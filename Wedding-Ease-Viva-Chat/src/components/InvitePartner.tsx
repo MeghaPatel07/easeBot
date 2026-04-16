@@ -174,16 +174,16 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
   return (
     <div className="space-y-6">
       {/* Share info section */}
-      <div className="rounded-2xl bg-white/[0.06] border border-border p-5">
+      <div className="rounded-2xl bg-white/[0.06] border p-5">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-primary/10 p-2.5">
             <Link className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-headline text-base font-semibold text-foreground">
+            <h3 className="font-headline text-base font-semibold text-white/90">
               Collaborative Planning
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+            <p className="mt-1 text-sm text-white/90 leading-relaxed">
               Plan together in real-time. Invite your partner or planner to see all your checklists, budgets, and timelines. Changes sync instantly.
             </p>
           </div>
@@ -191,10 +191,10 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       </div>
 
       {/* Invite form */}
-      <div className="rounded-2xl bg-white/[0.06] border border-border p-5">
+      <div className="rounded-2xl bg-white/[0.06] border p-5">
         <div className="flex items-center gap-2 mb-4">
           <UserPlus className="h-4.5 w-4.5 text-primary" />
-          <h4 className="font-headline text-sm font-semibold text-foreground">
+          <h4 className="font-headline text-sm font-semibold text-white/90">
             Send an Invite
           </h4>
         </div>
@@ -202,7 +202,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
         <form onSubmit={handleInvite} className="space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/60" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
               <input
                 type="email"
                 placeholder="partner@email.com"
@@ -211,7 +211,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
                   setEmail(e.target.value)
                   if (error) setError(null)
                 }}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-12 pr-3 text-sm text-[#D9C3C3] placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-12 pr-3 text-sm text-white/90 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
               />
             </div>
             <button
@@ -266,14 +266,14 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       </div>
 
       {/* Active collaborators list / Empty state */}
-      <div className="rounded-2xl bg-white/[0.06] border border-border p-5">
+      <div className="rounded-2xl bg-white/[0.06] border p-5">
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-4.5 w-4.5 text-primary" />
-          <h4 className="font-headline text-sm font-semibold text-foreground">
+          <h4 className="font-headline text-sm font-semibold text-white/90">
             Collaborators
           </h4>
           {collaborators.length > 0 && (
-            <span className="ml-auto text-xs text-muted-foreground bg-primary/10 rounded-full px-2 py-0.5">
+            <span className="ml-auto text-xs text-white/90 bg-primary/10 rounded-full px-2 py-0.5">
               {collaborators.length}
             </span>
           )}
@@ -284,10 +284,10 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
             <div className="rounded-2xl bg-primary/10 p-4 mb-4">
               <Users className="h-8 w-8 text-primary" />
             </div>
-            <h5 className="font-headline text-base font-semibold text-foreground mb-1">
+            <h5 className="font-headline text-base font-semibold text-white/90 mb-1">
               Plan together
             </h5>
-            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+            <p className="text-sm text-white/90 max-w-xs leading-relaxed">
               Invite your partner or a wedding planner to collaborate in real
               time. Share checklists, budgets, and timelines seamlessly.
             </p>
@@ -304,15 +304,15 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="text-sm font-medium text-white/90 truncate">
                     {collab.name || collab.email}
                   </p>
                   {collab.name && (
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-white/90 truncate">
                       {collab.email}
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-white/90 mt-0.5">
                     Invited {formatDate(collab.invitedAt)}
                   </p>
                 </div>
@@ -331,7 +331,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
 
                 <button
                   onClick={() => handleRemove(collab.email)}
-                  className="rounded-lg p-1.5 text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                  className="rounded-lg p-1.5 text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
                   title="Remove collaborator"
                 >
                   <X className="h-4 w-4" />

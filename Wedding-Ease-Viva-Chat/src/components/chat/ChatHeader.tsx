@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   PanelLeft, SquarePen, Globe, Bell,
-  User, LogIn, UserPlus, LogOut,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { UserProfile } from '@/types';
 import { MODE_CONFIG, SUPPORTED_LANGUAGES, type ModeOrAuto } from './constants';
-import { ProfileMenu } from '@/components/ProfileMenu';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -62,40 +61,26 @@ export const SidebarToggle: React.FC<{
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Profile icon + dropdown (user avatar, language, sign in/out)
+// Profile icon — opens Settings modal (swapped from dropdown in Sprint 5)
 // ─────────────────────────────────────────────────────────────────────────────
 export const ProfileIcon: React.FC<{
   user: { uid: string } | null;
   profile: UserProfile | null;
-  preferredLang: string;
-  onLanguageChange: (code: string) => void;
-  onShowSignIn: () => void;
-  onShowSignUp: () => void;
-  onSignOut: () => void;
-}> = ({ user, profile, preferredLang, onLanguageChange, onShowSignIn, onShowSignUp, onSignOut }) => (
+  onShowSettings: () => void;
+}> = ({ user, profile, onShowSettings }) => (
   <div>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors">
-          <Avatar className="h-6 w-6">
-            <AvatarImage src="" alt="Profile" />
-            <AvatarFallback className="bg-primary/10 text-primary text-2xs font-semibold">
-              {profile?.name ? profile.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : <User className="h-3 w-3" />}
-            </AvatarFallback>
-          </Avatar>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 text-soft" align="end" forceMount>
-        {/* Sprint 1: dropdown body extracted into <ProfileMenu /> (PRD §5).
-            Trigger button + props/callbacks above are intentionally untouched. */}
-        <ProfileMenu
-          isAuthenticated={!!user && !!profile}
-          onShowSignIn={onShowSignIn}
-          onShowSignUp={onShowSignUp}
-          onSignOut={onSignOut}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button
+      onClick={onShowSettings}
+      className="h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors"
+      title="Settings"
+    >
+      <Avatar className="h-6 w-6">
+        <AvatarImage src="" alt="Profile" />
+        <AvatarFallback className="bg-primary/10 text-primary text-2xs font-semibold">
+          {profile?.name ? profile.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : <User className="h-3 w-3" />}
+        </AvatarFallback>
+      </Avatar>
+    </button>
   </div>
 );
 
@@ -109,6 +94,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   preferredLang, onLanguageChange,
   onShowReminders,
   onShowSignIn, onShowSignUp, onSignOut,
+  onShowSettings,
 }) => {
   return (
     <header className="flex items-center gap-1.5 w-full px-3 sm:px-5 h-14  z-10 flex-shrink-0">
@@ -145,11 +131,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <ProfileIcon
           user={user}
           profile={profile}
-          preferredLang={preferredLang}
-          onLanguageChange={onLanguageChange}
-          onShowSignIn={onShowSignIn}
-          onShowSignUp={onShowSignUp}
-          onSignOut={onSignOut}
+          onShowSettings={onShowSettings}
         />
       </div>
     </header>

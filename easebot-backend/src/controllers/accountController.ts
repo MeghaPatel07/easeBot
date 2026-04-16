@@ -205,18 +205,20 @@ function defaultPlanBlock() {
   }
 }
 
-function mergePlanBlock(data: Record<string, any> | undefined) {
+function mergePlanBlock(data: Record<string, any> | undefined, subPlan?: string) {
   const base = defaultPlanBlock()
-  if (!data) return base
+  if (!data && !subPlan) return base
+  // Prefer authoritative subscription plan, then tierMirror, then user doc plan field.
+  const plan = subPlan ?? data?.tierMirror ?? data?.plan ?? base.plan
   return {
-    plan: data.plan ?? base.plan,
-    planRenewsAt: data.planRenewsAt ?? null,
-    trialEndsAt: data.trialEndsAt ?? null,
+    plan,
+    planRenewsAt: data?.planRenewsAt ?? null,
+    trialEndsAt: data?.trialEndsAt ?? null,
     usage: {
-      messagesUsed: data.usage?.messagesUsed ?? 0,
-      messagesAllowed: data.usage?.messagesAllowed ?? base.usage.messagesAllowed,
-      periodStart: data.usage?.periodStart ?? null,
-      periodEnd: data.usage?.periodEnd ?? null,
+      messagesUsed: data?.usage?.messagesUsed ?? 0,
+      messagesAllowed: data?.usage?.messagesAllowed ?? base.usage.messagesAllowed,
+      periodStart: data?.usage?.periodStart ?? null,
+      periodEnd: data?.usage?.periodEnd ?? null,
     },
   }
 }
@@ -227,14 +229,21 @@ function mergePlanBlock(data: Record<string, any> | undefined) {
 export async function handleGetMe(req: Request, res: Response): Promise<void> {
   const uid = req.user!.uid
   try {
-    const snap = await userRef(uid).get()
+    const [snap, subSnap] = await Promise.all([
+      userRef(uid).get(),
+      adminDb.doc(`users/${uid}/subscription/current`).get(),
+    ])
     const profile = snap.exists ? (snap.data() ?? {}) : {}
-    const planBlock = mergePlanBlock(profile)
+    const subPlan = subSnap.exists ? (subSnap.data()?.plan as string | undefined) : undefined
+    const planBlock = mergePlanBlock(profile, subPlan)
+    // Frontend expects plan as { tier: string }, not a flat string.
+    const tier = planBlock.plan
     res.status(200).json({
       uid,
       email: req.user?.email ?? profile.email ?? null,
       profile,
-      ...planBlock,
+      plan: { tier, renewsAt: planBlock.planRenewsAt, trialEndsAt: planBlock.trialEndsAt },
+      usage: planBlock.usage,
     })
   } catch (err) { serverError(res, err) }
 }
@@ -373,9 +382,18 @@ export async function handleUpdateProfile(req: Request, res: Response): Promise<
 export async function handleGetPlan(req: Request, res: Response): Promise<void> {
   const uid = req.user!.uid
   try {
-    const snap = await userRef(uid).get()
+    const [snap, subSnap] = await Promise.all([
+      userRef(uid).get(),
+      adminDb.doc(`users/${uid}/subscription/current`).get(),
+    ])
     const data = snap.exists ? (snap.data() ?? {}) : {}
-    res.status(200).json(mergePlanBlock(data))
+    const subPlan = subSnap.exists ? (subSnap.data()?.plan as string | undefined) : undefined
+    const planBlock = mergePlanBlock(data, subPlan)
+    const tier = planBlock.plan
+    res.status(200).json({
+      plan: { tier, renewsAt: planBlock.planRenewsAt, trialEndsAt: planBlock.trialEndsAt },
+      usage: planBlock.usage,
+    })
   } catch (err) { serverError(res, err) }
 }
 
@@ -391,15 +409,23 @@ export async function handleGetUsage(req: Request, res: Response): Promise<void>
     const snapshot = await getUsage({ kind: 'user', id: uid, tier })
     const monthlyPool = Math.max(0, (snapshot.monthlyTokensCap ?? 0) - (snapshot.monthlyTokensUsed ?? 0))
     const now = new Date()
-    // Monthly reset = first day of NEXT UTC month at 00:00. Token-meter keys
-    // the usage doc by `YYYY-MM`, so rollover happens exactly at that instant.
-    // Previous impl used now.getUTCDate() + 1, which is tomorrow — wrong.
-    const resetAt = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth() + 1,
-      1,
-      0, 0, 0, 0,
-    ))
+
+    // For paid users, monthly reset aligns with the billing period end date
+    // from the subscription doc. For free/guest users, fall back to the
+    // calendar month boundary (token meter keys usage docs by YYYY-MM).
+    let resetAt: Date
+    if (tier === 'pro' || tier === 'promax') {
+      const subSnap = await adminDb.doc(`users/${uid}/subscription/current`).get()
+      const periodEnd = subSnap.exists ? subSnap.data()?.currentPeriodEnd : null
+      if (periodEnd && typeof periodEnd.toDate === 'function') {
+        resetAt = periodEnd.toDate()
+      } else {
+        // Subscription doc missing/malformed — fall back to calendar month
+        resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0))
+      }
+    } else {
+      resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0))
+    }
     res.status(200).json({
       tier: snapshot.tier,
       monthlyPool,

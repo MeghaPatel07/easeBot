@@ -8,6 +8,7 @@ export interface ChatPayload {
   language?: string
   mode?: Mode
   history?: HistoryMessage[]  // passed by guest clients (no Firestore thread)
+  skipImageGeneration?: boolean  // sent by frontend when guest image limit reached
 }
 
 export interface ToolAction {
@@ -24,6 +25,8 @@ export interface ChatResponse {
   toolActions: ToolAction[]
   mode: Mode
   detectedLanguage: string
+  /** True when the image has a watermark overlay (free-tier users). */
+  imageWatermarked?: boolean
 }
 
 export interface HistoryMessage {

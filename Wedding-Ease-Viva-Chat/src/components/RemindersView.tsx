@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { createReminder, deleteReminder } from '@/services/reminderService'
 import { isDerivedPhoneEmail } from '@/services/authService'
+import { resolveTier, getLimits } from '@/config/tierConfig'
 import type { ReminderDoc } from '@/types'
 
 interface RemindersViewProps {
@@ -231,18 +232,39 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2">
-        <Button
-          size="sm"
-          onClick={handleOpenDialog}
-          disabled={!user}
-          className="h-9 rounded-xl gap-1.5 text-xs font-medium"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New Reminder
-        </Button>
-      </div>
+      {/* Toolbar with x/y counter */}
+      {(() => {
+        const tier = resolveTier(profile)
+        const limits = getLimits(tier)
+        const maxR = limits.maxActiveReminders
+        const pendingCount = reminders.filter(r => r.status === 'pending').length
+        const atLimit = maxR !== null && pendingCount >= maxR
+        return (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                onClick={handleOpenDialog}
+                disabled={!user || atLimit}
+                className="h-9 rounded-xl gap-1.5 text-xs font-medium"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New Reminder
+              </Button>
+              {maxR !== null && (
+                <span className={`text-2xs ${atLimit ? 'text-destructive font-medium' : 'text-white/40'}`}>
+                  {pendingCount}/{maxR} active
+                </span>
+              )}
+            </div>
+            {atLimit && (
+              <a href="/pricing" className="text-2xs text-primary hover:underline">
+                Upgrade for unlimited
+              </a>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Empty state */}
       {reminders.length === 0 ? (
@@ -281,7 +303,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
           if (!o) resetForm()
         }}
       >
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl bg-[#1a1a1a]/95 backdrop-blur-md flex flex-col gap-4">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle className="font-headline text-lg text-white/90">New Reminder</DialogTitle>
             <DialogDescription className="text-white/40 text-xs">

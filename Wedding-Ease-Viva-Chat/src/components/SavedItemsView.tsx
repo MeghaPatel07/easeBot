@@ -156,7 +156,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
             onChange={e => setNewText(e.target.value)}
             placeholder="Paste or type the snippet to save..."
             rows={3}
-            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-white/30"
           />
           <div className="flex items-center gap-2">
             <Tag className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
@@ -184,7 +184,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
             value={newNote}
             onChange={e => setNewNote(e.target.value)}
             placeholder="Optional note..."
-            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-white/30"
           />
           <div className="flex items-center gap-2 justify-end">
             <button
@@ -239,7 +239,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                     href={productData.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group relative flex flex-col bg-white/[0.06] border border-border hover:border-blue-200 rounded-2xl overflow-hidden transition-all hover:shadow-md"
+                    className="group relative flex flex-col bg-white/[0.06] border hover:border-blue-200 rounded-2xl overflow-hidden transition-all hover:shadow-md"
                   >
                     <div className="relative overflow-hidden bg-white/[0.06] flex-shrink-0 h-32 sm:h-40">
                       <img
@@ -278,7 +278,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
               return (
                 <div
                   key={item.id}
-                  className="group relative bg-white/[0.06] border border-border hover:border-border rounded-2xl p-4 transition-all hover:shadow-sm"
+                  className="group relative bg-white/[0.06] border hover:rounded-2xl p-4 transition-all hover:shadow-sm"
                 >
                   {/* Delete button */}
                   <button
@@ -348,7 +348,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                           if (e.key === 'Escape') { setEditingNoteId(null); setNoteText('') }
                         }}
                         placeholder="Add a note..."
-                        className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                        className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                       />
                       <button
                         onClick={() => handleSaveNote(item.id)}

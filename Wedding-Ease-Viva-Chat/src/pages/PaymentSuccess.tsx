@@ -65,26 +65,26 @@ export default function PaymentSuccess() {
   }, [txnid, queryClient])
 
   return (
-    <div className="min-h-screen bg-background text-soft flex items-center justify-center p-6">
+    <div className="gradient-bg min-h-screen text-soft flex items-center justify-center p-6">
       <div className="max-w-md rounded-2xl bg-white/[0.03] backdrop-blur-sm p-8 text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-        <h1 className="mt-4 font-headline text-2xl text-foreground">Payment received</h1>
+        <h1 className="mt-4 font-headline text-2xl text-white/90">Payment received</h1>
         {error ? (
           <p className="mt-2 text-sm text-destructive">We could not verify your transaction ({error}). Please contact support if this persists.</p>
         ) : info ? (
           <>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-white/90">
               {info.plan?.toUpperCase()} · {info.cycle}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-white/90">
               {info.currency} {info.amountLocal}
             </p>
-            <p className="mt-1 text-2xs uppercase tracking-wide text-muted-foreground">
+            <p className="mt-1 text-2xs uppercase tracking-wide text-white/90">
               {info.state}
             </p>
           </>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">Verifying your payment…</p>
+          <p className="mt-2 text-sm text-white/90">Verifying your payment…</p>
         )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link

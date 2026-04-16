@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PanelLeft, Search, SquarePen, Pin, PinOff,
   MoreHorizontal, Pencil, Trash2, Share2, Archive, ArchiveRestore,
   Tag, X, ChevronDown, ChevronRight,
   ThumbsUp, Bell, CheckSquare, DollarSign, ShoppingCart, ImagePlus,
-  Clock, BarChart3, Users, HelpCircle, Settings, LogIn, FileText,
+  Clock, BarChart3, Users, Settings, LogIn, FileText, CircleHelp, Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,15 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import type { ChatThread } from '@/types';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import type { ChatThread, UserProfile } from '@/types';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ProfileMenu } from '@/components/ProfileMenu';
+import { useAccount } from '@/hooks/useAccount';
+import { resolveTier, getLimits } from '@/config/tierConfig';
 import { TAG_PRESETS, getTagStyle } from './constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +42,7 @@ export interface ChatSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   user: { uid: string } | null;
+  profile: UserProfile | null;
   threads: ChatThread[];
   activeThreadId: string | null;
   sidebarView: SidebarView;
@@ -48,6 +58,8 @@ export interface ChatSidebarProps {
   onShowShortcuts: () => void;
   onShowSettings: () => void;
   onShowSignIn: () => void;
+  onShowSignUp: () => void;
+  onSignOut: () => void;
   // Data for badges
   allLikedMessagesCount: number;
   calendarEventsCount: number;
@@ -79,20 +91,24 @@ const dateGroupOrder = ['Today', 'Yesterday', 'Previous 7 Days', 'Previous 30 Da
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
-  isOpen, onToggle, user, threads, activeThreadId,
+  isOpen, onToggle, user, profile, threads, activeThreadId,
   sidebarView, onSetSidebarView,
   onNewChat, onLoadChat, onDeleteThread, onRenameThread, onPinThread,
   onArchiveThread, onShareThread, onUpdateThreadTags,
-  onShowShortcuts, onShowSettings, onShowSignIn,
+  onShowShortcuts, onShowSettings, onShowSignIn, onShowSignUp, onSignOut,
   allLikedMessagesCount, calendarEventsCount, overdueCount, galleryImageCount,
   searchQuery, onSearchQueryChange,
 }) => {
+  const navigate = useNavigate();
+  const { plan: accountPlan } = useAccount();
+  const resolvedTier = accountPlan?.tier ?? profile?.plan ?? (profile?.isPremium ? 'pro' : 'free');
   const [showSearch, setShowSearch] = useState(false);
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [tagPickerThreadId, setTagPickerThreadId] = useState<string | null>(null);
+  const [deleteConfirmThreadId, setDeleteConfirmThreadId] = useState<string | null>(null);
 
   const submitRename = async (threadId: string) => {
     const trimmed = renameValue.trim();
@@ -187,7 +203,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}>
                 <Pencil className="mr-2 h-3.5 w-3.5" />Rename
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer text-xs text-red-500 focus:text-red-500" onClick={() => onDeleteThread(thread.id)}>
+              <DropdownMenuItem className="cursor-pointer text-xs text-red-500 focus:text-red-500" onClick={() => setDeleteConfirmThreadId(thread.id)}>
                 <Trash2 className="mr-2 h-3.5 w-3.5" />Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -200,7 +216,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   // ── Tag picker modal ───────────────────────────────────────────────────────
   const tagPickerModal = (
     <Dialog open={!!tagPickerThreadId} onOpenChange={(open) => !open && setTagPickerThreadId(null)}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[500px] glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[500px] glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl">
         <DialogHeader>
           <DialogTitle className="font-headline text-xl text-white/90">Organize with Tags</DialogTitle>
           <DialogDescription>Select tags to organize this conversation</DialogDescription>
@@ -235,9 +251,36 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     </Dialog>
   );
 
+  // ── Delete confirmation modal ───────────────────────────────────────────
+  const deleteConfirmModal = (
+    <AlertDialog open={!!deleteConfirmThreadId} onOpenChange={(open) => { if (!open) setDeleteConfirmThreadId(null); }}>
+      <AlertDialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This conversation will be permanently deleted. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (deleteConfirmThreadId) onDeleteThread(deleteConfirmThreadId);
+              setDeleteConfirmThreadId(null);
+            }}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   return (
     <>
       {tagPickerModal}
+      {deleteConfirmModal}
       <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-['Lato',sans-serif] ${isOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-[#A17A63]/15 backdrop-blur-2xl bg-white/[0.04] overflow-hidden">
 
@@ -247,11 +290,19 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <PanelLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-0.5">
-              {user && (
-                <Button onClick={() => { setShowSearch(v => !v); if (showSearch) onSearchQueryChange(''); }} variant="ghost" className={`h-8 w-8 rounded-full hover:bg-white/10 text-white/60 ${showSearch ? 'bg-white/10' : ''}`} title="Search chats">
-                  <Search className="h-3.5 w-3.5" />
-                </Button>
-              )}
+              {user && (() => {
+                const t = resolveTier(profile)
+                const searchAllowed = getLimits(t).chatSearchable
+                return searchAllowed ? (
+                  <Button onClick={() => { setShowSearch(v => !v); if (showSearch) onSearchQueryChange(''); }} variant="ghost" className={`h-8 w-8 rounded-full hover:bg-white/10 text-white/60 ${showSearch ? 'bg-white/10' : ''}`} title="Search chats">
+                    <Search className="h-3.5 w-3.5" />
+                  </Button>
+                ) : (
+                  <Button onClick={() => { /* noop — show tooltip instead */ }} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/30 cursor-not-allowed" title="Chat search — upgrade to Pro">
+                    <Search className="h-3.5 w-3.5" />
+                  </Button>
+                )
+              })()}
               <Button onClick={onNewChat} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/60" title="New Chat">
                 <SquarePen className="h-3.5 w-3.5" />
               </Button>
@@ -272,22 +323,22 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             {user && (
               <div className="space-y-0.5 mb-4">
                 {([
-                  { view: 'planner' as const, icon: CheckSquare, label: 'planner', badge: overdueCount },
-                  { view: 'liked' as const, icon: ThumbsUp, label: 'liked', badge: allLikedMessagesCount },
-                  { view: 'reminders' as const, icon: Bell, label: 'reminders', badge: calendarEventsCount },
-                  { view: 'timeline' as const, icon: Clock, label: 'timeline', badge: 0 },
-                  // { view: 'progress' as const, icon: BarChart3, label: 'progress', badge: 0 },
-                  // { view: 'notifications' as const, icon: Bell, label: 'alerts', badge: 0 },
-                  // { view: 'collaborate' as const, icon: Users, label: 'collaborate', badge: 0 },
-                  { view: 'images' as const, icon: ImagePlus, label: 'images', badge: 0 },
-                  { view: 'notes' as const, icon: FileText, label: 'notes', badge: 0 },
+                  { view: 'planner' as const, icon: CheckSquare, label: 'Planner', badge: overdueCount },
+                  { view: 'liked' as const, icon: ThumbsUp, label: 'Liked', badge: allLikedMessagesCount },
+                  { view: 'reminders' as const, icon: Bell, label: 'Reminders', badge: calendarEventsCount },
+                  { view: 'timeline' as const, icon: Clock, label: 'Timeline', badge: 0 },
+                  // { view: 'progress' as const, icon: BarChart3, label: 'Progress', badge: 0 },
+                  // { view: 'notifications' as const, icon: Bell, label: 'Alerts', badge: 0 },
+                  // { view: 'collaborate' as const, icon: Users, label: 'Collaborate', badge: 0 },
+                  { view: 'images' as const, icon: ImagePlus, label: 'Images', badge: 0 },
+                  { view: 'notes' as const, icon: FileText, label: 'Notes', badge: 0 },
                 ] as const).map(({ view, icon: Icon, label, badge }) => {
                   const isActive = sidebarView === view;
                   return (
                     <button
                       key={view}
                       onClick={() => onSetSidebarView(view)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase ${isActive ? 'bg-white/[0.1] text-[#A17A63] font-medium' : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]'}`}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs ${isActive ? 'bg-white/[0.1] text-[#A17A63] font-medium' : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]'}`}
                     >
                       <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-[#A17A63]' : 'text-white/35'}`} />
                       <span>{label}</span>
@@ -379,33 +430,86 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     </CollapsibleContent>
                   </Collapsible>
                 )}
+
+                {/* Retention notice for free-tier users */}
+                {(() => {
+                  const t = resolveTier(profile)
+                  const l = getLimits(t)
+                  if (l.chatRetentionDays === null || t === 'guest') return null
+                  return (
+                    <div className="mt-3 mx-2 rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2">
+                      <p className="text-3xs text-white/40 leading-relaxed">
+                        Free plan: chat history is kept for <span className="text-white/60 font-medium">{l.chatRetentionDays} days</span>.
+                        {' '}<a href="/pricing" className="text-primary hover:underline">Upgrade</a> for full history.
+                      </p>
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </nav>
 
-          {/* Bottom: help + settings + profile */}
+          {/* Bottom: profile dropdown (logged-in) or guest actions */}
           <div className="flex-shrink-0 border-t border-white/[0.06] px-3 py-2.5" style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}>
             {user ? (
-              <div className="space-y-1">
-                <button onClick={onShowShortcuts} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
-                  <HelpCircle className="h-4 w-4 flex-shrink-0" />
-                  <span>help</span>
-                </button>
-                <button onClick={onShowSettings} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
-                  <Settings className="h-4 w-4 flex-shrink-0" />
-                  <span>settings</span>
-                </button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/60 hover:text-white/90 hover:bg-white/[0.05]">
+                    <Avatar className="h-7 w-7 flex-shrink-0">
+                      <AvatarFallback className="bg-primary/15 text-primary text-2xs font-semibold">
+                        {profile?.name
+                          ? profile.name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                          : <Settings className="h-3 w-3" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col items-start min-w-0 flex-1">
+                      <span className="text-xs font-medium text-white/90 truncate w-full text-left">
+                        {profile?.name || 'My Account'}
+                      </span>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-white/40">
+                        {resolvedTier === 'promax' ? 'Pro Max' : resolvedTier === 'pro' ? 'Pro' : 'Free'}
+                      </span>
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64 text-soft" side="top" align="start" forceMount>
+                  <ProfileMenu
+                    isAuthenticated={true}
+                    onShowSignIn={onShowSignIn}
+                    onShowSignUp={onShowSignUp}
+                    onSignOut={onSignOut}
+                    onShowShortcuts={onShowShortcuts}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <div className="space-y-1">
-                <button onClick={onShowShortcuts} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
-                  <HelpCircle className="h-4 w-4 flex-shrink-0" />
-                  <span>help</span>
+              <div className="space-y-0.5">
+                <button onClick={() => navigate('/pricing')} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                  <Sparkles className="h-4 w-4 flex-shrink-0" />
+                  <span>See Plans And Pricing</span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl bg-gradient-to-r from-[#A17A63]/12 to-transparent border border-[#A17A63]/20 hover:border-[#A17A63]/35 transition-all duration-200 text-xs text-white/70" onClick={onShowSignIn}>
-                  <LogIn className="h-4 w-4 text-primary flex-shrink-0" />
-                  <span>sign in</span>
+                <button onClick={onShowSettings} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                  <Settings className="h-4 w-4 flex-shrink-0" />
+                  <span>Settings</span>
                 </button>
+                <button onClick={() => navigate('/help')} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                  <CircleHelp className="h-4 w-4 flex-shrink-0" />
+                  <span>Help</span>
+                </button>
+
+                {/* Sign-in nudge banner */}
+                <div className="mt-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-3">
+                  <p className="text-xs font-medium text-white/80">Get Responses Tailored To You</p>
+                  <p className="mt-1 text-2xs text-white/40 leading-relaxed">
+                    Log in to save chats, create images, and get personalized wedding planning.
+                  </p>
+                  <button
+                    onClick={onShowSignIn}
+                    className="mt-2.5 w-full rounded-xl bg-white/[0.9] py-2 text-xs font-semibold text-[#0F0D0C] hover:bg-white transition-colors"
+                  >
+                    Log In
+                  </button>
+                </div>
               </div>
             )}
           </div>

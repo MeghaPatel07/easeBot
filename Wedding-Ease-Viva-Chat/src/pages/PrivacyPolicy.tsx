@@ -8,7 +8,7 @@ const SERVICE_NAME = 'Viva by EaseBot'
 
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-background text-white/85">
+    <div className="gradient-bg min-h-screen text-white/85">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -left-24 w-[28rem] h-[28rem] bg-secondary/10 rounded-full blur-3xl" />

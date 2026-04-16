@@ -2,7 +2,10 @@
  * OpenAI function/tool definitions for the Planner Agent.
  * These are passed to the LLM so it can call structured actions.
  */
+import * as admin from 'firebase-admin'
 import type { ChatCompletionTool } from 'openai/resources/chat/completions'
+
+const db = admin.firestore()
 import {
   createChecklist,
   editChecklistItem,
@@ -125,10 +128,14 @@ export async function executeToolCall(
 ): Promise<ToolCallResult> {
   switch (toolName) {
     case 'create_checklist': {
-      // Storage governance: free users capped at 5 checklists
-      if (!isPremium) {
+      // Storage governance: tier-based checklist cap (PRICING_PRD §4)
+      const { resolveTier: rt, getLimits: gl } = await import('../config/tierConfig')
+      const profileSnap = await db.collection('users').doc(uid).get()
+      const tier = rt(profileSnap.exists ? profileSnap.data() as any : null)
+      const maxCl = gl(tier).maxChecklists
+      if (maxCl !== null) {
         const count = await getChecklistCount(uid)
-        if (count >= 5) {
+        if (count >= maxCl) {
           return {
             toolName,
             result: 'STORAGE_LIMIT_REACHED',

@@ -465,7 +465,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
 
       {/* Keyboard shortcuts dialog */}
       <Dialog open={showShortcuts} onOpenChange={setShowShortcuts}>
-        <DialogContent className="bg-[#1a1a1a]/95 backdrop-blur-md border-white/10 text-white max-w-sm">
+        <DialogContent className="bg-[#0F0D0C]/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] text-white max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm font-headline flex items-center gap-2">
               <Keyboard className="h-4 w-4 text-primary" />

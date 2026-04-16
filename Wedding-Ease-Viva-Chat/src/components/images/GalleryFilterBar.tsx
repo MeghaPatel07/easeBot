@@ -38,7 +38,7 @@ export function GalleryFilterBar({ filter, onChange }: GalleryFilterBarProps) {
               className={`snap-start whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                 active
                   ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground'
+                  : 'bg-muted text-white/90 hover:bg-muted/70 hover:text-white/90'
               }`}
             >
               {pill.label}

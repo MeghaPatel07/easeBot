@@ -385,18 +385,21 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] sm:max-w-[480px] glass-panel rounded-[2rem] p-0 border-0 bg-[#0F0D0C]/95 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(44,46,42,0.1)] overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[440px] glass-panel rounded-2xl p-0 border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-h-[90dvh] overflow-y-auto custom-scrollbar p-6 md:p-10">
+        <div className="max-h-[90dvh] overflow-y-auto custom-scrollbar p-6 md:p-8">
           {/* ── Forgot Password view ── */}
           {view === 'forgot' && (
             <>
-              <DialogHeader>
-                <DialogTitle className="elegant-heading">Reset Password</DialogTitle>
-                <DialogDescription>
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Reset password</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Recover your <span className="text-primary">account</span>
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/40">
                   Enter your email and we'll send a reset link.
                 </DialogDescription>
               </DialogHeader>
@@ -404,7 +407,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {/* Phone-based forgot password is temporarily disabled. */}
               {/*
               {fpStep !== 'sent' && fpStep !== 'phone-done' && (
-                <div className="flex bg-border p-1 rounded-full gap-1 mb-4 mt-3">
+                <div className="flex bg-white/[0.03] border border-white/[0.06] p-1 rounded-full gap-1 mb-4 mt-5">
                   {(['email', 'phone'] as ForgotTab[]).map(t => (
                     <button
                       key={t}
@@ -413,7 +416,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                         setFpStep(t === 'email' ? 'email-input' : 'phone-input')
                         setError('')
                       }}
-                      className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${fpTab === t ? 'bg-primary text-white shadow-sm' : 'text-white/60 hover:bg-white/[0.08]'}`}
+                      className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${fpTab === t ? 'bg-primary text-primary-foreground shadow-sm' : 'text-white/40 hover:text-white/60'}`}
                     >
                       {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
                     </button>
@@ -423,36 +426,40 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               */}
 
               {fpStep === 'email-input' && (
-                <div className="space-y-4 py-2">
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Email</label>
+                <div className="space-y-5 mt-6">
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Email</label>
                     <Input
                       type="email"
                       value={fpEmail}
                       onChange={e => setFpEmail(e.target.value)}
-                      placeholder="jane@example.com"
-                      className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm"
+                      placeholder="Enter your mail"
+                      className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
                     />
                   </div>
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleForgotPassword} disabled={loading}>
+                  {error && <p className="text-sm text-red-400">{error}</p>}
+                  <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleForgotPassword} disabled={loading}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                     Send Reset Link
                   </Button>
-                  <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError('') }}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
-                  </Button>
+                  <button
+                    type="button"
+                    className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                    onClick={() => { setView('default'); setError('') }}
+                  >
+                    <ArrowLeft className="h-4 w-4" /> Back to Sign In
+                  </button>
                 </div>
               )}
 
               {fpStep === 'sent' && (
-                <div className="py-6 space-y-4 text-center">
+                <div className="py-6 space-y-5 text-center mt-4">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-white/60">
                     A password reset link was sent to <span className="font-medium text-white/70">{fpEmail}</span>.
                     Check your inbox.
                   </p>
-                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email-input'); setFpEmail('') }}>
+                  <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email-input'); setFpEmail('') }}>
                     Back to Sign In
                   </Button>
                 </div>
@@ -467,7 +474,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                     <PhoneInput value={fpPhone} onChange={setFpPhone} placeholder="98765 43210" />
                   </div>
                   {error && <p className="text-sm text-red-500">{error}</p>}
-                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneSend} disabled={loading}>
+                  <Button className="w-full h-10 rounded-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneSend} disabled={loading}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
                     Send OTP on WhatsApp
                   </Button>
@@ -494,7 +501,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                     />
                   </div>
                   {error && <p className="text-sm text-red-500">{error}</p>}
-                  <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneVerify} disabled={loading || fpOtp.length < 6}>
+                  <Button className="w-full h-10 rounded-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneVerify} disabled={loading || fpOtp.length < 6}>
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Verify & Reset
                   </Button>
@@ -517,7 +524,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {fpStep === 'phone-done' && (
                 <div className="py-6 space-y-4 text-center">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                  <p className="text-sm text-muted-foreground">You're signed in. Redirecting...</p>
+                  <p className="text-sm text-white/90">You're signed in. Redirecting...</p>
                 </div>
               )}
               */}
@@ -527,46 +534,53 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
           {/* ── Unverified account recovery (authflow.md §7) ── */}
           {view === 'unverified' && (
             <>
-              <DialogHeader>
-                <DialogTitle className="elegant-heading">Verify Your Account</DialogTitle>
-                <DialogDescription>
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Almost there</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Verify your <span className="text-primary">account</span>
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/40">
                   Your account hasn't been verified yet. Resend the verification email below.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-2">
+              <div className="space-y-5 mt-6">
                 {!resendSent ? (
                   <>
-                    <p className="text-sm text-white/60">
-                      Account: <span className="font-medium">{unverifiedUser?.email}</span>
+                    <p className="text-sm text-white/50">
+                      Account: <span className="font-medium text-white/70">{unverifiedUser?.email}</span>
                     </p>
-                    <div className="space-y-1">
-                      <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Password (to confirm it's you)</label>
+                    <div className="space-y-2">
+                      <label className="text-xs text-white/50 ml-1">Password (to confirm it's you)</label>
                       <Input
                         type="password"
                         value={resendPassword}
                         onChange={e => setResendPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm"
+                        placeholder="Enter your password"
+                        className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
                       />
                     </div>
-                    {error && <p className="text-sm text-red-500">{error}</p>}
-                    <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleResendVerification} disabled={loading}>
+                    {error && <p className="text-sm text-red-400">{error}</p>}
+                    <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleResendVerification} disabled={loading}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                       Resend Verification Email
                     </Button>
                   </>
                 ) : (
-                  <div className="text-center space-y-3 py-2">
-                    <CheckCircle className="h-10 w-10 text-green-500 mx-auto" />
-                    <p className="text-sm text-muted-foreground">
-                      Verification email resent to <span className="font-medium">{unverifiedUser?.email}</span>.
+                  <div className="text-center space-y-4 py-2">
+                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                    <p className="text-sm text-white/60">
+                      Verification email resent to <span className="font-medium text-white/70">{unverifiedUser?.email}</span>.
                       After verifying, sign in again.
                     </p>
                   </div>
                 )}
-                <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError(''); setResendSent(false) }}>
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
-                </Button>
+                <button
+                  type="button"
+                  className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                  onClick={() => { setView('default'); setError(''); setResendSent(false) }}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Sign In
+                </button>
               </div>
             </>
           )}
@@ -574,31 +588,38 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
           {/* ── Link Google to existing password account ── */}
           {view === 'link-google' && (
             <>
-              <DialogHeader>
-                <DialogTitle className="elegant-heading">Link Google to your account</DialogTitle>
-                <DialogDescription>
-                  An account already exists for <span className="font-medium text-white/70">{linkEmail}</span>. Enter your password to link Google sign-in to it.
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Link account</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Connect your <span className="text-primary">Google</span>
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/40">
+                  An account already exists for <span className="font-medium text-white/60">{linkEmail}</span>. Enter your password to link Google sign-in.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-1">
-                  <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Password</label>
+              <div className="space-y-5 mt-6">
+                <div className="space-y-2">
+                  <label className="text-xs text-white/50 ml-1">Password</label>
                   <Input
                     type="password"
                     value={linkPassword}
                     onChange={e => setLinkPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm"
+                    placeholder="Enter your password"
+                    className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
                   />
                 </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
-                <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleLinkGoogle} disabled={loading}>
+                {error && <p className="text-sm text-red-400">{error}</p>}
+                <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleLinkGoogle} disabled={loading}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Link Google & Sign in
                 </Button>
-                <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError(''); setLinkPassword(''); setPendingCred(null) }}>
-                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
-                </Button>
+                <button
+                  type="button"
+                  className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                  onClick={() => { setView('default'); setError(''); setLinkPassword(''); setPendingCred(null) }}
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Sign In
+                </button>
               </div>
             </>
           )}
@@ -606,98 +627,80 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
           {/* ── Default sign-in view ── */}
           {view === 'default' && (
             <>
-              <DialogHeader className="text-center space-y-4">
-                {/* Viva Logo */}
-                <div className="flex flex-col items-center">
-                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
-                  <div className="font-label uppercase tracking-[0.2em] text-2xs text-white/40">Digital Concierge</div>
-                </div>
-                <DialogTitle className="font-headline text-3xl tracking-tight">Welcome back</DialogTitle>
-                <DialogDescription className="text-white/50 text-sm">Your wedding planning journey continues here.</DialogDescription>
+              {/* Header — left-aligned */}
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Welcome back</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Lets continue<br />your <span className="text-primary">story</span>
+                </DialogTitle>
+                <DialogDescription className="sr-only">Sign in to your account</DialogDescription>
               </DialogHeader>
 
-              {/* Google */}
-              <button
-                onClick={handleGoogle}
-                disabled={loading}
-                className="w-full h-14 rounded-xl bg-white/[0.06] border-0 flex items-center justify-center gap-3 text-white/85 font-medium hover:bg-white/[0.10] transition-all mt-2 disabled:opacity-50"
-              >
-                <GoogleIcon /> Continue with Google
-              </button>
-
-              <div className="flex items-center gap-4 my-6">
-                <div className="h-[1px] flex-1 bg-white/10"></div>
-                <span className="font-label uppercase tracking-widest text-2xs text-white/40">or</span>
-                <div className="h-[1px] flex-1 bg-white/10"></div>
-              </div>
-
               {/* Tabs */}
-              <div className="flex bg-border p-1 rounded-full gap-1 mb-4">
+              <div className="flex bg-white/[0.03] border border-white/[0.06] p-1 rounded-full gap-1 mt-6 mb-6">
                 {(['email', 'phone'] as Tab[]).map(t => (
                   <button
                     key={t}
                     onClick={() => { setTab(t); setError(''); setDeviceMismatch(false) }}
-                    className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${tab === t ? 'bg-primary text-white shadow-sm' : 'text-white/60 hover:bg-white/[0.08]'}`}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-full transition-all ${tab === t ? 'bg-primary text-primary-foreground shadow-sm' : 'text-white/40 hover:text-white/60'}`}
                   >
-                    {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
+                    {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1.5" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1.5" />Phone</>}
                   </button>
                 ))}
               </div>
 
               {/* Email tab */}
               {tab === 'email' && (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Email</label>
-                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Email</label>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="Enter your mail"
+                      className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                    />
                   </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Password</label>
-                      <Button
-                        variant="link"
-                        className="p-0 h-auto text-xs text-primary"
-                        onClick={() => { setView('forgot'); setFpEmail(email); setError('') }}
-                      >
-                        Forgot password?
-                      </Button>
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Password</label>
                     <Input
                       type="password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleEmailSignIn()}
-                      placeholder="••••••••"
-                      className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm"
+                      placeholder="Enter your password"
+                      className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
                     />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        className="text-xs text-white/35 hover:text-primary transition-colors"
+                        onClick={() => { setView('forgot'); setFpEmail(email); setError('') }}
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Remember me */}
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="remember"
-                      checked={rememberMe}
-                      onChange={e => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 rounded border-0"
-                    />
-                    <label htmlFor="remember" className="text-sm text-muted-foreground">Remember me</label>
-                  </div>
+                  {error && <p className="text-sm text-red-400">{error}</p>}
 
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-
-                  <Button className="w-full h-14 rounded-xl bg-primary text-white font-semibold tracking-wide shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleEmailSignIn} disabled={loading}>
+                  <Button
+                    className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 mt-2"
+                    onClick={handleEmailSignIn}
+                    disabled={loading}
+                  >
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Sign in
+                    Continue planning
                   </Button>
                 </div>
               )}
 
               {/* Phone tab (WhatsApp OTP) */}
               {tab === 'phone' && (
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Phone Number</label>
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Phone Number</label>
                     <div className="flex gap-2 items-start">
                       <div className="flex-1">
                         <PhoneInput value={phone} onChange={setPhone} disabled={otpSent} placeholder="98765 43210" />
@@ -706,7 +709,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                         variant="outline"
                         onClick={handleSendOtp}
                         disabled={loading || (otpSent && otpResendTimer > 0)}
-                        className="whitespace-nowrap h-14"
+                        className="whitespace-nowrap h-12 rounded-2xl border-white/[0.12]"
                       >
                         {loading && !otpSent ? <Loader2 className="h-4 w-4 animate-spin" /> : otpSent ? (otpResendTimer > 0 ? `Resend (${otpResendTimer}s)` : 'Resend') : 'Send OTP'}
                       </Button>
@@ -715,17 +718,17 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
                   {otpSent && (
                     <>
-                      <p className="text-xs text-white/50">
+                      <p className="text-xs text-white/40">
                         Code sent via WhatsApp. Expires in {Math.floor(otpExpiryTimer / 60)}:{(otpExpiryTimer % 60).toString().padStart(2, '0')}.
                       </p>
-                      <div className="space-y-1">
-                        <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Verification Code</label>
+                      <div className="space-y-2">
+                        <label className="text-xs text-white/50 ml-1">Verification Code</label>
                         <Input
                           value={otp}
                           onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           placeholder="6-digit code"
                           maxLength={6}
-                          className="bg-white/70 text-center tracking-widest text-lg"
+                          className="h-12 rounded-2xl bg-transparent border border-white/[0.12] text-center tracking-widest text-lg text-white/90"
                           onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
                         />
                       </div>
@@ -734,11 +737,11 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
                   {error && (
                     <div className="space-y-2">
-                      <p className="text-sm text-red-500">{error}</p>
+                      <p className="text-sm text-red-400">{error}</p>
                       {deviceMismatch && (
                         <Button
                           variant="outline"
-                          className="w-full"
+                          className="w-full h-12 rounded-2xl border-white/[0.12]"
                           onClick={() => { setTab('email'); setError(''); setDeviceMismatch(false) }}
                         >
                           Use Email Sign-In Instead
@@ -748,7 +751,11 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                   )}
 
                   {otpSent && (
-                    <Button className="w-full bg-primary hover:bg-primary/90" onClick={handleVerifyOtp} disabled={loading || otp.length < 6}>
+                    <Button
+                      className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 mt-2"
+                      onClick={handleVerifyOtp}
+                      disabled={loading || otp.length < 6}
+                    >
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Verify & Sign In
                     </Button>
@@ -756,26 +763,29 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 </div>
               )}
 
-              {/* Switch to sign up */}
-              <div className="mt-8 text-center">
-                <p className="text-white/50 text-sm">
-                  Don't have an account?{' '}
-                  <button className="text-primary font-bold ml-1 hover:underline" onClick={() => switchToSignUp()}>
-                    Sign up
-                  </button>
-                </p>
-                <p className="mt-3 text-[11px] text-white/35">
-                  By continuing, you agree to our{' '}
-                  <Link to="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/70">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
+              {/* Divider */}
+              <div className="flex items-center gap-4 mt-6 mb-4">
+                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
+                <span className="text-xs text-white/30">Or continue with</span>
+                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
               </div>
+
+              {/* Google — bottom */}
+              <button
+                onClick={handleGoogle}
+                disabled={loading}
+                className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-3 text-white/70 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all disabled:opacity-50"
+              >
+                <GoogleIcon /> Continue with Google
+              </button>
+
+              {/* Switch to sign up */}
+              <p className="text-center text-sm text-white/40 mt-5">
+                Don't have an account?{' '}
+                <button className="text-primary font-semibold hover:underline" onClick={() => switchToSignUp()}>
+                  Sign up
+                </button>
+              </p>
             </>
           )}
         </div>

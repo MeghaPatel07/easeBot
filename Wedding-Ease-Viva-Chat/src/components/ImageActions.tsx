@@ -12,6 +12,8 @@ interface ImageActionsProps {
   /** 'overlay' (default): absolute positioned, hover-reveal on desktop.
    *  'preview': inline flex, always visible, larger buttons — for fullscreen lightbox. */
   variant?: 'overlay' | 'preview'
+  /** Hide share & save-to-gallery buttons for guest users */
+  isGuest?: boolean
 }
 
 // Social/share platform configs
@@ -58,7 +60,7 @@ const SHARE_PLATFORMS = [
   },
 ]
 
-export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, variant = 'overlay' }: ImageActionsProps) {
+export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, variant = 'overlay', isGuest }: ImageActionsProps) {
   const [downloading, setDownloading] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -181,22 +183,24 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, var
           <TooltipContent side="top"><p>{imageCopied ? 'Copied!' : 'Copy image'}</p></TooltipContent>
         </Tooltip>
 
-        {/* Share */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button size="sm" variant="ghost" onClick={() => setShowShareModal(true)}
-              className={variant === 'preview'
-                ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
-                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
-              }>
-              <Share2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top"><p>Share</p></TooltipContent>
-        </Tooltip>
+        {/* Share — hidden for guests */}
+        {!isGuest && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="ghost" onClick={() => setShowShareModal(true)}
+                className={variant === 'preview'
+                  ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
+                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
+                }>
+                <Share2 className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Share</p></TooltipContent>
+          </Tooltip>
+        )}
 
-        {/* Save to gallery */}
-        {onSaveToGallery && (
+        {/* Save to gallery — hidden for guests */}
+        {!isGuest && onSaveToGallery && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={onSaveToGallery} disabled={isSaved}

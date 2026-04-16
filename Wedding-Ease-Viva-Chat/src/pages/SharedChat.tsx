@@ -24,7 +24,7 @@ export default function SharedChat() {
 
   if (loading) {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-background">
+      <div className="gradient-bg min-h-[100vh] min-h-[100dvh] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -32,7 +32,7 @@ export default function SharedChat() {
 
   if (error || !data) {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex flex-col items-center justify-center bg-background gap-4">
+      <div className="gradient-bg min-h-[100vh] min-h-[100dvh] flex flex-col items-center justify-center gap-4">
         <MessageSquare className="h-12 w-12 text-stone-300" />
         <p className="text-stone-500 text-sm">{error || 'Conversation not found.'}</p>
         <Link to="/" className="text-primary text-sm hover:underline flex items-center gap-1">
@@ -43,9 +43,9 @@ export default function SharedChat() {
   }
 
   return (
-    <div className="min-h-[100vh] min-h-[100dvh] bg-background">
+    <div className="gradient-bg min-h-[100vh] min-h-[100dvh]">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-border px-5 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/" className="text-primary hover:text-primary/80 transition-colors">
             <ArrowLeft className="h-4 w-4" />
@@ -70,7 +70,7 @@ export default function SharedChat() {
               </div>
             ) : (
               <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg">
-                <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-white/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] text-[#D9C3C3]">
+                <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-white/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] text-white/90">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}
                     components={{
                       a: ({ href, children }) => (

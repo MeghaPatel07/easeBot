@@ -16,7 +16,7 @@ export function VibePicker({ presets, onSelect, onCustomSubmit }: VibePickerProp
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           What&apos;s the vibe of your wedding?
         </h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-white/90">
           Describe your own, or pick a starting point below.
         </p>
       </header>
@@ -28,7 +28,7 @@ export function VibePicker({ presets, onSelect, onCustomSubmit }: VibePickerProp
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          <span className="text-xs uppercase tracking-wider text-white/90">
             Or start from a preset
           </span>
           <div className="h-px flex-1 bg-border" />

@@ -98,6 +98,7 @@ export interface UserProfile {
   // Firestore documents and code paths. Defaults are applied at read time
   // by `applyProfileDefaults` in services/migrations/userProfileMigration.ts.
   plan?: 'free' | 'pro' | 'promax'
+  tierMirror?: 'free' | 'pro' | 'promax'
   planRenewsAt?: Timestamp
   trialEndsAt?: Timestamp
   linkedProviders?: Array<'password' | 'google.com'>
@@ -209,6 +210,7 @@ export interface ChatFunctionPayload {
   lastGeneratedImageUrl?: string
   styleMemory?: StyleMemory
   forceImageGeneration?: boolean
+  skipImageGeneration?: boolean
   preferredAspectRatio?: string
   vibeTitle?: string
   vibeDescriptors?: string[]
@@ -281,6 +283,8 @@ export interface ChatFunctionResponse {
   detectedLanguage: string
   imageQuota?: { allowed: boolean; remaining: number; dailyUsed: number; dailyLimit: number; resetAt: string }
   styleMemory?: StyleMemory
+  /** True when the image has a watermark overlay (free-tier users). */
+  imageWatermarked?: boolean
 }
 
 // Typed error thrown by authService. `name` is inherited from Error (required)

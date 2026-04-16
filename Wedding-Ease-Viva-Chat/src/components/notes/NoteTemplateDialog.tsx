@@ -46,7 +46,7 @@ const NoteTemplateDialog: React.FC<NoteTemplateDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[560px] glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl bg-[#1a1a1a]/95 backdrop-blur-md max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[560px] glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-headline text-xl text-white/90">
             Start from a template
@@ -62,7 +62,7 @@ const NoteTemplateDialog: React.FC<NoteTemplateDialogProps> = ({
             <button
               key={template.id}
               onClick={() => handleSelect(template)}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-white/10 hover:border-primary/40 bg-white/[0.02] hover:bg-white/10 transition-all duration-200 text-center group"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-white/[0.08] hover:border-primary/30 bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-center group"
             >
               <span className="text-2xl group-hover:scale-110 transition-transform">{template.icon}</span>
               <div>
@@ -78,7 +78,7 @@ const NoteTemplateDialog: React.FC<NoteTemplateDialogProps> = ({
           <Button
             onClick={handleBlank}
             variant="outline"
-            className="gap-2 border-white/10 text-white/50 hover:text-white/80 hover:bg-white/10 rounded-lg text-sm"
+            className="gap-2 border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.06] rounded-full text-sm"
           >
             <FileText className="h-4 w-4" />
             Blank Note

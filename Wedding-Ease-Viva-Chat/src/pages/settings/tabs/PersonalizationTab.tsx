@@ -226,8 +226,8 @@ export function PersonalizationTab() {
       {/* ── Wedding details ──────────────────────────────────────────────── */}
       <Card className="p-6">
         <div className="mb-5">
-          <h3 className="text-base font-semibold text-foreground">Wedding details</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h3 className="text-base font-semibold text-white/90">Wedding details</h3>
+          <p className="mt-1 text-xs text-white/90">
             Used to plan timelines, budgets, and recommendations.
           </p>
         </div>
@@ -247,7 +247,7 @@ export function PersonalizationTab() {
                   className={cn(
                     'min-h-11 w-full justify-start bg-white/[0.04] text-left text-sm font-normal',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                    !form.weddingDate && 'text-muted-foreground',
+                    !form.weddingDate && 'text-white/90',
                   )}
                   aria-label="Pick wedding date"
                 >
@@ -258,7 +258,7 @@ export function PersonalizationTab() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-auto bg-popover p-0 text-popover-foreground"
+                className="w-auto bg-popover p-0 text-white/90"
                 align="start"
               >
                 <Calendar
@@ -273,7 +273,7 @@ export function PersonalizationTab() {
               <button
                 type="button"
                 onClick={() => setForm((p) => ({ ...p, weddingDate: null }))}
-                className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="text-xs text-white/90 underline-offset-4 hover:text-white/90 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 Clear date
               </button>
@@ -290,7 +290,7 @@ export function PersonalizationTab() {
               value={form.partnerName}
               onChange={(e) => setForm((p) => ({ ...p, partnerName: e.target.value }))}
               placeholder="e.g. Arjun"
-              className="min-h-11 bg-white/[0.04] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+              className="min-h-11 bg-white/[0.04] text-white/90 placeholder:text-white/90 focus-visible:ring-ring"
               autoComplete="off"
             />
           </div>
@@ -307,11 +307,11 @@ export function PersonalizationTab() {
               <SelectTrigger
                 id="role"
                 aria-label="Your role in the wedding"
-                className="min-h-11 bg-white/[0.04] text-foreground focus-visible:ring-ring"
+                className="min-h-11 bg-white/[0.04] text-white/90 focus-visible:ring-ring"
               >
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
-              <SelectContent className="bg-popover text-popover-foreground">
+              <SelectContent className="bg-popover text-white/90">
                 {ROLE_OPTIONS.map((r) => (
                   <SelectItem key={r.value} value={r.value}>
                     {r.label}
@@ -329,7 +329,7 @@ export function PersonalizationTab() {
             <div className="relative">
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/90"
               >
                 ₹
               </span>
@@ -342,11 +342,11 @@ export function PersonalizationTab() {
                 value={form.budget}
                 onChange={(e) => setForm((p) => ({ ...p, budget: e.target.value }))}
                 placeholder="500000"
-                className="min-h-11 bg-white/[0.04] pl-7 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+                className="min-h-11 bg-white/[0.04] pl-7 text-white/90 placeholder:text-white/90 focus-visible:ring-ring"
               />
             </div>
             {form.budget && !Number.isNaN(Number(form.budget)) && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/90">
                 {formatBudget(Number(form.budget))}
               </p>
             )}
@@ -355,7 +355,7 @@ export function PersonalizationTab() {
 
         <div className="mt-6 flex items-center justify-end gap-3">
           {isDirty && (
-            <span className="text-xs text-muted-foreground">Unsaved changes</span>
+            <span className="text-xs text-white/90">Unsaved changes</span>
           )}
           <Button
             type="button"
@@ -378,8 +378,8 @@ export function PersonalizationTab() {
       {/* ── Custom instructions (Sprint 4 — Kenji) ───────────────────────── */}
       <Card className="p-6">
         <div className="mb-5">
-          <h3 className="text-base font-semibold text-foreground">Custom instructions</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h3 className="text-base font-semibold text-white/90">Custom instructions</h3>
+          <p className="mt-1 text-xs text-white/90">
             Tell Easebot what to remember about you and how you want it to respond.
           </p>
         </div>
@@ -396,12 +396,12 @@ export function PersonalizationTab() {
               placeholder="e.g. I'm planning a 200-guest South Indian wedding in Bangalore in November. I love minimalism, hate clutter, and my partner is vegetarian."
               rows={4}
               maxLength={CUSTOM_INSTRUCTIONS_MAX}
-              className="min-h-24 bg-white/[0.04] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+              className="min-h-24 bg-white/[0.04] text-white/90 placeholder:text-white/90 focus-visible:ring-ring"
               aria-describedby="custom-about-counter"
             />
             <p
               id="custom-about-counter"
-              className="text-right text-2xs text-muted-foreground"
+              className="text-right text-2xs text-white/90"
             >
               {about.length} / {CUSTOM_INSTRUCTIONS_MAX}
             </p>
@@ -420,12 +420,12 @@ export function PersonalizationTab() {
               placeholder="e.g. Keep replies short and punchy. Use bullet points. Skip the small talk."
               rows={4}
               maxLength={CUSTOM_INSTRUCTIONS_MAX}
-              className="min-h-24 bg-white/[0.04] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+              className="min-h-24 bg-white/[0.04] text-white/90 placeholder:text-white/90 focus-visible:ring-ring"
               aria-describedby="custom-response-counter"
             />
             <p
               id="custom-response-counter"
-              className="text-right text-2xs text-muted-foreground"
+              className="text-right text-2xs text-white/90"
             >
               {responseStyle.length} / {CUSTOM_INSTRUCTIONS_MAX}
             </p>
@@ -434,7 +434,7 @@ export function PersonalizationTab() {
 
         <div className="mt-6 flex items-center justify-end gap-3">
           {instructionsDirty && (
-            <span className="text-xs text-muted-foreground">Unsaved changes</span>
+            <span className="text-xs text-white/90">Unsaved changes</span>
           )}
           <Button
             type="button"
@@ -458,22 +458,22 @@ export function PersonalizationTab() {
       <Card className="p-6">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-foreground">Active vibe</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h3 className="text-base font-semibold text-white/90">Active vibe</h3>
+            <p className="mt-1 text-xs text-white/90">
               The aesthetic Easebot uses for image generation and styling.
             </p>
           </div>
           <Sparkles
-            className="h-5 w-5 text-muted-foreground"
+            className="h-5 w-5 text-white/90"
             aria-hidden="true"
           />
         </div>
 
         {activeVibe ? (
           <div className="rounded-md bg-white/[0.04] p-4">
-            <p className="text-sm font-medium text-foreground">{activeVibe.title}</p>
+            <p className="text-sm font-medium text-white/90">{activeVibe.title}</p>
             {activeVibe.subtitle && (
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-white/90">
                 {activeVibe.subtitle}
               </p>
             )}
@@ -482,7 +482,7 @@ export function PersonalizationTab() {
                 {activeVibe.descriptors.slice(0, 6).map((d) => (
                   <span
                     key={d}
-                    className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium text-muted-foreground"
+                    className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium text-white/90"
                   >
                     {d}
                   </span>
@@ -494,7 +494,7 @@ export function PersonalizationTab() {
                 type="button"
                 variant="outline"
                 onClick={handleClearVibe}
-                className="min-h-11 bg-white/[0.04] text-foreground hover:bg-white/[0.06] focus-visible:ring-ring focus-visible:ring-offset-background"
+                className="min-h-11 bg-white/[0.04] text-white/90 hover:bg-white/[0.06] focus-visible:ring-ring focus-visible:ring-offset-background"
               >
                 Clear vibe
               </Button>
@@ -502,7 +502,7 @@ export function PersonalizationTab() {
           </div>
         ) : (
           <div className="rounded-md bg-white/[0.03] p-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-white/90">
               No vibe set — ask the chat to set a vibe (e.g. “make my vibe modern
               minimalist”).
             </p>
@@ -512,19 +512,19 @@ export function PersonalizationTab() {
 
       {/* ── Wedding context summary ──────────────────────────────────────── */}
       <Card className="p-6">
-        <h3 className="text-base font-semibold text-foreground">
+        <h3 className="text-base font-semibold text-white/90">
           Wedding context summary
         </h3>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 text-xs text-white/90">
           A read-only snapshot Easebot uses to tailor responses.
         </p>
 
         <dl className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <dt className="text-xs font-medium uppercase tracking-wide text-white/90">
               Days until wedding
             </dt>
-            <dd className="mt-1 text-lg font-semibold text-foreground">
+            <dd className="mt-1 text-lg font-semibold text-white/90">
               {summaryDays == null
                 ? '—'
                 : summaryDays >= 0
@@ -533,18 +533,18 @@ export function PersonalizationTab() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <dt className="text-xs font-medium uppercase tracking-wide text-white/90">
               Budget
             </dt>
-            <dd className="mt-1 text-lg font-semibold text-foreground">
+            <dd className="mt-1 text-lg font-semibold text-white/90">
               {summaryBudget}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <dt className="text-xs font-medium uppercase tracking-wide text-white/90">
               Role
             </dt>
-            <dd className="mt-1 text-lg font-semibold capitalize text-foreground">
+            <dd className="mt-1 text-lg font-semibold capitalize text-white/90">
               {profile?.role ?? '—'}
             </dd>
           </div>

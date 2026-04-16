@@ -309,10 +309,10 @@ export function AiBehaviorTab() {
       <Card className="p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-foreground">
+            <h3 className="text-base font-semibold text-white/90">
               Conversation tone
             </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-white/90">
               Shape how Easebot writes — every slider runs 0 to 100.
             </p>
           </div>
@@ -323,13 +323,13 @@ export function AiBehaviorTab() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="min-h-11 border-0 bg-white/[0.04] text-foreground hover:bg-white/[0.06] focus-visible:ring-ring focus-visible:ring-offset-background"
+                className="h-10 rounded-full border-0 bg-white/[0.04] text-white/90 hover:bg-white/[0.06] focus-visible:ring-ring focus-visible:ring-offset-background"
               >
                 <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
                 Reset
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="border-0 bg-[#0F0D0C]/95 backdrop-blur-2xl text-popover-foreground">
+            <AlertDialogContent className="border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl text-white/90 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]">
               <AlertDialogHeader>
                 <AlertDialogTitle>Reset tone to defaults?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -338,10 +338,10 @@ export function AiBehaviorTab() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="min-h-11">Cancel</AlertDialogCancel>
+                <AlertDialogCancel className="h-10 rounded-full">Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleResetTone}
-                  className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   Reset to defaults
                 </AlertDialogAction>
@@ -359,7 +359,7 @@ export function AiBehaviorTab() {
                 </Label>
                 <span
                   aria-live="polite"
-                  className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-semibold text-muted-foreground"
+                  className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-semibold text-white/90"
                 >
                   {tone[s.key]}
                 </span>
@@ -373,7 +373,7 @@ export function AiBehaviorTab() {
                 max={100}
                 step={5}
               />
-              <div className="flex justify-between text-2xs text-muted-foreground">
+              <div className="flex justify-between text-2xs text-white/90">
                 <span>{s.leftLabel}</span>
                 <span>{s.rightLabel}</span>
               </div>
@@ -383,13 +383,13 @@ export function AiBehaviorTab() {
 
         <div className="mt-6 flex items-center justify-end gap-3">
           {toneDirty && (
-            <span className="text-xs text-muted-foreground">Unsaved changes</span>
+            <span className="text-xs text-white/90">Unsaved changes</span>
           )}
           <Button
             type="button"
             onClick={handleSaveTone}
             disabled={!toneDirty || savingTone}
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring focus-visible:ring-offset-background"
+            className="h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring focus-visible:ring-offset-background"
           >
             {savingTone ? (
               <>
@@ -406,8 +406,8 @@ export function AiBehaviorTab() {
       {/* ── Voice ────────────────────────────────────────────────────────── */}
       <Card className="p-6">
         <div className="mb-5">
-          <h3 className="text-base font-semibold text-foreground">Voice</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <h3 className="text-base font-semibold text-white/90">Voice</h3>
+          <p className="mt-1 text-xs text-white/90">
             Pick a voice for spoken replies. Tap the speaker to preview.
           </p>
         </div>
@@ -424,7 +424,7 @@ export function AiBehaviorTab() {
             return (
               <div
                 key={preset.id}
-                className={`flex min-h-11 items-start gap-3 rounded-md p-4 transition-colors ${
+                className={`flex h-100 rounded-full items-start gap-3 rounded-md p-4 transition-colors ${
                   isSelected
                     ? 'bg-primary/10'
                     : 'bg-white/[0.04] hover:bg-white/[0.06]'
@@ -438,10 +438,10 @@ export function AiBehaviorTab() {
                   className="flex flex-1 flex-col items-start text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-sm font-semibold text-white/90">
                       {preset.name}
                     </span>
-                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-white/90">
                       {preset.gender}
                     </span>
                     {isSelected && (
@@ -451,7 +451,7 @@ export function AiBehaviorTab() {
                       />
                     )}
                   </div>
-                  <span className="mt-1 text-xs text-muted-foreground">
+                  <span className="mt-1 text-xs text-white/90">
                     {preset.description}
                   </span>
                 </button>
@@ -462,7 +462,7 @@ export function AiBehaviorTab() {
                   size="icon"
                   aria-label={isPreviewing ? `Stop preview of ${preset.name}` : `Preview ${preset.name}`}
                   onClick={() => previewVoice(preset.id)}
-                  className="min-h-11 min-w-11 shrink-0 text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background"
+                  className="h-10 rounded-full min-w-11 shrink-0 text-white/90 hover:text-white/90 focus-visible:ring-ring focus-visible:ring-offset-background"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -479,13 +479,13 @@ export function AiBehaviorTab() {
 
         <div className="mt-6 flex items-center justify-end gap-3">
           {voiceDirty && (
-            <span className="text-xs text-muted-foreground">Unsaved changes</span>
+            <span className="text-xs text-white/90">Unsaved changes</span>
           )}
           <Button
             type="button"
             onClick={handleSaveVoice}
             disabled={!voiceDirty || savingVoice}
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring focus-visible:ring-offset-background"
+            className="h-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring focus-visible:ring-offset-background"
           >
             {savingVoice ? (
               <>
@@ -503,7 +503,7 @@ export function AiBehaviorTab() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Language</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-white/90">
             Easebot will try to reply in this language. Auto-detect lets the AI
             mirror whatever language you write in.
           </p>
@@ -516,16 +516,16 @@ export function AiBehaviorTab() {
             <SelectTrigger
               id="language-select"
               aria-label="Preferred language"
-              className="min-h-11 w-full bg-white/[0.04] text-foreground focus-visible:ring-ring sm:max-w-xs"
+              className="h-10 rounded-full w-full bg-white/[0.04] text-white/90 focus-visible:ring-ring sm:max-w-xs"
             >
               <SelectValue placeholder="Select a language" />
             </SelectTrigger>
-            <SelectContent className="bg-popover text-popover-foreground">
+            <SelectContent className="bg-popover text-white/90">
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <SelectItem
                   key={lang.code}
                   value={lang.code}
-                  className="min-h-11 text-sm"
+                  className="h-10 rounded-full text-sm"
                 >
                   {lang.label}
                 </SelectItem>
@@ -539,15 +539,15 @@ export function AiBehaviorTab() {
       {/* <Card className="p-6">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold text-foreground">
+            <h3 className="text-base font-semibold text-white/90">
               Default AI mode
             </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-white/90">
               Which mode Easebot starts new chats in. Coming soon — saving is
               disabled until the backend wires this up.
             </p>
           </div>
-          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-white/90">
             Coming soon
           </span>
         </div>
@@ -560,11 +560,11 @@ export function AiBehaviorTab() {
             <SelectTrigger
               id="default-mode"
               aria-label="Default AI mode"
-              className="min-h-11 bg-white/[0.04] text-foreground focus-visible:ring-ring"
+              className="h-10 rounded-full bg-white/[0.04] text-white/90 focus-visible:ring-ring"
             >
               <SelectValue placeholder="Auto" />
             </SelectTrigger>
-            <SelectContent className="bg-popover text-popover-foreground">
+            <SelectContent className="bg-popover text-white/90">
               {modeOptions.map((m) => (
                 <SelectItem key={m.key} value={m.key}>
                   {m.label}

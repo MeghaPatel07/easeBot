@@ -23,6 +23,21 @@ import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storag
 import { db, storage } from '@/lib/firebase'
 import type { ChatThread, ChatMessage, Mode } from '@/types'
 
+// ── Storage helpers ─────────────────────────────────────────────────────────
+
+/** Extract a Firebase Storage path from a download URL, or null if external. */
+function storageRefFromUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes('firebasestorage.googleapis.com')) return null;
+    const pathMatch = u.pathname.match(/\/o\/(.+?)(\?|$)/);
+    if (!pathMatch) return null;
+    return decodeURIComponent(pathMatch[1]);
+  } catch {
+    return null;
+  }
+}
+
 // ── Threads ──────────────────────────────────────────────────────────────────
 
 export async function createThread(userId: string, firstMessage: string): Promise<string> {
@@ -55,6 +70,23 @@ export async function updateThreadTitle(threadId: string, title: string): Promis
 
 export async function deleteThread(threadId: string): Promise<void> {
   const messagesSnap = await getDocs(collection(db, 'chats', threadId, 'messages'))
+
+  // Collect all image URLs from messages and delete from Firebase Storage
+  const imageUrls: string[] = [];
+  messagesSnap.docs.forEach(d => {
+    const data = d.data();
+    if (data.imageUrl) imageUrls.push(data.imageUrl);
+    if (data.attachedImageUrl) imageUrls.push(data.attachedImageUrl);
+    if (Array.isArray(data.imageUrls)) imageUrls.push(...data.imageUrls);
+  });
+
+  await Promise.allSettled(
+    imageUrls
+      .map(storageRefFromUrl)
+      .filter((p): p is string => p !== null)
+      .map(path => deleteObject(ref(storage, path)))
+  );
+
   await Promise.all(messagesSnap.docs.map(d => deleteDoc(d.ref)))
   await deleteDoc(doc(db, 'chats', threadId))
 }
@@ -346,11 +378,13 @@ export async function removeMessageImage(
   }
 
   // Delete from Firebase Storage (best-effort — ignore if URL is external or already gone)
-  try {
-    const storageRef = ref(storage, imageUrl)
-    await deleteObject(storageRef)
-  } catch {
-    // URL may be external (not in our Storage) or already deleted — that's fine
+  const storagePath = storageRefFromUrl(imageUrl)
+  if (storagePath) {
+    try {
+      await deleteObject(ref(storage, storagePath))
+    } catch {
+      // Already deleted or transient error — that's fine
+    }
   }
 }
 

@@ -62,7 +62,7 @@ export function CustomVibeForm({ onSubmit }: CustomVibeFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border bg-card p-4 sm:p-5">
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-white/[0.03] p-4 sm:p-5">
       <div className="space-y-2">
         <Label htmlFor="custom-vibe-title">Vibe name</Label>
         <Input
@@ -85,13 +85,13 @@ export function CustomVibeForm({ onSubmit }: CustomVibeFormProps) {
           rows={3}
           aria-label="Style descriptors, comma separated"
         />
-        <p className="text-xs text-muted-foreground">3–12 descriptors, comma-separated. Each 2–30 characters.</p>
+        <p className="text-xs text-white/90">3–12 descriptors, comma-separated. Each 2–30 characters.</p>
       </div>
 
       {error && (
         <div
           role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
         >
           {error}
         </div>

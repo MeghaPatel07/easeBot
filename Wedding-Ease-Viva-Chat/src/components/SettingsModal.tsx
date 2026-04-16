@@ -6,7 +6,7 @@ import { savePersonalization } from '@/services/settingsService'
 import { VOICE_PRESETS, getVoicePreset } from '@/services/voicePresets'
 import { requestTTS } from '@/services/ttsService'
 import type { ToneSettings, UserPersonalization } from '@/types'
-import { User, Sliders, Volume2, Check, Square, Loader2, Sparkles } from 'lucide-react'
+import { User, Sliders, Volume2, Check, Square, Loader2 } from 'lucide-react'
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -159,35 +159,32 @@ export function SettingsModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="w-[95vw] sm:max-w-[520px] glass-panel rounded-[2rem] p-0 border border-white/15 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[520px] glass-panel rounded-2xl p-0 border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
         {/* Decorative blurs */}
-        <div className="absolute -top-16 -right-16 w-40 h-40 bg-[#A17A63]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#A17A63]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-h-[85dvh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="px-6 pt-6 pb-4">
-            <div className="flex items-center gap-2.5 mb-1">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#A17A63] to-[#D6C1C7] flex items-center justify-center shadow-lg shadow-[#A17A63]/20">
-                <Sparkles className="h-4 w-4 text-white" />
-              </div>
-              <h2 className="text-lg font-semibold text-white/95 tracking-tight">Personalize Your Experience</h2>
-            </div>
-            <p className="text-xs text-white/40 ml-[2.625rem]">Customize how Viva interacts with you</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-primary mb-2">Personalization</p>
+            <h2 className="font-headline text-[1.5rem] leading-tight tracking-tight text-white">
+              Make it <span className="text-primary">yours</span>
+            </h2>
+            <p className="text-xs text-white/40 mt-1.5">Customize how Viva interacts with you</p>
           </div>
 
           {/* Tab bar */}
           <div className="px-6 mb-1">
-            <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+            <div className="flex gap-1 p-1 rounded-full bg-white/[0.04]">
               {TABS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all duration-200 ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-xs font-medium transition-all duration-200 ${
                     activeTab === id
-                      ? 'bg-gradient-to-r from-[#A17A63]/20 to-[#D6C1C7]/10 text-[#D6C1C7] border border-[#A17A63]/25 shadow-sm'
-                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.06]'
                   }`}
                 >
                   <Icon size={13} />
@@ -202,14 +199,14 @@ export function SettingsModal({ open, onClose }: Props) {
             {/* ── Identity ── */}
             {activeTab === 'identity' && (
               <div className="space-y-4">
-                <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4">
-                  <label className="block text-sm font-medium text-white/80 mb-1">Nickname</label>
-                  <p className="text-xs text-white/35 mb-3">What should the AI call you during conversations?</p>
+                <div className="space-y-2">
+                  <label className="text-xs text-white/50 ml-1">Nickname</label>
+                  <p className="text-xs text-white/30 ml-1">What should the AI call you during conversations?</p>
                   <input
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="e.g. Priya, Babe, The Bride"
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-sm text-white/90 placeholder:text-white/25 focus:outline-none focus:border-[#A17A63]/40 focus:ring-2 focus:ring-[#A17A63]/15 focus:bg-white/[0.08] transition-all"
+                    className="w-full h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] text-sm text-white/90 placeholder:text-white/25 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
                   />
                 </div>
                 <div className="rounded-xl bg-gradient-to-br from-[#A17A63]/5 to-transparent border border-[#A17A63]/10 p-4">
@@ -315,17 +312,17 @@ export function SettingsModal({ open, onClose }: Props) {
             <button
               onClick={onClose}
               disabled={saveState === 'saving'}
-              className="px-5 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white/70 hover:bg-white/[0.06] transition-all disabled:opacity-50"
+              className="px-5 h-10 rounded-full text-sm font-medium text-white/50 hover:text-white/70 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-all disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saveState !== 'idle'}
-              className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all min-w-[100px] ${
+              className={`px-6 h-10 rounded-full text-sm font-medium transition-all min-w-[100px] ${
                 saveState === 'saved'
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-gradient-to-r from-[#A17A63] to-[#D6C1C7] text-white shadow-lg shadow-[#A17A63]/25 hover:shadow-[#A17A63]/40 hover:brightness-110 disabled:opacity-60'
+                  : 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 disabled:opacity-60'
               }`}
             >
               {saveState === 'saving' && (

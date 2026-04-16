@@ -218,7 +218,7 @@ export default function ProgressDashboard({
       {/* Category Cards 2x2 */}
       <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3">
         {/* Planning */}
-        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
+        <div className="rounded-2xl bg-white/[0.06] border p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckSquare className="w-4 h-4 text-primary" />
             <span className="text-xs text-white/50 font-medium">Planning</span>
@@ -232,7 +232,7 @@ export default function ProgressDashboard({
         </div>
 
         {/* Budget */}
-        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
+        <div className="rounded-2xl bg-white/[0.06] border p-4">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-4 h-4 text-primary" />
             <span className="text-xs text-white/50 font-medium">Budget</span>
@@ -259,7 +259,7 @@ export default function ProgressDashboard({
         </div>
 
         {/* Calendar */}
-        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
+        <div className="rounded-2xl bg-white/[0.06] border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Calendar className="w-4 h-4 text-primary" />
             <span className="text-xs text-white/50 font-medium">Calendar</span>
@@ -269,7 +269,7 @@ export default function ProgressDashboard({
         </div>
 
         {/* Conversations */}
-        <div className="rounded-2xl bg-white/[0.06] border border-border p-4">
+        <div className="rounded-2xl bg-white/[0.06] border p-4">
           <div className="flex items-center gap-2 mb-2">
             <MessageSquare className="w-4 h-4 text-primary" />
             <span className="text-xs text-white/50 font-medium">Conversations</span>

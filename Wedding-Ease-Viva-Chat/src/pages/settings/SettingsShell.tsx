@@ -14,8 +14,8 @@
 // (Radix), Esc closes (Radix), Arrow keys move nav, all interactive elements
 // ≥44×44px, focus rings via Tailwind tokens.
 //
-// Dark-mode aware: uses bg-background / text-foreground / border-border /
-// bg-muted / text-muted-foreground / accent tokens — no hard-coded colours.
+// Dark-mode aware: uses bg-background / text-white/90 / /
+// bg-muted / text-white/90 / accent tokens — no hard-coded colours.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -30,6 +30,8 @@ import {
   Info,
   ArrowLeft,
   X,
+  LogOut,
+  LogIn,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -40,6 +42,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
 import AccountTab from './tabs/AccountTab'
 import PlanBillingTab from './tabs/PlanBillingTab'
@@ -68,33 +71,52 @@ interface TabDef {
   label: string
   icon: LucideIcon
   Component: React.ComponentType
+  /** If true, this tab requires authentication and is hidden for guests. */
+  authRequired?: boolean
 }
 
-const TABS: TabDef[] = [
-  { id: 'account',         label: 'Account',         icon: UserIcon,    Component: AccountTab },
-  { id: 'plan-billing',    label: 'Plan & Billing',  icon: CreditCard,  Component: PlanBillingTab },
+const ALL_TABS: TabDef[] = [
+  { id: 'account',         label: 'Account',         icon: UserIcon,    Component: AccountTab,         authRequired: true },
+  { id: 'plan-billing',    label: 'Plan & Billing',  icon: CreditCard,  Component: PlanBillingTab,     authRequired: true },
   // { id: 'personalization', label: 'Personalization', icon: Sparkles,    Component: PersonalizationTab },
   { id: 'ai-behavior',     label: 'AI Behavior',     icon: Bot,         Component: AiBehaviorTab },
   // Appearance tab temporarily hidden — Language has moved to AI Behavior.
   // { id: 'appearance',      label: 'Appearance',      icon: Palette,     Component: AppearanceTab },
-  { id: 'notifications',   label: 'Notifications',   icon: Bell,        Component: NotificationsTab },
+  // { id: 'notifications',   label: 'Notifications',   icon: Bell,        Component: NotificationsTab,   authRequired: true },
   { id: 'data-privacy',    label: 'Data & Privacy',  icon: ShieldCheck, Component: DataPrivacyTab },
   { id: 'about',           label: 'About',           icon: Info,        Component: AboutTab },
 ]
 
-const TAB_IDS = TABS.map(t => t.id)
+// All possible tab IDs for URL validation (includes auth-gated ones).
+const ALL_TAB_IDS = ALL_TABS.map(t => t.id)
 
 function isTabId(v: string | null): v is SettingsTabId {
-  return !!v && (TAB_IDS as string[]).includes(v)
+  return !!v && (ALL_TAB_IDS as string[]).includes(v)
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function SettingsShell() {
+interface SettingsShellProps {
+  onShowSignIn?: () => void
+  onShowSignUp?: () => void
+}
+
+export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps) {
+  const { user, signOut } = useAuth()
+  const TABS = useMemo(
+    () => ALL_TABS.filter(t => !t.authRequired || !!user),
+    [user],
+  )
+  const TAB_IDS = useMemo(() => TABS.map(t => t.id), [TABS])
+  const defaultTab = TABS[0]?.id ?? 'ai-behavior'
+
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('settings')
   const open = isTabId(tabParam)
-  const activeTab: SettingsTabId = open ? (tabParam as SettingsTabId) : 'account'
+  // If the requested tab isn't visible (e.g. guest trying to open 'account'), fall back
+  const activeTab: SettingsTabId = open && TAB_IDS.includes(tabParam as SettingsTabId)
+    ? (tabParam as SettingsTabId)
+    : defaultTab
 
   // Mobile (<768px) sub-state: when a tab is selected from the list view we
   // show the content; the back button returns to the list. Driven locally so
@@ -180,12 +202,12 @@ export function SettingsShell() {
   }
 
   const ActiveComponent = useMemo(
-    () => TABS.find(t => t.id === activeTab)?.Component ?? AccountTab,
-    [activeTab],
+    () => TABS.find(t => t.id === activeTab)?.Component ?? TABS[0]?.Component ?? AboutTab,
+    [activeTab, TABS],
   )
   const activeLabel = useMemo(
     () => TABS.find(t => t.id === activeTab)?.label ?? 'Settings',
-    [activeTab],
+    [activeTab, TABS],
   )
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -202,8 +224,8 @@ export function SettingsShell() {
         className={cn(
           'w-[100vw] h-[100dvh] max-w-none translate-x-0 translate-y-0 left-0 top-0 rounded-none p-0 border-0',
           'sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2',
-          'sm:w-[95vw] sm:max-w-[960px] sm:h-[85dvh] sm:rounded-2xl sm:border-0',
-          'bg-[#090807] text-foreground flex flex-col overflow-hidden',
+          'sm:w-[95vw] sm:max-w-[960px] sm:h-[85dvh] sm:rounded-2xl sm:border sm:border-white/[0.08]',
+          'bg-[#0F0D0C]/90 backdrop-blur-2xl text-white/90 flex flex-col overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]',
         )}
         aria-labelledby="settings-shell-title"
         aria-describedby="settings-shell-desc"
@@ -216,14 +238,23 @@ export function SettingsShell() {
           Manage your account, plan, personalization, and preferences.
         </DialogDescription>
 
+        {/* Decorative blurs — matching sign-in/sign-up modals */}
+        <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
+
         {/* ── Desktop ≥1024px: side nav + content ─────────────────────────── */}
         <div className="hidden lg:flex flex-1 min-h-0">
           <DesktopSideNav
             ref={navRef}
+            tabs={TABS}
             activeTab={activeTab}
             onSelect={setTab}
             onKeyDown={onNavKeyDown}
             onClose={closeModal}
+            user={user}
+            onShowSignIn={onShowSignIn}
+            onShowSignUp={onShowSignUp}
+            onSignOut={signOut}
           />
           <div className="flex-1 min-w-0 overflow-y-auto p-8 bg-transparent">
             <ActiveComponent />
@@ -234,10 +265,15 @@ export function SettingsShell() {
         <div className="hidden md:flex lg:hidden flex-col flex-1 min-h-0">
           <TopTabBar
             ref={tabletBarRef}
+            tabs={TABS}
             activeTab={activeTab}
             onSelect={setTab}
             onKeyDown={onHorizontalKeyDown}
             onClose={closeModal}
+            user={user}
+            onShowSignIn={onShowSignIn}
+            onShowSignUp={onShowSignUp}
+            onSignOut={signOut}
           />
           <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-transparent">
             <ActiveComponent />
@@ -249,6 +285,7 @@ export function SettingsShell() {
           {!mobileShowingContent ? (
             <MobileTabList
               ref={mobileListRef}
+              tabs={TABS}
               activeTab={activeTab}
               onSelect={(id) => {
                 setTab(id)
@@ -256,6 +293,10 @@ export function SettingsShell() {
               }}
               onKeyDown={onMobileListKeyDown}
               onClose={closeModal}
+              user={user}
+              onShowSignIn={onShowSignIn}
+              onShowSignUp={onShowSignUp}
+              onSignOut={signOut}
             />
           ) : (
             <>
@@ -278,22 +319,27 @@ export function SettingsShell() {
 // ── Desktop side nav ─────────────────────────────────────────────────────────
 
 interface DesktopSideNavProps {
+  tabs: TabDef[]
   activeTab: SettingsTabId
   onSelect: (id: SettingsTabId) => void
   onKeyDown: (e: React.KeyboardEvent) => void
   onClose: () => void
+  user: any
+  onShowSignIn?: () => void
+  onShowSignUp?: () => void
+  onSignOut: () => void
 }
 
 const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
-  function DesktopSideNav({ activeTab, onSelect, onKeyDown, onClose }, ref) {
+  function DesktopSideNav({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
       <aside
         className="w-[220px] shrink-0 m-3 flex flex-col rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]"
         aria-label="Settings sections"
       >
         <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
-          <h1 className="text-sm font-medium lowercase tracking-tight text-white/70 px-2">
-            settings
+          <h1 className="text-sm font-medium tracking-tight text-white/70 px-2">
+            Settings
           </h1>
           <button
             type="button"
@@ -311,7 +357,7 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
           onKeyDown={onKeyDown}
           className="flex-1 overflow-y-auto custom-scrollbar px-3 pt-2 pb-3 flex flex-col gap-0.5"
         >
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {tabs.map(({ id, label, icon: Icon }) => {
             const active = id === activeTab
             return (
               <button
@@ -324,7 +370,7 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
                 data-tab-id={id}
                 onClick={() => onSelect(id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-left',
+                  'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs text-left',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
                   active
                     ? 'bg-white/[0.1] text-[#A17A63] font-medium'
@@ -332,11 +378,43 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
                 )}
               >
                 <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
-                <span className="truncate">{label.toLowerCase()}</span>
+                <span className="truncate">{label}</span>
               </button>
             )
           })}
         </nav>
+
+        {/* Auth footer */}
+        <div className="px-3 pb-3 pt-1 border-t border-white/[0.06]">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => { onSignOut(); onClose() }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
+            >
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span>Log out</span>
+            </button>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => { onClose(); onShowSignIn?.() }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-primary hover:bg-primary/[0.08] transition-all font-medium"
+              >
+                <LogIn className="h-4 w-4 flex-shrink-0" />
+                <span>Sign in</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { onClose(); onShowSignUp?.() }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-white/45 hover:text-white/70 hover:bg-white/[0.04] transition-all"
+              >
+                <span className="ml-7">Sign up</span>
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
     )
   },
@@ -345,28 +423,61 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
 // ── Tablet top tab bar ───────────────────────────────────────────────────────
 
 interface TopTabBarProps {
+  tabs: TabDef[]
   activeTab: SettingsTabId
   onSelect: (id: SettingsTabId) => void
   onKeyDown: (e: React.KeyboardEvent) => void
   onClose: () => void
+  user: any
+  onShowSignIn?: () => void
+  onShowSignUp?: () => void
+  onSignOut: () => void
 }
 
 const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
-  function TopTabBar({ activeTab, onSelect, onKeyDown, onClose }, ref) {
+  function TopTabBar({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
       <div className="flex flex-col m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]">
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <h1 className="text-sm font-medium lowercase tracking-tight text-white/70">
-            settings
+          <h1 className="text-sm font-medium tracking-tight text-white/70">
+            Settings
           </h1>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close settings"
-            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {user ? (
+              <button
+                type="button"
+                onClick={() => { onSignOut(); onClose() }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Log out
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { onClose(); onShowSignIn?.() }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-primary font-medium hover:bg-primary/[0.08] transition-all"
+                >
+                  Sign in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { onClose(); onShowSignUp?.() }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all"
+                >
+                  Sign up
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close settings"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
         <div
           ref={ref}
@@ -375,7 +486,7 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
           onKeyDown={onKeyDown}
           className="flex gap-0.5 overflow-x-auto custom-scrollbar px-3 pb-3"
         >
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {tabs.map(({ id, label, icon: Icon }) => {
             const active = id === activeTab
             return (
               <button
@@ -388,7 +499,7 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
                 data-tab-id={id}
                 onClick={() => onSelect(id)}
                 className={cn(
-                  'shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs lowercase transition-all duration-200',
+                  'shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all duration-200',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
                   active
                     ? 'bg-white/[0.1] text-[#A17A63] font-medium'
@@ -396,7 +507,7 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
                 )}
               >
                 <Icon className={cn('h-4 w-4', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
-                <span>{label.toLowerCase()}</span>
+                <span>{label}</span>
               </button>
             )
           })}
@@ -409,19 +520,24 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
 // ── Mobile list view ─────────────────────────────────────────────────────────
 
 interface MobileTabListProps {
+  tabs: TabDef[]
   activeTab: SettingsTabId
   onSelect: (id: SettingsTabId) => void
   onKeyDown: (e: React.KeyboardEvent) => void
   onClose: () => void
+  user: any
+  onShowSignIn?: () => void
+  onShowSignUp?: () => void
+  onSignOut: () => void
 }
 
 const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
-  function MobileTabList({ activeTab, onSelect, onKeyDown, onClose }, ref) {
+  function MobileTabList({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
       <div className="flex flex-col flex-1 min-h-0 m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]">
         <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
-          <h1 className="text-sm font-medium lowercase tracking-tight text-white/70">
-            settings
+          <h1 className="text-sm font-medium tracking-tight text-white/70">
+            Settings
           </h1>
           <button
             type="button"
@@ -439,7 +555,7 @@ const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
           onKeyDown={onKeyDown}
           className="flex-1 overflow-y-auto custom-scrollbar px-3 pt-2 pb-3 flex flex-col gap-0.5"
         >
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {tabs.map(({ id, label, icon: Icon }) => {
             const active = id === activeTab
             return (
               <li key={id}>
@@ -452,7 +568,7 @@ const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
                   data-tab-id={id}
                   onClick={() => onSelect(id)}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs lowercase text-left',
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs text-left',
                     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
                     active
                       ? 'bg-white/[0.1] text-[#A17A63] font-medium'
@@ -460,13 +576,44 @@ const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
                   )}
                 >
                   <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
-                  <span className="flex-1 truncate">{label.toLowerCase()}</span>
+                  <span className="flex-1 truncate">{label}</span>
                   <span aria-hidden="true" className="text-white/30">›</span>
                 </button>
               </li>
             )
           })}
         </ul>
+
+        {/* Auth footer */}
+        <div className="px-3 pb-3 pt-1 border-t border-white/[0.06]">
+          {user ? (
+            <button
+              type="button"
+              onClick={() => { onSignOut(); onClose() }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
+            >
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span>Log out</span>
+            </button>
+          ) : (
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => { onClose(); onShowSignIn?.() }}
+                className="flex-1 py-2.5 rounded-full text-xs text-primary font-medium border border-primary/20 hover:bg-primary/[0.08] transition-all"
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => { onClose(); onShowSignUp?.() }}
+                className="flex-1 py-2.5 rounded-full text-xs bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all"
+              >
+                Sign up
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     )
   },
@@ -487,18 +634,18 @@ function MobileContentHeader({
         type="button"
         onClick={onBack}
         aria-label="Back to settings list"
-        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-white/90 hover:text-white/90 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ArrowLeft className="h-4 w-4" />
       </button>
-      <h2 className="flex-1 text-base font-semibold text-foreground truncate">
+      <h2 className="flex-1 text-base font-semibold text-white/90 truncate">
         {title}
       </h2>
       <button
         type="button"
         onClick={onClose}
         aria-label="Close settings"
-        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-white/90 hover:text-white/90 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <X className="h-4 w-4" />
       </button>
