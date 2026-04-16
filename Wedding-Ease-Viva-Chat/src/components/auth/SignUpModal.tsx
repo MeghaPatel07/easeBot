@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { UserPlus, Mail, Phone, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Mail, Phone, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,7 +15,7 @@ import { mapAuthError } from '@/services/authService'
 import PhoneInput, { toE164, isValidPhone, type PhoneInputValue } from './PhoneInput'
 import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH } from '@/utils/passwordPolicy'
 
-type Tab = 'google' | 'email' | 'phone'
+type Tab = 'email' | 'phone'
 type EmailStep = 'form' | 'verifying'
 type PhoneStep = 'form' | 'otp' | 'success'
 
@@ -317,12 +317,12 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] sm:max-w-[480px] glass-panel rounded-[2rem] p-0 border-0 bg-[#0F0D0C]/95 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(44,46,42,0.1)] overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[440px] glass-panel rounded-2xl p-0 border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="max-h-[90dvh] overflow-y-auto custom-scrollbar p-6 md:p-10">
+        <div className="max-h-[90dvh] overflow-y-auto custom-scrollbar p-6 md:p-8">
           {/* Success (google) */}
           {googleSuccess && (
             <div className="py-8 space-y-4 text-center">
@@ -331,7 +331,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
               </div>
               <div>
                 <p className="text-xl font-semibold elegant-heading">Welcome to EaseBot!</p>
-                <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'}</p>
+                <p className="text-sm text-white/90 mt-1">Hello, {signedUpName || 'there'}</p>
               </div>
             </div>
           )}
@@ -350,17 +350,17 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 </div>
                 <div>
                   <p className="font-medium text-white/85">Check your inbox</p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-white/90 mt-1">
                     We sent a verification link to <span className="font-medium text-white/70">{signedUpEmail}</span>
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2">
+                  <p className="text-sm text-white/90 mt-2">
                     Click the link in the email to activate your account, then sign in.
                   </p>
                 </div>
-                <Button className="w-full bg-primary hover:bg-primary/90" onClick={switchToSignIn}>
+                <Button className="w-full h-10 rounded-full bg-primary hover:bg-primary/90" onClick={switchToSignIn}>
                   Go to Sign In
                 </Button>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-white/90">
                   Didn't receive it?{' '}
                   <Button variant="link" className="p-0 h-auto text-xs" onClick={() => setEmailStep('form')}>
                     Go back and try again
@@ -378,7 +378,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
               </div>
               <div>
                 <p className="text-xl font-semibold elegant-heading">Welcome to EaseBot!</p>
-                <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'}</p>
+                <p className="text-sm text-white/90 mt-1">Hello, {signedUpName || 'there'}</p>
               </div>
             </div>
           )}
@@ -386,70 +386,50 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
           {/* Default form (tabs) */}
           {!googleSuccess && emailStep === 'form' && phoneStep !== 'success' && phoneStep !== 'otp' && (
             <>
-              <DialogHeader className="text-center space-y-4">
-                <div className="flex flex-col items-center">
-                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
-                  <div className="font-label uppercase tracking-[0.2em] text-2xs text-white/40">Digital Concierge</div>
-                </div>
-                <DialogTitle className="font-headline text-3xl tracking-tight">Create Your Account</DialogTitle>
-                <DialogDescription className="text-white/50 text-sm">
-                  Join thousands of couples planning their perfect wedding with Viva.
-                </DialogDescription>
+              {/* Header — left-aligned */}
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Begin your journey</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Start planning<br />your <span className="text-primary">story</span>
+                </DialogTitle>
+                <DialogDescription className="sr-only">Create your account</DialogDescription>
               </DialogHeader>
 
               {/* Tabs */}
-              <div className="flex bg-border p-1 rounded-full gap-1 mb-4 mt-4">
-                {(['google', 'email', 'phone'] as Tab[]).map(t => (
+              <div className="flex bg-white/[0.03] border border-white/[0.06] p-1 rounded-full gap-1 mt-6 mb-6">
+                {(['email', 'phone'] as Tab[]).map(t => (
                   <button
                     key={t}
                     onClick={() => {
-                      setTab(t)
+                      setTab(t === 'email' ? 'email' : 'phone')
                       setEmailAuthError('')
                       setPhoneAuthError('')
                     }}
-                    className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${tab === t ? 'bg-primary text-white shadow-sm' : 'text-white/60 hover:bg-white/[0.08]'}`}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-full transition-all ${(t === 'email' && tab === 'email') || (t === 'phone' && tab === 'phone') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-white/40 hover:text-white/60'}`}
                   >
-                    {t === 'google' ? 'Google' : t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
+                    {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1.5" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1.5" />Phone</>}
                   </button>
                 ))}
               </div>
 
-              {/* Google tab */}
-              {tab === 'google' && (
-                <div className="space-y-3 py-2">
-                  <button
-                    onClick={handleGoogle}
-                    disabled={loading}
-                    className="w-full h-14 rounded-xl bg-white/[0.06] border-0 flex items-center justify-center gap-3 text-white/85 font-medium hover:bg-white/[0.10] transition-all disabled:opacity-50"
-                  >
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-                    Continue with Google
-                  </button>
-                  {emailAuthError && <p className="text-sm text-red-500 text-center">{emailAuthError}</p>}
-                  <p className="text-xs text-center text-muted-foreground">
-                    We'll use your Google profile and request calendar access for wedding planning.
-                  </p>
-                </div>
-              )}
-
               {/* Email tab */}
               {tab === 'email' && (
-                <div className="space-y-3 py-2">
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Full Name</label>
-                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Jane Smith" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
-                    {emailErrors.name && <p className="text-xs text-red-500">{emailErrors.name}</p>}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Full name</label>
+                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
+                    {emailErrors.name && <p className="text-xs text-red-400">{emailErrors.name}</p>}
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Email</label>
-                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
-                    {emailErrors.email && <p className="text-xs text-red-500">{emailErrors.email}</p>}
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Email</label>
+                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
+                    {emailErrors.email && <p className="text-xs text-red-400">{emailErrors.email}</p>}
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">
-                      Phone <span className="text-muted-foreground font-normal">(optional)</span>
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">
+                      Phone <span className="text-white/30 font-normal">(optional)</span>
                     </label>
                     <PhoneInput
                       value={emailForm.phone}
@@ -459,86 +439,86 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Password</label>
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Password</label>
                     <div className="relative">
                       <Input
                         type={showPassword ? 'text' : 'password'}
                         value={emailForm.password}
                         onChange={setEmailField('password')}
-                        placeholder={`Min ${PASSWORD_MIN_LENGTH} chars, upper, lower, number, symbol`}
-                        className="h-14 pl-6 pr-12 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm"
+                        placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
+                        className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(s => !s)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/60"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                     {emailForm.password && <PasswordStrengthMeter password={emailForm.password} />}
-                    {emailErrors.password && <p className="text-xs text-red-500">{emailErrors.password}</p>}
+                    {emailErrors.password && <p className="text-xs text-red-400">{emailErrors.password}</p>}
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Confirm Password</label>
-                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="••••••••" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
-                    {emailErrors.confirmPassword && <p className="text-xs text-red-500">{emailErrors.confirmPassword}</p>}
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Confirm password</label>
+                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="Re-enter your password" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
+                    {emailErrors.confirmPassword && <p className="text-xs text-red-400">{emailErrors.confirmPassword}</p>}
                   </div>
 
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2.5">
                     <input
                       type="checkbox"
                       id="email-terms"
                       checked={emailForm.terms}
                       onChange={setEmailField('terms')}
-                      className="mt-0.5 h-4 w-4 rounded border-0"
+                      className="mt-0.5 h-4 w-4 rounded border-white/[0.12] bg-transparent"
                     />
-                    <label htmlFor="email-terms" className="text-xs text-muted-foreground">
+                    <label htmlFor="email-terms" className="text-xs text-white/40">
                       I agree to the{' '}
-                      <Link to="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/80">
+                      <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline">
                         Terms of Service
                       </Link>{' '}
                       and{' '}
-                      <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/80">
+                      <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline">
                         Privacy Policy
                       </Link>
                     </label>
                   </div>
-                  {emailErrors.terms && <p className="text-xs text-red-500">{emailErrors.terms}</p>}
+                  {emailErrors.terms && <p className="text-xs text-red-400">{emailErrors.terms}</p>}
 
-                  {emailAuthError && <p className="text-sm text-red-500 text-center">{emailAuthError}</p>}
+                  {emailAuthError && <p className="text-sm text-red-400">{emailAuthError}</p>}
 
                   <Button
-                    className="w-full bg-primary hover:bg-primary/90"
+                    className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 mt-1"
                     onClick={handleEmailSubmit}
                     disabled={loading}
                   >
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                    Create Account
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Begin your journey
                   </Button>
                 </div>
               )}
 
               {/* Phone tab */}
               {tab === 'phone' && (
-                <div className="space-y-3 py-2">
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Full Name</label>
-                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Jane Smith" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
-                    {phoneErrors.name && <p className="text-xs text-red-500">{phoneErrors.name}</p>}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Full name</label>
+                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
+                    {phoneErrors.name && <p className="text-xs text-red-400">{phoneErrors.name}</p>}
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Email (for recovery)</label>
-                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="jane@example.com" className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm" />
-                    {phoneErrors.email && <p className="text-xs text-red-500">{phoneErrors.email}</p>}
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Email (for recovery)</label>
+                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
+                    {phoneErrors.email && <p className="text-xs text-red-400">{phoneErrors.email}</p>}
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Phone Number</label>
+                  <div className="space-y-2">
+                    <label className="text-xs text-white/50 ml-1">Phone number</label>
                     <PhoneInput
                       value={phoneForm.phone}
                       onChange={(v) => setPhoneForm(f => ({ ...f, phone: v }))}
@@ -547,49 +527,66 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                     />
                   </div>
 
-                  <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2.5">
                     <input
                       type="checkbox"
                       id="phone-terms"
                       checked={phoneForm.terms}
                       onChange={setPhoneField('terms')}
-                      className="mt-0.5 h-4 w-4 rounded border-0"
+                      className="mt-0.5 h-4 w-4 rounded border-white/[0.12] bg-transparent"
                     />
-                    <label htmlFor="phone-terms" className="text-xs text-muted-foreground">
+                    <label htmlFor="phone-terms" className="text-xs text-white/40">
                       I agree to the{' '}
-                      <Link to="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/80">
+                      <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline">
                         Terms of Service
                       </Link>{' '}
                       and{' '}
-                      <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/80">
+                      <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline">
                         Privacy Policy
                       </Link>
                     </label>
                   </div>
-                  {phoneErrors.terms && <p className="text-xs text-red-500">{phoneErrors.terms}</p>}
+                  {phoneErrors.terms && <p className="text-xs text-red-400">{phoneErrors.terms}</p>}
 
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/30">
                     We'll send a 6-digit code to your WhatsApp. Phone sign-in will only work on this device.
                   </p>
 
-                  {phoneAuthError && <p className="text-sm text-red-500 text-center">{phoneAuthError}</p>}
+                  {phoneAuthError && <p className="text-sm text-red-400">{phoneAuthError}</p>}
 
                   <Button
-                    className="w-full bg-primary hover:bg-primary/90"
+                    className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 mt-1"
                     onClick={handlePhoneSubmit}
                     disabled={loading}
                   >
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Send OTP on WhatsApp
                   </Button>
                 </div>
               )}
 
-              <p className="text-center text-sm mt-4">
-                <span className="text-muted-foreground">Already have an account? </span>
-                <Button variant="link" className="p-0 h-auto font-semibold" onClick={switchToSignIn}>
+              {/* Divider */}
+              <div className="flex items-center gap-4 mt-6 mb-4">
+                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
+                <span className="text-xs text-white/30">Or continue with</span>
+                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
+              </div>
+
+              {/* Google — bottom */}
+              <button
+                onClick={handleGoogle}
+                disabled={loading}
+                className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-3 text-white/70 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all disabled:opacity-50"
+              >
+                <GoogleIcon /> Continue with Google
+              </button>
+
+              {/* Switch to sign in */}
+              <p className="text-center text-sm text-white/40 mt-5">
+                Already have an account?{' '}
+                <button className="text-primary font-semibold hover:underline" onClick={switchToSignIn}>
                   Sign in
-                </Button>
+                </button>
               </p>
             </>
           )}
@@ -597,46 +594,52 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
           {/* Phone OTP step */}
           {!googleSuccess && phoneStep === 'otp' && (
             <>
-              <DialogHeader>
-                <DialogTitle className="elegant-heading">Verify Your Phone</DialogTitle>
-                <DialogDescription>
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Verify your <span className="text-primary">phone</span>
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/40">
                   Enter the 6-digit code we sent via WhatsApp to {phoneE164}.
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-3 py-4">
-                <p className="text-xs text-white/60">
+              <div className="space-y-5 mt-6">
+                <p className="text-xs text-white/40">
                   Expires in {Math.floor(phoneExpiryTimer / 60)}:{(phoneExpiryTimer % 60).toString().padStart(2, '0')}
                 </p>
-                <Input
-                  value={phoneOtp}
-                  onChange={e => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="6-digit code"
-                  maxLength={6}
-                  className="bg-white/70 text-center tracking-widest text-lg"
-                  onKeyDown={e => e.key === 'Enter' && handlePhoneVerify()}
-                />
-                {phoneAuthError && <p className="text-sm text-red-500">{phoneAuthError}</p>}
+                <div className="space-y-2">
+                  <label className="text-xs text-white/50 ml-1">Verification code</label>
+                  <Input
+                    value={phoneOtp}
+                    onChange={e => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="6-digit code"
+                    maxLength={6}
+                    className="h-12 rounded-2xl bg-transparent border border-white/[0.12] text-center tracking-widest text-lg text-white/90"
+                    onKeyDown={e => e.key === 'Enter' && handlePhoneVerify()}
+                  />
+                </div>
+                {phoneAuthError && <p className="text-sm text-red-400">{phoneAuthError}</p>}
                 <Button
-                  className="w-full bg-primary hover:bg-primary/90"
+                  className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90"
                   onClick={handlePhoneVerify}
                   disabled={loading || phoneOtp.length < 6}
                 >
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Verify & Create Account
                 </Button>
-                <div className="flex justify-between items-center text-xs text-white/50">
+                <div className="flex justify-between items-center text-xs text-white/35">
                   <button
                     type="button"
                     onClick={handlePhoneResend}
                     disabled={loading || phoneResendTimer > 0}
-                    className="hover:text-white/80 disabled:opacity-50"
+                    className="hover:text-primary disabled:opacity-50 transition-colors"
                   >
                     {phoneResendTimer > 0 ? `Resend in ${phoneResendTimer}s` : 'Resend code'}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setPhoneStep('form'); setPhoneAuthError('') }}
-                    className="hover:text-white/80"
+                    className="hover:text-primary transition-colors"
                   >
                     Change details
                   </button>

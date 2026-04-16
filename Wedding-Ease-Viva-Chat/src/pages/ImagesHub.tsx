@@ -36,7 +36,7 @@ export default function ImagesHub({ sendMessage, startNewChat }: ImagesHubProps)
     <main className="mx-auto max-w-6xl space-y-6 px-4 pt-6 pb-2 sm:px-6">
       <header className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Images</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
+        <p className="text-sm text-white/90 sm:text-base">
           Describe what you want. Pick a style if you like. Generate.
         </p>
       </header>
@@ -102,7 +102,7 @@ export default function ImagesHub({ sendMessage, startNewChat }: ImagesHubProps)
             <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
           <h3 className="text-base font-semibold">Sign in to create images</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-white/90">
             Your gallery is tied to your account.
           </p>
           <Button className="mt-3" onClick={() => window.location.assign('/')}>

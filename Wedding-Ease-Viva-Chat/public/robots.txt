@@ -12,3 +12,8 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /checkout
+Disallow: /payment/
+Disallow: /login
+
+Sitemap: https://weddingease.ai/sitemap.xml

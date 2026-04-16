@@ -147,7 +147,7 @@ export function VibeComposer({ vibeTitle, onSubmit, isSubmitting }: VibeComposer
             alt="Reference preview"
             className="h-12 w-12 rounded object-cover"
           />
-          <span className="max-w-[140px] truncate text-xs text-muted-foreground">
+          <span className="max-w-[140px] truncate text-xs text-white/90">
             {referenceImage?.name}
           </span>
           <button

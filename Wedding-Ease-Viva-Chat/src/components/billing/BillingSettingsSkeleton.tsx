@@ -29,47 +29,47 @@ export function BillingSettingsSkeleton({
   return (
     <div className={cn('flex flex-col gap-4', className)}>
       {/* Current plan badge row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/[0.03] p-4">
         <div className="flex flex-col gap-1">
-          <span className="text-2xs uppercase tracking-wide text-muted-foreground">
+          <span className="text-2xs uppercase tracking-wide text-white/90">
             Current plan
           </span>
-          <span className="font-headline text-lg text-foreground">
+          <span className="font-headline text-lg text-white/90">
             {tierLabel}
           </span>
         </div>
-        <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-2xs uppercase tracking-wide text-primary">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-2xs uppercase tracking-wide text-primary">
           Active
         </span>
       </div>
 
       {/* Next renewal slot */}
-      <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
-        <p className="text-2xs uppercase tracking-wide text-muted-foreground">
+      <div className="rounded-xl bg-white/[0.03] p-4">
+        <p className="text-2xs uppercase tracking-wide text-white/90">
           Next renewal
         </p>
-        <p className="mt-1 text-sm text-foreground">
+        <p className="mt-1 text-sm text-white/90">
           {nextRenewalDate ?? 'No upcoming renewal'}
         </p>
       </div>
 
       {/* Invoice history table slot */}
-      <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4">
-        <div className="mb-2 flex items-center gap-2">
+      <div className="rounded-xl bg-white/[0.03] p-4">
+        {/* <div className="mb-2 flex items-center gap-2">
           <Receipt
             aria-hidden="true"
-            className="h-4 w-4 text-muted-foreground"
+            className="h-4 w-4 text-white/90"
           />
-          <p className="text-2xs uppercase tracking-wide text-muted-foreground">
+          <p className="text-2xs uppercase tracking-wide text-white/90">
             Invoice history
           </p>
-        </div>
+        </div> */}
         <div
           className="flex flex-col items-center justify-center gap-1 py-6 text-center"
           role="status"
         >
-          <p className="text-sm text-foreground">No invoices yet</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-white/90">No invoices yet</p>
+          <p className="text-xs text-white/90">
             Sprint 2 will render a paginated invoice table here.
           </p>
         </div>
@@ -80,7 +80,7 @@ export function BillingSettingsSkeleton({
         type="button"
         disabled
         aria-disabled="true"
-        className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-border bg-transparent px-4 text-sm font-medium text-muted-foreground"
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-white/[0.06] px-4 text-sm font-medium text-white/90"
       >
         Manage subscription (coming soon)
       </button>

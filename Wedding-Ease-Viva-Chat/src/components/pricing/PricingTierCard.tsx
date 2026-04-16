@@ -39,34 +39,50 @@ const TIER_META: Record<
 > = {
   free: {
     name: 'Free',
-    tagline: 'Get a feel for Easebot.',
+    tagline: 'Your planning notebook.',
     features: [
-      'Starter monthly token pool',
-      'Planner & Stylist modes',
-      'Basic checklist & notes',
-      'Single device',
+      '300K tokens / month (50K daily)',
+      'All 3 AI modes — Planner, Stylist, Knowledge',
+      'Voice, vision & image generation',
+      'Moodboards & vibe boards',
+      'Vendor outreach drafts',
+      '3 email reminders',
+      '30-day chat history',
+      '1 wedding project',
+      'Export checklist to PDF',
     ],
   },
   pro: {
     name: 'Pro',
-    tagline: 'For couples deep in planning.',
+    tagline: 'Your wedding co-pilot.',
     features: [
-      'Larger monthly token pool',
-      'All AI modes incl. Knowledge',
-      'Voice replies & image generation',
-      'Reminders via email & WhatsApp',
-      'Priority response speed',
+      '3M tokens / month (300K daily)',
+      'All 3 AI modes',
+      'Voice, vision & image gen — no watermarks',
+      'Moodboards & vibe boards',
+      'Vendor outreach drafts',
+      'Unlimited reminders — email + WhatsApp',
+      'Full searchable chat history',
+      '2 wedding projects',
+      'Export to PDF & CSV',
+      'Email support',
     ],
   },
   promax: {
     name: 'Pro Max',
-    tagline: 'White-glove planning support.',
+    tagline: 'The crunch-mode concierge.',
     features: [
-      'Highest monthly token pool',
-      'Everything in Pro',
-      'Personal vibe board & moodboards',
+      '8M tokens / month (800K daily)',
+      'All 3 AI modes + priority routing',
+      'Voice & vision — priority queue',
+      'Moodboards & vibe boards',
       'Vendor outreach drafts',
+      'Unlimited reminders — email, WhatsApp + SMS',
+      'Full exportable chat history',
+      '5 wedding projects',
+      'Export to PDF, CSV, JSON + shareable links',
       'Concierge support within 24h',
+      '$10 / 2M token top-up packs',
     ],
   },
 }
@@ -148,23 +164,23 @@ export function PricingTierCard({
 
       <h2
         id={`tier-${tier}-name`}
-        className="font-headline text-2xl text-foreground"
+        className="font-headline text-2xl text-white/90"
       >
         {meta.name}
       </h2>
-      <p className="mt-1 text-xs text-muted-foreground">{meta.tagline}</p>
+      <p className="mt-1 text-xs text-white/90">{meta.tagline}</p>
 
       <div
         className="mt-5 flex items-baseline gap-1"
         aria-live="polite"
       >
-        <span className="font-headline text-4xl text-foreground">
+        <span className="font-headline text-4xl text-white/90">
           {displayPrice}
         </span>
-        <span className="text-xs text-muted-foreground">/ month</span>
+        <span className="text-xs text-white/90">/ month</span>
       </div>
       {currency !== 'USD' && (
-        <p className="mt-1 text-3xs text-muted-foreground">
+        <p className="mt-1 text-3xs text-white/90">
           Billed in {currency}. ~${priceUsd} USD.
         </p>
       )}
@@ -173,7 +189,7 @@ export function PricingTierCard({
         {meta.features.map((feature) => (
           <li
             key={feature}
-            className="flex items-start gap-2 text-sm text-muted-foreground"
+            className="flex items-start gap-2 text-sm text-white/90"
           >
             <Check
               aria-hidden="true"
@@ -195,13 +211,13 @@ export function PricingTierCard({
           cta.disabled && 'cursor-not-allowed opacity-60',
           !cta.disabled && cta.variant === 'filled'
             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-            : 'bg-white/[0.06] text-foreground hover:bg-white/[0.1]',
+            : 'bg-white/[0.06] text-white/90 hover:bg-white/[0.1]',
         )}
       >
         {cta.label}
       </button>
 
-      <p className="mt-3 text-3xs text-muted-foreground">
+      <p className="mt-3 text-3xs text-white/90">
         No refunds. Cancel anytime to stop renewal.
       </p>
     </article>

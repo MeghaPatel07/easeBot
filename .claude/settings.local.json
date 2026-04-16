@@ -130,7 +130,10 @@
       "Bash(lsof:*)",
       "Bash(osascript /tmp/check_layout.applescript)",
       "Bash(open -a Safari \"http://localhost:8080/chat/KDIAY4NMjjfVaHxfcPmE\")",
-      "Bash(screencapture -x /tmp/chat_view.png)"
+      "Bash(screencapture -x /tmp/chat_view.png)",
+      "Bash(xargs sed *)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js|jsx\\)$\")"
     ]
   }
 }

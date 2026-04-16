@@ -7,19 +7,19 @@ export default function PaymentFailure() {
   const txnid = params.get('txnid') ?? ''
 
   return (
-    <div className="min-h-screen bg-background text-soft flex items-center justify-center p-6">
+    <div className="gradient-bg min-h-screen text-soft flex items-center justify-center p-6">
       <div className="max-w-md rounded-2xl bg-white/[0.03] backdrop-blur-sm p-8 text-center">
         <XCircle className="mx-auto h-12 w-12 text-destructive" />
-        <h1 className="mt-4 font-headline text-2xl text-foreground">Payment not completed</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h1 className="mt-4 font-headline text-2xl text-white/90">Payment not completed</h1>
+        <p className="mt-2 text-sm text-white/90">
           Reason: <span className="font-mono">{reason}</span>
         </p>
         {txnid && (
-          <p className="mt-1 text-2xs uppercase tracking-wide text-muted-foreground">
+          <p className="mt-1 text-2xs uppercase tracking-wide text-white/90">
             Reference: {txnid}
           </p>
         )}
-        <p className="mt-4 text-xs text-muted-foreground">
+        <p className="mt-4 text-xs text-white/90">
           No charge was completed. You can try again from the pricing page.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">

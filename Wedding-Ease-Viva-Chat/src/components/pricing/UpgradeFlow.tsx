@@ -1,174 +1,325 @@
-// UpgradeFlow — Sprint 1 batch B skeleton (FE-001).
+// UpgradeFlow — modal dialog for Pro → Pro Max upgrade.
 //
-// Wraps the 3-step upgrade state machine. Sprint 2 swaps placeholder copy for
-// a real XState/reducer machine and wires the PayU handoff.
-//
-// Steps:
-//   1. confirm — "You're about to upgrade to X" + cancel / continue
-//   2. preview — locked price + currency + tax fields preview
-//   3. redirect — loading state while POSTing to /api/account/plan/checkout
-//
-// See EXECUTION_PLAN.md §8 for checkout handoff logic.
+// 3-step flow:
+//   1. confirm  — show current plan, target plan, call /subscription/upgrade for credit preview
+//   2. preview  — show prorated credit & effective charge
+//   3. result   — free upgrade success OR redirect to checkout for payment
 
-import { useState } from 'react'
-import { ArrowRight, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowRight, Check, Loader2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { upgradeSubscription } from '@/services/paymentService'
+import { formatCurrency } from '@/utils/currencyFormat'
 import { cn } from '@/lib/utils'
 import type { PricingTier } from './PricingTierCard'
 
-export type UpgradeStep = 'confirm' | 'preview' | 'redirect'
+type BillingCycle = 'monthly' | 'annual'
+type Step = 'confirm' | 'loading' | 'preview' | 'success' | 'error'
 
-export interface UpgradeFlowProps {
-  targetTier: PricingTier
-  currentTier?: PricingTier | 'guest' | null
-  priceUsd: number
-  priceLocal?: string
-  currency?: string
-  /** Sprint 2: called when user hits the final CTA. */
-  onProceed?: () => void
-  onCancel?: () => void
-  /** Initial step (for testing / deep-linking). */
-  initialStep?: UpgradeStep
+interface UpgradeResult {
+  freeUpgrade: boolean
+  requiresCheckout?: boolean
+  effectiveChargeUsd?: number
+  state?: string
+  applied?: boolean
+  credit?: {
+    chargeNowUsd: number
+    newForwardCreditUsd: number
+    proCreditUsd: number
+  }
+  targetPlan?: string
+  cycle?: string
 }
 
-export function UpgradeFlow({
-  targetTier,
-  currentTier = null,
-  priceUsd,
-  priceLocal,
-  currency = 'USD',
-  onProceed,
-  onCancel,
-  initialStep = 'confirm',
-}: UpgradeFlowProps) {
-  const [step, setStep] = useState<UpgradeStep>(initialStep)
+export interface UpgradeFlowProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  currentTier: PricingTier | 'guest'
+  targetTier: PricingTier
+  cycle: BillingCycle
+  currency: string
+  rate: number
+  priceUsd: number
+}
 
-  const displayPrice = priceLocal ?? `$${priceUsd}`
-  const tierLabel =
-    targetTier === 'promax' ? 'Pro Max' : targetTier.charAt(0).toUpperCase() + targetTier.slice(1)
+const STEP_LABELS: Step[] = ['confirm', 'loading', 'preview']
+
+export function UpgradeFlow({
+  open,
+  onOpenChange,
+  currentTier,
+  targetTier,
+  cycle,
+  currency,
+  rate,
+  priceUsd,
+}: UpgradeFlowProps) {
+  const navigate = useNavigate()
+  const [step, setStep] = useState<Step>('confirm')
+  const [result, setResult] = useState<UpgradeResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const tierLabel = (t: string) =>
+    t === 'promax' ? 'Pro Max' : t === 'pro' ? 'Pro' : t.charAt(0).toUpperCase() + t.slice(1)
+
+  const displayPrice = formatCurrency(priceUsd, currency, rate)
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      setStep('confirm')
+      setResult(null)
+      setError(null)
+    }
+  }, [open])
+
+  const handleConfirm = useCallback(async () => {
+    setStep('loading')
+    setError(null)
+    try {
+      const res = await upgradeSubscription(cycle) as UpgradeResult
+      setResult(res)
+
+      if (res.freeUpgrade) {
+        setStep('success')
+      } else {
+        setStep('preview')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('409')) {
+        setError('Your current plan cannot be upgraded. Please check your subscription status.')
+      } else if (msg.includes('401')) {
+        setError('Please sign in again to continue.')
+      } else {
+        setError('Something went wrong. Please try again.')
+      }
+      setStep('error')
+    }
+  }, [cycle])
+
+  const handleProceedToCheckout = useCallback(() => {
+    if (!result) return
+    const effectiveUsd = result.effectiveChargeUsd ?? result.credit?.chargeNowUsd ?? priceUsd
+    onOpenChange(false)
+    navigate('/checkout', {
+      state: {
+        plan: targetTier,
+        cycle,
+        currency,
+        isUpgrade: true,
+        priceUsd: effectiveUsd,
+        label: `${tierLabel(targetTier)} — ${cycle === 'monthly' ? 'Monthly' : 'Annual'} (upgrade)`,
+      },
+    })
+  }, [result, targetTier, cycle, currency, priceUsd, navigate, onOpenChange])
+
+  const handleSuccessDone = useCallback(() => {
+    onOpenChange(false)
+    navigate('/', { state: { planChanged: targetTier } })
+  }, [navigate, onOpenChange, targetTier])
 
   return (
-    <div
-      className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-6 text-card-foreground"
-      role="region"
-      aria-label={`Upgrade flow to ${tierLabel}`}
-    >
-      {/* Step indicator */}
-      <ol className="flex items-center gap-2 text-2xs uppercase tracking-wide text-muted-foreground">
-        {(['confirm', 'preview', 'redirect'] as const).map((s, i) => (
-          <li
-            key={s}
-            className={cn(
-              'flex items-center gap-2',
-              step === s && 'text-primary',
-            )}
-          >
-            <span
-              className={cn(
-                'flex h-5 w-5 items-center justify-center rounded-full border text-3xs',
-                step === s
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground',
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-headline text-xl text-white">
+            {step === 'success'
+              ? 'Upgrade complete'
+              : `Upgrade to ${tierLabel(targetTier)}`}
+          </DialogTitle>
+          <DialogDescription className="text-white/50">
+            {step === 'success'
+              ? `You're now on ${tierLabel(targetTier)}.`
+              : `You're currently on ${tierLabel(currentTier)}.`}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Step indicator */}
+        {step !== 'success' && step !== 'error' && (
+          <div className="flex items-center gap-2 text-2xs uppercase tracking-wide text-white/40">
+            {(['confirm', 'preview'] as const).map((s, i) => (
+              <span key={s} className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    'flex h-5 w-5 items-center justify-center rounded-full border text-3xs',
+                    (step === s || (step === 'loading' && s === 'confirm'))
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-white/20 text-white/40',
+                  )}
+                >
+                  {i + 1}
+                </span>
+                <span>{s}</span>
+                {i < 1 && <ArrowRight className="h-3 w-3 text-white/20" />}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Step 1: Confirm */}
+        {step === 'confirm' && (
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="rounded-xl bg-white/[0.04] p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-white/60">{tierLabel(currentTier)}</span>
+                <ArrowRight className="h-4 w-4 text-primary" />
+                <span className="text-white font-medium">{tierLabel(targetTier)}</span>
+              </div>
+              <div className="mt-3 flex items-baseline gap-1">
+                <span className="font-headline text-2xl text-white">{displayPrice}</span>
+                <span className="text-xs text-white/50">/ {cycle === 'annual' ? 'year' : 'month'}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/50">
+              Any unused time on your current plan will be prorated as credit
+              toward your new plan. Upgrade takes effect immediately.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleConfirm}
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Loading */}
+        {step === 'loading' && (
+          <div className="flex flex-col items-center gap-4 py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-sm text-white/60">Calculating your prorated credit…</p>
+          </div>
+        )}
+
+        {/* Step 2: Preview (requires payment) */}
+        {step === 'preview' && result && (
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="rounded-xl bg-white/[0.04] p-4 space-y-3">
+              {result.credit && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/60">Pro credit (prorated)</span>
+                    <span className="text-green-400">
+                      -{formatCurrency(result.credit.proCreditUsd, currency, rate)}
+                    </span>
+                  </div>
+                  {result.credit.newForwardCreditUsd > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">Forward credit</span>
+                      <span className="text-green-400">
+                        {formatCurrency(result.credit.newForwardCreditUsd, currency, rate)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="border-t border-white/10 pt-3 flex justify-between text-sm font-medium">
+                    <span className="text-white">Amount due now</span>
+                    <span className="text-white font-headline text-lg">
+                      {formatCurrency(result.credit.chargeNowUsd, currency, rate)}
+                    </span>
+                  </div>
+                </>
               )}
-            >
-              {i + 1}
-            </span>
-            <span>{s}</span>
-            {i < 2 && <ArrowRight className="h-3 w-3" aria-hidden="true" />}
-          </li>
-        ))}
-      </ol>
+            </div>
 
-      {/* Step 1: confirm */}
-      {step === 'confirm' && (
-        <div className="flex flex-col gap-4">
-          <h3 className="font-headline text-xl text-foreground">
-            Upgrade to {tierLabel}?
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            You are currently on the{' '}
-            <span className="text-foreground">{currentTier ?? 'guest'}</span>{' '}
-            tier. Upgrading unlocks the full {tierLabel} feature set immediately.
-          </p>
-          <p className="text-3xs text-muted-foreground">
-            Placeholder — Sprint 2 will show proration + billing date here.
-          </p>
-          <div className="flex flex-wrap gap-3">
+            <p className="text-xs text-white/50">
+              You'll be redirected to PayU to complete the payment.
+              Billed in {currency}.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleProceedToCheckout}
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
+              >
+                Proceed to checkout
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Success (free upgrade) */}
+        {step === 'success' && (
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+              <Check className="h-6 w-6 text-green-400" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-white/90">
+                Your prorated credit covered the full upgrade.
+              </p>
+              <p className="mt-1 text-xs text-white/50">
+                You now have access to all {tierLabel(targetTier)} features.
+              </p>
+              {result?.credit && result.credit.newForwardCreditUsd > 0 && (
+                <p className="mt-2 text-xs text-green-400">
+                  {formatCurrency(result.credit.newForwardCreditUsd, currency, rate)} credit carried forward.
+                </p>
+              )}
+            </div>
             <button
               type="button"
-              onClick={() => setStep('preview')}
-              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={handleSuccessDone}
+              className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
             >
-              Continue
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-transparent px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Cancel
+              Done
             </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Step 2: price preview */}
-      {step === 'preview' && (
-        <div className="flex flex-col gap-4">
-          <h3 className="font-headline text-xl text-foreground">
-            Price preview
-          </h3>
-          <div className="flex items-baseline gap-2">
-            <span className="font-headline text-3xl text-foreground">
-              {displayPrice}
-            </span>
-            <span className="text-xs text-muted-foreground">/ month</span>
+        {/* Error */}
+        {step === 'error' && (
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive">
+              {error}
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep('confirm')}
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+              >
+                Try again
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Amount locked in {currency}. Taxes + GST fields captured in the
-            checkout modal.
-          </p>
-          <p className="text-3xs text-muted-foreground">
-            Placeholder — Sprint 2 will show currency, tax, and total line items.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setStep('redirect')
-                onProceed?.()
-              }}
-              className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Proceed to checkout
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep('confirm')}
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-transparent px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Back
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: redirect */}
-      {step === 'redirect' && (
-        <div className="flex flex-col items-center gap-4 py-6 text-center">
-          <Loader2
-            className="h-6 w-6 animate-spin text-primary"
-            aria-hidden="true"
-          />
-          <h3 className="font-headline text-xl text-foreground">
-            Redirecting to PayU…
-          </h3>
-          <p className="text-xs text-muted-foreground">
-            Placeholder — Sprint 2 will POST to /api/account/plan/checkout and
-            hand off to PayU.
-          </p>
-        </div>
-      )}
-    </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 

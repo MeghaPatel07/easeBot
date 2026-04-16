@@ -163,7 +163,7 @@ export function AppearanceTab() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Theme</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-white/90">
             Choose how WeddingEase looks. Your selection is applied instantly.
           </p>
         </div>
@@ -185,10 +185,10 @@ export function AppearanceTab() {
               >
                 <RadioGroupItem id={id} value={value} aria-label={label} className="mt-0.5" />
                 <div className="flex flex-1 items-start gap-3">
-                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground" />
+                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-white/90" />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground">{label}</div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+                    <div className="text-sm font-medium text-white/90">{label}</div>
+                    <p className="mt-0.5 text-xs text-white/90">{description}</p>
                   </div>
                 </div>
               </Label>
@@ -201,7 +201,7 @@ export function AppearanceTab() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Density</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-white/90">
             Controls vertical rhythm across menus and lists.
           </p>
         </div>
@@ -223,10 +223,10 @@ export function AppearanceTab() {
               >
                 <RadioGroupItem id={id} value={value} aria-label={label} className="mt-0.5" />
                 <div className="flex flex-1 items-start gap-3">
-                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground" />
+                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-white/90" />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground">{label}</div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+                    <div className="text-sm font-medium text-white/90">{label}</div>
+                    <p className="mt-0.5 text-xs text-white/90">{description}</p>
                   </div>
                 </div>
               </Label>
@@ -239,7 +239,7 @@ export function AppearanceTab() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Language</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-white/90">
             Easebot will try to reply in this language. Auto-detect lets the AI mirror
             whatever language you write in.
           </p>
@@ -252,11 +252,11 @@ export function AppearanceTab() {
             <SelectTrigger
               id="language-select"
               aria-label="Preferred language"
-              className="min-h-11 w-full bg-white/[0.04] text-foreground focus-visible:ring-ring sm:max-w-xs"
+              className="min-h-11 w-full bg-white/[0.04] text-white/90 focus-visible:ring-ring sm:max-w-xs"
             >
               <SelectValue placeholder="Select a language" />
             </SelectTrigger>
-            <SelectContent className="bg-popover text-popover-foreground">
+            <SelectContent className="bg-popover text-white/90">
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <SelectItem
                   key={lang.code}

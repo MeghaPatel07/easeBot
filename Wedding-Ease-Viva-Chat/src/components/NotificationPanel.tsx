@@ -190,7 +190,7 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
+          <h2 className="text-lg font-semibold text-white/90">Notifications</h2>
           {unreadCount > 0 && (
             <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-white text-xs font-medium">
               {unreadCount}

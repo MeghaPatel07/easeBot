@@ -170,10 +170,10 @@ export default function ChecklistDetail({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white/[0.05] backdrop-blur-sm rounded-2xl border border-border shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full bg-white/[0.05] backdrop-blur-sm rounded-2xl border shadow-sm overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
             <CheckSquare className="h-4 w-4 text-primary" />
@@ -224,7 +224,7 @@ export default function ChecklistDetail({
 
       {/* Add item input */}
       {showAddInput && (
-        <div className="px-6 py-3 border-b border-border flex-shrink-0 flex items-center gap-2">
+        <div className="px-6 py-3 border-b flex-shrink-0 flex items-center gap-2">
           <input
             ref={addInputRef}
             value={newItemText}
@@ -234,7 +234,7 @@ export default function ChecklistDetail({
               if (e.key === 'Escape') { setShowAddInput(false); setNewItemText('') }
             }}
             placeholder="Type a new task and press Enter…"
-            className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
+            className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
           />
           <button
             onClick={handleAddItem}
@@ -279,7 +279,7 @@ export default function ChecklistDetail({
                     ? 'bg-red-500/10/50 border-red-200'
                     : item.completed
                     ? 'bg-emerald-500/5 border-emerald-500/20'
-                    : 'bg-white/[0.06] border-white/[0.06] hover:border-border hover:bg-white/[0.08]'
+                    : 'bg-white/[0.06] border-white/[0.06] hover:hover:bg-white/[0.08]'
                 } ${justToggled ? 'ring-2 ring-blue-300 ring-offset-1' : ''}`}
               >
                 <div className="flex items-center gap-3">
@@ -309,7 +309,7 @@ export default function ChecklistDetail({
                         if (e.key === 'Escape') { setEditingItemId(null); setEditText('') }
                       }}
                       onBlur={() => submitEdit(item.id)}
-                      className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/30"
+                      className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/30"
                     />
                   ) : (
                     <span
@@ -376,7 +376,7 @@ export default function ChecklistDetail({
                       type="date"
                       value={item.dueDate ?? ''}
                       onChange={e => handleDueDateChange(item.id, e.target.value)}
-                      className="text-xs border border-white/10 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 bg-white/[0.04] text-[#D9C3C3]"
+                      className="text-xs border border-white/10 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 bg-white/[0.04] text-white/90"
                     />
                     {item.dueDate && (
                       <button
@@ -404,7 +404,7 @@ export default function ChecklistDetail({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-border flex-shrink-0 flex items-center justify-between">
+      <div className="px-6 py-3 border-t flex-shrink-0 flex items-center justify-between">
         <p className="text-xs text-white/40">
           {done === total && total > 0
             ? '🎉 All tasks complete!'

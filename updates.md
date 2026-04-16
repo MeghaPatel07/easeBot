@@ -1,0 +1,3 @@
+- on the bottom left corner of the sidebar there is word called setting , replace it witht he user loggedin name and the package . 
+- add Terms and plicies , support ticket , keyboard shortcuts , as a new dropdown on hover of the Help and Feed Back . It should be seen as new menue on hober or click of it . 
+- update all the para tags , all the content to be the color of the text-white/90  in chat , pricings , ogins , signupa etc . There shpould be no hsl(var(--foreground) 

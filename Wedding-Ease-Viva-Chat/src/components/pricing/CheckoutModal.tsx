@@ -1,10 +1,10 @@
-// CheckoutModal — Sprint 1 batch B skeleton (FE-001).
+// CheckoutModal (FE-001).
 //
 // Modal shell for the final PayU handoff. Per EXECUTION_PLAN.md §8.9:
 //   - GST fields (GSTIN, company name, address) — optional, shown when
 //     currency === 'INR' or the user opts in.
 //   - Currency display (locked at checkout — see ui-tokens.md §8).
-//   - Final price line + "Proceed to pay" CTA (stubbed).
+//   - Final price line + "Proceed to pay" CTA.
 //
 // Uses shadcn Dialog for focus trap + Esc + backdrop. On mobile it falls
 // back to a full-height dialog via the existing `h-dvh-safe` utility.
@@ -31,7 +31,7 @@ export interface CheckoutModalProps {
   priceLocal?: string
   currency?: string
   showTaxFields?: boolean
-  /** Stubbed — Sprint 2 wires to /api/account/plan/checkout. */
+  /** Called when user confirms payment. */
   onProceed?: () => void
 }
 
@@ -58,40 +58,41 @@ export function CheckoutModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          'max-w-lg overflow-y-auto rounded-2xl border-border bg-card text-card-foreground',
+          'max-w-lg overflow-y-auto rounded-2xl bg-[#0F0D0C]/90 backdrop-blur-2xl border border-white/[0.08] text-white/90',
           'max-h-[min(90vh,720px)]',
+          'shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]',
           'sm:max-w-lg',
         )}
       >
         <DialogHeader className="flex flex-row items-start justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <DialogTitle className="font-headline text-2xl text-foreground">
+            <DialogTitle className="font-headline text-2xl text-white/90">
               Checkout — {tierLabel}
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-xs text-white/90">
               Review your plan and proceed to secure payment via PayU.
             </DialogDescription>
           </div>
         </DialogHeader>
 
         {/* Plan summary row */}
-        <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-border bg-muted/30 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
           <div className="flex flex-col gap-1">
-            <span className="text-2xs uppercase tracking-wide text-muted-foreground">
+            <span className="text-2xs uppercase tracking-wide text-white/90">
               Plan
             </span>
-            <span className="font-headline text-lg text-foreground">
+            <span className="font-headline text-lg text-white/90">
               {tierLabel} · Monthly
             </span>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-2xs uppercase tracking-wide text-muted-foreground">
+            <span className="text-2xs uppercase tracking-wide text-white/90">
               Total
             </span>
-            <span className="font-headline text-2xl text-foreground">
+            <span className="font-headline text-2xl text-white/90">
               {displayPrice}
             </span>
-            <span className="text-3xs text-muted-foreground">
+            <span className="text-3xs text-white/90">
               Locked in {currency}
             </span>
           </div>
@@ -99,8 +100,8 @@ export function CheckoutModal({
 
         {/* GST / business fields — conditional */}
         {taxVisible && (
-          <fieldset className="flex flex-col gap-3 rounded-xl border border-border p-4">
-            <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <fieldset className="flex flex-col gap-3 rounded-xl border border-white/[0.08] p-4">
+            <legend className="px-2 text-xs font-medium uppercase tracking-wide text-white/50">
               Business details (optional)
             </legend>
             <div className="flex flex-col gap-1.5">
@@ -128,7 +129,7 @@ export function CheckoutModal({
                 maxLength={15}
                 aria-describedby="gstin-help"
               />
-              <p id="gstin-help" className="text-3xs text-muted-foreground">
+              <p id="gstin-help" className="text-3xs text-white/90">
                 Enter a valid 15-character GSTIN to receive a tax invoice.
               </p>
             </div>
@@ -147,29 +148,28 @@ export function CheckoutModal({
           </fieldset>
         )}
 
-        {/* Proceed CTA — stubbed */}
+        {/* Proceed CTA */}
         <div className="flex flex-col gap-2">
           <button
             type="button"
             onClick={() => {
-              // Sprint 2: call /api/account/plan/checkout and redirect to PayU.
               onProceed?.()
             }}
-            className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex h-10 w-full items-center justify-center rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 transition-colors"
           >
             Pay via PayU
           </button>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-md text-xs text-muted-foreground hover:text-foreground"
+            className="inline-flex h-10 w-full items-center justify-center gap-1 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs text-white/60 hover:text-white/80 hover:bg-white/[0.08] transition-colors"
           >
             <X className="h-3 w-3" aria-hidden="true" />
             Cancel
           </button>
         </div>
 
-        <div className="flex flex-col gap-1 border-t border-border pt-3 text-2xs text-muted-foreground">
+        <div className="flex flex-col gap-1 border-t pt-3 text-2xs text-white/90">
           <p>No refunds. Cancel anytime to stop the next renewal.</p>
           <p>Amount shown in {currency}. Conversion locked at checkout.</p>
         </div>

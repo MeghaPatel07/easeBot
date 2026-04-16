@@ -18,6 +18,8 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const Checkout = lazy(() => import('./pages/Checkout'));
 const PaymentSuccess = lazy(() => import('./pages/PaymentSuccess'));
 const PaymentFailure = lazy(() => import('./pages/PaymentFailure'));
+const Help = lazy(() => import('./pages/Help'));
+const Login = lazy(() => import('./pages/Login'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const queryClient = new QueryClient();
@@ -59,6 +61,8 @@ const App = () => (
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/payment/success" element={<PaymentSuccess />} />
               <Route path="/payment/failure" element={<PaymentFailure />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/login" element={<Login />} />
               {/* Sprint 1 batch B (FE-001): /billing placeholder route — */}
               {/* redirects into Settings → Plan & Billing tab. */}
               <Route

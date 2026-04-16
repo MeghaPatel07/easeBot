@@ -51,6 +51,7 @@ export interface SendMessageOptions {
   imageBase64?: string
   imageMimeType?: string
   forceImageGeneration?: boolean
+  skipImageGeneration?: boolean
   preferredAspectRatio?: string
   vibeTitle?: string
   vibeDescriptors?: string[]
@@ -232,6 +233,7 @@ export function useChat(): UseChatResult {
     const imageBase64 = opts.imageBase64
     const imageMimeType = opts.imageMimeType
     const forceImageGeneration = opts.forceImageGeneration
+    const skipImageGeneration = opts.skipImageGeneration
     const preferredAspectRatio = opts.preferredAspectRatio
     const vibeTitle = opts.vibeTitle
     const vibeDescriptors = opts.vibeDescriptors
@@ -326,6 +328,7 @@ export function useChat(): UseChatResult {
           lastGeneratedImageUrl,
           styleMemory: styleMemory ?? undefined,
           ...(forceImageGeneration !== undefined ? { forceImageGeneration } : {}),
+          ...(skipImageGeneration !== undefined ? { skipImageGeneration } : {}),
           ...(preferredAspectRatio !== undefined ? { preferredAspectRatio } : {}),
           ...(vibeTitle !== undefined ? { vibeTitle } : {}),
           ...(vibeDescriptors !== undefined ? { vibeDescriptors } : {}),

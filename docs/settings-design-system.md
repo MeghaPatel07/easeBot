@@ -147,7 +147,7 @@ The **shell** uses: `Dialog` (desktop) / `Sheet` (mobile) for the modal frame, `
 
 **Card with title and helper text:**
 ```tsx
-<div className="rounded-lg border border-border bg-card p-6 text-card-foreground">
+<div className="rounded-lg border bg-card p-6 text-card-foreground">
   <h3 className="text-base font-semibold">Profile photo</h3>
   <p className="mt-1 text-xs text-muted-foreground">
     PNG or JPG, square, max 5MB.
@@ -187,7 +187,7 @@ The **shell** uses: `Dialog` (desktop) / `Sheet` (mobile) for the modal frame, `
   <Label htmlFor="nickname" className="text-sm font-medium">Nickname</Label>
   <Input
     id="nickname"
-    className="bg-input border-border text-foreground
+    className="bg-input text-foreground
                placeholder:text-muted-foreground
                focus-visible:ring-ring"
   />

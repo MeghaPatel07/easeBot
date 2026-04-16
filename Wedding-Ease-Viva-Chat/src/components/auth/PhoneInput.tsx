@@ -186,14 +186,14 @@ function PhoneInput({
           }
           disabled={disabled}
         >
-          <SelectTrigger className="h-14 w-[120px] rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20">
+          <SelectTrigger className="h-12 w-[100px] rounded-2xl bg-transparent border border-white/[0.12] focus:ring-1 focus:ring-primary/20 focus:border-primary/40 text-sm">
             <SelectValue>
               {current ? (
-                <span>
+                <span className="text-sm">
                   {current.flag} {current.dial}
                 </span>
               ) : (
-                <span>{value.countryCode}</span>
+                <span className="text-sm">{value.countryCode}</span>
               )}
             </SelectValue>
           </SelectTrigger>
@@ -216,7 +216,7 @@ function PhoneInput({
             const digits = e.target.value.replace(/\D/g, '').slice(0, maxLength)
             onChange({ ...value, national: digits })
           }}
-          className="h-14 px-6 rounded-xl bg-border border-none focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.08] transition-all placeholder:text-white/30 text-base sm:text-sm flex-1"
+          className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90 flex-1"
         />
       </div>
       {displayError ? <p className="text-xs text-red-500 mt-1">{displayError}</p> : null}

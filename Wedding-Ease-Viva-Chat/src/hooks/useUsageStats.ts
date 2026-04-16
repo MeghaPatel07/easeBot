@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getAccountUsage, type UsageSnapshot } from '@/services/accountService'
+import { useAuth } from '@/contexts/AuthContext'
 
 export type { UsageSnapshot }
 
@@ -7,9 +8,12 @@ const STALE_MS = 30_000
 const REFETCH_MS = 60_000
 
 export function useUsageStats() {
+  const { user } = useAuth()
+
   const query = useQuery<UsageSnapshot, Error>({
     queryKey: ['account', 'usage'],
     queryFn: getAccountUsage,
+    enabled: !!user,
     staleTime: STALE_MS,
     refetchInterval: REFETCH_MS,
     retry: (failureCount, err) => {

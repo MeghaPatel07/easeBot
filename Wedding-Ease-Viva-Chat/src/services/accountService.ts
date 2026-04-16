@@ -206,6 +206,22 @@ export function getAccountUsage(): Promise<UsageSnapshot> {
   return request<UsageSnapshot>('GET', '/api/account/usage')
 }
 
+/** Token pool snapshot from GET /api/account/usage (new token meter). */
+export interface TokenPoolSnapshot {
+  tier: 'free' | 'pro' | 'promax' | 'guest'
+  monthlyUsed: number
+  monthlyPool: number
+  dailyUsed: number
+  dailyCap: number
+  topUpBalance: number
+  dailyResetAt: string
+  monthlyResetAt: string
+}
+
+export function getTokenPoolUsage(): Promise<TokenPoolSnapshot> {
+  return request<TokenPoolSnapshot>('GET', '/api/account/usage')
+}
+
 export interface SwitchPlanResponse {
   ok: true
   plan: 'free' | 'pro' | 'promax'

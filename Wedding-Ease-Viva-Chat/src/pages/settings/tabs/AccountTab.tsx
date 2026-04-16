@@ -499,24 +499,24 @@ export function AccountTab() {
       <Card className="p-6">
         <div className="flex flex-col items-center gap-4 text-center md:flex-row md:items-center md:gap-6 md:text-left">
           <Avatar className="h-24 w-24 border-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_24px_rgba(0,0,0,0.4)]">
-            <AvatarFallback className="bg-muted text-foreground text-xl font-semibold">
+            <AvatarFallback className="bg-muted text-white/90 text-xl font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex flex-1 flex-col gap-1">
             <div className="flex flex-col items-center gap-2 md:flex-row md:items-center">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-semibold text-white/90">
                 {profile?.name || 'Unnamed user'}
               </h3>
               <Badge
                 variant="secondary"
-                className="bg-white/[0.06] text-[#D9C3C3] border-0"
+                className="bg-white/[0.06] text-white/90 border-0"
               >
                 {planLabel(tier)} plan
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground break-all">
+            <p className="text-sm text-white/90 break-all">
               {profile?.email ?? 'No email on file'}
             </p>
           </div>
@@ -527,8 +527,8 @@ export function AccountTab() {
       <Card className="p-6">
         <div className="flex flex-col gap-4">
           <div>
-            <h3 className="text-base font-semibold text-foreground">Identity</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <h3 className="text-base font-semibold text-white/90">Identity</h3>
+            <p className="mt-1 text-xs text-white/90">
               Your name, nickname, and phone number.
             </p>
           </div>
@@ -543,7 +543,7 @@ export function AccountTab() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-white/90 placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
 
@@ -556,9 +556,9 @@ export function AccountTab() {
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="What should we call you?"
-                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-white/90 placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
-              <p className="text-xs text-muted-foreground">Shown in chat headers.</p>
+              <p className="text-xs text-white/90">Shown in chat headers.</p>
             </div>
 
             <div className="space-y-2">
@@ -567,7 +567,7 @@ export function AccountTab() {
                 {isPhoneBased && (
                   <Badge
                     variant="secondary"
-                    className="bg-white/[0.06] text-[#D9C3C3] border-0"
+                    className="bg-white/[0.06] text-white/90 border-0"
                   >
                     Locked
                   </Badge>
@@ -583,7 +583,7 @@ export function AccountTab() {
                   aria-label="Country code"
                   disabled={isPhoneBased}
                   readOnly={isPhoneBased}
-                  className="min-h-11 w-24 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
+                  className="min-h-11 w-24 bg-white/[0.04] border-0 text-white/90 placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
                 />
                 <Input
                   id="account-phone-num"
@@ -594,11 +594,11 @@ export function AccountTab() {
                   aria-label="National phone number"
                   disabled={isPhoneBased}
                   readOnly={isPhoneBased}
-                  className="min-h-11 flex-1 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
+                  className="min-h-11 flex-1 bg-white/[0.04] border-0 text-white/90 placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
                 />
               </div>
               {isPhoneBased && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-white/90">
                   This account was created with phone sign-in, so the phone number
                   is the primary identifier and cannot be changed.
                 </p>
@@ -623,22 +623,22 @@ export function AccountTab() {
       <Card className="p-6">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
-            <Mail aria-hidden="true" className="mt-1 h-5 w-5 text-muted-foreground" />
+            <Mail aria-hidden="true" className="mt-1 h-5 w-5 text-white/90" />
             <div className="flex-1">
-              <h3 className="text-base font-semibold text-foreground">Email</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <h3 className="text-base font-semibold text-white/90">Email</h3>
+              <p className="mt-1 text-xs text-white/90">
                 Used for sign-in and notifications.
               </p>
             </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 break-all text-sm text-foreground">
+            <div className="flex items-center gap-2 break-all text-sm text-white/90">
               <span>{profile?.email ?? '—'}</span>
               {verified ? (
                 <Badge
                   variant="secondary"
-                  className="bg-white/[0.06] text-[#D9C3C3] border-0"
+                  className="bg-white/[0.06] text-white/90 border-0"
                 >
                   <ShieldCheck aria-hidden="true" className="mr-1 h-3 w-3" />
                   Verified
@@ -646,7 +646,7 @@ export function AccountTab() {
               ) : (
                 <Badge
                   variant="secondary"
-                  className="bg-white/[0.06] text-[#D9C3C3] border-0"
+                  className="bg-white/[0.06] text-white/90 border-0"
                 >
                   Unverified
                 </Badge>
@@ -666,7 +666,7 @@ export function AccountTab() {
             // ) : (
             //   <Badge
             //     variant="secondary"
-            //     className="bg-white/[0.06] text-[#D9C3C3] border-0"
+            //     className="bg-white/[0.06] text-white/90 border-0"
             //   >
             //     <Lock aria-hidden="true" className="mr-1 h-3 w-3" />
             //     Locked
@@ -675,7 +675,7 @@ export function AccountTab() {
 }
           </div>
           {!isPhoneBased && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/90">
               This account was created with email sign-in, so your email is the
               primary identifier and cannot be changed.
             </p>
@@ -688,10 +688,10 @@ export function AccountTab() {
         <Card className="p-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-start gap-3">
-              <Lock aria-hidden="true" className="mt-1 h-5 w-5 text-muted-foreground" />
+              <Lock aria-hidden="true" className="mt-1 h-5 w-5 text-white/90" />
               <div className="flex-1">
-                <h3 className="text-base font-semibold text-foreground">Password</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <h3 className="text-base font-semibold text-white/90">Password</h3>
+                <p className="mt-1 text-xs text-white/90">
                   Use a strong password unique to WeddingEase.
                 </p>
               </div>
@@ -715,10 +715,10 @@ export function AccountTab() {
       <Card className="p-6">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
-            <Link2 aria-hidden="true" className="mt-1 h-5 w-5 text-muted-foreground" />
+            <Link2 aria-hidden="true" className="mt-1 h-5 w-5 text-white/90" />
             <div className="flex-1">
-              <h3 className="text-base font-semibold text-foreground">Connected accounts</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <h3 className="text-base font-semibold text-white/90">Connected accounts</h3>
+              <p className="mt-1 text-xs text-white/90">
                 Sign-in methods linked to this account.
               </p>
             </div>
@@ -726,29 +726,29 @@ export function AccountTab() {
 
           <div className="flex flex-col gap-2">
             <div className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-white/[0.04] border-0 px-3">
-              <div className="flex items-center gap-2 text-sm text-foreground">
+              <div className="flex items-center gap-2 text-sm text-white/90">
                 <span>Email &amp; password</span>
                 {hasPasswordProvider && (
                   <Badge
                     variant="secondary"
-                    className="bg-white/[0.06] text-[#D9C3C3] border-0"
+                    className="bg-white/[0.06] text-white/90 border-0"
                   >
                     Linked
                   </Badge>
                 )}
               </div>
               {!hasPasswordProvider && (
-                <span className="text-xs text-muted-foreground">Not linked</span>
+                <span className="text-xs text-white/90">Not linked</span>
               )}
             </div>
 
             <div className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-white/[0.04] border-0 px-3">
-              <div className="flex items-center gap-2 text-sm text-foreground">
+              <div className="flex items-center gap-2 text-sm text-white/90">
                 <span>Google</span>
                 {hasGoogleProvider && (
                   <Badge
                     variant="secondary"
-                    className="bg-white/[0.06] text-[#D9C3C3] border-0"
+                    className="bg-white/[0.06] text-white/90 border-0"
                   >
                     Linked
                   </Badge>
@@ -772,8 +772,8 @@ export function AccountTab() {
           <Separator className="bg-white/[0.06]" />
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
-              <p className="text-sm font-medium text-foreground">Sign out of all devices</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-sm font-medium text-white/90">Sign out of all devices</p>
+              <p className="mt-1 text-xs text-white/90">
                 Revokes every active session, including this one. You will need to sign in again.
               </p>
             </div>
@@ -797,7 +797,7 @@ export function AccountTab() {
             <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 text-destructive" />
             <div className="flex-1">
               <h3 className="text-base font-semibold text-destructive">Danger zone</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-white/90">
                 Deleting your account is permanent. This cannot be undone.
               </p>
             </div>
@@ -823,10 +823,10 @@ export function AccountTab() {
         open={emailDialogOpen}
         onOpenChange={(o) => (o ? setEmailDialogOpen(true) : closeEmailDialog())}
       >
-        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border-0 backdrop-blur-xl">
+        <AlertDialogContent className="bg-[#0F0D0C]/90 text-white/90 border border-white/[0.08] backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]">
           <AlertDialogHeader>
             <AlertDialogTitle>Change email</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
+            <AlertDialogDescription className="text-white/90">
               {hasGoogleProvider && !hasPasswordProvider
                 ? 'You will be asked to re-confirm your Google sign-in to continue.'
                 : 'Confirm your current password, then enter the new email.'}
@@ -845,7 +845,7 @@ export function AccountTab() {
                   autoComplete="current-password"
                   value={reauthPassword}
                   onChange={(e) => setReauthPassword(e.target.value)}
-                  className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="min-h-11 bg-white/[0.04] border-0 text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
               </div>
             )}
@@ -861,7 +861,7 @@ export function AccountTab() {
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-white/90 placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
           </div>
@@ -893,10 +893,10 @@ export function AccountTab() {
         open={passwordDialogOpen}
         onOpenChange={(o) => (o ? setPasswordDialogOpen(true) : closePasswordDialog())}
       >
-        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border-0 backdrop-blur-xl">
+        <AlertDialogContent className="bg-[#0F0D0C]/90 text-white/90 border border-white/[0.08] backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]">
           <AlertDialogHeader>
             <AlertDialogTitle>Change password</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
+            <AlertDialogDescription className="text-white/90">
               Pick a new password that meets all of the requirements below.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -912,7 +912,7 @@ export function AccountTab() {
                 autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
 
@@ -926,7 +926,7 @@ export function AccountTab() {
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
 
@@ -940,7 +940,7 @@ export function AccountTab() {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="min-h-11 bg-white/[0.04] border-0 text-white/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
               {confirmPassword.length > 0 && !passwordsMatch && (
                 <p className="text-xs text-destructive">Passwords do not match.</p>
@@ -954,7 +954,7 @@ export function AccountTab() {
                   <li
                     key={r.id}
                     className={`flex items-center gap-2 text-xs ${
-                      ok ? 'text-foreground' : 'text-muted-foreground'
+                      ok ? 'text-white/90' : 'text-white/90'
                     }`}
                   >
                     {ok ? (
@@ -992,16 +992,16 @@ export function AccountTab() {
         open={deleteDialogOpen}
         onOpenChange={(o) => (o ? setDeleteDialogOpen(true) : closeDeleteDialog())}
       >
-        <AlertDialogContent className="bg-card text-foreground border-0">
+        <AlertDialogContent className="bg-[#0F0D0C]/90 text-white/90 border border-white/[0.08] backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">
               Delete your account?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
+            <AlertDialogDescription className="text-white/90">
               This is irreversible. Your profile, chats, notes, and checklists
               will be scheduled for permanent deletion. To confirm, type your
               email address exactly:{' '}
-              <span className="font-medium text-foreground break-all">
+              <span className="font-medium text-white/90 break-all">
                 {profile?.email ?? ''}
               </span>
             </AlertDialogDescription>
@@ -1018,7 +1018,7 @@ export function AccountTab() {
               value={deleteConfirmEmail}
               onChange={(e) => setDeleteConfirmEmail(e.target.value)}
               placeholder={profile?.email ?? ''}
-              className="min-h-11 bg-white/[0.04] border-0 text-[#D9C3C3] placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="min-h-11 bg-white/[0.04] border-0 text-white/90 placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
           </div>
 

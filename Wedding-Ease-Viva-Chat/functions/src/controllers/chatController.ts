@@ -4,7 +4,9 @@ import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
 import { callAzureAI, callAzureAIWithToolResults } from '../services/azureAI'
 import { trackTokens } from '../services/tokenTracker'
+import { chargeTokens } from '../services/tokenMeter'
 import { isImageRequest, generateImage } from '../services/imageGeneration'
+import { resolveTier, getLimits } from '../config/tierConfig'
 import { getRelevantProducts, formatProductsContext } from '../services/products'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
@@ -95,7 +97,7 @@ async function getChatHistory(threadId: string, limit = 10): Promise<HistoryMess
 }
 
 export async function handleChat(req: Request, res: Response): Promise<void> {
-  const { message, threadId, audioBase64, language, mode: requestedMode, history: clientHistory } = req.body as ChatPayload
+  const { message, threadId, audioBase64, language, mode: requestedMode, history: clientHistory, skipImageGeneration } = req.body as ChatPayload
 
   if (!message && !audioBase64) {
     res.status(400).json({ error: 'message or audioBase64 is required' })
@@ -199,18 +201,37 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
     // Track token usage in Firestore for logged-in users (fire-and-forget)
     if (isLoggedIn) {
+      // Legacy tracker (cumulative totals on user doc)
       trackTokens(uid, aiResult.usage).catch(err =>
         console.error('[chatController] token tracking failed:', err)
       )
+      // Token meter — charges against daily + monthly pool (PRICING_PRD §3)
+      // Output tokens cost 4× input tokens per the conversion table
+      const meterCost = aiResult.usage.promptTokens + (aiResult.usage.completionTokens * 4)
+      chargeTokens(uid, meterCost).catch(err =>
+        console.error('[chatController] token meter charge failed:', err)
+      )
     }
 
-    // Generate image via Nano Banana if the user asked for one
+    // Generate image if the user asked for one.
+    // skipImageGeneration is sent by the frontend when guest image limit is reached.
+    // Free-tier users get watermarked images (PRICING_PRD §4).
     let imageUrl: string | null = null
-    if (isImageRequest(englishText)) {
-      imageUrl = await generateImage(englishText)
+    if (!skipImageGeneration && isImageRequest(englishText)) {
+      const profileData = isLoggedIn
+        ? (await db.collection('users').doc(uid).get()).data()
+        : null
+      const userTier = resolveTier(profileData as any)
+      const needsWatermark = getLimits(userTier).imageWatermark
+      imageUrl = await generateImage(englishText, needsWatermark)
     }
 
-    const response: ChatResponse = { text: finalText, audioUrl, imageUrl, toolActions, mode, detectedLanguage }
+    const response: ChatResponse = {
+      text: finalText, audioUrl, imageUrl, toolActions, mode, detectedLanguage,
+      ...(imageUrl && getLimits(resolveTier(isLoggedIn ? (await db.collection('users').doc(uid).get()).data() as any : null)).imageWatermark
+        ? { imageWatermarked: true }
+        : {}),
+    }
     res.status(200).json(response)
   } catch (err: any) {
     console.error('[chatController] error:', err)

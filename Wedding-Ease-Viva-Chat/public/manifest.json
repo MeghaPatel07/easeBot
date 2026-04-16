@@ -1,0 +1,18 @@
+{
+  "name": "EaseBot AI — Wedding Planning Assistant",
+  "short_name": "EaseBot",
+  "description": "Your personal AI wedding planner. Plan timelines, find styles, track budgets, and get 24/7 guidance.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090807",
+  "theme_color": "#A17A63",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["lifestyle", "productivity"]
+}

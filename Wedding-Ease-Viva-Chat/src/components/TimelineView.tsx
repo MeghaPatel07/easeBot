@@ -383,7 +383,7 @@ export default function TimelineView({
         else setDialogOpen(o)
       }}
     >
-      <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl bg-[#1a1a1a]/95 backdrop-blur-md flex flex-col gap-4">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
         {chooserMode === 'chooser' && (
           <>
             <DialogHeader>

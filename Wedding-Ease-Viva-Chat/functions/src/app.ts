@@ -4,6 +4,8 @@ import chatRouter from './routes/chat'
 import transcribeRouter from './routes/transcribe'
 import imageRouter from './routes/image'
 import checklistsRouter from './routes/checklists'
+import authRouter from './routes/auth'
+import accountRouter from './routes/account'
 
 const app = express()
 
@@ -16,6 +18,8 @@ app.use('/api/chat', chatRouter)
 app.use('/api/transcribe', transcribeRouter)
 app.use('/api/generate-image', imageRouter)
 app.use('/api/checklists', checklistsRouter)
+app.use('/api/auth', authRouter)
+app.use('/api/account', accountRouter)
 
 // Health check
 app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }))

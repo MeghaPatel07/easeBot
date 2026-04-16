@@ -30,6 +30,8 @@ import NoteCommentsSidebar from '@/components/notes/NoteCommentsSidebar';
 import NoteTemplateDialog from '@/components/notes/NoteTemplateDialog';
 import BlockWidgetBar from '@/components/notes/toolbar/BlockWidgetBar';
 import { toast } from 'sonner';
+import { useAccount } from '@/hooks/useAccount';
+import { resolveTier, getLimits } from '@/config/tierConfig';
 
 interface NotesViewProps {
   userId: string;
@@ -157,6 +159,11 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
   const handleEnablePublicLink = async (permission: 'view' | 'comment' | 'edit') => {
     if (!activeNoteId) return '';
+    // Shareable links are Pro Max only (PRICING_PRD §4)
+    if (!getLimits(tier).shareableLinks) {
+      toast.error('Shareable links are a Pro Max feature. Upgrade to create read-only links.');
+      return '';
+    }
     try {
       return await enablePublicLink(activeNoteId, permission);
     } catch (err) {
@@ -228,13 +235,19 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
     }
   };
 
-  // Determine permissions
+  // Determine permissions — tier-gated: Free users get view-only access
+  const { profile: accountProfile } = useAccount();
+  const tier = resolveTier(accountProfile);
+  const limits = getLimits(tier);
+  const tierAllowsEdit = limits.notesAccess === 'full';
+
   const isOwner = note?.ownerId === userId;
   const isEditor = note?.collaborators?.some(
     (c) => c.userId === userId && c.permission === 'editor'
   );
-  const canEdit = isOwner || isEditor;
+  const canEdit = tierAllowsEdit && (isOwner || isEditor);
   const readOnly = !canEdit;
+  const blockedByTier = !tierAllowsEdit && (isOwner || isEditor);
 
   // Word count -- content is Tiptap JSON, not HTML
   const wordCount = note?.content
@@ -370,6 +383,13 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                 />
               </div>
               <div className="mx-auto px-3 sm:px-6 py-3 sm:py-4">
+                {blockedByTier && (
+                  <div className="mb-3 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-white/80">
+                    Notes are <span className="font-semibold">view-only</span> on the Free plan.{' '}
+                    <a href="/pricing" className="text-primary hover:underline font-medium">Upgrade to Pro</a>{' '}
+                    to edit, collaborate, and create new notes.
+                  </div>
+                )}
                 <NoteEditor
                   noteId={note.id}
                   content={note.content}

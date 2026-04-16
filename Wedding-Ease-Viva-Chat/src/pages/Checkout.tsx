@@ -107,14 +107,14 @@ export default function Checkout() {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen bg-background text-soft flex items-center justify-center p-6">
+      <div className="gradient-bg min-h-screen text-soft flex items-center justify-center p-6">
         <p className="text-sm text-white/60">Loading checkout…</p>
       </div>
     )
   }
 
   if (!user) {
-    return <Navigate to="/?auth=signup&next=/pricing" replace />
+    return <Navigate to="/login?next=/pricing" replace />
   }
 
   const validate = (): string | null => {
@@ -162,7 +162,7 @@ export default function Checkout() {
       const msg = submitErr instanceof Error ? submitErr.message : String(submitErr)
       console.error('[Checkout] initiate failed', submitErr)
       if (msg.includes('409') && msg.includes('already_subscribed')) {
-        setFormError('You already have an active plan. Manage it from Settings → Plan & Billing.')
+        navigate('/pricing', { state: { returnReason: 'already_subscribed' } })
       } else if (msg.includes('409') && msg.includes('upgrade_requires_pro_tier')) {
         setFormError('Upgrades are only available from the Pro tier.')
       } else if (msg.includes('503') || msg.includes('rate_api_unavailable')) {
@@ -182,7 +182,7 @@ export default function Checkout() {
     'min-h-11 w-full rounded-xl border-0 bg-white/[0.04] px-3 text-sm text-soft placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/10 focus:bg-white/[0.06] transition-colors'
 
   return (
-    <div className="min-h-screen bg-background text-soft">
+    <div className="gradient-bg min-h-screen text-soft">
       <div className="relative mx-auto max-w-3xl px-6 py-12 md:py-16">
         <button
           type="button"

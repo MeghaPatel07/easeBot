@@ -276,9 +276,34 @@ const Index = () => {
 
   const handleRemoveImage = () => setAttachedImage(null);
 
+  // ── Guest experience state ──────────────────────────────────────────────
+  const GUEST_MESSAGE_LIMIT = 10;
+  const GUEST_IMAGE_LIMIT = 3;
+  const [guestMessageCount, setGuestMessageCount] = useState(0);
+  const [guestImageCount, setGuestImageCount] = useState(0);
+  // Ref mirrors guestMessageCount so the send-guard reads the freshest value,
+  // preventing two rapid clicks from both passing the limit check.
+  const guestMessageCountRef = useRef(0);
+  const guestImageCountRef = useRef(0);
+
+  // ── Guest message counting helper ─────────────────────────────────────────
+  // Returns false if the guest has hit the limit (caller should abort).
+  // Must be called by every path that sends a message when !user.
+  const checkAndBumpGuestCount = (): boolean => {
+    if (user) return true;
+    if (guestMessageCountRef.current >= GUEST_MESSAGE_LIMIT) return false;
+    guestMessageCountRef.current += 1;
+    setGuestMessageCount(guestMessageCountRef.current);
+    return true;
+  };
+
+  // True when the guest has exhausted their 3 image generations.
+  const guestImageLimitReached = !user && guestImageCountRef.current >= GUEST_IMAGE_LIMIT;
+
   const handleSendMessage = () => {
     const text = inputText.trim();
     if (!text && !attachedImage) return;
+    if (!checkAndBumpGuestCount()) return;
     setInputText('');
     const mode = selectedMode === 'auto' ? undefined : selectedMode;
     const lang = voiceLanguage ?? langHint;
@@ -286,7 +311,13 @@ const Index = () => {
     const imgBase64 = attachedImage?.base64;
     const imgMime = attachedImage?.mimeType;
     setAttachedImage(null);
-    sendMessage(text || 'Describe this image', undefined, mode, lang, imgBase64, imgMime);
+    sendMessage(text || 'Describe this image', {
+      mode,
+      language: lang,
+      imageBase64: imgBase64,
+      imageMimeType: imgMime,
+      ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
+    });
   };
 
   const handleMicClick = async () => {
@@ -390,18 +421,20 @@ const Index = () => {
   };
 
   const handleRegenerateMessage = (m: Message) => {
+    if (!checkAndBumpGuestCount()) return;
     const idx = messages.findIndex(msg => msg.id === m.id);
     let userMsgIdx = idx - 1;
     while (userMsgIdx >= 0 && messages[userMsgIdx].sender !== 'user') userMsgIdx--;
     if (userMsgIdx >= 0) {
       const userMsg = messages[userMsgIdx];
       truncateMessages(userMsgIdx);
+      const skipOpts = guestImageLimitReached ? { skipImageGeneration: true } : {};
       if (userMsg.attachedImage) {
         const match = userMsg.attachedImage.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) sendMessage(userMsg.text, undefined, undefined, undefined, match[2], match[1]);
-        else sendMessage(userMsg.text);
+        if (match) sendMessage(userMsg.text, { imageBase64: match[2], imageMimeType: match[1], ...skipOpts });
+        else sendMessage(userMsg.text, skipOpts);
       } else {
-        sendMessage(userMsg.text);
+        sendMessage(userMsg.text, skipOpts);
       }
     }
   };
@@ -441,7 +474,10 @@ const Index = () => {
     setLoadingMoreMessages(false);
   };
 
-  const handleNewChat = () => { startNewChat(); setInputText(''); setSelectedChecklistId(null); setBranchMap({}); navigate('/'); };
+  const handleNewChat = () => {
+    startNewChat(); setInputText(''); setSelectedChecklistId(null); setBranchMap({}); navigate('/');
+    if (!user) { sessionStorage.removeItem('easebot-guest-chat'); sessionStorage.removeItem('easebot-guest-images'); setGuestMessageCount(0); guestMessageCountRef.current = 0; setGuestImageCount(0); guestImageCountRef.current = 0; }
+  };
   const handleLoadChat = (threadId: string) => { setBranchMap({}); navigate(`/chat/${threadId}`); };
 
   const copyMessage = async (text: string, msgId: string) => {
@@ -478,13 +514,23 @@ const Index = () => {
   };
 
   const handleContinueGenerating = () => {
+    if (!checkAndBumpGuestCount()) return;
     const mode = selectedMode === 'auto' ? undefined : selectedMode;
-    sendMessage('Please continue from where you stopped.', undefined, mode, langHint);
+    sendMessage('Please continue from where you stopped.', {
+      mode,
+      language: langHint,
+      ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
+    });
   };
 
   const handleToneModifier = (modifier: string) => {
+    if (!checkAndBumpGuestCount()) return;
     const mode = selectedMode === 'auto' ? undefined : selectedMode;
-    sendMessage(`Rewrite your last response but make it ${modifier}.`, undefined, mode, langHint);
+    sendMessage(`Rewrite your last response but make it ${modifier}.`, {
+      mode,
+      language: langHint,
+      ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
+    });
   };
 
   const handleSaveProduct = async (productTitle: string, productUrl: string, imageUrl: string) => {
@@ -521,7 +567,7 @@ const Index = () => {
     if (ttsAudioUrls[message.id]) { setTtsActiveId(message.id); return; }
     setTtsLoadingId(message.id);
     try {
-      const effectiveVoiceId = profile?.voiceId ?? getLocalVoiceId() ?? undefined;
+      const effectiveVoiceId = getLocalVoiceId() ?? profile?.voiceId ?? undefined;
       const preset = effectiveVoiceId ? getVoicePreset(effectiveVoiceId) : undefined;
       const voiceName = preset?.geminiVoiceName;
       const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en');
@@ -552,6 +598,78 @@ const Index = () => {
 
   // ── Occasion selection state ───────────────────────────────────────────────
   const [selectedOccasion, setSelectedOccasion] = useState<string | null>(null);
+
+  // Reset guest state when user signs in (prevents stale count after sign-up)
+  useEffect(() => {
+    if (user) {
+      setGuestMessageCount(0);
+      guestMessageCountRef.current = 0;
+      setGuestImageCount(0);
+      guestImageCountRef.current = 0;
+      sessionStorage.removeItem('easebot-guest-chat');
+      sessionStorage.removeItem('easebot-guest-images');
+    }
+  }, [user]);
+
+  // Restore guest chat from sessionStorage on mount
+  useEffect(() => {
+    if (!user) {
+      try {
+        const stored = sessionStorage.getItem('easebot-guest-chat');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Restore timestamps as Date objects
+            const restored = (parsed as Message[]).map(m => ({
+              ...m,
+              timestamp: new Date(m.timestamp),
+            }));
+            restoreMessages(restored);
+            // Count user messages to sync guestMessageCount
+            const userMsgCount = restored.filter(m => m.sender === 'user').length;
+            setGuestMessageCount(userMsgCount);
+            guestMessageCountRef.current = userMsgCount;
+            // Count AI messages that have images to sync guestImageCount
+            const imgCount = restored.filter(m => m.sender === 'ai' && (m.imageUrl || m.imageUrls?.length)).length;
+            setGuestImageCount(imgCount);
+            guestImageCountRef.current = imgCount;
+          }
+        }
+      } catch { /* corrupted sessionStorage — ignore */ }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync guest image count from messages (counts AI messages with images)
+  useEffect(() => {
+    if (user) return;
+    const imgCount = messages.filter(m => m.sender === 'ai' && (m.imageUrl || (m.imageUrls && m.imageUrls.length > 0))).length;
+    if (imgCount !== guestImageCountRef.current) {
+      guestImageCountRef.current = imgCount;
+      setGuestImageCount(imgCount);
+    }
+  }, [user, messages]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist guest messages to sessionStorage whenever they change
+  useEffect(() => {
+    if (!user && messages.length > 0) {
+      try {
+        sessionStorage.setItem('easebot-guest-chat', JSON.stringify(messages));
+      } catch { /* quota exceeded — ignore */ }
+    }
+  }, [user, messages]);
+
+  // Clear guest session data on tab close / navigation away (beforeunload).
+  // Guest-generated images are external URLs — clearing sessionStorage effectively
+  // removes them from the guest's perspective since they can't be retrieved.
+  useEffect(() => {
+    if (user) return;
+    const cleanup = () => {
+      sessionStorage.removeItem('easebot-guest-chat');
+      sessionStorage.removeItem('easebot-guest-images');
+    };
+    window.addEventListener('beforeunload', cleanup);
+    return () => window.removeEventListener('beforeunload', cleanup);
+  }, [user]);
 
   const occasions = [
     'Engagement', 'Haldi', 'Mhendi', 'Sangeet', 'Cocktail', 'Wedding',
@@ -629,9 +747,19 @@ const Index = () => {
     ];
   };
 
-  const actionButtons = selectedOccasion
-    ? getOccasionButtons(selectedOccasion)
-    : defaultActionButtons;
+  // Guest-specific quick actions — lighter, exploratory prompts
+  const guestActionButtons = [
+    { icon: Heart, text: 'Explore styles', action: 'Show me popular wedding styles and trends' },
+    { icon: Sparkles, text: 'Get ideas', action: 'Give me creative wedding inspiration ideas' },
+    { icon: Calendar, text: 'Quick plan', action: 'Help me outline a basic wedding plan' },
+    { icon: Lightbulb, text: 'Ask anything', action: 'What should I know about planning a wedding?' },
+  ];
+
+  const actionButtons = !user
+    ? guestActionButtons
+    : selectedOccasion
+      ? getOccasionButtons(selectedOccasion)
+      : defaultActionButtons;
 
   const handleQuickPrompt = (action: string) => {
     const occasion = selectedOccasion;
@@ -762,11 +890,7 @@ const Index = () => {
     <ProfileIcon
       user={user}
       profile={profile}
-      preferredLang={preferredLang}
-      onLanguageChange={handleLanguageChange}
-      onShowSignIn={() => setShowSignInModal(true)}
-      onShowSignUp={() => setShowSignUpModal(true)}
-      onSignOut={signOut}
+      onShowSettings={() => setShowSettingsModal(true)}
     />
   );
 
@@ -789,6 +913,7 @@ const Index = () => {
       isOpen={isSidebarOpen}
       onToggle={() => setIsSidebarOpen(v => !v)}
       user={user}
+      profile={profile}
       threads={threads}
       activeThreadId={activeThreadId}
       sidebarView={sidebarView}
@@ -804,6 +929,8 @@ const Index = () => {
       onShowShortcuts={() => setShowShortcuts(true)}
       onShowSettings={() => setShowSettingsModal(true)}
       onShowSignIn={() => setShowSignInModal(true)}
+      onShowSignUp={() => setShowSignUpModal(true)}
+      onSignOut={signOut}
       allLikedMessagesCount={allLikedMessages.length}
       calendarEventsCount={reminders.length}
       overdueCount={overdueCount}
@@ -818,7 +945,7 @@ const Index = () => {
   // showSettingsModal state still drives the open intent; setShowSettingsModal
   // is shimmed above to deep-link via the ?settings=… query param.
   void showSettingsModal;
-  const settingsModalJSX = <SettingsShell />;
+  const settingsModalJSX = <SettingsShell onShowSignIn={() => setShowSignInModal(true)} onShowSignUp={() => setShowSignUpModal(true)} />;
 
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
@@ -999,15 +1126,43 @@ const Index = () => {
             signUpPrefillEmail={signUpPrefillEmail}
             onSignUpPrefillEmailChange={setSignUpPrefillEmail}
           />
-          {/* Guest banner */}
+          {/* Guest banner with usage limits */}
           {!user && (
             <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
-              <div className="flex items-center bg-white/[0.06] backdrop-blur-sm rounded-xl px-3 py-2 text-xs text-white/70 gap-1.5">
-                <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                This chat won't be saved.{' '}
-                <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
-                  Sign in to save your conversations.
-                </button>
+              <div className="bg-white/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-white/70 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  <span className="font-semibold text-white/80">Guest Mode</span>
+                  <span className="text-white/40 mx-1">—</span>
+                  <span>{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining</span>
+                  <span className="text-white/30 hidden sm:inline">·</span>
+                  <span className="hidden sm:inline">{Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} remaining</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <div className="hidden sm:flex items-center gap-1.5">
+                      {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
+                        <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-white/[0.12]'}`} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-white/50 text-2xs">You've used all guest messages.</span>
+                    <button
+                      onClick={() => setShowSignUpModal(true)}
+                      className="ml-auto px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
+                    >
+                      Sign up to continue chatting
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-2xs text-white/40">
+                    This chat won't be saved.{' '}
+                    <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
+                      Sign in to save your conversations.
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1060,9 +1215,22 @@ const Index = () => {
 
           {/* Input Bar Area */}
           <div className="mt-auto px-4 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}>
-            <ChatInput {...inputBarProps} placeholder="ask me anything" />
-            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
-            {/* <p className="text-center text-3xs text-white/20 mt-2.5 uppercase tracking-[0.25em] font-medium">wedding ease — your day, perfected</p> */}
+            {!user && guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
+              <div className="max-w-3xl mx-auto w-full text-center py-3 space-y-2">
+                <p className="text-xs text-white/50">You've reached the guest message limit.</p>
+                <button
+                  onClick={() => setShowSignUpModal(true)}
+                  className="px-5 py-2 rounded-full bg-gradient-to-br from-[#B89382] to-[#8A6651] text-white text-sm font-semibold hover:from-[#A17A63] hover:to-[#603B25] transition-all shadow-md shadow-[#A17A63]/25"
+                >
+                  Sign up to continue chatting
+                </button>
+              </div>
+            ) : (
+              <>
+                <ChatInput {...inputBarProps} placeholder="ask me anything" />
+                <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
+              </>
+            )}
           </div>
         </main>
       </div>

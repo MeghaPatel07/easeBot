@@ -482,6 +482,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 <ImageCarousel
                   imageUrls={message.imageUrls ?? (message.imageUrl ? [message.imageUrl] : [])}
                   onDelete={onDeleteImage ? (imageUrl) => onDeleteImage(message.id, imageUrl) : undefined}
+                  isGuest={!user}
                 />
               )}
               {message.imageDeleted && !message.imageUrls?.length && !message.imageUrl && (
@@ -491,7 +492,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 </div>
               )}
               {message.checklistData && (
-                <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border border-border overflow-hidden max-w-xs w-full">
+                <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border overflow-hidden max-w-xs w-full">
                   <div className="px-4 py-2.5 bg-primary/5 border-b border-primary/10 flex items-center gap-2">
                     <CheckSquare className="h-4 w-4 text-primary flex-shrink-0" />
                     <span className="font-headline text-sm font-semibold text-white/85 truncate">{message.checklistData.title}</span>
@@ -528,7 +529,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 </div>
               )}
               {message.calendarEvent && !message.calendarAdded && !user && (
-                <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm p-4 rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border border-border relative overflow-hidden">
+                <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm p-4 rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12"></div>
                   <div className="relative z-10">
                     <p className="text-3xs text-primary font-bold uppercase tracking-widest mb-0.5">Upcoming Event</p>
@@ -695,7 +696,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 </div>
               </div>
             ) : (
-              <div className={`${cfg.pill} bg-white/[0.03] backdrop-blur-md rounded-2xl rounded-tl-sm px-5 py-3 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] text-[#D9C3C3] msg-enter`}>
+              <div className={`${cfg.pill} bg-white/[0.03] backdrop-blur-md rounded-2xl rounded-tl-sm px-5 py-3 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] text-white/90 msg-enter`}>
                 <div className={`flex items-center gap-2 `}>
                   <span className="text-caption italic">thinking</span>
                   {[0, 0.15, 0.3].map((d, i) => <div key={i} className="w-1.5 h-1.5 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: `${d}s` }} />)}

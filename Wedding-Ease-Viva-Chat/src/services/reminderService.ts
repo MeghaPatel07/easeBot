@@ -17,6 +17,7 @@ import type { User } from 'firebase/auth'
 import { db } from '@/lib/firebase'
 import type { ReminderDoc, UserProfile } from '@/types'
 import { isDerivedPhoneEmail } from '@/services/authService'
+import { resolveTier, getLimits, type PlanTier } from '@/config/tierConfig'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,20 +49,36 @@ function resolveTimezone(): string {
 
 /**
  * Resolve the notification channel from the user's primary auth provider.
+ * WhatsApp is gated to Pro+ tiers per PRICING_PRD §4.
  *  - password / google.com → email
- *  - phone                 → whatsapp
- *  - fallback: email if profile has email, else whatsapp if profile has phone
+ *  - phone + Pro/ProMax    → whatsapp
+ *  - phone + Free          → email (with fallback warning)
+ *  - fallback: email if profile has email, else whatsapp if eligible
  *  - throws if neither is available
  */
 function resolveChannel(user: User, profile: UserProfile | null): 'email' | 'whatsapp' {
-  const providerId = user.providerData?.[0]?.providerId
-  if (providerId === 'password' || providerId === 'google.com') return 'email'
-  if (providerId === 'phone') return 'whatsapp'
+  const tier = resolveTier(profile)
+  const limits = getLimits(tier)
+  const whatsappAllowed = limits.reminderChannels.includes('whatsapp')
 
-  // Fallback: prefer email if we have a real one, else whatsapp if we have a phone
+  const providerId = user.providerData?.[0]?.providerId
+
+  if (providerId === 'password' || providerId === 'google.com') return 'email'
+  if (providerId === 'phone') {
+    // Phone-auth users get WhatsApp only if their tier allows it
+    if (whatsappAllowed) return 'whatsapp'
+    // Fall through to email if they have one
+    const hasRealEmail = !!(profile?.email && !isDerivedPhoneEmail(profile.email))
+    if (hasRealEmail) return 'email'
+    // Phone-only free user with no email — still use email (the derived one)
+    return 'email'
+  }
+
+  // Fallback: prefer email if we have a real one, else whatsapp if eligible
   const hasRealEmail = !!(profile?.email && !isDerivedPhoneEmail(profile.email))
   if (hasRealEmail) return 'email'
-  if (profile?.phone) return 'whatsapp'
+  if (profile?.phone && whatsappAllowed) return 'whatsapp'
+  if (profile?.phone) return 'email' // Free tier: fall back to email
   throw new Error('Cannot create reminder: account has no email or phone for notifications.')
 }
 
@@ -76,7 +93,7 @@ function computeEventAt(eventDateStr: string, eventTimeStr: string | null): Date
   return new Date(y, (m - 1), d, 0, 0, 0, 0)
 }
 
-const ACTIVE_REMINDER_LIMIT = 100
+// Legacy flat cap removed — now tier-based via TIER_LIMITS.maxActiveReminders
 
 // ── Maps a Firestore doc to a JS-friendly ReminderDoc with Date objects. ────
 
@@ -148,12 +165,23 @@ export async function createReminder(
     throw new Error('Invalid lead time.')
   }
 
-  // Enforce active-reminder cap (100 pending)
-  const pendingSnap = await getDocs(
-    query(remindersCol(user.uid), where('status', '==', 'pending')),
-  )
-  if (pendingSnap.size >= ACTIVE_REMINDER_LIMIT) {
-    throw new Error('Reminder limit reached (100). Delete old reminders to add new ones.')
+  // Enforce tier-based active-reminder cap (Free=3, Pro/ProMax=unlimited)
+  const tier = resolveTier(profile)
+  const limits = getLimits(tier)
+  const maxReminders = limits.maxActiveReminders
+
+  if (maxReminders !== null) {
+    const pendingSnap = await getDocs(
+      query(remindersCol(user.uid), where('status', '==', 'pending')),
+    )
+    if (pendingSnap.size >= maxReminders) {
+      throw new Error(
+        `Reminder limit reached (${pendingSnap.size}/${maxReminders}). ` +
+        (tier === 'free'
+          ? 'Upgrade to Pro for unlimited reminders, or delete existing ones to free up a slot.'
+          : 'Delete old reminders to add new ones.'),
+      )
+    }
   }
 
   const channel = resolveChannel(user, profile)

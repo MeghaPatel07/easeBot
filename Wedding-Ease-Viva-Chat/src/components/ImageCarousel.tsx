@@ -7,6 +7,9 @@ interface ImageCarouselProps {
   aspectRatio?: string // '1024x1024' | '1024x1536' | '1536x1024'
   onSaveToGallery?: (imageUrl: string) => void
   onDelete?: (imageUrl: string) => void
+  isGuest?: boolean
+  /** Show "Made with Easebot" watermark overlay (free-tier images). */
+  watermarked?: boolean
 }
 
 /** Fullscreen image preview overlay */
@@ -16,12 +19,14 @@ function ImagePreview({
   onClose,
   onSaveToGallery,
   onDelete,
+  isGuest,
 }: {
   imageUrls: string[]
   initialIndex: number
   onClose: () => void
   onSaveToGallery?: (imageUrl: string) => void
   onDelete?: (imageUrl: string) => void
+  isGuest?: boolean
 }) {
   const [index, setIndex] = useState(initialIndex)
   const [scale, setScale] = useState(1)
@@ -125,6 +130,7 @@ function ImagePreview({
             onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[index]) : undefined}
             onDelete={onDelete ? () => onDelete(imageUrls[index]) : undefined}
             variant="preview"
+            isGuest={isGuest}
           />
         </div>
         {imageUrls.length > 1 && (
@@ -150,7 +156,18 @@ function ImagePreview({
   )
 }
 
-export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelete }: ImageCarouselProps) {
+/** Watermark overlay for free-tier images. */
+function WatermarkOverlay() {
+  return (
+    <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-3">
+      <span className="bg-black/50 text-white/70 text-[10px] font-medium px-2 py-1 rounded-md backdrop-blur-sm">
+        Made with Easebot
+      </span>
+    </div>
+  )
+}
+
+export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelete, isGuest, watermarked }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [previewOpen, setPreviewOpen] = useState(false)
 
@@ -172,7 +189,8 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             className={`w-full ${arClass} max-h-[60vh] sm:max-h-none object-cover rounded-xl shadow-lg cursor-pointer hover:brightness-95 transition-all`}
             onClick={() => setPreviewOpen(true)}
           />
-          <ImageActions imageUrl={imageUrls[0]} onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[0]) : undefined} onDelete={onDelete ? () => onDelete(imageUrls[0]) : undefined} />
+          {watermarked && <WatermarkOverlay />}
+          <ImageActions imageUrl={imageUrls[0]} onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[0]) : undefined} onDelete={onDelete ? () => onDelete(imageUrls[0]) : undefined} isGuest={isGuest} />
         </div>
         {previewOpen && (
           <ImagePreview
@@ -181,6 +199,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             onClose={() => setPreviewOpen(false)}
             onSaveToGallery={onSaveToGallery}
             onDelete={onDelete}
+            isGuest={isGuest}
           />
         )}
       </>
@@ -199,10 +218,12 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             className={`w-full ${arClass} max-h-[60vh] sm:max-h-none object-cover rounded-xl shadow-lg cursor-pointer hover:brightness-95 transition-all`}
             onClick={() => setPreviewOpen(true)}
           />
+          {watermarked && <WatermarkOverlay />}
           <ImageActions
             imageUrl={imageUrls[activeIndex]}
             onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[activeIndex]) : undefined}
             onDelete={onDelete ? () => onDelete(imageUrls[activeIndex]) : undefined}
+            isGuest={isGuest}
           />
           {/* Navigation arrows */}
           {imageUrls.length > 1 && (
@@ -249,6 +270,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
           onClose={() => setPreviewOpen(false)}
           onSaveToGallery={onSaveToGallery}
           onDelete={onDelete}
+          isGuest={isGuest}
         />
       )}
     </>

@@ -22,10 +22,10 @@ export function CapHitBanner({ className }: { className?: string }) {
     >
       <div className="mx-auto flex max-w-4xl items-start gap-3">
         <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 flex-shrink-0" />
-        <div className="flex-1 text-foreground/90">
+        <div className="flex-1 text-white/90/90">
           <p className="font-medium text-destructive">{payload.message}</p>
           {payload.resetAt && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/90">
               Resets {new Date(payload.resetAt).toLocaleString()}
             </p>
           )}
@@ -40,7 +40,7 @@ export function CapHitBanner({ className }: { className?: string }) {
           type="button"
           onClick={() => setPayload(null)}
           aria-label="Dismiss quota banner"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-white/5"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-white/90 hover:bg-white/5"
         >
           <X className="h-4 w-4" />
         </button>

@@ -149,7 +149,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[480px] glass-panel rounded-2xl p-6 border border-white/[0.1] shadow-2xl bg-[#1a1a1a]/95 backdrop-blur-md">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[480px] glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl">
         <DialogHeader>
           <DialogTitle className="font-headline text-lg text-white/90">
             Share "{note.title || 'Untitled'}"
@@ -177,7 +177,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
               <SelectTrigger className="w-28 h-9 text-xs bg-white/[0.06] border-white/10 text-white/70 rounded-lg">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[#1a1a1a]/95 backdrop-blur-md border-white/10 text-white/80">
+              <SelectContent className="bg-[#0F0D0C]/95 backdrop-blur-2xl border-white/[0.08] text-white/80">
                 <SelectItem value="editor" className="text-xs cursor-pointer">Editor</SelectItem>
                 <SelectItem value="commenter" className="text-xs cursor-pointer">Commenter</SelectItem>
                 <SelectItem value="viewer" className="text-xs cursor-pointer">Viewer</SelectItem>
@@ -187,7 +187,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
           {emailError && <p className="text-xs text-red-400">{emailError}</p>}
           <Button
             onClick={handleSendInvite}
-            className="bg-primary hover:bg-primary/90 text-white text-xs h-8 px-4 rounded-lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 px-4 rounded-full"
             disabled={!email.trim()}
           >
             Send Invite
@@ -229,7 +229,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
                 <SelectTrigger className="w-24 h-7 text-[10px] bg-white/[0.04] border-white/10 text-white/50 rounded-md">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[#1a1a1a]/95 backdrop-blur-md border-white/10 text-white/80">
+                <SelectContent className="bg-[#0F0D0C]/95 backdrop-blur-2xl border-white/[0.08] text-white/80">
                   <SelectItem value="editor" className="text-xs cursor-pointer">Editor</SelectItem>
                   <SelectItem value="commenter" className="text-xs cursor-pointer">Commenter</SelectItem>
                   <SelectItem value="viewer" className="text-xs cursor-pointer">Viewer</SelectItem>
@@ -268,7 +268,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
                   <SelectTrigger className="w-28 h-7 text-[10px] bg-white/[0.04] border-white/10 text-white/50 rounded-md">
                     <SelectValue>{PUBLIC_PERMISSION_LABELS[note.publicAccess.permission]}</SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1a1a1a]/95 backdrop-blur-md border-white/10 text-white/80">
+                  <SelectContent className="bg-[#0F0D0C]/95 backdrop-blur-2xl border-white/[0.08] text-white/80">
                     <SelectItem value="view" className="text-xs cursor-pointer">Can view</SelectItem>
                     <SelectItem value="comment" className="text-xs cursor-pointer">Can comment</SelectItem>
                     <SelectItem value="edit" className="text-xs cursor-pointer">Can edit</SelectItem>
@@ -279,7 +279,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
                 <Button
                   onClick={handleCopyLink}
                   variant="outline"
-                  className="h-8 gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10 rounded-lg flex-1"
+                  className="h-8 gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10 rounded-full flex-1"
                 >
                   {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   {copied ? 'Copied!' : 'Copy link'}
@@ -287,7 +287,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
                 <Button
                   onClick={onDisablePublicLink}
                   variant="ghost"
-                  className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg"
+                  className="h-8 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-full"
                 >
                   Disable
                 </Button>
@@ -297,7 +297,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
             <Button
               onClick={() => handleEnableLink('view')}
               variant="outline"
-              className="h-8 gap-1.5 text-xs border-white/10 text-white/50 hover:bg-white/10 rounded-lg w-full"
+              className="h-8 gap-1.5 text-xs border-white/[0.08] text-white/50 hover:bg-white/[0.06] rounded-full w-full"
               disabled={linkLoading}
             >
               {linkLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
@@ -316,7 +316,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
           <Button
             onClick={handleDone}
             disabled={sendingInvites}
-            className="bg-primary hover:bg-primary/90 text-white text-xs h-8 px-6 rounded-lg"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 px-6 rounded-full"
           >
             {sendingInvites ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Done'}
           </Button>

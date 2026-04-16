@@ -3,6 +3,7 @@ import { Receipt, AlertTriangle, Zap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useUsageStats } from '@/hooks/useUsageStats'
 import { useAccount } from '@/hooks/useAccount'
+import { useAuth } from '@/contexts/AuthContext'
 import { UsageMeter, type UsageMeterState } from '@/components/pricing/UsageMeter'
 import { cn } from '@/lib/utils'
 import {
@@ -29,6 +30,7 @@ function formatResetDate(iso?: string | null): string {
 }
 
 export function BillingSettings({ className }: { className?: string }) {
+  const { user } = useAuth()
   const { plan } = useAccount()
   const { snapshot, isLoading, isError, state: meterState, refetch } = useUsageStats()
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([])
@@ -68,21 +70,23 @@ export function BillingSettings({ className }: { className?: string }) {
   return (
     <div className={cn('flex flex-col gap-5', className)}>
       {/* Current plan */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl bg-white/[0.03] p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-2xs uppercase tracking-wide text-muted-foreground">Current plan</p>
-            <p className="font-headline text-2xl text-foreground">{tierLabel}</p>
+            <p className="text-2xs uppercase tracking-wide text-white/90">Current plan</p>
+            <p className="font-headline text-2xl text-white/90">{tierLabel}</p>
           </div>
-          <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-2xs uppercase tracking-wide text-primary">
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-2xs uppercase tracking-wide text-primary">
             {tier === 'free' || tier === 'guest' ? 'Free tier' : 'Active'}
           </span>
         </div>
 
-        {isLoading ? (
+        {!user ? (
+          <p className="text-xs text-white/90">Sign in to view your usage details.</p>
+        ) : isLoading ? (
           <div className="h-12 w-full animate-pulse rounded-md bg-muted" aria-hidden="true" />
         ) : isError ? (
-          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+          <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-xs text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div className="flex-1">
               Could not load usage. <button type="button" onClick={() => void refetch()} className="underline">Retry</button>
@@ -99,28 +103,30 @@ export function BillingSettings({ className }: { className?: string }) {
           />
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-          <div>
-            <p className="uppercase tracking-wide text-2xs">Monthly resets</p>
-            <p className="text-foreground">{formatResetDate(snapshot?.resetAt)}</p>
+        {user && (
+          <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-white/90">
+            <div>
+              <p className="uppercase tracking-wide text-2xs">Monthly resets</p>
+              <p className="text-white/90">{formatResetDate(snapshot?.resetAt)}</p>
+            </div>
+            <div>
+              <p className="uppercase tracking-wide text-2xs">Daily resets</p>
+              <p className="text-white/90">{formatResetDate(snapshot?.dailyResetAt)}</p>
+            </div>
           </div>
-          <div>
-            <p className="uppercase tracking-wide text-2xs">Daily resets</p>
-            <p className="text-foreground">{formatResetDate(snapshot?.dailyResetAt)}</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Extras */}
       {extras > 0 && (
-        <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
+        <div className="rounded-xl bg-primary/5 p-4">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" />
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-sm font-medium text-white/90">
               Top-up balance: {extras.toLocaleString()} tokens
             </p>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-xs text-white/90">
             Top-up tokens drain after your monthly pool. They never expire.
           </p>
         </div>
@@ -130,18 +136,18 @@ export function BillingSettings({ className }: { className?: string }) {
       <div className="flex flex-wrap gap-2">
         <Link
           to="/pricing"
-          className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-white/5"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/[0.06] px-4 text-sm font-medium text-white/90 hover:bg-white/[0.08]"
         >
           {tier === 'free' || tier === 'guest' ? 'Upgrade plan' : 'Change plan'}
         </Link>
       </div>
 
-      {/* Invoices — lazy-loaded on click */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      {/* Invoices — lazy-loaded on click (hidden for signed-out users) */}
+      {/* {user && <div className="rounded-xl bg-white/[0.03] p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-            <p className="text-2xs uppercase tracking-wide text-muted-foreground">Invoice history</p>
+            <Receipt className="h-4 w-4 text-white/90" />
+            <p className="text-2xs uppercase tracking-wide text-white/90">Invoice history</p>
           </div>
           {invoicesLoaded && (
             <button
@@ -159,7 +165,7 @@ export function BillingSettings({ className }: { className?: string }) {
           <button
             type="button"
             onClick={() => void handleViewInvoices()}
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-transparent px-4 text-sm font-medium text-foreground hover:bg-white/5"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/[0.06] px-4 text-sm font-medium text-white/90 hover:bg-white/[0.08]"
           >
             View invoices
           </button>
@@ -170,7 +176,7 @@ export function BillingSettings({ className }: { className?: string }) {
         )}
 
         {invoicesError && (
-          <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+          <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-xs text-destructive">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div className="flex-1">
               Could not load invoices.{' '}
@@ -183,30 +189,30 @@ export function BillingSettings({ className }: { className?: string }) {
 
         {invoicesLoaded && !invoicesLoading && !invoicesError && (
           invoices.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/90">
               Invoices appear here after your first paid cycle.
             </p>
           ) : (
-            <ul className="divide-y divide-border text-sm">
+            <ul className="divide-y divide-white/[0.06] text-sm">
               {invoices.map((inv) => (
                 <li key={inv.invoiceId} className="flex items-center justify-between py-2">
                   <div>
-                    <p className="font-medium text-foreground">{inv.invoiceNumber}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="font-medium text-white/90">{inv.invoiceNumber}</p>
+                    <p className="text-xs text-white/90">
                       {inv.date ? new Date(inv.date).toLocaleDateString() : '—'}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="font-medium text-foreground">
+                      <p className="font-medium text-white/90">
                         {inv.currencyCode || 'USD'} {inv.totalLocal.toFixed(2)}
                       </p>
-                      <p className="text-2xs uppercase tracking-wide text-muted-foreground">{inv.status}</p>
+                      <p className="text-2xs uppercase tracking-wide text-white/90">{inv.status}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => void downloadInvoicePdf(inv.invoiceId)}
-                      className="rounded-md border border-border bg-transparent px-3 py-1 text-xs text-foreground hover:bg-white/5"
+                      className="rounded-lg bg-white/[0.06] px-3 py-1 text-xs text-white/90 hover:bg-white/[0.08]"
                     >
                       PDF
                     </button>
@@ -216,7 +222,7 @@ export function BillingSettings({ className }: { className?: string }) {
             </ul>
           )
         )}
-      </div>
+      </div>} */}
     </div>
   )
 }

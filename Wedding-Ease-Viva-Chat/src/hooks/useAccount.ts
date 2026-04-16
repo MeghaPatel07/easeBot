@@ -25,7 +25,7 @@ const ACCOUNT_QUERY_KEY = ['account', 'me'] as const
 // can render even when the backend hasn't been built yet.
 function deriveLocal(profile: UserProfile | null): AccountMeResponse | null {
   if (!profile) return null
-  const tier: AccountPlan['tier'] = profile.plan ?? (profile.isPremium ? 'pro' : 'free')
+  const tier: AccountPlan['tier'] = profile.tierMirror ?? profile.plan ?? (profile.isPremium ? 'pro' : 'free')
   const usage: AccountUsage = {
     messagesUsed: profile.usage?.messagesUsed ?? 0,
     messagesAllowed: profile.usage?.messagesAllowed ?? (tier === 'free' ? 100 : 10000),

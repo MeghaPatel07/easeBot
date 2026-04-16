@@ -16,7 +16,7 @@
 // Dark-mode aware via Tailwind tokens, keyboard accessible (DropdownMenuItem
 // from Radix already handles arrow nav + roving tabindex), responsive.
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Settings as SettingsIcon,
@@ -26,15 +26,26 @@ import {
   LogIn,
   UserPlus,
   User as UserIcon,
+  FileText,
+  Keyboard,
+  LifeBuoy,
 } from 'lucide-react'
 
 import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useAccount } from '@/hooks/useAccount'
+import { TokenPoolBar } from '@/components/pricing/TokenPoolBar'
 import { cn } from '@/lib/utils'
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -48,6 +59,8 @@ export interface ProfileMenuProps {
   onSignOut: () => void
   /** Optional Help callback. If omitted, the Help button navigates to /help. */
   onShowHelp?: () => void
+  /** Open keyboard shortcuts dialog */
+  onShowShortcuts?: () => void
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -73,7 +86,7 @@ function planBadgeClass(tier: 'free' | 'pro' | 'promax' | undefined): string {
   if (tier === 'pro' || tier === 'promax') {
     return 'bg-primary/15 text-primary'
   }
-  return 'bg-white/[0.06] text-muted-foreground'
+  return 'bg-white/[0.06] text-white/90'
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -84,10 +97,12 @@ export function ProfileMenu({
   onShowSignUp,
   onSignOut,
   onShowHelp,
+  onShowShortcuts,
 }: ProfileMenuProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const { profile, plan, usage } = useAccount()
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
 
   const openSettings = (tab: string) => {
     const sp = new URLSearchParams(searchParams)
@@ -102,7 +117,7 @@ export function ProfileMenu({
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">Account</p>
-            <p className="text-xs leading-none text-muted-foreground">
+            <p className="text-xs leading-none text-white/90">
               Sign in to save your wedding plans
             </p>
           </div>
@@ -126,7 +141,7 @@ export function ProfileMenu({
   }
 
   // ── Authenticated ─────────────────────────────────────────────────────────
-  const tier = plan?.tier ?? profile.plan
+  const tier = plan?.tier ?? profile.plan ?? (profile.isPremium ? 'pro' : 'free')
   const messagesUsed = usage?.messagesUsed
   const messagesAllowed = usage?.messagesAllowed
   const showMeter =
@@ -153,10 +168,10 @@ export function ProfileMenu({
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight text-foreground truncate">
+            <p className="text-sm font-semibold leading-tight text-white/90 truncate">
               {profile.name || 'Wedding planner'}
             </p>
-            <p className="text-xs leading-tight text-muted-foreground truncate">
+            <p className="text-xs leading-tight text-white/90 truncate">
               {profile.email}
             </p>
             <span
@@ -169,8 +184,7 @@ export function ProfileMenu({
             </span>
           </div>
         </div>
-
-
+        <TokenPoolBar className="mt-3" />
       </DropdownMenuLabel>
 
       <DropdownMenuSeparator />
@@ -190,20 +204,56 @@ export function ProfileMenu({
         <Sparkles className="mr-2 h-4 w-4" />
         <span>{tier === 'free' ? 'Upgrade plan' : 'Manage plan'}</span>
       </DropdownMenuItem>
-      <DropdownMenuItem className="cursor-pointer min-h-11" onClick={handleHelp}>
-        <HelpCircle className="mr-2 h-4 w-4" />
-        <span>Help & feedback</span>
-      </DropdownMenuItem>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className="cursor-pointer min-h-11">
+          <HelpCircle className="mr-2 h-4 w-4" />
+          <span>Help & Feedback</span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="w-52">
+          <DropdownMenuItem className="cursor-pointer min-h-10" onClick={handleHelp}>
+            <LifeBuoy className="mr-2 h-4 w-4" />
+            <span>Support Ticket</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer min-h-10" onClick={() => navigate('/terms')}>
+            <FileText className="mr-2 h-4 w-4" />
+            <span>Terms & Policies</span>
+          </DropdownMenuItem>
+          {onShowShortcuts && (
+            <DropdownMenuItem className="cursor-pointer min-h-10" onClick={onShowShortcuts}>
+              <Keyboard className="mr-2 h-4 w-4" />
+              <span>Keyboard Shortcuts</span>
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
 
       <DropdownMenuSeparator />
 
       <DropdownMenuItem
         className="cursor-pointer min-h-11 text-destructive focus:text-destructive"
-        onClick={onSignOut}
+        onSelect={(e) => {
+          e.preventDefault()          // keep dropdown open so AlertDialog renders
+          setShowSignOutConfirm(true)
+        }}
       >
         <LogOut className="mr-2 h-4 w-4" />
         <span>Sign out</span>
       </DropdownMenuItem>
+
+      <AlertDialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign Out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will be signed out of your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={onSignOut}>Sign Out</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

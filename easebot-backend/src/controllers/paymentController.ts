@@ -19,7 +19,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { getLockedRate } from '../services/exchangeRateService'
-import { addExtras, getTier } from '../services/tokenMeter'
+import { addExtras } from '../services/tokenMeter'
 import { applyTransition, readSubscription, InvalidTransitionError } from '../services/subscriptionStateMachine'
 import { queueInvoice } from '../services/invoiceService'
 import { generatePayuHash, verifyPayuResponseHash } from '../utils/payuHash'
@@ -115,8 +115,9 @@ export async function initiate(
     //     `isUpgrade` flag on the payment doc to drive the `upgrade` trigger
     //     instead of `purchase`.
     if (row.plan === 'topup_2m') {
-      const current = await getTier(uid)
-      if (current === 'free' || current === 'guest') {
+      // Read authoritative subscription doc — tierMirror can be stale.
+      const sub = await readSubscription(uid)
+      if (sub.plan === 'free' || sub.state === 'guest') {
         res.status(409).json({ error: 'topup_requires_paid_tier' })
         return
       }
@@ -124,19 +125,21 @@ export async function initiate(
       if (row.plan !== 'promax') {
         res.status(400).json({ error: 'upgrade_target_must_be_promax' }); return
       }
-      const current = await getTier(uid)
-      if (current !== 'pro') {
-        res.status(409).json({ error: 'upgrade_requires_pro_tier', currentTier: current })
+      // Read authoritative subscription doc — tierMirror can be stale.
+      const sub = await readSubscription(uid)
+      if (sub.plan !== 'pro') {
+        res.status(409).json({ error: 'upgrade_requires_pro_tier', currentTier: sub.plan })
         return
       }
     } else {
-      const current = await getTier(uid)
-      if (current === 'guest') {
+      // Read authoritative subscription doc — tierMirror can be stale.
+      const sub = await readSubscription(uid)
+      if (sub.state === 'guest') {
         res.status(403).json({ error: 'guest_cannot_purchase', action: 'sign_up' })
         return
       }
-      if (current !== 'free') {
-        res.status(409).json({ error: 'already_subscribed', currentTier: current })
+      if (sub.plan !== 'free') {
+        res.status(409).json({ error: 'already_subscribed', currentTier: sub.plan })
         return
       }
     }

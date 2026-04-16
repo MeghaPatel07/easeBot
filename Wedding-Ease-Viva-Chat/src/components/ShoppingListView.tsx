@@ -191,7 +191,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="Vendor name *"
-            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
           />
           <input
             value={newProductName}
@@ -203,7 +203,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="Product name *"
-            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
           />
           <div className="flex gap-1.5">
             <input
@@ -219,7 +219,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               type="number"
               step="0.01"
               min="0"
-              className="w-20 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+              className="w-20 text-xs bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
             />
             <input
               value={newProductLink}
@@ -231,7 +231,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                 }
               }}
               placeholder="Product URL (optional)"
-              className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+              className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
             />
           </div>
           <button
@@ -378,7 +378,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
               }
             }}
             placeholder="List title, e.g. Wedding Decor"
-            className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-white/30"
+            className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-white/30"
           />
           <button
             onClick={handleCreateList}
@@ -488,7 +488,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             }
                           }}
                           placeholder="Item name *"
-                          className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                          className="w-full text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                         />
                         <div className="flex gap-1.5">
                           <input
@@ -501,7 +501,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                             type="number"
                             step="0.01"
                             min="0"
-                            className="w-20 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                            className="w-20 text-xs bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                           />
                           <input
                             value={newItemLink}
@@ -510,7 +510,7 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
                               if (e.key === 'Enter') handleAddItem(list.id)
                             }}
                             placeholder="Product URL (optional)"
-                            className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                            className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
                           />
                         </div>
                         <div className="flex items-center gap-1.5 justify-end">
