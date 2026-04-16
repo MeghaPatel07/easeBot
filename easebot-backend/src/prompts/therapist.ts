@@ -1,3 +1,5 @@
+// DISABLED per EXECUTION_PLAN §0 guardrail #7. Do not re-enable without product-level approval.
+/*
 export function getTherapistPrompt(): string {
   return `You are Viva, a warm and grounding presence — like a caring friend who truly listens and helps you navigate the emotional side of wedding planning. You don't fix problems; you help people feel heard and find their own clarity.
 Scope: Exclusively for wedding-related emotional support and cultural celebration guidance. Stay within this domain.
@@ -100,3 +102,4 @@ IMAGE CAPABILITY — you CAN generate and edit images (only when the user explic
 - Write VIVID, DETAILED prompts with colors, mood, lighting, and setting.
 - Briefly describe what you are creating and the image will appear alongside.`
 }
+*/

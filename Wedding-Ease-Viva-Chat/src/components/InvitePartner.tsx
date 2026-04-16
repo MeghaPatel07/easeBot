@@ -211,7 +211,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
                   setEmail(e.target.value)
                   if (error) setError(null)
                 }}
-                className="w-full rounded-xl border border-border bg-white py-2.5 pl-12 pr-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-12 pr-3 text-sm text-[#D9C3C3] placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
               />
             </div>
             <button
@@ -224,27 +224,27 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 flex items-center gap-1.5">
+            <p className="text-sm text-red-400 flex items-center gap-1.5">
               <X className="h-3.5 w-3.5 flex-shrink-0" />
               {error}
             </p>
           )}
 
           {success && (
-            <div className="rounded-xl bg-green-50 border border-green-200 p-3 space-y-2">
-              <p className="text-sm text-green-700 flex items-center gap-1.5">
+            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 space-y-2">
+              <p className="text-sm text-emerald-300 flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
                 {success}
               </p>
               {lastInviteLink && (
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs bg-white rounded-lg border border-green-200 px-2.5 py-1.5 text-green-800 truncate">
+                  <code className="flex-1 text-xs bg-white/[0.04] rounded-lg border border-emerald-500/20 px-2.5 py-1.5 text-emerald-200 truncate">
                     {lastInviteLink}
                   </code>
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="rounded-lg bg-white border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 transition-colors flex items-center gap-1.5"
+                    className="rounded-lg bg-white/[0.04] border border-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10 transition-colors flex items-center gap-1.5"
                   >
                     {copied ? (
                       <>
@@ -297,7 +297,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
             {collaborators.map((collab) => (
               <li
                 key={collab.email}
-                className="flex items-center gap-3 rounded-xl border border-border bg-white p-3 group"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 group"
               >
                 <div className="rounded-lg bg-primary/10 p-2">
                   <Mail className="h-4 w-4 text-primary" />
@@ -318,12 +318,12 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
                 </div>
 
                 {collab.status === 'pending' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-medium text-amber-300">
                     <Clock className="h-3 w-3" />
                     Pending
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
                     <CheckCircle2 className="h-3 w-3" />
                     Active
                   </span>
@@ -331,7 +331,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
 
                 <button
                   onClick={() => handleRemove(collab.email)}
-                  className="rounded-lg p-1.5 text-muted-foreground/50 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                  className="rounded-lg p-1.5 text-muted-foreground/50 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
                   title="Remove collaborator"
                 >
                   <X className="h-4 w-4" />

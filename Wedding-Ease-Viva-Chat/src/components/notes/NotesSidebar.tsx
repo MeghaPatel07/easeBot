@@ -300,11 +300,11 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
               onClick={() => setActiveFilter(key)}
               className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 text-xs ${
                 isActive
-                  ? 'bg-white/[0.1] text-[#C6944A] font-medium'
+                  ? 'bg-white/[0.1] text-[#A17A63] font-medium'
                   : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]'
               }`}
             >
-              <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? 'text-[#C6944A]' : 'text-white/35'}`} />
+              <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? 'text-[#A17A63]' : 'text-white/35'}`} />
               <span className="flex-1 text-left">{label}</span>
               {count > 0 && (
                 <span className={`text-[10px] rounded-full px-1.5 py-0.5 font-medium ${

@@ -2,6 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Theme boot — runs before React mounts to kill the dark-mode flash
+         on cold reload (Sprint 4, Hana, fixes Marcus QA C-2). Reads the
+         persisted theme synchronously and applies the `dark` class to <html>. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('easebot-theme');
+          if (t !== 'system' && t !== 'light' && t !== 'dark') t = 'system';
+          var dark = t === 'dark' || (t === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) { /* private mode / no storage */ }
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>EaseBot AI - Your Personal Wedding Planning Assistant</title>
     <meta name="description" content="EaseBot AI helps you plan your perfect wedding with personalized guidance, expert tips, and 24/7 support." />

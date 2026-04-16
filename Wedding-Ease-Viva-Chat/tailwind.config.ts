@@ -42,25 +42,33 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 
-				// Brand — Warm gold palette
+				// Brand — Bronze (Figma: #A17A63)
 				primary: {
-					DEFAULT:   '#C6944A',                 // warm gold
+					DEFAULT:   '#A17A63',                 // bronze
 					foreground:'hsl(var(--primary-foreground))',
-					container: '#F0E3CC',                 // light gold
-					muted:     '#B07D35',                 // deeper gold (hover / accent)
+					container: '#D6C1C7',                 // warm rose (header auto color)
+					muted:     '#8A6651',                 // deeper bronze (hover / accent)
 				},
 
-				// Secondary — warm beige
+				// Secondary — warm rose (Figma: #D6C1C7)
 				secondary: {
-					DEFAULT:   '#C9B89A',
+					DEFAULT:   '#D6C1C7',
 					foreground:'hsl(var(--secondary-foreground))',
-					container: '#F0E8DA',
+					container: '#E9DADD',
 				},
 
 				// Status
 				destructive: {
 					DEFAULT:   'hsl(var(--destructive))',
 					foreground:'hsl(var(--destructive-foreground))',
+				},
+
+				// Warning — semantic amber for non-destructive caution states.
+				// Sprint 4 (Hana) — additive token, replaces raw `bg-amber-500`
+				// in PlanBillingTab usage meter (Marcus QA M-10).
+				warning: {
+					DEFAULT:    'hsl(var(--warning))',
+					foreground: 'hsl(var(--warning-foreground))',
 				},
 
 				// Neutral surfaces
@@ -106,14 +114,12 @@ export default {
 					variant: 'hsl(var(--outline-variant))',
 				},
 
-				// AI Mode palette — each mode has a distinct brand colour
-				'mode-auto':        '#8A7E72',   // warm grey
-				'mode-planner':     '#C6944A',   // gold (= primary)
-				'mode-stylist':     '#D4AF37',   // gold
-				'mode-stylist-dark':'#B8860B',   // dark gold (hover / border)
-				'mode-therapist':   '#9B8B7A',   // warm taupe
-				'mode-knowledge':   '#6B5E52',   // warm brown
-				'mode-consultant':  '#A87C33',   // warm amber
+				// AI Mode palette — tuned to new bronze/rose theme
+				'mode-auto':        '#A17A63',   // bronze (primary)
+				'mode-planner':     '#D07A46',   // sidebar orange
+				'mode-stylist':     '#D6C1C7',   // header rose
+				'mode-stylist-dark':'#8A6651',   // deep bronze (hover / border)
+				'mode-knowledge':   '#603B25',   // dark bronze (stroke)
 			},
 
 			// ─── Border Radius ───────────────────────────────────────────────────────

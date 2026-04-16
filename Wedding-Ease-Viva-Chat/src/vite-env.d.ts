@@ -12,3 +12,8 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+// Build-time constants injected via Vite `define` (see vite.config.ts).
+// Sprint 4 (Hana) — replaces hardcoded APP_VERSION='0.0.0' (Marcus QA M-7).
+declare const __APP_VERSION__: string
+declare const __BUILD_TIME__: string

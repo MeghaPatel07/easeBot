@@ -16,6 +16,7 @@ import {
 import type { User } from 'firebase/auth'
 import { db } from '@/lib/firebase'
 import type { ReminderDoc, UserProfile } from '@/types'
+import { isDerivedPhoneEmail } from '@/services/authService'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ function resolveChannel(user: User, profile: UserProfile | null): 'email' | 'wha
   if (providerId === 'phone') return 'whatsapp'
 
   // Fallback: prefer email if we have a real one, else whatsapp if we have a phone
-  const hasRealEmail = !!(profile?.email && !profile.email.endsWith('@phone.weddingease.local'))
+  const hasRealEmail = !!(profile?.email && !isDerivedPhoneEmail(profile.email))
   if (hasRealEmail) return 'email'
   if (profile?.phone) return 'whatsapp'
   throw new Error('Cannot create reminder: account has no email or phone for notifications.')

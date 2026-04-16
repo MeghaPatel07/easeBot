@@ -69,7 +69,7 @@ export async function sendWhatsAppOtp(e164: string, purpose: OtpPurpose): Promis
   writeRecord(key, record)
 
   const formatted = WhatsAppService.formatPhoneNumber(e164)
-  const message = `Your The Wedding Bot verification code is: ${code}\n\n. Do not share it with anyone.`
+  const message = `Your The Wedding Bot verification code is: ${code}.\n\nDo not share it with anyone.`
   await WhatsAppService.sendWhatsAppMessage(formatted, message)
 }
 

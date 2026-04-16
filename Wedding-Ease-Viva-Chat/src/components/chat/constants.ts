@@ -49,8 +49,8 @@ export const MODE_CONFIG: ModeConfig[] = [
     label: 'Planner',
     description: 'Create timelines, tasks, and organize your wedding',
     icon: Calendar,
-    pill: 'bg-[#C6944A]/10 text-[#C6944A]',
-    active: 'bg-[#C6944A] text-white shadow-sm',
+    pill: 'bg-[#A17A63]/10 text-[#A17A63]',
+    active: 'bg-[#A17A63] text-white shadow-sm',
     inactive: 'text-white/60 hover:bg-white/15',
   },
   {
@@ -80,16 +80,16 @@ export const modeConfig = (key: ModeOrAuto): ModeConfig =>
 // Tag presets for conversation organization
 // ─────────────────────────────────────────────────────────────────────────────
 export const TAG_PRESETS = [
-  { name: 'Venue', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { name: 'Catering', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { name: 'Budget', color: 'bg-green-100 text-green-700 border-green-200' },
-  { name: 'Style', color: 'bg-pink-100 text-pink-700 border-pink-200' },
-  { name: 'Attire', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  { name: 'Music', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-  { name: 'Flowers', color: 'bg-rose-100 text-rose-700 border-rose-200' },
-  { name: 'Photo', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  { name: 'Guest List', color: 'bg-teal-100 text-teal-700 border-teal-200' },
-  { name: 'Other', color: 'bg-white/10 text-white/70 border-white/20' },
+  { name: 'Venue',      color: 'bg-blue-500/15 text-blue-300 border-blue-500/25' },
+  { name: 'Catering',   color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
+  { name: 'Budget',     color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' },
+  { name: 'Style',      color: 'bg-pink-500/15 text-pink-300 border-pink-500/25' },
+  { name: 'Attire',     color: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
+  { name: 'Music',      color: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25' },
+  { name: 'Flowers',    color: 'bg-rose-500/15 text-rose-300 border-rose-500/25' },
+  { name: 'Photo',      color: 'bg-amber-500/15 text-amber-300 border-amber-500/25' },
+  { name: 'Guest List', color: 'bg-teal-500/15 text-teal-300 border-teal-500/25' },
+  { name: 'Other',      color: 'bg-white/10 text-white/70 border-white/20' },
 ];
 
 export const getTagStyle = (tagName: string) =>

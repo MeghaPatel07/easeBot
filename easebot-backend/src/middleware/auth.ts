@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { adminAuth } from '../lib/firebaseAdmin'
 
 declare global {
   namespace Express {
@@ -8,37 +9,44 @@ declare global {
   }
 }
 
+/**
+ * requireAuth — verifies a Firebase ID token via the Admin SDK.
+ *
+ * Behavior contract (UNCHANGED — other routes depend on it):
+ *  - If no Bearer token is present, `req.user` stays undefined and we call
+ *    next() (anonymous / guest pass-through for chat, notes, etc.).
+ *  - If a Bearer token is present but invalid/expired, respond 401.
+ *  - If valid, attach `req.user = { uid, email, ... }` and call next().
+ */
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
-    // If no token is provided, proceed as guest
+    // No token → guest pass-through (preserved behavior)
     next()
     return
   }
-  const token = authHeader.split('Bearer ')[1]
-  try {
-    const apiKey = process.env.FIREBASE_API_KEY
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: token }),
-      }
-    )
-    if (!response.ok) {
-      res.status(401).json({ error: 'Invalid or expired token' })
-      return
-    }
-    const data = await response.json() as { users?: Array<{ localId: string; email?: string }> }
-    const firebaseUser = data.users?.[0]
-    if (!firebaseUser) {
-      res.status(401).json({ error: 'Invalid or expired token' })
-      return
-    }
-    req.user = { uid: firebaseUser.localId, email: firebaseUser.email }
-    next()
-  } catch {
+  const token = authHeader.split('Bearer ')[1]?.trim()
+  if (!token) {
     res.status(401).json({ error: 'Invalid or expired token' })
+    return
+  }
+  // Revocation check requires real Admin credentials (it calls getUser under the hood).
+  // Without a service account, basic signature verification still works — it only needs
+  // Google's public signing keys + FIREBASE_PROJECT_ID to validate the aud claim.
+  // Opt-in via env so prod with creds keeps the stronger check.
+  const checkRevoked = process.env.FIREBASE_CHECK_REVOKED === 'true'
+  try {
+    const decoded = await adminAuth.verifyIdToken(token, checkRevoked)
+    req.user = {
+      uid: decoded.uid,
+      email: decoded.email,
+      emailVerified: decoded.email_verified,
+      authTime: decoded.auth_time,
+    }
+    next()
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'token verification failed'
+    console.warn('[requireAuth] token verification failed:', message)
+    res.status(401).json({ error: 'Invalid or expired token', detail: message })
   }
 }

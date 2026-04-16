@@ -1,11 +1,12 @@
 import { Timestamp } from 'firebase/firestore'
 
+// Disabled: 'therapist' | 'consultant' removed per EXECUTION_PLAN §0 guardrail #7
 export type Mode =
   | 'planner'
   | 'stylist'
-  | 'therapist'
+  // | 'therapist'
   | 'knowledge'
-  | 'consultant'
+  // | 'consultant'
   | 'assistant'
 
 export type MessageRole = 'user' | 'assistant'
@@ -16,6 +17,27 @@ export interface TokenUsage {
   totalTokens: number
   requestCount: number
   lastUpdatedAt: Timestamp | null
+  // Sprint 1 (Settings & Profile redesign) — optional message-quota window.
+  // Optional for back-compat; populated by backfill / applyProfileDefaults.
+  messagesUsed?: number
+  messagesAllowed?: number
+  periodStart?: Timestamp
+  periodEnd?: Timestamp
+}
+
+// User-facing preferences (theme, density, language, notifications, privacy).
+// Added in Sprint 1 of the Settings & User Profile redesign (PRD §7).
+export interface UserPreferences {
+  theme?: 'system' | 'light' | 'dark'
+  density?: 'comfortable' | 'compact'
+  language?: string
+  notifications?: {
+    emailReminders?: boolean
+    whatsappReminders?: boolean
+    productUpdates?: boolean
+    tips?: boolean
+  }
+  dataTrainingOptOut?: boolean
 }
 
 export interface ToneSettings {
@@ -71,6 +93,23 @@ export interface UserProfile {
   voiceId?: string
   toneSettings?: ToneSettings
   activeVibe?: ActiveVibe | null
+  // ── Sprint 1: Settings & Profile redesign (PRD §7) ─────────────────────────
+  // All new fields are optional to preserve back-compat with existing
+  // Firestore documents and code paths. Defaults are applied at read time
+  // by `applyProfileDefaults` in services/migrations/userProfileMigration.ts.
+  plan?: 'free' | 'pro' | 'promax'
+  planRenewsAt?: Timestamp
+  trialEndsAt?: Timestamp
+  linkedProviders?: Array<'password' | 'google.com'>
+  preferences?: UserPreferences
+  // ── Sprint 4 (Kenji): Custom instructions (industry-gap #2 vs ChatGPT/Claude)
+  // Free-text "what should Easebot know about you" + "how should it respond".
+  // Persisted via PATCH /api/account/profile once backend whitelists.
+  about?: string
+  responseStyle?: string
+  // Identity origin — set on signup, used to lock the primary identifier
+  // (email for email-created accounts, phone for phone-created accounts).
+  authMethod?: 'email' | 'phone'
 }
 
 // ── Vibe Mode ─────────────────────────────────────────────────────────────────

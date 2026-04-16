@@ -70,7 +70,7 @@ export default function SharedChat() {
               </div>
             ) : (
               <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg">
-                <div className="mb-1 w-full prose prose-sm max-w-none text-caption leading-relaxed bg-white p-4 rounded-2xl rounded-tl-sm shadow-md shadow-stone-200/30 border border-border text-stone-700">
+                <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-white/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] text-[#D9C3C3]">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}
                     components={{
                       a: ({ href, children }) => (

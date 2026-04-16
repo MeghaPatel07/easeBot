@@ -23,9 +23,9 @@ function budgetStatus(spent: number, allocated: number): 'green' | 'amber' | 're
 }
 
 const statusColors = {
-  green: { bg: 'bg-emerald-50', border: 'border-emerald-200', bar: 'bg-emerald-400', dot: 'bg-emerald-400', text: 'text-emerald-600' },
-  amber: { bg: 'bg-amber-50', border: 'border-amber-200', bar: 'bg-amber-400', dot: 'bg-amber-400', text: 'text-amber-600' },
-  red: { bg: 'bg-red-500/10', border: 'border-red-200', bar: 'bg-red-400', dot: 'bg-red-400', text: 'text-red-600' },
+  green: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', bar: 'bg-emerald-400', dot: 'bg-emerald-400', text: 'text-emerald-300' },
+  amber: { bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   bar: 'bg-amber-400',   dot: 'bg-amber-400',   text: 'text-amber-300' },
+  red:   { bg: 'bg-red-500/10',     border: 'border-red-500/20',     bar: 'bg-red-400',     dot: 'bg-red-400',     text: 'text-red-300' },
 }
 
 interface BudgetDashboardProps {
@@ -68,7 +68,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-6">
         <div className="w-full max-w-sm bg-white/[0.06] backdrop-blur-sm rounded-2xl border border-border shadow-sm p-8 text-center">
-          <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+          <div className="h-12 w-12 rounded-2xl bg-[#A17A63]/10 flex items-center justify-center mx-auto mb-4">
             <DollarSign className="h-6 w-6 text-primary" />
           </div>
           <h2 className="text-base font-semibold text-white/85 mb-1">Set Your Wedding Budget</h2>
@@ -84,7 +84,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
               }
             }}
             placeholder="e.g. 25000"
-            className="w-full text-sm bg-white border border-primary/20 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30 mb-4 text-center"
+            className="w-full text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30 mb-4 text-center"
           />
           <button
             onClick={() => {
@@ -143,7 +143,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-xl bg-[#A17A63]/10 flex items-center justify-center">
             <DollarSign className="h-4 w-4 text-primary" />
           </div>
           <div>
@@ -211,7 +211,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                       value={editCatName}
                       onChange={(e) => setEditCatName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCategoryEdit(cat.id); if (e.key === 'Escape') setEditingCatId(null) }}
-                      className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/20"
+                      className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/20"
                     />
                     <input
                       type="number"
@@ -219,7 +219,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                       value={editCatAllocated}
                       onChange={(e) => setEditCatAllocated(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCategoryEdit(cat.id); if (e.key === 'Escape') setEditingCatId(null) }}
-                      className="w-20 sm:w-24 text-sm bg-white border border-primary/20 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/20"
+                      className="w-20 sm:w-24 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/20"
                     />
                     <button onClick={() => handleSaveCategoryEdit(cat.id)} className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
                       <Check className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
@@ -247,14 +247,14 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                     <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => { setEditingCatId(cat.id); setEditCatName(cat.name); setEditCatAllocated(String(cat.allocated)) }}
-                        className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-primary hover:bg-white/80 transition-colors"
+                        className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-primary hover:bg-white/[0.08] transition-colors"
                         title="Edit category"
                       >
                         <Edit3 className="h-3 w-3" />
                       </button>
                       <button
                         onClick={() => { if (!window.confirm('Delete this budget category? This cannot be undone.')) return; deleteBudgetCategory(userId, cat.id) }}
-                        className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-white/80 transition-colors"
+                        className="h-9 w-9 sm:h-6 sm:w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-white/[0.08] transition-colors"
                         title="Delete category"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -316,7 +316,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                           onChange={(e) => setNewItemDesc(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleAddLineItem(cat.id); if (e.key === 'Escape') { setShowAddItem(null); setNewItemDesc(''); setNewItemAmount(''); setNewItemVendor('') } }}
                           placeholder="Description"
-                          className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
+                          className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
                         />
                         <input
                           type="number"
@@ -325,7 +325,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                           onChange={(e) => setNewItemAmount(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleAddLineItem(cat.id) }}
                           placeholder="Amount"
-                          className="w-20 text-sm bg-white border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
+                          className="w-20 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -334,7 +334,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
                           onChange={(e) => setNewItemVendor(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleAddLineItem(cat.id) }}
                           placeholder="Vendor (optional)"
-                          className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
+                          className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/20 placeholder:text-white/30"
                         />
                         <button
                           onClick={() => handleAddLineItem(cat.id)}
@@ -375,7 +375,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
               onChange={(e) => setNewCatName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory() }}
               placeholder="Category name"
-              className="flex-1 text-sm bg-white border border-primary/20 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
+              className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
             />
             <input
               type="number"
@@ -384,7 +384,7 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
               onChange={(e) => setNewCatAllocated(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory() }}
               placeholder="Budget"
-              className="w-24 text-sm bg-white border border-primary/20 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
+              className="w-24 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
             />
             <button
               onClick={handleAddCategory}

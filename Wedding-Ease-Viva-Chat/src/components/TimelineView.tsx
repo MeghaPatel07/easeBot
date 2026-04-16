@@ -97,21 +97,21 @@ function getStatus(dateStr: string, completed: boolean): EntryStatus {
 
 const dotColor: Record<EntryStatus, string> = {
   completed: 'bg-emerald-500',
-  upcoming: 'bg-[#C6944A]',
+  upcoming: 'bg-[#A17A63]',
   overdue: 'bg-red-400',
   today: 'bg-amber-400',
 }
 
 const statusLabel: Record<EntryStatus, { text: string; className: string }> = {
   completed: { text: 'Completed', className: 'text-emerald-400' },
-  upcoming: { text: 'Upcoming', className: 'text-[#C6944A]' },
+  upcoming: { text: 'Upcoming', className: 'text-[#A17A63]' },
   overdue: { text: 'Overdue', className: 'text-red-400' },
   today: { text: 'Today', className: 'text-amber-400' },
 }
 
 const statusIcon: Record<EntryStatus, React.ReactNode> = {
   completed: <CheckCircle2 className="h-3 w-3 text-emerald-400" />,
-  upcoming: <Clock className="h-3 w-3 text-[#C6944A]" />,
+  upcoming: <Clock className="h-3 w-3 text-[#A17A63]" />,
   overdue: <AlertTriangle className="h-3 w-3 text-red-400" />,
   today: <Flag className="h-3 w-3 text-amber-400" />,
 }
@@ -596,9 +596,9 @@ export default function TimelineView({
             <p className="text-base font-bold text-emerald-400">{stats.completed}</p>
             <p className="text-3xs text-emerald-400/70 font-medium">Completed</p>
           </div>
-          <div className="flex-1 min-w-0 rounded-xl bg-[#C6944A]/10 border border-[#C6944A]/20 px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-[#C6944A]">{stats.upcoming}</p>
-            <p className="text-3xs text-[#C6944A]/70 font-medium">Upcoming</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-[#A17A63]/10 border border-[#A17A63]/20 px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-[#A17A63]">{stats.upcoming}</p>
+            <p className="text-3xs text-[#A17A63]/70 font-medium">Upcoming</p>
           </div>
           {stats.overdue > 0 && (
             <div className="flex-1 min-w-0 rounded-xl bg-red-500/10 border border-red-500/20 px-2.5 py-2 text-center">
@@ -652,7 +652,7 @@ export default function TimelineView({
                         <span
                           className={`text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none ${
                             entry.type === 'task'
-                              ? 'bg-[#C6944A]/15 text-[#C6944A]'
+                              ? 'bg-[#A17A63]/15 text-[#A17A63]'
                               : 'bg-blue-400/15 text-blue-400'
                           }`}
                         >
@@ -690,7 +690,7 @@ export default function TimelineView({
                             href={entry.htmlLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center ml-1.5 text-[#C6944A]/70 hover:text-[#C6944A] transition-colors"
+                            className="inline-flex items-center ml-1.5 text-[#A17A63]/70 hover:text-[#A17A63] transition-colors"
                           >
                             <ExternalLink className="h-3 w-3" />
                           </a>

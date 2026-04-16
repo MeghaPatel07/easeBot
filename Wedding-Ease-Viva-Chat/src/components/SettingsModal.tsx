@@ -42,7 +42,7 @@ function SliderRow({
     <div className="mb-4">
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm font-medium text-white/80">{label}</span>
-        <span className="text-xs font-bold text-[#C6944A] bg-[#C6944A]/10 px-2 py-0.5 rounded-full min-w-[2rem] text-center">{value}</span>
+        <span className="text-xs font-bold text-[#A17A63] bg-[#A17A63]/10 px-2 py-0.5 rounded-full min-w-[2rem] text-center">{value}</span>
       </div>
       <Slider
         value={[value]}
@@ -161,15 +161,15 @@ export function SettingsModal({ open, onClose }: Props) {
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="w-[95vw] sm:max-w-[520px] glass-panel rounded-[2rem] p-0 border border-white/15 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] overflow-hidden">
         {/* Decorative blurs */}
-        <div className="absolute -top-16 -right-16 w-40 h-40 bg-[#C6944A]/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-40 h-40 bg-[#A17A63]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#C6944A]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#A17A63]/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-h-[85dvh] overflow-hidden flex flex-col">
           {/* Header */}
           <div className="px-6 pt-6 pb-4">
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#C6944A] to-[#E8B86D] flex items-center justify-center shadow-lg shadow-[#C6944A]/20">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#A17A63] to-[#D6C1C7] flex items-center justify-center shadow-lg shadow-[#A17A63]/20">
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <h2 className="text-lg font-semibold text-white/95 tracking-tight">Personalize Your Experience</h2>
@@ -186,7 +186,7 @@ export function SettingsModal({ open, onClose }: Props) {
                   onClick={() => setActiveTab(id)}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium transition-all duration-200 ${
                     activeTab === id
-                      ? 'bg-gradient-to-r from-[#C6944A]/20 to-[#E8B86D]/10 text-[#E8B86D] border border-[#C6944A]/25 shadow-sm'
+                      ? 'bg-gradient-to-r from-[#A17A63]/20 to-[#D6C1C7]/10 text-[#D6C1C7] border border-[#A17A63]/25 shadow-sm'
                       : 'text-white/40 hover:text-white/60 hover:bg-white/[0.04]'
                   }`}
                 >
@@ -209,10 +209,10 @@ export function SettingsModal({ open, onClose }: Props) {
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="e.g. Priya, Babe, The Bride"
-                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-sm text-white/90 placeholder:text-white/25 focus:outline-none focus:border-[#C6944A]/40 focus:ring-2 focus:ring-[#C6944A]/15 focus:bg-white/[0.08] transition-all"
+                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-sm text-white/90 placeholder:text-white/25 focus:outline-none focus:border-[#A17A63]/40 focus:ring-2 focus:ring-[#A17A63]/15 focus:bg-white/[0.08] transition-all"
                   />
                 </div>
-                <div className="rounded-xl bg-gradient-to-br from-[#C6944A]/5 to-transparent border border-[#C6944A]/10 p-4">
+                <div className="rounded-xl bg-gradient-to-br from-[#A17A63]/5 to-transparent border border-[#A17A63]/10 p-4">
                   <p className="text-xs text-white/50 leading-relaxed">
                     Your nickname helps create a more personal and warm conversation experience. You can change it anytime.
                   </p>
@@ -262,7 +262,7 @@ export function SettingsModal({ open, onClose }: Props) {
                         onClick={() => setVoiceId(preset.id)}
                         className={`rounded-xl p-3.5 cursor-pointer text-left transition-all duration-200 ${
                           isSelected
-                            ? 'bg-gradient-to-br from-[#C6944A]/15 to-[#E8B86D]/5 border border-[#C6944A]/30 shadow-md shadow-[#C6944A]/10'
+                            ? 'bg-gradient-to-br from-[#A17A63]/15 to-[#D6C1C7]/5 border border-[#A17A63]/30 shadow-md shadow-[#A17A63]/10'
                             : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05]'
                         }`}
                       >
@@ -284,8 +284,8 @@ export function SettingsModal({ open, onClose }: Props) {
                               onClick={(e) => previewVoice(preset.id, e)}
                               className={`h-7 w-7 rounded-full flex items-center justify-center transition-all ${
                                 isPreviewing
-                                  ? 'bg-[#C6944A] text-white shadow-md shadow-[#C6944A]/30'
-                                  : 'text-white/35 hover:text-[#C6944A] hover:bg-[#C6944A]/10'
+                                  ? 'bg-[#A17A63] text-white shadow-md shadow-[#A17A63]/30'
+                                  : 'text-white/35 hover:text-[#A17A63] hover:bg-[#A17A63]/10'
                               }`}
                             >
                               {previewLoadingId === preset.id
@@ -295,7 +295,7 @@ export function SettingsModal({ open, onClose }: Props) {
                                   : <Volume2 size={13} />}
                             </span>
                             {isSelected && (
-                              <div className="h-5 w-5 rounded-full bg-[#C6944A] flex items-center justify-center">
+                              <div className="h-5 w-5 rounded-full bg-[#A17A63] flex items-center justify-center">
                                 <Check size={11} className="text-white" />
                               </div>
                             )}
@@ -325,7 +325,7 @@ export function SettingsModal({ open, onClose }: Props) {
               className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all min-w-[100px] ${
                 saveState === 'saved'
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : 'bg-gradient-to-r from-[#C6944A] to-[#E8B86D] text-white shadow-lg shadow-[#C6944A]/25 hover:shadow-[#C6944A]/40 hover:brightness-110 disabled:opacity-60'
+                  : 'bg-gradient-to-r from-[#A17A63] to-[#D6C1C7] text-white shadow-lg shadow-[#A17A63]/25 hover:shadow-[#A17A63]/40 hover:brightness-110 disabled:opacity-60'
               }`}
             >
               {saveState === 'saving' && (

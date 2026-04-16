@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Sparkles, Heart, MessageSquare, Calendar, Lightbulb, Globe,
   Lock, ArrowLeft, CheckSquare,
@@ -28,13 +28,17 @@ import NotesView from '@/components/notes/NotesView';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
 import InvitePartner from '@/components/InvitePartner';
-import { SettingsModal } from '@/components/SettingsModal';
+// Legacy SettingsModal is no longer rendered (Sprint 4, Hana — Marcus QA M-8).
+// SettingsShell is the canonical surface. The file is intentionally not deleted
+// because other codepaths / translations may still reference its exports.
+import { SettingsShell } from '@/pages/settings/SettingsShell';
 import { requestTTS } from '@/services/ttsService';
 import { subscribeToChecklists, computeStats } from '@/services/checklistService';
 import { subscribeToBudget, type BudgetData } from '@/services/budgetService';
 import { subscribeToTimelineEvents } from '@/services/timelineEventsService';
 import { addSavedItem } from '@/services/savedItemsService';
 import { getVoicePreset } from '@/services/voicePresets';
+import { getLocalVoiceId } from '@/services/settingsService';
 import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
 import '@fontsource/lato';
 import chatbotBg from '@/assets/images/chatbot background.avif';
@@ -100,7 +104,25 @@ const Index = () => {
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.innerWidth >= 768);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  // Sprint 4 (Hana, Marcus QA M-8): the legacy SettingsModal is no longer
+  // mounted. The sidebar/profile-menu "Open settings" buttons still call
+  // setShowSettingsModal(true); we shim that to deep-link the new SettingsShell
+  // via the ?settings=account query param (the canonical surface).
+  const [showSettingsModal, _setShowSettingsModalRaw] = useState(false);
+  const setShowSettingsModal = useCallback((next: boolean) => {
+    _setShowSettingsModalRaw(next);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (next) {
+        if (!url.searchParams.get('settings')) url.searchParams.set('settings', 'account');
+      } else {
+        url.searchParams.delete('settings');
+      }
+      window.history.pushState({}, '', url.toString());
+      // Notify React Router's useSearchParams listeners.
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  }, []);
   const [selectedMode, setSelectedMode] = useState<ModeOrAuto>('auto');
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState('');
@@ -499,7 +521,8 @@ const Index = () => {
     if (ttsAudioUrls[message.id]) { setTtsActiveId(message.id); return; }
     setTtsLoadingId(message.id);
     try {
-      const preset = profile?.voiceId ? getVoicePreset(profile.voiceId) : undefined;
+      const effectiveVoiceId = profile?.voiceId ?? getLocalVoiceId() ?? undefined;
+      const preset = effectiveVoiceId ? getVoicePreset(effectiveVoiceId) : undefined;
       const voiceName = preset?.geminiVoiceName;
       const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en');
       const audioUrl = await requestTTS({ text: message.text, voiceName, language: activeLang });
@@ -624,7 +647,7 @@ const Index = () => {
   // ── Shortcuts overlay ─────────────────────────────────────────────────────
   const shortcutsOverlayJSX = showShortcuts && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
-      <div className="bg-[#3A0E20] rounded-2xl shadow-2xl border border-white/15 p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#0F0D0C]/95 backdrop-blur-2xl rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-headline text-lg text-white/90 flex items-center gap-2">
             <Keyboard className="h-4 w-4 text-primary" />Keyboard Shortcuts
@@ -640,7 +663,7 @@ const Index = () => {
           ].map(({ keys, desc }) => (
             <div key={keys} className="flex items-center justify-between">
               <span className="text-xs text-white/60">{desc}</span>
-              <kbd className="text-2xs font-mono bg-white/10 text-white/60 px-2 py-0.5 rounded border border-white/15">{keys}</kbd>
+              <kbd className="text-2xs font-mono bg-white/[0.06] text-white/60 px-2 py-0.5 rounded">{keys}</kbd>
             </div>
           ))}
         </div>
@@ -667,20 +690,26 @@ const Index = () => {
   };
 
   const CHAT_SHARE_PLATFORMS = [
-    { name: 'WhatsApp', color: 'text-green-400',
-      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>,
-      getUrl: (url: string) => `https://wa.me/?text=${encodeURIComponent(`Check out this conversation: ${url}`)}` },
-    { name: 'Twitter / X', color: 'text-white',
-      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
-      getUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this wedding conversation from Wedding Ease!')}` },
-    { name: 'Email', color: 'text-blue-400',
-      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
-      getUrl: (url: string) => `mailto:?subject=${encodeURIComponent('Wedding Ease — Shared Conversation')}&body=${encodeURIComponent(`Check out this conversation: ${url}`)}` },
+    {
+      name: 'WhatsApp', color: 'text-green-400',
+      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>,
+      getUrl: (url: string) => `https://wa.me/?text=${encodeURIComponent(`Check out this conversation: ${url}`)}`
+    },
+    {
+      name: 'Twitter / X', color: 'text-white',
+      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>,
+      getUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this wedding conversation from Wedding Ease!')}`
+    },
+    {
+      name: 'Email', color: 'text-blue-400',
+      icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>,
+      getUrl: (url: string) => `mailto:?subject=${encodeURIComponent('Wedding Ease — Shared Conversation')}&body=${encodeURIComponent(`Check out this conversation: ${url}`)}`
+    },
   ];
 
   const shareModalJSX = shareModalUrl && (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShareModalUrl(null)}>
-      <div className="bg-[#2D0A1A]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#0F0D0C]/95 backdrop-blur-2xl rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white/90">Share conversation</h3>
@@ -690,7 +719,7 @@ const Index = () => {
         </div>
 
         {/* Title preview */}
-        <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+        <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-white/[0.04]">
           <p className="text-xs text-white/60 truncate">{shareModalTitle}</p>
           <p className="text-3xs text-white/30 mt-1">Link expires in 7 days</p>
         </div>
@@ -719,7 +748,7 @@ const Index = () => {
         {/* Native share (mobile) */}
         {typeof navigator !== 'undefined' && 'share' in navigator && (
           <button onClick={handleNativeShareChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#C6944A]/15 border border-[#C6944A]/25 text-sm text-[#C6944A] font-medium hover:bg-[#C6944A]/25 transition-colors">
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#A17A63]/15 text-sm text-[#A17A63] font-medium hover:bg-[#A17A63]/25 transition-colors">
             <Share2 className="h-4 w-4" />
             More sharing options
           </button>
@@ -784,34 +813,38 @@ const Index = () => {
     />
   );
 
-  // ── Settings modal (always mounted so sidebar button works from any view) ─
-  const settingsModalJSX = <SettingsModal open={showSettingsModal} onClose={() => setShowSettingsModal(false)} />;
+  // ── Settings shell (always mounted so sidebar button works from any view) ─
+  // Sprint 4 (Hana) — legacy <SettingsModal /> removed (Marcus QA M-8).
+  // showSettingsModal state still drives the open intent; setShowSettingsModal
+  // is shimmed above to deep-link via the ?settings=… query param.
+  void showSettingsModal;
+  const settingsModalJSX = <SettingsShell />;
 
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
-      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
-      {authModalsJSX}
+        {authModalsJSX}
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="flex items-center gap-2 px-2 sm:px-4 h-14  backdrop-blur-md border-b border-[#C6944A]/20 flex-shrink-0">
+          <header className="flex items-center gap-2 px-2 sm:px-4 h-14  backdrop-blur-md border-b border-[#A17A63]/20 flex-shrink-0">
             {sidebarToggleJSX}
             <h2 className="font-headline text-lg text-white/90">Planner</h2>
             <div className="ml-auto">{profileIconJSX}</div>
           </header>
           <div className="flex-1 overflow-hidden p-4">
             <ChecklistDetail
-            userId={user.uid}
-            checklistId={selectedChecklistId}
-            favourites={profile?.favourites ?? []}
-            recentlyToggledItemIds={recentlyToggledItemIds}
-            onClose={() => setSelectedChecklistId(null)}
-          />
-        </div>
+              userId={user.uid}
+              checklistId={selectedChecklistId}
+              favourites={profile?.favourites ?? []}
+              recentlyToggledItemIds={recentlyToggledItemIds}
+              onClose={() => setSelectedChecklistId(null)}
+            />
+          </div>
         </main>
       </div>
     );
@@ -819,7 +852,7 @@ const Index = () => {
 
   // ── Helper: main-area shell ───────────────────────────────────────────────
   const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
-    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}
@@ -861,7 +894,7 @@ const Index = () => {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
-            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)} className="text-left rounded-2xl bg-white/10 border border-primary/30 px-4 py-3.5 space-y-2 hover:bg-white/15 hover:border-primary/40 hover:shadow-sm transition-all duration-150">
+            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)} className="text-left rounded-2xl bg-white/[0.06] px-4 py-3.5 space-y-2 hover:bg-white/[0.1] transition-all duration-150">
               {msg.mode && <span className="inline-block text-3xs uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
               <p className="text-sm text-white/70 leading-relaxed line-clamp-5">{msg.text}</p>
               <p className="text-2xs text-white/40">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
@@ -935,15 +968,15 @@ const Index = () => {
   // ── Expanded chat view ────────────────────────────────────────────────────
   if (isExpanded) {
     return (
-      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
-      {authModalsJSX}
+        {authModalsJSX}
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
 
-        <main className="flex-1 flex flex-col relative overflow-hidden">
+        <main className="flex-1 min-w-0 flex flex-col relative overflow-hidden">
           <ChatHeader
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(v => !v)}
@@ -969,7 +1002,7 @@ const Index = () => {
           {/* Guest banner */}
           {!user && (
             <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
-              <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 border border-primary/20 text-xs text-white/70 gap-1.5">
+              <div className="flex items-center bg-white/[0.06] backdrop-blur-sm rounded-xl px-3 py-2 text-xs text-white/70 gap-1.5">
                 <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                 This chat won't be saved.{' '}
                 <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
@@ -1026,10 +1059,10 @@ const Index = () => {
           />
 
           {/* Input Bar Area */}
-          <div className="px-4 sm:px-6 pt-2 pb-1  flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="mt-auto px-4 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}>
             <ChatInput {...inputBarProps} placeholder="ask me anything" />
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
-            <p className="text-center text-3xs text-white/20 mt-2.5 uppercase tracking-[0.25em] font-medium">wedding ease — your day, perfected</p>
+            {/* <p className="text-center text-3xs text-white/20 mt-2.5 uppercase tracking-[0.25em] font-medium">wedding ease — your day, perfected</p> */}
           </div>
         </main>
       </div>
@@ -1038,7 +1071,7 @@ const Index = () => {
 
   // ── Landing page ──────────────────────────────────────────────────────────
   return (
-    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? 'md:pl-[256px]' : 'pl-0'}`} style={bgStyle}>
+    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}
@@ -1073,23 +1106,23 @@ const Index = () => {
             Mobile: top-aligned, tight spacing — everything must fit on a
             375×667 iPhone SE without scrolling. Desktop keeps the airy
             center-aligned hero. */}
-        <div className="flex-1 flex flex-col items-center justify-start sm:justify-center px-3 pt-3 pb-2 sm:p-6 noise-overlay relative floral-overlay overflow-y-auto">
+        <div className="flex-1 flex flex-col items-center justify-center px-3 pt-3 pb-2 sm:p-6 noise-overlay relative floral-overlay overflow-y-auto">
           <div className="text-center max-w-3xl mx-auto w-full relative z-10 flex flex-col items-center">
             <div className="relative z-10 w-full">
               {/* Bot avatar — smaller on mobile */}
-              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border-2 border-[#C6944A]/60 flex items-center justify-center shadow-lg mx-auto mb-2 sm:mb-4 bot-avatar overflow-hidden bg-gradient-to-br from-[#D4A853]/20 to-[#B07D35]/20">
-                <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#D4A853] to-[#B07D35] flex items-center justify-center text-white text-lg sm:text-2xl italic font-headline">E</div>
+              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border-2 border-[#A17A63]/60 flex items-center justify-center shadow-lg mx-auto mb-2 sm:mb-4 bot-avatar overflow-hidden bg-gradient-to-br from-[#B89382]/20 to-[#8A6651]/20">
+                <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#B89382] to-[#8A6651] flex items-center justify-center text-white text-lg sm:text-2xl italic font-headline">E</div>
               </div>
 
               {/* Brand labels — hidden on mobile; header already carries the app brand */}
-              <h1 className="hidden sm:block uppercase tracking-[0.2em] text-sm font-bold text-[#C6944A] text-center mb-0.5">Ease Bot</h1>
-              <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#C6944A]/60 font-label mb-6 text-center">Your Wedding Concierge</p>
+              <h1 className="hidden sm:block uppercase tracking-[0.2em] text-sm font-bold text-[#A17A63] text-center mb-0.5">Ease Bot</h1>
+              {/* <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#A17A63]/60 font-label mb-6 text-center">Your Wedding Concierge</p> */}
 
               {/* Hero heading — tighter on mobile */}
-              <h2 className="font-headline text-lg sm:text-2xl md:text-[1.5rem] text-white/90 mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
-                Hi, I'm here to <span className="italic text-[#C6944A]">guide you.</span>
+              <h2 className="font-headline text-lg sm:text-2xl md:text-[1.5rem] text-soft mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
+                Hi, I'm here to <span className="italic text-[#A17A63]">guide you.</span>
               </h2>
-              <p className="text-xs sm:text-sm text-white/50 mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
+              <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
                 Tell me your event, style or budget — I'll guide you step by step.
               </p>
 
@@ -1097,56 +1130,62 @@ const Index = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-5 max-w-2xl mx-auto">
                 {actionButtons.map((btn, i) => (
                   <button key={i} onClick={() => handleQuickPrompt(btn.action)} className="glass-action-card flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 rounded-xl sm:rounded-2xl py-2.5 sm:py-5 px-2 sm:px-3 group cursor-pointer">
-                    <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#C6944A]/70 group-hover:text-[#C6944A] transition-colors" />
-                    <span className="text-[11px] sm:text-xs font-medium text-white/55 group-hover:text-white/80 text-center leading-tight">{btn.text}</span>
+                    <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#A17A63]/70 group-hover:text-[#A17A63] transition-colors" />
+                    <span className="text-[11px] sm:text-xs font-medium text-soft text-center leading-tight">{btn.text}</span>
                   </button>
                 ))}
               </div>
 
               {/* "Not sure what you need?" banner — desktop only (mobile users have
                   the prompt cards above which already cover this) */}
-              <div className="hidden sm:flex items-center gap-3 bg-white/[0.06] backdrop-blur-md border border-white/[0.1] rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
-                <Sparkles className="w-5 h-5 text-[#C6944A]/70 flex-shrink-0" />
+              <div className="hidden sm:flex items-center gap-3 bg-white/[0.04] backdrop-blur-md rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
+                <Sparkles className="w-5 h-5 text-[#A17A63]/70 flex-shrink-0" />
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-white/80">Not sure what you need?</p>
-                  <p className="text-xs text-white/40">Tell me your event, style or budget</p>
+                  <p className="text-sm font-semibold text-soft">Not sure what you need?</p>
+                  <p className="text-xs text-soft">Tell me your event, style or budget</p>
                 </div>
                 <button
                   onClick={() => setInputText('Help me decide what I need for my wedding')}
-                  className="px-4 py-2 rounded-full bg-white/[0.08] backdrop-blur-md border border-white/[0.12] text-white/70 text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.14] hover:text-white/90 transition-all flex-shrink-0"
+                  className="px-4 py-2 rounded-full bg-white/[0.06] backdrop-blur-md text-soft text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-all flex-shrink-0"
                 >
                   Help me decide <Sparkles className="w-3 h-3" />
                 </button>
               </div>
 
-              {/* Occasion chips — horizontal scroll */}
-              <div className="w-full max-w-2xl mx-auto mb-3 sm:mb-6 overflow-x-auto scrollbar-hide">
-                <div className="flex gap-1.5 sm:gap-2 px-1 pb-1" style={{ minWidth: 'max-content' }}>
-                  {occasions.map((occ) => (
-                    <button
-                      key={occ}
-                      onClick={() => setSelectedOccasion(selectedOccasion === occ ? null : occ)}
-                      className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
-                        ? 'bg-[#C6944A]/20 border-[#C6944A]/40 text-[#C6944A]'
-                        : 'bg-white/[0.06] border-white/[0.1] text-white/55 hover:bg-white/10 hover:text-white/75'
-                      }`}
-                    >
-                      {occ}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <ChatInput {...inputBarProps} placeholder="Ask me anything " />
               <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
             </div>
           </div>
         </div>
 
+        {/* Bottom-anchored ChatInput — mirrors active chat layout so the landing
+            and chat pages share one input position (no floating input in middle). */}
+        <div className="flex-shrink-0 px-3 sm:px-6 pb-3 sm:pb-4 pt-2 relative z-10">
+          <div className="max-w-3xl mx-auto w-full">
+            {/* Occasion chips — horizontal scroll */}
+            <div className="overflow-x-scroll scrollbar-hide mb-2 min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex flex-nowrap gap-1.5 sm:gap-2 px-1 pb-1 w-max">
+                {occasions.map((occ) => (
+                  <button
+                    key={occ}
+                    onClick={() => setSelectedOccasion(selectedOccasion === occ ? null : occ)}
+                    className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
+                      ? 'bg-[#A17A63]/20 border-[#A17A63]/40 text-[#A17A63]'
+                      : 'bg-white/[0.06] border-white/[0.1] text-soft hover:bg-white/10'
+                      }`}
+                  >
+                    {occ}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ChatInput {...inputBarProps} placeholder="Ask me anything " />
+          </div>
+        </div>
+
         {/* Bottom tagline — desktop only; on mobile it's redundant and steals 30px */}
-        <p className="hidden sm:block flex-shrink-0 text-center py-3 text-2xs text-white/25 uppercase tracking-[0.25em] font-medium">
+        {/* <p className="hidden sm:block flex-shrink-0 text-center py-3 text-2xs text-white/25 uppercase tracking-[0.25em] font-medium">
           wedding ease — your day, perfected
-        </p>
+        </p> */}
       </main>
     </div>
   );

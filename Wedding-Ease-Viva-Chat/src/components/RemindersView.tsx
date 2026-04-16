@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { createReminder, deleteReminder } from '@/services/reminderService'
+import { isDerivedPhoneEmail } from '@/services/authService'
 import type { ReminderDoc } from '@/types'
 
 interface RemindersViewProps {
@@ -176,7 +177,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
       r.status === 'sent' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
       : r.status === 'failed' ? 'text-red-400 bg-red-500/10 border-red-500/20'
       : r.status === 'cancelled' ? 'text-white/40 bg-white/5 border-white/10'
-      : 'text-[#C6944A] bg-[#C6944A]/10 border-[#C6944A]/20'
+      : 'text-[#A17A63] bg-[#A17A63]/10 border-[#A17A63]/20'
 
     return (
       <div
@@ -284,7 +285,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
           <DialogHeader>
             <DialogTitle className="font-headline text-lg text-white/90">New Reminder</DialogTitle>
             <DialogDescription className="text-white/40 text-xs">
-              We'll notify you via {profile?.phone && !profile?.email?.endsWith?.('@phone.weddingease.local') ? 'email or WhatsApp' : profile?.phone ? 'WhatsApp' : 'email'} before the event.
+              We'll notify you via {profile?.phone && !isDerivedPhoneEmail(profile?.email) ? 'email or WhatsApp' : profile?.phone ? 'WhatsApp' : 'email'} before the event.
             </DialogDescription>
           </DialogHeader>
 

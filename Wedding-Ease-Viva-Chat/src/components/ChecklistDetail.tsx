@@ -234,7 +234,7 @@ export default function ChecklistDetail({
               if (e.key === 'Escape') { setShowAddInput(false); setNewItemText('') }
             }}
             placeholder="Type a new task and press Enter…"
-            className="flex-1 text-sm bg-white border border-primary/20 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
+            className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-white/30"
           />
           <button
             onClick={handleAddItem}
@@ -278,14 +278,14 @@ export default function ChecklistDetail({
                   isOverdue
                     ? 'bg-red-500/10/50 border-red-200'
                     : item.completed
-                    ? 'bg-emerald-50/50 border-emerald-100'
+                    ? 'bg-emerald-500/5 border-emerald-500/20'
                     : 'bg-white/[0.06] border-white/[0.06] hover:border-border hover:bg-white/[0.08]'
                 } ${justToggled ? 'ring-2 ring-blue-300 ring-offset-1' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Number badge */}
                   <span className={`flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center text-2xs font-bold ${
-                    isOverdue ? 'bg-red-100 text-red-600' : item.completed ? 'bg-emerald-100 text-emerald-600' : 'bg-primary/10 text-primary'
+                    isOverdue ? 'bg-red-500/15 text-red-300' : item.completed ? 'bg-emerald-500/15 text-emerald-300' : 'bg-primary/10 text-primary'
                   }`}>
                     {isOverdue ? '!' : item.completed ? '✓' : idx + 1}
                   </span>
@@ -309,7 +309,7 @@ export default function ChecklistDetail({
                         if (e.key === 'Escape') { setEditingItemId(null); setEditText('') }
                       }}
                       onBlur={() => submitEdit(item.id)}
-                      className="flex-1 text-sm bg-white border border-primary/20 rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/30"
+                      className="flex-1 text-sm bg-white/[0.04] border border-white/10 text-[#D9C3C3] rounded-lg px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/30"
                     />
                   ) : (
                     <span
@@ -376,7 +376,7 @@ export default function ChecklistDetail({
                       type="date"
                       value={item.dueDate ?? ''}
                       onChange={e => handleDueDateChange(item.id, e.target.value)}
-                      className="text-xs border border-primary/20 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 bg-white"
+                      className="text-xs border border-white/10 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 bg-white/[0.04] text-[#D9C3C3]"
                     />
                     {item.dueDate && (
                       <button

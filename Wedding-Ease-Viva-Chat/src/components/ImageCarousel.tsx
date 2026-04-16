@@ -135,7 +135,7 @@ function ImagePreview({
                 onClick={(e) => { e.stopPropagation(); setIndex(i); setScale(1) }}
                 className={`w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${
                   i === index
-                    ? 'border-[#C6944A] shadow-md shadow-[#C6944A]/30'
+                    ? 'border-[#A17A63] shadow-md shadow-[#A17A63]/30'
                     : 'border-white/20 opacity-60 hover:opacity-100'
                 }`}
               >
@@ -230,7 +230,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
               onClick={() => setActiveIndex(i)}
               className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
                 i === activeIndex
-                  ? 'border-[#C6944A] shadow-md shadow-[#C6944A]/20'
+                  ? 'border-[#A17A63] shadow-md shadow-[#A17A63]/20'
                   : 'border-transparent opacity-60 hover:opacity-100'
               }`}
             >

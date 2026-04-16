@@ -4,18 +4,19 @@ import type { Mode } from './types'
 // Returns the best-matching mode or 'assistant' as default.
 
 const MODE_PATTERNS: Array<{ mode: Mode; patterns: RegExp[] }> = [
-  {
-    mode: 'therapist',
-    patterns: [
-      /\b(stress|stressed|overwhelm|overwhelmed|anxious|anxiety|nervous|scared|afraid|panic|crying|upset|frustrated|exhausted|burnout|difficult|hard time|can't cope|breaking down|fight|argument|drama|in-law|mother.in.law|family conflict|disagree|pressure)\b/i,
-    ],
-  },
-  {
-    mode: 'consultant',
-    patterns: [
-      /\b(budget|cost|price|expensive|cheap|afford|money|spend|spending|save|saving|quote|negotiate|negotiating|worth it|value|tip|gratuity|payment|deposit|invoice|compare|breakdown|allocate)\b/i,
-    ],
-  },
+  // Disabled per EXECUTION_PLAN §0 guardrail #7:
+  // {
+  //   mode: 'therapist',
+  //   patterns: [
+  //     /\b(stress|stressed|overwhelm|overwhelmed|anxious|anxiety|nervous|scared|afraid|panic|crying|upset|frustrated|exhausted|burnout|difficult|hard time|can't cope|breaking down|fight|argument|drama|in-law|mother.in.law|family conflict|disagree|pressure)\b/i,
+  //   ],
+  // },
+  // {
+  //   mode: 'consultant',
+  //   patterns: [
+  //     /\b(budget|cost|price|expensive|cheap|afford|money|spend|spending|save|saving|quote|negotiate|negotiating|worth it|value|tip|gratuity|payment|deposit|invoice|compare|breakdown|allocate)\b/i,
+  //   ],
+  // },
   {
     mode: 'planner',
     patterns: [
@@ -38,8 +39,8 @@ const MODE_PATTERNS: Array<{ mode: Mode; patterns: RegExp[] }> = [
 
 export function detectMode(text: string): Mode {
   const scores: Record<Mode, number> = {
-    therapist: 0,
-    consultant: 0,
+    // therapist: 0, // disabled
+    // consultant: 0, // disabled
     planner: 0,
     stylist: 0,
     knowledge: 0,

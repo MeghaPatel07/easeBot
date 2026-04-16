@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { UserProfile } from '@/types';
 import { MODE_CONFIG, SUPPORTED_LANGUAGES, type ModeOrAuto } from './constants';
+import { ProfileMenu } from '@/components/ProfileMenu';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -75,7 +76,7 @@ export const ProfileIcon: React.FC<{
   <div>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="h-8 w-8 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+        <button className="h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors">
           <Avatar className="h-6 w-6">
             <AvatarImage src="" alt="Profile" />
             <AvatarFallback className="bg-primary/10 text-primary text-2xs font-semibold">
@@ -84,55 +85,15 @@ export const ProfileIcon: React.FC<{
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 text-white/80" align="end" forceMount>
-        {profile ? (
-          <>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{profile.name}</p>
-                <p className="text-xs leading-none text-muted-foreground">{profile.email}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="font-normal text-xs text-white/40 flex items-center gap-1.5 pb-1">
-              <Globe className="h-3 w-3" />Response language
-            </DropdownMenuLabel>
-            {SUPPORTED_LANGUAGES.map(({ code, label }) => (
-              <DropdownMenuItem key={code} className="cursor-pointer text-xs py-1.5" onClick={() => onLanguageChange(code)}>
-                <span className="flex-1">{label}</span>
-                {preferredLang === code && <span className="text-primary font-bold">&#10003;</span>}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-500" onClick={onSignOut}>
-              <LogOut className="mr-2 h-4 w-4" /><span>Sign Out</span>
-            </DropdownMenuItem>
-          </>
-        ) : (
-          <>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Account</p>
-                <p className="text-xs leading-none text-muted-foreground">Sign in to save your wedding plans</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={onShowSignIn}><LogIn className="mr-2 h-4 w-4" /><span>Sign In</span></DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onClick={onShowSignUp}><UserPlus className="mr-2 h-4 w-4" /><span>Create Account</span></DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer"><User className="mr-2 h-4 w-4" /><span>Continue as Guest</span></DropdownMenuItem>
-            <DropdownMenuSeparator className="sm:hidden" />
-            <DropdownMenuLabel className="font-normal text-xs text-white/40 flex items-center gap-1.5 pb-1 sm:hidden">
-              <Globe className="h-3 w-3" />Response Language
-            </DropdownMenuLabel>
-            {SUPPORTED_LANGUAGES.map(({ code, label }) => (
-              <DropdownMenuItem key={`guest-lang-${code}`} className="cursor-pointer text-xs py-1.5 sm:hidden" onClick={() => onLanguageChange(code)}>
-                <span className="flex-1">{label}</span>
-                {preferredLang === code && <span className="text-primary font-bold">&#10003;</span>}
-              </DropdownMenuItem>
-            ))}
-          </>
-        )}
+      <DropdownMenuContent className="w-64 text-soft" align="end" forceMount>
+        {/* Sprint 1: dropdown body extracted into <ProfileMenu /> (PRD §5).
+            Trigger button + props/callbacks above are intentionally untouched. */}
+        <ProfileMenu
+          isAuthenticated={!!user && !!profile}
+          onShowSignIn={onShowSignIn}
+          onShowSignUp={onShowSignUp}
+          onSignOut={onSignOut}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   </div>
@@ -159,10 +120,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 text-white/60 text-xs font-medium px-2 py-1 rounded-full hover:bg-white/10 transition-colors">
                 <Globe className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Lang</span>
+                <span className="hidden sm:inline">
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === preferredLang)?.label ?? 'Lang'}
+                </span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-[#3A0E20]/95 backdrop-blur-sm border border-white/10 shadow-lg text-white/80">
+            <DropdownMenuContent align="end" className="w-44 text-soft">
               <DropdownMenuLabel className="text-3xs text-white/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {SUPPORTED_LANGUAGES.map(({ code, label }) => (

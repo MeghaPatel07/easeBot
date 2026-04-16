@@ -28,7 +28,7 @@ export interface ChatInputProps {
 
 const COLLAPSED_MAX = 120;  // ~5 lines — normal state
 const EXPANDED_MAX = 400;   // ~16 lines — after user expands
-const MOBILE_COLLAPSED_MAX = 96;   // ~3 lines on mobile — comfortable but doesn't hog the viewport
+const MOBILE_COLLAPSED_MAX = 40;   // ~1 line on mobile — stays single-line until user expands
 const MOBILE_EXPANDED_MAX = 200;   // ~8 lines on mobile when user expands
 
 const ChatInput = ({
@@ -103,7 +103,7 @@ const ChatInput = ({
   // `data-mode-dropdown` marker so the closest()-based outside-click handler
   // works across both instances. State (showModeDropdown) is shared.
   const modeDropdownMenuJSX = showModeDropdown ? (
-    <div className="absolute bottom-full left-0 sm:left-auto sm:right-0 mb-2 w-[min(18rem,calc(100vw-2rem))] max-h-[60dvh] overflow-y-auto custom-scrollbar rounded-xl bg-[#2D0A1A]/95 backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/40 py-1.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+    <div className="absolute bottom-full left-0 sm:left-auto sm:right-0 mb-2 w-[min(18rem,calc(100vw-2rem))] max-h-[60dvh] overflow-y-auto custom-scrollbar rounded-xl bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/40 py-1.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
       {MODE_CONFIG.map(m => {
         const isActive = selectedMode === m.key;
         return (
@@ -112,11 +112,11 @@ const ChatInput = ({
             onClick={() => { onModeChange?.(m.key); setShowModeDropdown(false); }}
             className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors ${isActive ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'}`}
           >
-            <m.icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isActive ? 'text-[#C6944A]' : 'text-white/35'}`} />
+            <m.icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isActive ? 'text-[#A17A63]' : 'text-white/35'}`} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className={`text-sm font-medium ${isActive ? 'text-[#C6944A]' : 'text-white/75'}`}>{m.label}</span>
-                {isActive && <Check className="h-3 w-3 text-[#C6944A]" />}
+                <span className={`text-sm font-medium ${isActive ? 'text-[#A17A63]' : 'text-white/75'}`}>{m.label}</span>
+                {isActive && <Check className="h-3 w-3 text-[#A17A63]" />}
               </div>
               <p className="text-2xs text-white/35 leading-snug mt-0.5">{m.description}</p>
             </div>
@@ -134,14 +134,14 @@ const ChatInput = ({
         horizontally scrollable so more tool chips can live here later.
       */}
       {onModeChange && (
-        <div className="flex sm:hidden items-center gap-2 mb-2 px-0.5 overflow-x-auto scrollbar-hide">
+        <div className="flex sm:hidden items-center justify-center gap-2 mb-2 px-0.5 overflow-x-auto scrollbar-hide">
           <div className="relative flex-shrink-0" data-mode-dropdown>
             <button
               type="button"
               onClick={() => setShowModeDropdown(v => !v)}
               className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/[0.06] border border-white/[0.1] text-xs font-medium text-white/75 hover:bg-white/[0.1] active:scale-95 transition-all"
             >
-              <currentMode.icon className="h-3.5 w-3.5 text-[#C6944A]/80" />
+              <currentMode.icon className="h-3.5 w-3.5 text-[#A17A63]/80" />
               <span>{currentMode.label}</span>
               <ChevronDown className={`h-3 w-3 text-white/50 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
             </button>
@@ -167,20 +167,17 @@ const ChatInput = ({
           </div>
         )}
 
-        {/* Expand / collapse toggle */}
+        {/* Expand / collapse toggle — icon only */}
         {(isOverflowing || isExpanded) && (
           <div className="flex justify-end px-2 pt-1">
             <button
               type="button"
               onClick={() => setIsExpanded(v => !v)}
+              aria-label={isExpanded ? 'Collapse input' : 'Expand input'}
               title={isExpanded ? 'Collapse input' : 'Expand input'}
-              className="flex items-center gap-1 text-2xs text-white/40 hover:text-white/60 transition-colors"
+              className="h-6 w-6 inline-flex items-center justify-center rounded-full text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
             >
-              {isExpanded ? (
-                <><ChevronDown className="h-3 w-3" /><span>Collapse</span></>
-              ) : (
-                <><ChevronUp className="h-3 w-3" /><span>Expand</span></>
-              )}
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
             </button>
           </div>
         )}
@@ -192,7 +189,7 @@ const ChatInput = ({
             type="button"
             onClick={onAttachImage}
             title="Attach image"
-            className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center text-white/55 hover:text-[#C6944A] hover:bg-white/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0"
+            className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center text-white/55 hover:text-[#A17A63] hover:bg-white/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0"
           >
             <Plus className="h-5 w-5 sm:hidden" />
             <Image className="h-4 w-4 hidden sm:block" />
@@ -230,7 +227,7 @@ const ChatInput = ({
                   onClick={() => setShowModeDropdown(v => !v)}
                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-white/55 hover:text-white/75 hover:bg-white/[0.06] transition-colors"
                 >
-                  <currentMode.icon className="h-3.5 w-3.5 text-[#C6944A]/70" />
+                  <currentMode.icon className="h-3.5 w-3.5 text-[#A17A63]/70" />
                   <span>{currentMode.label}</span>
                   <ChevronDown className={`h-3 w-3 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
                 </button>
@@ -302,7 +299,7 @@ const ChatInput = ({
                 onClick={onSend}
                 disabled={!hasContent}
                 title="Send"
-                className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-11 w-11 sm:h-9 sm:w-9 items-center justify-center bg-gradient-to-br from-[#D4A853] to-[#B07D35] text-white rounded-full hover:from-[#C6944A] hover:to-[#9B6B2F] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md shadow-[#C6944A]/25 flex-shrink-0`}
+                className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-11 w-11 sm:h-9 sm:w-9 items-center justify-center bg-gradient-to-br from-[#B89382] to-[#8A6651] text-white rounded-full hover:from-[#A17A63] hover:to-[#603B25] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md shadow-[#A17A63]/25 flex-shrink-0`}
               >
                 <Send className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>

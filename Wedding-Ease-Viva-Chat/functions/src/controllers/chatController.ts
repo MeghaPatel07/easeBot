@@ -9,9 +9,9 @@ import { getRelevantProducts, formatProductsContext } from '../services/products
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
 import { getStylistPrompt } from '../prompts/stylist'
-import { getTherapistPrompt } from '../prompts/therapist'
+// import { getTherapistPrompt } from '../prompts/therapist' // disabled
 import { getKnowledgePrompt } from '../prompts/knowledge'
-import { getConsultantPrompt } from '../prompts/consultant'
+// import { getConsultantPrompt } from '../prompts/consultant' // disabled
 import { getAssistantPrompt } from '../prompts/assistant'
 import { getGuestPrompt } from '../prompts/guest'
 import { PLANNER_TOOLS, WEB_SEARCH_TOOL, executeToolCall } from '../services/plannerTools'
@@ -71,9 +71,9 @@ async function buildSystemPrompt(
   } else {
     switch (mode) {
       case 'planner':    base = getPlannerPrompt(userRole);    break
-      case 'therapist':  base = getTherapistPrompt();  break
+      // case 'therapist':  base = getTherapistPrompt();  break // disabled
       case 'knowledge':  base = getKnowledgePrompt();  break
-      case 'consultant': base = getConsultantPrompt(); break
+      // case 'consultant': base = getConsultantPrompt(); break // disabled
       default:           base = getAssistantPrompt()
     }
   }

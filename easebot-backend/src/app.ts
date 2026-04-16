@@ -6,7 +6,9 @@ import transcribeRouter from './routes/transcribe'
 import imageRouter from './routes/image'
 import checklistsRouter from './routes/checklists'
 import notesRouter from './routes/notes'
+import accountRouter from './routes/account'
 import ttsRouter from './routes/tts'
+import paymentRouter from './routes/payment'
 import healthRouter from './routes/health'
 import { getSpeechToken } from './controllers/speechTokenController'
 import { apiRateLimiter, imageRateLimiter } from './middleware/rateLimiter'
@@ -46,11 +48,15 @@ app.use(
   cors({
     origin: '*',
     credentials: false,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
   }),
 )
 
 app.use(express.json({ limit: '20mb' }))
+// PayU posts back to /api/payment/return and /webhook as application/x-www-form-urlencoded.
+// Without this parser those bodies arrive empty and handleReturn falls through to bad_payload.
+app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
 // --- Input sanitization & prompt injection guard ---
 app.use(inputSanitizer)
@@ -73,7 +79,9 @@ const mountRoutes = (prefix: string): void => {
   app.use(`${prefix}/generate-image`, imageRouter)
   app.use(`${prefix}/checklists`, checklistsRouter)
   app.use(`${prefix}/notes`, notesRouter)
+  app.use(`${prefix}/account`, accountRouter)
   app.use(`${prefix}/tts`, ttsRouter)
+  app.use(`${prefix}/payment`, paymentRouter)
   app.get(`${prefix}/speech-token`, getSpeechToken)
 }
 

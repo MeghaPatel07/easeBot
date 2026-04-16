@@ -10,14 +10,14 @@ import { IMAGE_TOOL, generateImageGptImage1, editImageGptImage1, extractStyleDes
 import { expandWithPromptArchitect, type PromptArchitectOutput } from '../services/promptArchitect'
 import { postProcessImage } from '../services/imagePostProcessor'
 import { storeMultipleImages } from '../services/imageStorage'
-import { checkImageQuota, incrementImageUsage } from '../services/imageQuota'
+import { getTier as meterGetTier } from '../services/tokenMeter'
 import { getRelevantProductsViaAlgolia, formatProductsContext } from '../services/algoliaProducts'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
 import { getStylistPrompt } from '../prompts/stylist'
-import { getTherapistPrompt } from '../prompts/therapist'
+// import { getTherapistPrompt } from '../prompts/therapist' // disabled
 import { getKnowledgePrompt } from '../prompts/knowledge'
-import { getConsultantPrompt } from '../prompts/consultant'
+// import { getConsultantPrompt } from '../prompts/consultant' // disabled
 import { getAssistantPrompt } from '../prompts/assistant'
 import {
   executeToolCall,
@@ -29,7 +29,7 @@ import {
   CREATE_NOTE_TOOL,
   CREATE_TIMELINE_EVENT_TOOL,
 } from '../services/plannerTools'
-import { incrementUserUsage } from '../services/usageService'
+import { chargeTokens, refundTokens } from '../services/tokenMeter'
 import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
 import { buildPersonalizationSuffix } from '../utils/toneInjector'
@@ -139,11 +139,11 @@ function getToolsForMode(mode: string, isLoggedIn: boolean): ChatCompletionTool[
         GET_CHECKLIST_STATS_TOOL,
       ]
     case 'stylist':
-    case 'therapist':
+    // case 'therapist': // disabled
     case 'knowledge':
       return [...base, CREATE_NOTE_TOOL]
-    case 'consultant':
-      return [...base, CREATE_NOTE_TOOL, CREATE_REMINDER_TOOL]
+    // case 'consultant': // disabled
+    //   return [...base, CREATE_NOTE_TOOL, CREATE_REMINDER_TOOL]
     default:
       return [...base, CREATE_NOTE_TOOL]
   }
@@ -189,30 +189,63 @@ function buildGroundingContext(mode: Mode, userProfile: UserProfileContext | nul
   return parts.join('. ')
 }
 
+/**
+ * Result of `buildSystemPrompt`: the composed prompt plus a flag indicating
+ * whether an algolia query was executed. The caller uses this flag to charge
+ * algolia via the normal post-Azure reconcile path (P0-2).
+ */
+interface SystemPromptResult {
+  prompt: string
+  algoliaQueried: boolean
+}
+
 async function buildSystemPrompt(
   mode: Mode,
   userMessage: string,
   userRole?: string | null,
   personalization?: UserPersonalization,
-  userProfile?: UserProfileContext | null
-): Promise<string> {
+  userProfile?: UserProfileContext | null,
+): Promise<SystemPromptResult> {
   const userContext = buildUserContextSuffix(userProfile)
 
   if (mode === 'stylist') {
     try {
       const products = await getRelevantProductsViaAlgolia(userMessage)
+      // P0-2: DO NOT charge algolia here. The caller is responsible for
+      // charging via chargeTokens after the main Azure call completes, so
+      // that a post-gate reconcile race cannot push the user over their
+      // monthly cap mid-turn. The pessimistic chat estimate in
+      // quotaMiddleware already reserves room for one algolia query.
       const context = formatProductsContext(products)
-      return getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext
+      return {
+        prompt: getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext,
+        algoliaQueried: true,
+      }
     } catch {
-      return getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext
+      return {
+        prompt: getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext,
+        algoliaQueried: false,
+      }
     }
   }
   switch (mode) {
-    case 'planner':    return getPlannerPrompt(userRole) + buildPersonalizationSuffix(personalization) + userContext
-    case 'therapist':  return getTherapistPrompt() + buildPersonalizationSuffix(personalization) + userContext
-    case 'knowledge':  return getKnowledgePrompt() + buildPersonalizationSuffix(personalization) + userContext
-    case 'consultant': return getConsultantPrompt() + buildPersonalizationSuffix(personalization) + userContext
-    default:           return getAssistantPrompt() + buildPersonalizationSuffix(personalization) + userContext
+    case 'planner':
+      return {
+        prompt: getPlannerPrompt(userRole) + buildPersonalizationSuffix(personalization) + userContext,
+        algoliaQueried: false,
+      }
+    // case 'therapist': disabled
+    case 'knowledge':
+      return {
+        prompt: getKnowledgePrompt() + buildPersonalizationSuffix(personalization) + userContext,
+        algoliaQueried: false,
+      }
+    // case 'consultant': disabled
+    default:
+      return {
+        prompt: getAssistantPrompt() + buildPersonalizationSuffix(personalization) + userContext,
+        algoliaQueried: false,
+      }
   }
 }
 
@@ -324,18 +357,8 @@ async function handleImageToolCall(
   const finalPrompt = architectOutput?.expandedPrompt ?? imgPrompt
   const negativePrompt = architectOutput?.negativePrompt
 
-  // Check quota for logged-in users
-  if (opts.isLoggedIn && opts.uid) {
-    const quota = await checkImageQuota(opts.uid, opts.isPremium)
-    if (!quota.allowed) {
-      return {
-        result: `Image generation quota exceeded. You've used ${quota.dailyUsed}/${quota.dailyLimit} images today. Try again after ${quota.resetAt}.`,
-        action: { tool: 'generate_image', imagePrompt: imgPrompt, imageAction: imgAction as any },
-        imageUrls: [],
-        styleDescriptors: [],
-      }
-    }
-  }
+  // Token-meter will enforce at charge time via tokenMeter; no pre-check here.
+  // Legacy imageQuota removed in Sprint 2.
 
   let base64Images: string[] = []
 
@@ -396,7 +419,15 @@ async function handleImageToolCall(
       vibeDescriptors: opts.vibeDescriptors && opts.vibeDescriptors.length > 0 ? opts.vibeDescriptors : null,
     })
     imageUrls = stored.map(s => s.url)
-    await incrementImageUsage(opts.uid, base64Images.length)
+    try {
+      const tier = await meterGetTier(opts.uid)
+      await chargeTokens(
+        { kind: 'user', id: opts.uid, tier },
+        { kind: 'image', quality: 'standard', count: base64Images.length },
+      )
+    } catch (err) {
+      console.error('[chatController] image token charge failed', err)
+    }
   } else {
     // Guest users: return data URIs (no storage)
     imageUrls = base64Images.map(b64 => `data:image/png;base64,${b64}`)
@@ -444,6 +475,10 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
   const uid = req.user?.uid ?? null
   const isLoggedIn = uid !== null
 
+  // P0-1: hoisted refund tracking — see streaming handler for rationale.
+  let chargedTokens = 0
+  let chargedConsumedFrom: 'monthly' | 'extras' | 'both' | null = null
+
   try {
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, language)
     const mode: Mode = requestedMode ?? detectMode(englishText)
@@ -468,10 +503,18 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     }
 
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
-      + buildLanguageInstruction(targetLanguage)
-      + buildVibeSystemSuffix(vibeTitle, vibeDescriptors)
-      + buildForceImageSuffix(forceImageGeneration)
+    const { prompt: baseSystemPrompt, algoliaQueried } = await buildSystemPrompt(
+      mode,
+      englishText,
+      userRole,
+      userPersonalization,
+      userProfile,
+    )
+    const systemPrompt =
+      baseSystemPrompt +
+      buildLanguageInstruction(targetLanguage) +
+      buildVibeSystemSuffix(vibeTitle, vibeDescriptors) +
+      buildForceImageSuffix(forceImageGeneration)
 
     // Conversation summarization: compress older messages when history is long
     let effectiveHistory = history
@@ -506,21 +549,101 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
     // Pass user-attached image as vision data so LLM can see it
     const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
+    // P0-3: count actual vision image parts so we charge what we sent.
+    const visionImageCount = visionData ? 1 : 0
 
     const aiResult = await callAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)
 
-    // Store token usage for logged-in users only.
-    // Anonymous usage is intentionally not persisted — there is no anonymous
-    // usage bucket in Firestore and usage counters live on users/{uid}.
+    // Post-call reconciliation. We charge directly (instead of via the
+    // quotaCtx.reconcile closure) so we can observe the ChargeResult and
+    // capture tokensCharged / consumedFrom — needed by P0-1 refund on catch.
     console.log(`[chatController] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, aiResult.usage)
-    if (isLoggedIn && uid && aiResult.usage) {
-      incrementUserUsage(uid, aiResult.usage).catch(err =>
-        console.error('[chatController] usage write failed', err)
-      )
-    } else {
-      // Downgraded from warn → debug: this is expected for anonymous users
-      // and for responses without a usage payload; it is not an error.
-      console.debug(`[chatController] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!aiResult.usage}`)
+    if (req.quotaContext) {
+      const ctx = req.quotaContext
+      if (!ctx._reconciled) {
+        ctx._reconciled = true
+        try {
+          const chatResult = await chargeTokens(ctx.subject, {
+            kind: 'chat',
+            promptTokens: aiResult.usage?.promptTokens ?? 0,
+            completionTokens: aiResult.usage?.completionTokens ?? 0,
+          })
+          if (chatResult.allowed && chatResult.tokensCharged > 0 && chatResult.consumedFrom !== 'none') {
+            chargedTokens += chatResult.tokensCharged
+            chargedConsumedFrom = chatResult.consumedFrom
+            try {
+              if (!res.headersSent) {
+                res.setHeader('X-Easebot-Tokens-Charged', String(chatResult.tokensCharged))
+                res.setHeader('X-Easebot-Remaining-Monthly', String(chatResult.remainingMonthly))
+                res.setHeader('X-Easebot-Remaining-Daily', String(chatResult.remainingDaily))
+              }
+            } catch {
+              // headers already sent — fine.
+            }
+          } else if (!chatResult.allowed) {
+            console.warn('[chatController] chat reconcile denied post-call', {
+              uid,
+              reason: chatResult.reason,
+            })
+          }
+        } catch (err) {
+          console.error('[chatController] reconcile failed', err)
+        }
+      }
+
+      // P0-2: charge algolia here (not inside buildSystemPrompt) so the
+      // pessimistic estimate gate remains authoritative.
+      if (algoliaQueried) {
+        try {
+          const algoliaResult = await chargeTokens(ctx.subject, {
+            kind: 'algolia',
+            queries: 1,
+          })
+          if (algoliaResult.allowed && algoliaResult.tokensCharged > 0 && algoliaResult.consumedFrom !== 'none') {
+            chargedTokens += algoliaResult.tokensCharged
+            if (chargedConsumedFrom && chargedConsumedFrom !== algoliaResult.consumedFrom) {
+              chargedConsumedFrom = 'both'
+            } else {
+              chargedConsumedFrom = algoliaResult.consumedFrom
+            }
+          } else if (!algoliaResult.allowed) {
+            console.warn('[tokenMeter] algolia charge denied post-call', {
+              uid,
+              reason: algoliaResult.reason,
+            })
+          }
+        } catch (err) {
+          console.warn('[chatController] algolia charge threw (swallowed)', err)
+        }
+      }
+
+      // P0-3: await the vision charge and log its outcome instead of
+      // fire-and-forgetting. The HTTP response is not yet sent here, but we
+      // still accept that a denial post-call is logged rather than surfaced.
+      if (visionData && visionImageCount > 0) {
+        try {
+          const visionResult = await chargeTokens(ctx.subject, {
+            kind: 'vision',
+            imageCount: visionImageCount,
+          })
+          if (visionResult.allowed && visionResult.tokensCharged > 0 && visionResult.consumedFrom !== 'none') {
+            chargedTokens += visionResult.tokensCharged
+            if (chargedConsumedFrom && chargedConsumedFrom !== visionResult.consumedFrom) {
+              chargedConsumedFrom = 'both'
+            } else {
+              chargedConsumedFrom = visionResult.consumedFrom
+            }
+          } else if (!visionResult.allowed) {
+            console.warn('[tokenMeter] vision charge denied post-call', {
+              uid,
+              reason: visionResult.reason,
+              imageCount: visionImageCount,
+            })
+          }
+        } catch (err) {
+          console.warn('[chatController] vision charge threw (swallowed)', err)
+        }
+      }
     }
 
     const toolActions: ToolAction[] = []
@@ -620,6 +743,24 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     res.status(200).json(response)
   } catch (err: any) {
     console.error('[chatController]', err)
+    // P0-1: if reconcile already debited before the failure, refund.
+    if (chargedTokens > 0 && chargedConsumedFrom && req.quotaContext?.subject) {
+      try {
+        await refundTokens(
+          req.quotaContext.subject,
+          chargedTokens,
+          chargedConsumedFrom,
+          'chat',
+        )
+      } catch (refundErr) {
+        console.warn('[chatController] refund on handler error failed (swallowed)', {
+          uid: req.quotaContext.subject.id,
+          chargedTokens,
+          chargedConsumedFrom,
+          err: refundErr instanceof Error ? refundErr.message : String(refundErr),
+        })
+      }
+    }
     res.status(500).json({ error: err.message ?? 'Internal server error' })
   }
 }
@@ -633,6 +774,11 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   res.flushHeaders()
 
   const sse = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`)
+
+  // P0-1: hoisted so the outer catch can refund if the stream throws after
+  // we have already debited tokens.
+  let chargedTokens = 0
+  let chargedConsumedFrom: 'monthly' | 'extras' | 'both' | null = null
 
   try {
     const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors } = req.body as ChatPayload
@@ -667,10 +813,18 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     }
 
     const targetLanguage = determineTargetLanguage(language, detectedLanguage)
-    const systemPrompt = await buildSystemPrompt(mode, englishText, userRole, userPersonalization, userProfile)
-      + buildLanguageInstruction(targetLanguage)
-      + buildVibeSystemSuffix(vibeTitle, vibeDescriptors)
-      + buildForceImageSuffix(forceImageGeneration)
+    const { prompt: baseSystemPrompt, algoliaQueried } = await buildSystemPrompt(
+      mode,
+      englishText,
+      userRole,
+      userPersonalization,
+      userProfile,
+    )
+    const systemPrompt =
+      baseSystemPrompt +
+      buildLanguageInstruction(targetLanguage) +
+      buildVibeSystemSuffix(vibeTitle, vibeDescriptors) +
+      buildForceImageSuffix(forceImageGeneration)
 
     // Conversation summarization: compress older messages when history is long
     let effectiveHistory = history
@@ -704,11 +858,17 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     // Pass user-attached image as vision data so LLM can see it
     const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
+    // P0-3: actual vision image count (currently vision is single-image per turn).
+    const visionImageCount = visionData ? 1 : 0
 
     const toolActions: ToolAction[] = []
     let imageUrls: string[] = []
     let imageToolStyleMemory: import('../types').StyleMemory | undefined
     let fullText = ''
+
+    // P0-1: `chargedTokens` and `chargedConsumedFrom` are hoisted above the
+    // try block so the outer catch can refund them. Updated only on a
+    // successful charge (allowed === true).
 
     // ── Stream first LLM call ────────────────────────────────────────────────
     let firstPassToolCalls: { id: string; name: string; args: Record<string, any> }[] = []
@@ -724,18 +884,97 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    // Store token usage for logged-in users only.
-    // Anonymous usage is intentionally not persisted — there is no anonymous
-    // usage bucket in Firestore and usage counters live on users/{uid}.
     console.log(`[chatController:stream] usage — isLoggedIn=${isLoggedIn} uid=${uid} usage=`, streamUsage)
-    if (isLoggedIn && uid && streamUsage) {
-      incrementUserUsage(uid, streamUsage).catch(err =>
-        console.error('[chatController:stream] usage write failed', err)
-      )
-    } else {
-      // Downgraded from warn → debug: this is expected for anonymous users
-      // and for responses without a usage payload; it is not an error.
-      console.debug(`[chatController:stream] skipping usage write — isLoggedIn=${isLoggedIn} uid=${uid} hasUsage=${!!streamUsage}`)
+    if (req.quotaContext) {
+      // P0-1: charge chat directly (not via the reconcile closure) so we can
+      // observe the ChargeResult and capture tokensCharged / consumedFrom for
+      // a later refund if the stream blows up after this point.
+      const ctx = req.quotaContext
+      if (!ctx._reconciled) {
+        ctx._reconciled = true
+        try {
+          const chatResult = await chargeTokens(ctx.subject, {
+            kind: 'chat',
+            promptTokens: streamUsage?.promptTokens ?? 0,
+            completionTokens: streamUsage?.completionTokens ?? 0,
+          })
+          if (chatResult.allowed && chatResult.tokensCharged > 0 && chatResult.consumedFrom !== 'none') {
+            chargedTokens += chatResult.tokensCharged
+            chargedConsumedFrom = chatResult.consumedFrom
+            try {
+              if (!res.headersSent) {
+                res.setHeader('X-Easebot-Tokens-Charged', String(chatResult.tokensCharged))
+                res.setHeader('X-Easebot-Remaining-Monthly', String(chatResult.remainingMonthly))
+                res.setHeader('X-Easebot-Remaining-Daily', String(chatResult.remainingDaily))
+              }
+            } catch {
+              // headers already sent mid-stream is expected; ignore.
+            }
+          } else if (!chatResult.allowed) {
+            console.warn('[chatController:stream] chat reconcile denied post-call', {
+              uid,
+              reason: chatResult.reason,
+            })
+          }
+        } catch (err) {
+          console.error('[chatController:stream] reconcile failed', err)
+        }
+      }
+
+      // P0-2: algolia charge moved out of buildSystemPrompt; charge it here
+      // alongside the chat reconcile. Estimate already reserved room.
+      if (algoliaQueried) {
+        try {
+          const algoliaResult = await chargeTokens(req.quotaContext.subject, {
+            kind: 'algolia',
+            queries: 1,
+          })
+          if (algoliaResult.allowed && algoliaResult.tokensCharged > 0 && algoliaResult.consumedFrom !== 'none') {
+            chargedTokens += algoliaResult.tokensCharged
+            // If we already captured a consumedFrom, promote to 'both' when
+            // the dimensions differ. This is conservative: the refund helper
+            // handles 'both' safely.
+            if (chargedConsumedFrom && chargedConsumedFrom !== algoliaResult.consumedFrom) {
+              chargedConsumedFrom = 'both'
+            } else {
+              chargedConsumedFrom = algoliaResult.consumedFrom
+            }
+          } else if (!algoliaResult.allowed) {
+            console.warn('[tokenMeter] algolia charge denied post-call', {
+              uid,
+              reason: algoliaResult.reason,
+            })
+          }
+        } catch (err) {
+          console.warn('[chatController:stream] algolia charge threw (swallowed)', err)
+        }
+      }
+
+      // P0-3: await vision charge and log outcome. Use the real image count.
+      if (visionData && visionImageCount > 0) {
+        try {
+          const visionResult = await chargeTokens(req.quotaContext.subject, {
+            kind: 'vision',
+            imageCount: visionImageCount,
+          })
+          if (visionResult.allowed && visionResult.tokensCharged > 0 && visionResult.consumedFrom !== 'none') {
+            chargedTokens += visionResult.tokensCharged
+            if (chargedConsumedFrom && chargedConsumedFrom !== visionResult.consumedFrom) {
+              chargedConsumedFrom = 'both'
+            } else {
+              chargedConsumedFrom = visionResult.consumedFrom
+            }
+          } else if (!visionResult.allowed) {
+            console.warn('[tokenMeter] vision charge denied post-call', {
+              uid,
+              reason: visionResult.reason,
+              imageCount: visionImageCount,
+            })
+          }
+        } catch (err) {
+          console.warn('[chatController:stream] vision charge threw (swallowed)', err)
+        }
+      }
     }
 
     // ── Force-image-generation fallback ──────────────────────────────────────
@@ -845,6 +1084,27 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     res.end()
   } catch (err: any) {
     console.error('[chatController:stream]', err)
+    // P0-1: if we already debited the user before the stream threw, refund
+    // the debit. We capture tokensCharged + consumedFrom on each successful
+    // charge above; any error reaching this catch means the turn did not
+    // deliver to the user in full.
+    if (chargedTokens > 0 && chargedConsumedFrom && req.quotaContext?.subject) {
+      try {
+        await refundTokens(
+          req.quotaContext.subject,
+          chargedTokens,
+          chargedConsumedFrom,
+          'chat',
+        )
+      } catch (refundErr) {
+        console.warn('[chatController:stream] refund on stream error failed (swallowed)', {
+          uid: req.quotaContext.subject.id,
+          chargedTokens,
+          chargedConsumedFrom,
+          err: refundErr instanceof Error ? refundErr.message : String(refundErr),
+        })
+      }
+    }
     sse({ t: 'e', msg: err.message ?? 'Internal server error' })
     res.end()
   }

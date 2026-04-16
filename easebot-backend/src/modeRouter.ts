@@ -40,8 +40,8 @@ const MODE_PATTERNS: Array<{ mode: Mode; patterns: RegExp[] }> = [
 
 export function detectMode(text: string): Mode {
   const scores: Record<Mode, number> = {
-    therapist: 0,  // disabled
-    consultant: 0, // disabled
+    // therapist: 0,  // disabled
+    // consultant: 0, // disabled
     planner: 0,
     stylist: 0,
     knowledge: 0,

@@ -33,7 +33,7 @@ export default function ImagesHub({ sendMessage, startNewChat }: ImagesHubProps)
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:space-y-8 sm:px-6">
+    <main className="mx-auto max-w-6xl space-y-6 px-4 pt-6 pb-2 sm:px-6">
       <header className="space-y-1">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Images</h1>
         <p className="text-sm text-muted-foreground sm:text-base">
@@ -97,7 +97,7 @@ export default function ImagesHub({ sendMessage, startNewChat }: ImagesHubProps)
           />
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-5 text-center shadow-lg shadow-black/10 backdrop-blur-xl">
+        <div className="rounded-2xl bg-white/[0.04] p-5 text-center shadow-lg shadow-black/10 backdrop-blur-xl">
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
             <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>

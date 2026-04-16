@@ -288,7 +288,7 @@ export default function ProgressDashboard({
           {nextSteps.map((step, i) => (
             <div
               key={i}
-              className="flex items-start gap-2.5 rounded-xl bg-amber-50 border border-amber-100 p-3"
+              className="flex items-start gap-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 p-3"
             >
               <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
               <span className="text-sm text-white/70">{step}</span>

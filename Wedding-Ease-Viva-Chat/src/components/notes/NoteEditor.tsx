@@ -181,7 +181,7 @@ export default function NoteEditor({
     return (
       <div className="relative min-h-[500px] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-6 w-6 border-2 border-white/20 border-t-[#C6944A] rounded-full animate-spin" />
+          <div className="h-6 w-6 border-2 border-white/20 border-t-[#A17A63] rounded-full animate-spin" />
           <span className="text-sm text-white/30">Loading editor...</span>
         </div>
       </div>
@@ -251,7 +251,7 @@ const editorStyles = `
   margin: 0;
 }
 .ProseMirror blockquote {
-  border-left: 3px solid #C6944A;
+  border-left: 3px solid #A17A63;
   padding-left: 1em;
   margin: 0.5em 0;
   opacity: 0.85;
@@ -307,7 +307,7 @@ const editorStyles = `
   gap: 8px;
 }
 .ProseMirror ul[data-type="taskList"] li label input[type="checkbox"] {
-  accent-color: #C6944A;
+  accent-color: #A17A63;
   margin-top: 4px;
 }
 .ProseMirror p.is-editor-empty:first-child::before {
@@ -329,7 +329,7 @@ const editorStyles = `
   padding: 1px 2px;
 }
 .ProseMirror a {
-  color: #C6944A;
+  color: #A17A63;
   text-decoration: underline;
   cursor: pointer;
 }
@@ -338,7 +338,7 @@ const editorStyles = `
 }
 .ProseMirror .callout-block {
   background: rgba(198, 148, 74, 0.08);
-  border-left: 4px solid #C6944A;
+  border-left: 4px solid #A17A63;
   border-radius: 6px;
   padding: 12px 16px;
   margin: 0.5em 0;
