@@ -142,7 +142,7 @@ export default function Pricing() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-white/85">
+    <div className="min-h-screen bg-background text-soft">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
       </div>
 
@@ -173,7 +173,7 @@ export default function Pricing() {
           <div
             role="tablist"
             aria-label="Billing cycle"
-            className="inline-flex rounded-full border border-white/10 bg-white/[0.02] p-1"
+            className="inline-flex rounded-full bg-white/[0.04] p-1"
           >
             {(['monthly', 'annual'] as BillingCycle[]).map((c) => (
               <button
@@ -199,7 +199,7 @@ export default function Pricing() {
               aria-label="Currency"
               value={currency}
               onChange={(e) => handleCurrencyOverride(e.target.value)}
-              className="min-h-9 rounded-md border border-white/10 bg-white/[0.02] px-2 text-white/80 focus:outline-none focus:ring-2 focus:ring-primary"
+              className="min-h-9 rounded-xl bg-white/[0.04] px-2 text-soft focus:outline-none focus:ring-1 focus:ring-white/10 transition-colors"
             >
               {CURRENCY_OPTIONS.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -212,7 +212,7 @@ export default function Pricing() {
         {checkoutError && (
           <div
             role="alert"
-            className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
           >
             {checkoutError}
           </div>
@@ -242,7 +242,7 @@ export default function Pricing() {
 
         <section
           aria-label="Token top-up pack"
-          className="mb-12 rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+          className="mb-12 rounded-2xl bg-white/[0.03] backdrop-blur-sm p-6"
         >
           <h2 className="font-headline text-xl text-white mb-1">Need more tokens?</h2>
           <p className="text-xs text-white/50 mb-4">
@@ -264,7 +264,7 @@ export default function Pricing() {
                   aria-disabled="true"
                   title="Upgrade to Pro first"
                   aria-label="Buy top-up — upgrade to Pro first"
-                  className="min-h-11 rounded-md bg-primary/40 px-5 text-sm font-medium text-primary-foreground/70 cursor-not-allowed disabled:opacity-60"
+                  className="min-h-11 rounded-xl bg-primary/40 px-5 text-sm font-medium text-primary-foreground/70 cursor-not-allowed disabled:opacity-60"
                 >
                   Buy top-up
                 </button>
@@ -273,7 +273,7 @@ export default function Pricing() {
                   type="button"
                   onClick={handleTopup}
                   aria-label="Buy 2 million token top-up pack"
-                  className="min-h-11 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  className="min-h-11 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
                   Buy top-up
                 </button>

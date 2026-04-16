@@ -122,18 +122,17 @@ export function PricingTierCard({
       aria-labelledby={`tier-${tier}-name`}
       aria-describedby={isRecommended ? `tier-${tier}-recommended` : undefined}
       className={cn(
-        'relative flex flex-col rounded-2xl border p-6 backdrop-blur-sm transition-colors',
+        'relative flex flex-col rounded-2xl border-0 p-6 backdrop-blur-sm transition-colors',
         isRecommended
-          ? 'border-primary/60 bg-primary/5 shadow-[0_0_0_1px_rgba(198,148,74,0.55),0_0_32px_rgba(198,148,74,0.22),0_12px_40px_-16px_rgba(198,148,74,0.35)]'
-          : 'border-white/10 bg-white/[0.02]',
-        tier === 'promax' && !isRecommended && 'border-primary-muted/40',
+          ? 'bg-primary/[0.06] shadow-[0_0_32px_rgba(198,148,74,0.15),0_12px_40px_-16px_rgba(198,148,74,0.2)]'
+          : 'bg-white/[0.03]',
       )}
     >
       {/* Recommended ribbon — DOM slot preserved on all cards for height parity */}
       <span
         id={isRecommended ? `tier-${tier}-recommended` : undefined}
         className={cn(
-          'absolute -top-3 left-6 rounded-full border border-primary/60 bg-background px-3 py-0.5 text-2xs uppercase tracking-wide text-primary',
+          'absolute -top-3 left-6 rounded-full bg-primary/15 px-3 py-0.5 text-2xs uppercase tracking-wide text-primary',
           !isRecommended && 'invisible',
         )}
       >
@@ -142,7 +141,7 @@ export function PricingTierCard({
 
       {/* Current plan pill */}
       {isCurrent && (
-        <span className="absolute right-4 top-4 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-2xs uppercase tracking-wide text-primary">
+        <span className="absolute right-4 top-4 rounded-full bg-primary/10 px-2 py-0.5 text-2xs uppercase tracking-wide text-primary">
           Current plan
         </span>
       )}
@@ -192,11 +191,11 @@ export function PricingTierCard({
         aria-disabled={cta.disabled}
         aria-label={`${cta.label} — ${meta.name}`}
         className={cn(
-          'mt-6 inline-flex min-h-11 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'mt-6 inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/10',
           cta.disabled && 'cursor-not-allowed opacity-60',
           !cta.disabled && cta.variant === 'filled'
             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-            : 'border border-white/20 bg-transparent text-foreground hover:bg-white/5',
+            : 'bg-white/[0.06] text-foreground hover:bg-white/[0.1]',
         )}
       >
         {cta.label}

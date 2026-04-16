@@ -65,8 +65,8 @@ export default function PaymentSuccess() {
   }, [txnid, queryClient])
 
   return (
-    <div className="min-h-screen bg-background text-white/85 flex items-center justify-center p-6">
-      <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center">
+    <div className="min-h-screen bg-background text-soft flex items-center justify-center p-6">
+      <div className="max-w-md rounded-2xl bg-white/[0.03] backdrop-blur-sm p-8 text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
         <h1 className="mt-4 font-headline text-2xl text-foreground">Payment received</h1>
         {error ? (
@@ -89,13 +89,13 @@ export default function PaymentSuccess() {
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link
             to="/?settings=plan-billing"
-            className="min-h-11 rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-white/5 inline-flex items-center justify-center"
+            className="min-h-11 rounded-xl bg-white/[0.06] px-4 text-sm font-medium text-soft hover:bg-white/[0.1] inline-flex items-center justify-center transition-colors"
           >
             Go to Plan &amp; Billing
           </Link>
           <Link
             to="/"
-            className="min-h-11 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 inline-flex items-center justify-center"
+            className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 inline-flex items-center justify-center transition-colors"
           >
             Back to app
           </Link>

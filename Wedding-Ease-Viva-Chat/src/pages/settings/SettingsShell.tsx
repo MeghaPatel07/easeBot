@@ -482,7 +482,7 @@ function MobileContentHeader({
   onClose: () => void
 }) {
   return (
-    <div className="flex items-center gap-2 px-2 pt-3 pb-2 border-b border-border bg-background">
+    <div className="flex items-center gap-2 px-2 pt-3 pb-2">
       <button
         type="button"
         onClick={onBack}

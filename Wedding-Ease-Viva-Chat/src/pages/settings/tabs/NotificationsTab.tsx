@@ -131,7 +131,7 @@ export function NotificationsTab() {
             Sent to {profile?.email ?? 'your account email'}.
           </p>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-white/[0.06]">
           <SwitchRow
             id="email-reminders"
             label="Wedding reminders"
@@ -167,7 +167,7 @@ export function NotificationsTab() {
         {!hasWhatsAppNumber && (
           <div
             role="status"
-            className="mb-2 flex items-start gap-2 rounded-md border border-border bg-muted p-3 text-xs text-muted-foreground"
+            className="mb-2 flex items-start gap-2 rounded-xl bg-white/[0.04] p-3 text-xs text-muted-foreground"
           >
             <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
             <p>Add your WhatsApp number in Account to enable.</p>

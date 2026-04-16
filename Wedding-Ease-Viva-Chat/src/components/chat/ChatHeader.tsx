@@ -76,7 +76,7 @@ export const ProfileIcon: React.FC<{
   <div>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="h-8 w-8 rounded-full border border-white/20 bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+        <button className="h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors">
           <Avatar className="h-6 w-6">
             <AvatarImage src="" alt="Profile" />
             <AvatarFallback className="bg-primary/10 text-primary text-2xs font-semibold">
@@ -85,7 +85,7 @@ export const ProfileIcon: React.FC<{
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64 bg-[#0F0D0C]/95 backdrop-blur-sm border border-white/10 text-white/80" align="end" forceMount>
+      <DropdownMenuContent className="w-64 text-soft" align="end" forceMount>
         {/* Sprint 1: dropdown body extracted into <ProfileMenu /> (PRD §5).
             Trigger button + props/callbacks above are intentionally untouched. */}
         <ProfileMenu
@@ -125,7 +125,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
                 </span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 bg-[#0F0D0C]/95 backdrop-blur-sm border border-white/10 shadow-lg text-white/80">
+            <DropdownMenuContent align="end" className="w-44 text-soft">
               <DropdownMenuLabel className="text-3xs text-white/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {SUPPORTED_LANGUAGES.map(({ code, label }) => (

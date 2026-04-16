@@ -157,7 +157,7 @@ export function DataPrivacyTab() {
           onClick={onExport}
           disabled={exporting}
           aria-label="Download all my data"
-          className="min-h-11 min-w-11 border-border bg-background text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="min-h-11 min-w-11 bg-white/[0.04] text-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Download aria-hidden="true" className="mr-2 h-4 w-4" />
           {exporting ? 'Preparing…' : 'Download all my data'}
@@ -185,7 +185,7 @@ export function DataPrivacyTab() {
               {clearing ? 'Clearing…' : 'Clear chat history'}
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent className="bg-popover text-popover-foreground border-border">
+          <AlertDialogContent className="bg-popover text-popover-foreground">
             <AlertDialogHeader>
               <AlertDialogTitle>Clear all chat history?</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">

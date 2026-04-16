@@ -245,7 +245,7 @@ export function PersonalizationTab() {
                   type="button"
                   variant="outline"
                   className={cn(
-                    'min-h-11 w-full justify-start border-border bg-input text-left text-sm font-normal',
+                    'min-h-11 w-full justify-start bg-white/[0.04] text-left text-sm font-normal',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                     !form.weddingDate && 'text-muted-foreground',
                   )}
@@ -258,7 +258,7 @@ export function PersonalizationTab() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                className="w-auto border-border bg-popover p-0 text-popover-foreground"
+                className="w-auto bg-popover p-0 text-popover-foreground"
                 align="start"
               >
                 <Calendar
@@ -290,7 +290,7 @@ export function PersonalizationTab() {
               value={form.partnerName}
               onChange={(e) => setForm((p) => ({ ...p, partnerName: e.target.value }))}
               placeholder="e.g. Arjun"
-              className="min-h-11 border-border bg-input text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+              className="min-h-11 bg-white/[0.04] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
               autoComplete="off"
             />
           </div>
@@ -307,11 +307,11 @@ export function PersonalizationTab() {
               <SelectTrigger
                 id="role"
                 aria-label="Your role in the wedding"
-                className="min-h-11 border-border bg-input text-foreground focus-visible:ring-ring"
+                className="min-h-11 bg-white/[0.04] text-foreground focus-visible:ring-ring"
               >
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
-              <SelectContent className="border-border bg-popover text-popover-foreground">
+              <SelectContent className="bg-popover text-popover-foreground">
                 {ROLE_OPTIONS.map((r) => (
                   <SelectItem key={r.value} value={r.value}>
                     {r.label}
@@ -342,7 +342,7 @@ export function PersonalizationTab() {
                 value={form.budget}
                 onChange={(e) => setForm((p) => ({ ...p, budget: e.target.value }))}
                 placeholder="500000"
-                className="min-h-11 border-border bg-input pl-7 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+                className="min-h-11 bg-white/[0.04] pl-7 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
               />
             </div>
             {form.budget && !Number.isNaN(Number(form.budget)) && (
@@ -396,7 +396,7 @@ export function PersonalizationTab() {
               placeholder="e.g. I'm planning a 200-guest South Indian wedding in Bangalore in November. I love minimalism, hate clutter, and my partner is vegetarian."
               rows={4}
               maxLength={CUSTOM_INSTRUCTIONS_MAX}
-              className="min-h-24 border-border bg-input text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+              className="min-h-24 bg-white/[0.04] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
               aria-describedby="custom-about-counter"
             />
             <p
@@ -420,7 +420,7 @@ export function PersonalizationTab() {
               placeholder="e.g. Keep replies short and punchy. Use bullet points. Skip the small talk."
               rows={4}
               maxLength={CUSTOM_INSTRUCTIONS_MAX}
-              className="min-h-24 border-border bg-input text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+              className="min-h-24 bg-white/[0.04] text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
               aria-describedby="custom-response-counter"
             />
             <p
@@ -470,7 +470,7 @@ export function PersonalizationTab() {
         </div>
 
         {activeVibe ? (
-          <div className="rounded-md border border-border bg-muted/40 p-4">
+          <div className="rounded-md bg-white/[0.04] p-4">
             <p className="text-sm font-medium text-foreground">{activeVibe.title}</p>
             {activeVibe.subtitle && (
               <p className="mt-1 text-xs text-muted-foreground">
@@ -482,7 +482,7 @@ export function PersonalizationTab() {
                 {activeVibe.descriptors.slice(0, 6).map((d) => (
                   <span
                     key={d}
-                    className="rounded-full border border-border bg-background px-2 py-0.5 text-2xs font-medium text-muted-foreground"
+                    className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium text-muted-foreground"
                   >
                     {d}
                   </span>
@@ -494,14 +494,14 @@ export function PersonalizationTab() {
                 type="button"
                 variant="outline"
                 onClick={handleClearVibe}
-                className="min-h-11 border-border bg-background text-foreground hover:bg-muted focus-visible:ring-ring focus-visible:ring-offset-background"
+                className="min-h-11 bg-white/[0.04] text-foreground hover:bg-white/[0.06] focus-visible:ring-ring focus-visible:ring-offset-background"
               >
                 Clear vibe
               </Button>
             </div>
           </div>
         ) : (
-          <div className="rounded-md border border-dashed border-border bg-muted/20 p-4">
+          <div className="rounded-md bg-white/[0.03] p-4">
             <p className="text-sm text-muted-foreground">
               No vibe set — ask the chat to set a vibe (e.g. “make my vibe modern
               minimalist”).

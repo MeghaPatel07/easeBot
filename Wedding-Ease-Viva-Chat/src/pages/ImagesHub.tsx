@@ -97,7 +97,7 @@ export default function ImagesHub({ sendMessage, startNewChat }: ImagesHubProps)
           />
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-5 text-center shadow-lg shadow-black/10 backdrop-blur-xl">
+        <div className="rounded-2xl bg-white/[0.04] p-5 text-center shadow-lg shadow-black/10 backdrop-blur-xl">
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
             <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>

@@ -56,7 +56,7 @@ function LinkRow({ item }: { item: LinkItem }) {
       target={external ? '_blank' : undefined}
       rel={external ? 'noopener noreferrer' : undefined}
       aria-label={label}
-      className="flex min-h-11 w-full items-start gap-3 rounded-md border border-border bg-background p-3 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="flex min-h-11 w-full items-start gap-3 rounded-xl bg-white/[0.04] p-3 text-left transition-colors hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/10"
     >
       <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground" />
       <div className="min-w-0 flex-1">
@@ -89,7 +89,7 @@ export function AboutTab() {
             <Badge variant="secondary" className="bg-muted text-foreground">
               v{APP_VERSION}
             </Badge>
-            <Badge variant="outline" className="border-border text-muted-foreground">
+            <Badge variant="outline" className="bg-white/[0.06] text-muted-foreground border-0">
               {APP_ENVIRONMENT}
             </Badge>
           </div>
@@ -113,7 +113,7 @@ export function AboutTab() {
 
       {/* Credit */}
       <Card className="p-6 text-center">
-        <Separator className="mb-4 bg-border" />
+        <Separator className="mb-4 bg-white/[0.06]" />
         <p className="text-xs text-muted-foreground">Built with care by WeddingEase.</p>
       </Card>
     </TabShell>

@@ -71,9 +71,9 @@ function planLabel(tier: 'free' | 'pro' | 'promax' | undefined): string {
 
 function planBadgeClass(tier: 'free' | 'pro' | 'promax' | undefined): string {
   if (tier === 'pro' || tier === 'promax') {
-    return 'bg-primary/15 text-primary border-primary/30'
+    return 'bg-primary/15 text-primary'
   }
-  return 'bg-muted text-muted-foreground border-border'
+  return 'bg-white/[0.06] text-muted-foreground'
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ export function ProfileMenu({
             </p>
             <span
               className={cn(
-                'mt-1.5 inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                'mt-1.5 inline-flex w-fit items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
                 planBadgeClass(tier),
               )}
             >

@@ -769,7 +769,7 @@ export function AccountTab() {
           </div>
 
           {/* Sprint 4 (Kenji): Sign out of all devices. Non-destructive gray. */}
-          <Separator className="bg-border" />
+          <Separator className="bg-white/[0.06]" />
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">Sign out of all devices</p>
@@ -803,7 +803,7 @@ export function AccountTab() {
             </div>
           </div>
 
-          <Separator className="bg-border" />
+          <Separator className="bg-white/[0.06]" />
 
           <div className="flex justify-start">
             <Button
@@ -823,7 +823,7 @@ export function AccountTab() {
         open={emailDialogOpen}
         onOpenChange={(o) => (o ? setEmailDialogOpen(true) : closeEmailDialog())}
       >
-        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border border-white/10 backdrop-blur-xl">
+        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border-0 backdrop-blur-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Change email</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
@@ -893,7 +893,7 @@ export function AccountTab() {
         open={passwordDialogOpen}
         onOpenChange={(o) => (o ? setPasswordDialogOpen(true) : closePasswordDialog())}
       >
-        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border border-white/10 backdrop-blur-xl">
+        <AlertDialogContent className="bg-[#0F0D0C] text-foreground border-0 backdrop-blur-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Change password</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
@@ -992,7 +992,7 @@ export function AccountTab() {
         open={deleteDialogOpen}
         onOpenChange={(o) => (o ? setDeleteDialogOpen(true) : closeDeleteDialog())}
       >
-        <AlertDialogContent className="bg-card text-foreground border-destructive/60">
+        <AlertDialogContent className="bg-card text-foreground border-0">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">
               Delete your account?

@@ -107,7 +107,7 @@ export default function Checkout() {
 
   if (!authReady) {
     return (
-      <div className="min-h-screen bg-background text-white/85 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background text-soft flex items-center justify-center p-6">
         <p className="text-sm text-white/60">Loading checkout…</p>
       </div>
     )
@@ -179,10 +179,10 @@ export default function Checkout() {
   }
 
   const inputCls =
-    'min-h-11 w-full rounded-md border border-white/10 bg-white/[0.02] px-3 text-sm text-white/90 placeholder-white/30 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30'
+    'min-h-11 w-full rounded-xl border-0 bg-white/[0.04] px-3 text-sm text-soft placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/10 focus:bg-white/[0.06] transition-colors'
 
   return (
-    <div className="min-h-screen bg-background text-white/85">
+    <div className="min-h-screen bg-background text-soft">
       <div className="relative mx-auto max-w-3xl px-6 py-12 md:py-16">
         <button
           type="button"
@@ -206,7 +206,7 @@ export default function Checkout() {
         </header>
 
         {/* Order summary */}
-        <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.02] p-5">
+        <div className="mb-6 rounded-2xl bg-white/[0.03] backdrop-blur-sm p-5">
           <p className="text-2xs uppercase tracking-wide text-white/40">Order summary</p>
           <div className="mt-2 flex items-baseline justify-between gap-3">
             <p className="text-lg text-white">{state.label}</p>
@@ -220,7 +220,7 @@ export default function Checkout() {
         {formError && (
           <div
             role="alert"
-            className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
           >
             {formError}
           </div>
@@ -350,7 +350,7 @@ export default function Checkout() {
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:w-auto"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:w-auto transition-colors"
             >
               {submitting ? 'Redirecting to PayU…' : `Pay ${priceDisplay}`}
             </button>

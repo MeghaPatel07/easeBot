@@ -181,7 +181,7 @@ export function AppearanceTab() {
                 key={value}
                 htmlFor={id}
                 data-active={selected}
-                className="group flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-border bg-background p-4 text-left transition-colors hover:bg-accent data-[active=true]:border-primary data-[active=true]:bg-accent focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+                className="group flex min-h-11 cursor-pointer items-start gap-3 rounded-md border-0 bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.06] data-[active=true]:bg-primary/10 focus-within:ring-1 focus-within:ring-white/10"
               >
                 <RadioGroupItem id={id} value={value} aria-label={label} className="mt-0.5" />
                 <div className="flex flex-1 items-start gap-3">
@@ -219,7 +219,7 @@ export function AppearanceTab() {
                 key={value}
                 htmlFor={id}
                 data-active={selected}
-                className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-border bg-background p-4 text-left transition-colors hover:bg-accent data-[active=true]:border-primary data-[active=true]:bg-accent focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+                className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border-0 bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.06] data-[active=true]:bg-primary/10 focus-within:ring-1 focus-within:ring-white/10"
               >
                 <RadioGroupItem id={id} value={value} aria-label={label} className="mt-0.5" />
                 <div className="flex flex-1 items-start gap-3">
@@ -252,7 +252,7 @@ export function AppearanceTab() {
             <SelectTrigger
               id="language-select"
               aria-label="Preferred language"
-              className="min-h-11 w-full bg-input text-foreground border-border focus-visible:ring-ring sm:max-w-xs"
+              className="min-h-11 w-full bg-white/[0.04] text-foreground focus-visible:ring-ring sm:max-w-xs"
             >
               <SelectValue placeholder="Select a language" />
             </SelectTrigger>

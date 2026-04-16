@@ -317,7 +317,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] sm:max-w-[480px] glass-panel rounded-[2rem] p-0 border border-white/60 shadow-[0_32px_64px_-12px_rgba(44,46,42,0.1)] overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[480px] glass-panel rounded-[2rem] p-0 border-0 bg-[#0F0D0C]/95 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(44,46,42,0.1)] overflow-hidden">
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
@@ -420,7 +420,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                   <button
                     onClick={handleGoogle}
                     disabled={loading}
-                    className="w-full h-14 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center gap-3 text-white/85 font-medium hover:bg-white/[0.06] hover:border-white/20 transition-all disabled:opacity-50"
+                    className="w-full h-14 rounded-xl bg-white/[0.06] border-0 flex items-center justify-center gap-3 text-white/85 font-medium hover:bg-white/[0.10] transition-all disabled:opacity-50"
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
                     Continue with Google
@@ -494,7 +494,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       id="email-terms"
                       checked={emailForm.terms}
                       onChange={setEmailField('terms')}
-                      className="mt-0.5 h-4 w-4 rounded border-white/20"
+                      className="mt-0.5 h-4 w-4 rounded border-0"
                     />
                     <label htmlFor="email-terms" className="text-xs text-muted-foreground">
                       I agree to the{' '}
@@ -553,7 +553,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       id="phone-terms"
                       checked={phoneForm.terms}
                       onChange={setPhoneField('terms')}
-                      className="mt-0.5 h-4 w-4 rounded border-white/20"
+                      className="mt-0.5 h-4 w-4 rounded border-0"
                     />
                     <label htmlFor="phone-terms" className="text-xs text-muted-foreground">
                       I agree to the{' '}

@@ -647,7 +647,7 @@ const Index = () => {
   // ── Shortcuts overlay ─────────────────────────────────────────────────────
   const shortcutsOverlayJSX = showShortcuts && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
-      <div className="bg-[#0F0D0C] rounded-2xl shadow-2xl border border-white/15 p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#0F0D0C]/95 backdrop-blur-2xl rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-headline text-lg text-white/90 flex items-center gap-2">
             <Keyboard className="h-4 w-4 text-primary" />Keyboard Shortcuts
@@ -663,7 +663,7 @@ const Index = () => {
           ].map(({ keys, desc }) => (
             <div key={keys} className="flex items-center justify-between">
               <span className="text-xs text-white/60">{desc}</span>
-              <kbd className="text-2xs font-mono bg-white/10 text-white/60 px-2 py-0.5 rounded border border-white/15">{keys}</kbd>
+              <kbd className="text-2xs font-mono bg-white/[0.06] text-white/60 px-2 py-0.5 rounded">{keys}</kbd>
             </div>
           ))}
         </div>
@@ -709,7 +709,7 @@ const Index = () => {
 
   const shareModalJSX = shareModalUrl && (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShareModalUrl(null)}>
-      <div className="bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+      <div className="bg-[#0F0D0C]/95 backdrop-blur-2xl rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white/90">Share conversation</h3>
@@ -719,7 +719,7 @@ const Index = () => {
         </div>
 
         {/* Title preview */}
-        <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+        <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-white/[0.04]">
           <p className="text-xs text-white/60 truncate">{shareModalTitle}</p>
           <p className="text-3xs text-white/30 mt-1">Link expires in 7 days</p>
         </div>
@@ -748,7 +748,7 @@ const Index = () => {
         {/* Native share (mobile) */}
         {typeof navigator !== 'undefined' && 'share' in navigator && (
           <button onClick={handleNativeShareChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#A17A63]/15 border border-[#A17A63]/25 text-sm text-[#A17A63] font-medium hover:bg-[#A17A63]/25 transition-colors">
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#A17A63]/15 text-sm text-[#A17A63] font-medium hover:bg-[#A17A63]/25 transition-colors">
             <Share2 className="h-4 w-4" />
             More sharing options
           </button>
@@ -894,7 +894,7 @@ const Index = () => {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
-            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)} className="text-left rounded-2xl bg-white/10 border border-primary/30 px-4 py-3.5 space-y-2 hover:bg-white/15 hover:border-primary/40 hover:shadow-sm transition-all duration-150">
+            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)} className="text-left rounded-2xl bg-white/[0.06] px-4 py-3.5 space-y-2 hover:bg-white/[0.1] transition-all duration-150">
               {msg.mode && <span className="inline-block text-3xs uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
               <p className="text-sm text-white/70 leading-relaxed line-clamp-5">{msg.text}</p>
               <p className="text-2xs text-white/40">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
@@ -1002,7 +1002,7 @@ const Index = () => {
           {/* Guest banner */}
           {!user && (
             <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
-              <div className="flex items-center bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 border border-primary/20 text-xs text-white/70 gap-1.5">
+              <div className="flex items-center bg-white/[0.06] backdrop-blur-sm rounded-xl px-3 py-2 text-xs text-white/70 gap-1.5">
                 <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
                 This chat won't be saved.{' '}
                 <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
@@ -1119,10 +1119,10 @@ const Index = () => {
               {/* <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#A17A63]/60 font-label mb-6 text-center">Your Wedding Concierge</p> */}
 
               {/* Hero heading — tighter on mobile */}
-              <h2 className="font-headline text-lg sm:text-2xl md:text-[1.5rem] text-white/90 mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
+              <h2 className="font-headline text-lg sm:text-2xl md:text-[1.5rem] text-soft mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
                 Hi, I'm here to <span className="italic text-[#A17A63]">guide you.</span>
               </h2>
-              <p className="text-xs sm:text-sm text-white/50 mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
+              <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
                 Tell me your event, style or budget — I'll guide you step by step.
               </p>
 
@@ -1131,43 +1131,25 @@ const Index = () => {
                 {actionButtons.map((btn, i) => (
                   <button key={i} onClick={() => handleQuickPrompt(btn.action)} className="glass-action-card flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 rounded-xl sm:rounded-2xl py-2.5 sm:py-5 px-2 sm:px-3 group cursor-pointer">
                     <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#A17A63]/70 group-hover:text-[#A17A63] transition-colors" />
-                    <span className="text-[11px] sm:text-xs font-medium text-white/55 group-hover:text-white/80 text-center leading-tight">{btn.text}</span>
+                    <span className="text-[11px] sm:text-xs font-medium text-soft text-center leading-tight">{btn.text}</span>
                   </button>
                 ))}
               </div>
 
               {/* "Not sure what you need?" banner — desktop only (mobile users have
                   the prompt cards above which already cover this) */}
-              <div className="hidden sm:flex items-center gap-3 bg-white/[0.06] backdrop-blur-md border border-white/[0.1] rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
+              <div className="hidden sm:flex items-center gap-3 bg-white/[0.04] backdrop-blur-md rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
                 <Sparkles className="w-5 h-5 text-[#A17A63]/70 flex-shrink-0" />
                 <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-white/80">Not sure what you need?</p>
-                  <p className="text-xs text-white/40">Tell me your event, style or budget</p>
+                  <p className="text-sm font-semibold text-soft">Not sure what you need?</p>
+                  <p className="text-xs text-soft">Tell me your event, style or budget</p>
                 </div>
                 <button
                   onClick={() => setInputText('Help me decide what I need for my wedding')}
-                  className="px-4 py-2 rounded-full bg-white/[0.08] backdrop-blur-md border border-white/[0.12] text-white/70 text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.14] hover:text-white/90 transition-all flex-shrink-0"
+                  className="px-4 py-2 rounded-full bg-white/[0.06] backdrop-blur-md text-soft text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-all flex-shrink-0"
                 >
                   Help me decide <Sparkles className="w-3 h-3" />
                 </button>
-              </div>
-
-              {/* Occasion chips — horizontal scroll */}
-              <div className="w-full max-w-2xl mx-auto mb-3 sm:mb-6 overflow-x-auto scrollbar-hide">
-                <div className="flex gap-1.5 sm:gap-2 px-1 pb-1" style={{ minWidth: 'max-content' }}>
-                  {occasions.map((occ) => (
-                    <button
-                      key={occ}
-                      onClick={() => setSelectedOccasion(selectedOccasion === occ ? null : occ)}
-                      className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
-                        ? 'bg-[#A17A63]/20 border-[#A17A63]/40 text-[#A17A63]'
-                        : 'bg-white/[0.06] border-white/[0.1] text-white/55 hover:bg-white/10 hover:text-white/75'
-                        }`}
-                    >
-                      {occ}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
@@ -1179,6 +1161,23 @@ const Index = () => {
             and chat pages share one input position (no floating input in middle). */}
         <div className="flex-shrink-0 px-3 sm:px-6 pb-3 sm:pb-4 pt-2 relative z-10">
           <div className="max-w-3xl mx-auto w-full">
+            {/* Occasion chips — horizontal scroll */}
+            <div className="overflow-x-scroll scrollbar-hide mb-2 min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex flex-nowrap gap-1.5 sm:gap-2 px-1 pb-1 w-max">
+                {occasions.map((occ) => (
+                  <button
+                    key={occ}
+                    onClick={() => setSelectedOccasion(selectedOccasion === occ ? null : occ)}
+                    className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
+                      ? 'bg-[#A17A63]/20 border-[#A17A63]/40 text-[#A17A63]'
+                      : 'bg-white/[0.06] border-white/[0.1] text-soft hover:bg-white/10'
+                      }`}
+                  >
+                    {occ}
+                  </button>
+                ))}
+              </div>
+            </div>
             <ChatInput {...inputBarProps} placeholder="Ask me anything " />
           </div>
         </div>

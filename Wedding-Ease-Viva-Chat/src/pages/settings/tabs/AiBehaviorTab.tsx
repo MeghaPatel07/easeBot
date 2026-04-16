@@ -323,13 +323,13 @@ export function AiBehaviorTab() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="min-h-11 border-border bg-background text-foreground hover:bg-muted focus-visible:ring-ring focus-visible:ring-offset-background"
+                className="min-h-11 border-0 bg-white/[0.04] text-foreground hover:bg-white/[0.06] focus-visible:ring-ring focus-visible:ring-offset-background"
               >
                 <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
                 Reset
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="border-border bg-popover text-popover-foreground">
+            <AlertDialogContent className="border-0 bg-[#0F0D0C]/95 backdrop-blur-2xl text-popover-foreground">
               <AlertDialogHeader>
                 <AlertDialogTitle>Reset tone to defaults?</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -359,7 +359,7 @@ export function AiBehaviorTab() {
                 </Label>
                 <span
                   aria-live="polite"
-                  className="rounded-full bg-muted px-2 py-0.5 text-2xs font-semibold text-muted-foreground"
+                  className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-semibold text-muted-foreground"
                 >
                   {tone[s.key]}
                 </span>
@@ -424,10 +424,10 @@ export function AiBehaviorTab() {
             return (
               <div
                 key={preset.id}
-                className={`flex min-h-11 items-start gap-3 rounded-md border p-4 transition-colors ${
+                className={`flex min-h-11 items-start gap-3 rounded-md p-4 transition-colors ${
                   isSelected
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border bg-background hover:bg-muted/40'
+                    ? 'bg-primary/10'
+                    : 'bg-white/[0.04] hover:bg-white/[0.06]'
                 }`}
               >
                 <button
@@ -441,7 +441,7 @@ export function AiBehaviorTab() {
                     <span className="text-sm font-semibold text-foreground">
                       {preset.name}
                     </span>
-                    <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
                       {preset.gender}
                     </span>
                     {isSelected && (
@@ -516,11 +516,11 @@ export function AiBehaviorTab() {
             <SelectTrigger
               id="language-select"
               aria-label="Preferred language"
-              className="min-h-11 w-full border-border bg-input text-foreground focus-visible:ring-ring sm:max-w-xs"
+              className="min-h-11 w-full bg-white/[0.04] text-foreground focus-visible:ring-ring sm:max-w-xs"
             >
               <SelectValue placeholder="Select a language" />
             </SelectTrigger>
-            <SelectContent className="border-border bg-popover text-popover-foreground">
+            <SelectContent className="bg-popover text-popover-foreground">
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <SelectItem
                   key={lang.code}
@@ -547,7 +547,7 @@ export function AiBehaviorTab() {
               disabled until the backend wires this up.
             </p>
           </div>
-          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
             Coming soon
           </span>
         </div>
@@ -560,11 +560,11 @@ export function AiBehaviorTab() {
             <SelectTrigger
               id="default-mode"
               aria-label="Default AI mode"
-              className="min-h-11 border-border bg-input text-foreground focus-visible:ring-ring"
+              className="min-h-11 bg-white/[0.04] text-foreground focus-visible:ring-ring"
             >
               <SelectValue placeholder="Auto" />
             </SelectTrigger>
-            <SelectContent className="border-border bg-popover text-popover-foreground">
+            <SelectContent className="bg-popover text-popover-foreground">
               {modeOptions.map((m) => (
                 <SelectItem key={m.key} value={m.key}>
                   {m.label}
