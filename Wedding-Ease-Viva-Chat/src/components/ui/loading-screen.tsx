@@ -28,7 +28,7 @@ const LoadingScreen: React.FC = () => {
         className="text-sm font-medium tracking-wide"
         style={{ color: '#C6944A' }}
       >
-        Loading EaseBot...
+        Loading TheWeddingBot...
       </p>
     </div>
   );

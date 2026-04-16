@@ -1,14 +1,21 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { SEO } from '@/seo/SEO'
 
 const EFFECTIVE_DATE = 'April 13, 2026'
-const CONTACT_EMAIL = 'privacy@easebot.app'
-const COMPANY_NAME = 'EaseBot'
-const SERVICE_NAME = 'Viva by EaseBot'
+const CONTACT_EMAIL = 'privacy@theweddingbot.ai'
+const COMPANY_NAME = 'TheWeddingBot'
+const SERVICE_NAME = 'TheWeddingBot'
 
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-background text-white/85">
+      <SEO
+        title="Privacy Policy"
+        description="How TheWeddingBot collects, uses, and protects your personal information when you use the AI wedding planning assistant."
+        canonical="https://theweddingbot.ai/privacy"
+        robots="index, follow"
+      />
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -left-24 w-[28rem] h-[28rem] bg-secondary/10 rounded-full blur-3xl" />

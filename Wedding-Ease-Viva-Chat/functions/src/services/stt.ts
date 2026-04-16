@@ -8,7 +8,7 @@ export interface STTResult {
   detectedLanguageCode: string  // BCP-47 e.g. 'en-US', 'hi-IN', 'gu-IN'
 }
 
-// Languages Viva supports for auto-detection
+// Languages TheWeddingBot supports for auto-detection
 const SUPPORTED_LANGUAGES = [
   'en-US', 'en-GB',
   'hi-IN',   // Hindi

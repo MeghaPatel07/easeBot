@@ -1,4 +1,4 @@
-# EaseBot — Zero-Cost Caching Architecture
+# TheWeddingBot — Zero-Cost Caching Architecture
 
 **Version:** 1.0
 **Date:** 2026-04-07

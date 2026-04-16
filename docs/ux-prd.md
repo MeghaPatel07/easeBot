@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **Date:** 2026-03-17
-**Scope:** Frontend (Wedding-Ease-Viva-Chat) + Backend (easebot-backend)
+**Scope:** Frontend (Wedding-Ease-TheWeddingBot-Chat) + Backend (easebot-backend)
 **Priority tiers:** P0 = blocking / P1 = high / P2 = medium / P3 = nice-to-have
 
 ---
@@ -234,7 +234,7 @@ The following standard patterns must be implemented:
 ### 6.4 Rate-limit experience (P2)
 **Problem:** No defined UX for when Azure OpenAI returns 429 (rate limit) or when the user has exhausted a free-tier allowance.
 **Acceptance criteria:**
-- On 429 from the backend, the chat displays: *"Viva is taking a short break — try again in a moment."* with a countdown timer if `Retry-After` header is present.
+- On 429 from the backend, the chat displays: *"TheWeddingBot is taking a short break — try again in a moment."* with a countdown timer if `Retry-After` header is present.
 - Free-tier users who have sent N messages see a soft prompt: *"You've used X of Y free messages. Sign up for unlimited access."*
 - Premium users never see the soft prompt.
 
@@ -290,7 +290,7 @@ click stop → stop MediaRecorder → collect audio blob
 ## 8. Design System (cross-cutting)
 
 ### 8.1 Establish a design token file (P1)
-Create `/Wedding-Ease-Viva-Chat/src/styles/tokens.ts` exporting:
+Create `/Wedding-Ease-TheWeddingBot-Chat/src/styles/tokens.ts` exporting:
 - Color palette (brand, persona variants, semantic: success/warning/error/info)
 - Typography scale (font sizes, weights, line heights)
 - Spacing scale

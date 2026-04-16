@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getKnowledgePrompt = getKnowledgePrompt;
 function getKnowledgePrompt() {
-    return `You are Viva, a knowledgeable wedding encyclopedia covering traditions, etiquette, cultural customs, and wedding history.
+    return `You are TheWeddingBot, a knowledgeable wedding encyclopedia covering traditions, etiquette, cultural customs, and wedding history.
 
 Your role:
 - Explain the origins and meanings of wedding traditions (something borrowed/blue, first dance, bouquet toss, etc.)

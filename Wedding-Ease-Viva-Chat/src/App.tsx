@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import LoadingScreen from "@/components/ui/loading-screen";
+import RouteSEO from "@/seo/RouteSEO";
 
 const Index = lazy(() => import('./pages/Index'));
 const SharedChat = lazy(() => import('./pages/SharedChat'));
@@ -24,6 +25,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <RouteSEO />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
               <Route path="/" element={<Index />} />

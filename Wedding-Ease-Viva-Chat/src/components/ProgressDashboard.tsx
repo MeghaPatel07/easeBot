@@ -143,7 +143,7 @@ export default function ProgressDashboard({
       steps.push('Set up your budget tracker to stay on top of spending')
     }
     if (checklistStats.total < 5) {
-      steps.push('Ask Viva in Planner mode to create a wedding timeline')
+      steps.push('Ask TheWeddingBot in Planner mode to create a wedding timeline')
     }
     if (calendarEventCount < 3) {
       steps.push('Save important dates to your calendar')
@@ -165,9 +165,9 @@ export default function ProgressDashboard({
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
         <Heart className="w-12 h-12 text-primary mb-4" />
-        <h2 className="font-headline text-2xl text-white/85 mb-2">Welcome to EaseBot</h2>
+        <h2 className="font-headline text-2xl text-white/85 mb-2">Welcome to TheWeddingBot</h2>
         <p className="text-sm text-white/50 max-w-sm">
-          Your wedding planning journey starts here. Try asking Viva: "Create a wedding checklist", "Set my wedding date", or "Help me with my budget".
+          Your wedding planning journey starts here. Try asking TheWeddingBot: "Create a wedding checklist", "Set my wedding date", or "Help me with my budget".
         </p>
         <div className="mt-6 flex items-center gap-1.5 text-primary text-sm font-medium">
           <span>Start a conversation</span>

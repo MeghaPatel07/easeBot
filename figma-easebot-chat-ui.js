@@ -1,11 +1,11 @@
 // ============================================================
-// EaseBot – Wedding AI Chatbot UI (ChatGPT/Gemini Style)
+// TheWeddingBot – Wedding AI Chatbot UI (ChatGPT/Gemini Style)
 // Paste this into Figma Scripter Plugin or Dev Console
 // ============================================================
 
-async function buildEaseBotUI() {
+async function buildTheWeddingBotUI() {
   const page = figma.currentPage;
-  page.name = "EaseBot – Chat Interface";
+  page.name = "TheWeddingBot – Chat Interface";
 
   // Load fonts
   await figma.loadFontAsync({ family: "Inter", style: "Bold" });
@@ -140,7 +140,7 @@ async function buildEaseBotUI() {
     sb.appendChild(logoRow);
     const hamburger = text("☰", { size: 18, color: C.textMuted, x: 0, y: 4, style: "Regular" });
     logoRow.appendChild(hamburger);
-    const logo = text("EaseBot", { size: 20, color: C.gold, x: 34, y: 2, style: "Bold" });
+    const logo = text("TheWeddingBot", { size: 20, color: C.gold, x: 34, y: 2, style: "Bold" });
     logoRow.appendChild(logo);
     const sparkle = text("✦", { size: 12, color: C.gold, x: 28, y: 0, style: "Regular" });
     logoRow.appendChild(sparkle);
@@ -282,7 +282,7 @@ async function buildEaseBotUI() {
 
     const sparkle = text("✦", { size: 14, color: C.gold, x: 14, y: 9, style: "Bold" });
     picker.appendChild(sparkle);
-    const modeT = text(`EaseBot  ${modeName}`, { size: 14, color: C.textH, x: 34, y: 10, style: "Semi Bold" });
+    const modeT = text(`TheWeddingBot  ${modeName}`, { size: 14, color: C.textH, x: 34, y: 10, style: "Semi Bold" });
     picker.appendChild(modeT);
     const arrow = text("▾", { size: 14, color: C.textMuted, x: 178, y: 10 });
     picker.appendChild(arrow);
@@ -317,7 +317,7 @@ async function buildEaseBotUI() {
     parent.appendChild(container);
 
     // Placeholder text
-    const placeholder = text("Ask EaseBot anything about your wedding...", {
+    const placeholder = text("Ask TheWeddingBot anything about your wedding...", {
       size: 15, color: C.textDim, x: 24, y: 18
     });
     container.appendChild(placeholder);
@@ -356,7 +356,7 @@ async function buildEaseBotUI() {
     }
 
     // Disclaimer
-    const disc = text("EaseBot can make mistakes. Always verify details with your vendors.", {
+    const disc = text("TheWeddingBot can make mistakes. Always verify details with your vendors.", {
       size: 11, color: { r: 0.32, g: 0.26, b: 0.24 },
       x: 310, y: yPos + 104
     });
@@ -787,7 +787,7 @@ async function buildEaseBotUI() {
 
   const mHamburger = text("☰", { size: 20, color: C.textMuted, x: 16, y: 16 });
   mTopBar.appendChild(mHamburger);
-  const mLogo = text("✦ EaseBot", { size: 18, color: C.gold, x: 50, y: 16, style: "Bold" });
+  const mLogo = text("✦ TheWeddingBot", { size: 18, color: C.gold, x: 50, y: 16, style: "Bold" });
   mTopBar.appendChild(mLogo);
   const mMode = frame("Mode Pill", 80, 28, { fill: C.bgInput, radius: 14, x: 170, y: 14 });
   mTopBar.appendChild(mMode);
@@ -879,7 +879,7 @@ async function buildEaseBotUI() {
   // ============================
   figma.viewport.scrollAndZoomIntoView(page.children);
 
-  figma.notify("✦ EaseBot UI — 5 screens created successfully!");
+  figma.notify("✦ TheWeddingBot UI — 5 screens created successfully!");
 }
 
-buildEaseBotUI();
+buildTheWeddingBotUI();

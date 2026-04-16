@@ -1,4 +1,4 @@
-# Viva — Manual Testing Guide
+# TheWeddingBot — Manual Testing Guide
 
 > Run `npm run dev` and open `http://localhost:5173` in your browser.
 > Sign in with a test account before starting.
@@ -44,9 +44,9 @@
 | Step | Action | Expected |
 |------|--------|----------|
 | 1 | Select **Planner** mode from the mode selector | Mode pill highlights |
-| 2 | Send any message | Typing indicator shows **"Viva (Planner) is thinking"** with green-tinted dots |
-| 3 | Select **Stylist** mode and send a message | Shows **"Viva (Stylist) is thinking"** with gold-tinted dots |
-| 4 | Select **Auto** mode and send a message | Shows **"Viva is thinking"** (no mode label) |
+| 2 | Send any message | Typing indicator shows **"TheWeddingBot (Planner) is thinking"** with green-tinted dots |
+| 3 | Select **Stylist** mode and send a message | Shows **"TheWeddingBot (Stylist) is thinking"** with gold-tinted dots |
+| 4 | Select **Auto** mode and send a message | Shows **"TheWeddingBot is thinking"** (no mode label) |
 
 ---
 
@@ -299,7 +299,7 @@ Run through these steps for a fast overall verification:
 
 1. **Open app** → sign in → sidebar visible with Quick Actions
 2. **New chat** → send `"Plan my wedding in 3 months"` in Planner mode → watch streaming markdown render
-3. **Check typing indicator** → shows "Viva (Planner) is thinking" with green dots
+3. **Check typing indicator** → shows "TheWeddingBot (Planner) is thinking" with green dots
 4. **Tone modifier** → hover AI response → click "Shorter" → AI rewrites
 5. **Pin** the thread → verify it moves to Pinned section
 6. **Tag** it as "Budget" → colored pill appears

@@ -1,6 +1,6 @@
 # PRD: Notes System with Rich Editing & Sharing
 
-**Product:** EaseBot - Wedding Planning AI Assistant
+**Product:** TheWeddingBot - Wedding Planning AI Assistant
 **Feature:** Notion-style Notes with Rich Editor & Collaborative Sharing
 **Author:** Engineering Team
 **Date:** 2026-04-11
@@ -11,23 +11,23 @@
 
 ## 1. Problem Statement
 
-EaseBot users currently save scattered information across multiple features — saved items (plain text), checklists (structured tasks), liked messages, and budget notes. There is no unified, rich-content note-taking system where users can:
+TheWeddingBot users currently save scattered information across multiple features — saved items (plain text), checklists (structured tasks), liked messages, and budget notes. There is no unified, rich-content note-taking system where users can:
 
 - Create structured documents with headings, lists, images, embeds, and tables
 - Organize notes into folders/workspaces
 - Share notes with partners, vendors, or family with granular access control (view/edit)
 - Collaborate in real-time on wedding planning documents
 
-Users resort to external tools (Notion, Google Docs) to create planning documents, losing the contextual advantage of EaseBot's AI and integrated wedding data.
+Users resort to external tools (Notion, Google Docs) to create planning documents, losing the contextual advantage of TheWeddingBot's AI and integrated wedding data.
 
 ---
 
 ## 2. Goals & Success Metrics
 
 ### Goals
-1. Provide a Notion-style block-based rich editor natively inside EaseBot
+1. Provide a Notion-style block-based rich editor natively inside TheWeddingBot
 2. Enable granular sharing (view-only, edit) via email invitation or public link
-3. Allow embedding of EaseBot assets (gallery images, checklists, budget tables) directly into notes
+3. Allow embedding of TheWeddingBot assets (gallery images, checklists, budget tables) directly into notes
 4. Enable AI-assisted note creation from chat conversations
 
 ### Success Metrics
@@ -70,14 +70,14 @@ The editor follows a **block-based architecture** (like Notion) where each line/
 | **Quote** | Blockquote styling | P0 |
 | **Divider** | Horizontal rule separator | P0 |
 | **Code Block** | Monospaced code with optional language label | P1 |
-| **Image** | Upload from device, paste from clipboard, or pick from EaseBot Gallery | P0 |
+| **Image** | Upload from device, paste from clipboard, or pick from TheWeddingBot Gallery | P0 |
 | **Table** | Rows & columns with cell editing, add/remove rows/columns | P1 |
 | **Callout** | Highlighted info/warning/tip box with icon | P1 |
 | **Toggle** | Collapsible content section | P1 |
 | **Embed** | Embed external links (Pinterest boards, venue websites) with preview | P2 |
 | **File Attachment** | Upload PDFs, docs (stored in Firebase Storage) | P2 |
-| **EaseBot Checklist Embed** | Live embed of an existing EaseBot checklist | P1 |
-| **EaseBot Budget Embed** | Live embed of budget category/table | P2 |
+| **TheWeddingBot Checklist Embed** | Live embed of an existing TheWeddingBot checklist | P1 |
+| **TheWeddingBot Budget Embed** | Live embed of budget category/table | P2 |
 | **AI Block** | AI-generated content block (user prompts AI inline) | P2 |
 
 #### Slash Command Menu
@@ -101,8 +101,8 @@ Typing `/` opens a floating command palette to insert any block type:
 /toggle       → Toggle/collapsible
 /embed        → External embed
 /file         → File attachment
-/checklist    → EaseBot checklist embed
-/budget       → EaseBot budget embed
+/checklist    → TheWeddingBot checklist embed
+/budget       → TheWeddingBot budget embed
 /ai           → Ask AI to generate content
 ```
 
@@ -162,7 +162,7 @@ Each block shows a drag handle on hover with:
 1. **Device Upload** — File picker (JPEG, PNG, WebP, GIF; max 10MB)
 2. **Clipboard Paste** — Cmd/Ctrl+V pastes clipboard images directly
 3. **Drag & Drop** — Drag image files onto the editor
-4. **EaseBot Gallery** — Browse and insert AI-generated images from existing gallery
+4. **TheWeddingBot Gallery** — Browse and insert AI-generated images from existing gallery
 5. **URL Embed** — Paste an image URL to embed
 
 #### Image Block Features
@@ -506,7 +506,7 @@ interface BlockProperties {
   fileSize?: number;
   fileMimeType?: string;
   
-  // EaseBot embeds
+  // TheWeddingBot embeds
   checklistId?: string;
   budgetCategoryId?: string;
   
@@ -872,7 +872,7 @@ User types /image → Image insertion dialog opens
     → Image block inserted with full-width display
   
   Gallery tab:
-    → Grid of user's AI-generated images from EaseBot Gallery
+    → Grid of user's AI-generated images from TheWeddingBot Gallery
     → User clicks to select → image block inserted
   
   URL tab:
@@ -902,7 +902,7 @@ Editor/Commenter selects text in shared note
 ## 8. UI/UX Design Specifications
 
 ### Design System Integration
-- Follow existing EaseBot design system (warm gold primary `#C6944A`, Noto Serif headings, Inter body)
+- Follow existing TheWeddingBot design system (warm gold primary `#C6944A`, Noto Serif headings, Inter body)
 - Editor background: clean white/cream with subtle paper texture option
 - Block hover states: subtle left border highlight in primary color
 - Consistent spacing: 16px between blocks, 8px padding within blocks
@@ -951,7 +951,7 @@ Editor/Commenter selects text in shared note
 |------|-------------|
 | Week 6 | Table block, code block, callout block, toggle block |
 | Week 7 | Comments system (inline threads, resolve, reactions), commenter permission level |
-| Week 8 | EaseBot checklist embed, budget embed, file attachments |
+| Week 8 | TheWeddingBot checklist embed, budget embed, file attachments |
 | Week 9 | AI writing assistant (/ai block), remaining templates, notification integration |
 
 ### Phase 3 — Real-time (2-3 weeks)
@@ -1027,7 +1027,7 @@ Editor/Commenter selects text in shared note
 
 ### A. Competitive Analysis
 
-| Feature | Notion | Google Docs | EaseBot Notes (Proposed) |
+| Feature | Notion | Google Docs | TheWeddingBot Notes (Proposed) |
 |---------|--------|-------------|--------------------------|
 | Block editor | Yes | No (line-based) | Yes |
 | Slash commands | Yes | Limited | Yes |
@@ -1037,7 +1037,7 @@ Editor/Commenter selects text in shared note
 | AI writing | Yes (paid) | Gemini | Included (wedding-specific) |
 | Domain-specific | No | No | Yes (wedding templates, AI modes, asset embeds) |
 | Mobile | App | App | Responsive web (PWA later) |
-| Price | Free tier limited | Free | Included in EaseBot |
+| Price | Free tier limited | Free | Included in TheWeddingBot |
 
 ### B. Figma Wireframe Checklist
 - [ ] Notes sidebar with folders

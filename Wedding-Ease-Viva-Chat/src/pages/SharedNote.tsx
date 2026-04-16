@@ -6,6 +6,7 @@ import { getNoteByShareId } from '@/services/notesSharingService';
 import { subscribeToNote } from '@/services/notesService';
 import NoteEditor from '@/components/notes/NoteEditor';
 import type { Note } from '@/types/notes';
+import { SEO } from '@/seo/SEO';
 
 type PageState = 'loading' | 'not-found' | 'error' | 'ready';
 
@@ -64,6 +65,12 @@ export default function SharedNote() {
   if (pageState === 'loading') {
     return (
       <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+        <SEO
+          title="Shared Wedding Note"
+          description="A wedding note shared from TheWeddingBot."
+          robots="noindex, nofollow"
+          type="article"
+        />
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
           <p className="text-sm text-white/50">Loading shared note...</p>
@@ -76,6 +83,11 @@ export default function SharedNote() {
   if (pageState === 'not-found') {
     return (
       <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+        <SEO
+          title="Note not found"
+          description="This shared TheWeddingBot note is no longer available."
+          robots="noindex, nofollow"
+        />
         <div className="text-center space-y-4 max-w-md px-6">
           <AlertCircle className="h-12 w-12 text-white/20 mx-auto" />
           <h2 className="text-lg font-headline text-white/60">Note not found</h2>
@@ -84,7 +96,7 @@ export default function SharedNote() {
           </p>
           <Link to="/">
             <Button variant="outline" className="border-primary/40 text-primary hover:bg-primary/10 mt-4">
-              Go to EaseBot
+              Go to TheWeddingBot
             </Button>
           </Link>
         </div>
@@ -96,6 +108,11 @@ export default function SharedNote() {
   if (pageState === 'error') {
     return (
       <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+        <SEO
+          title="Shared Wedding Note"
+          description="This shared TheWeddingBot note could not be loaded."
+          robots="noindex, nofollow"
+        />
         <div className="text-center space-y-4 max-w-md px-6">
           <XCircle className="h-12 w-12 text-red-400/40 mx-auto" />
           <h2 className="text-lg font-headline text-white/60">Something went wrong</h2>
@@ -112,7 +129,7 @@ export default function SharedNote() {
             </Button>
             <Link to="/">
               <Button variant="outline" className="border-primary/40 text-primary hover:bg-primary/10">
-                Go to EaseBot
+                Go to TheWeddingBot
               </Button>
             </Link>
           </div>
@@ -128,15 +145,25 @@ export default function SharedNote() {
   const isReadOnly = permission !== 'edit';
   const canComment = permission === 'comment' || permission === 'edit';
 
+  const noteDescription = note.title
+    ? `${note.title} — a wedding note shared from TheWeddingBot.`
+    : 'A wedding note shared from TheWeddingBot.';
+
   return (
     <div className="min-h-[100vh] min-h-[100dvh] bg-[#1A0A10]">
+      <SEO
+        title={note.title || 'Shared Wedding Note'}
+        description={noteDescription}
+        type="article"
+        robots="noindex, nofollow"
+      />
       {/* Branded header */}
       <header className="border-b border-white/[0.06] px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              <span className="text-sm font-headline text-primary/80 tracking-wide">EaseBot</span>
+              <span className="text-sm font-headline text-primary/80 tracking-wide">TheWeddingBot</span>
             </div>
             <div className="h-5 w-px bg-white/10" />
             <span className="text-[10px] uppercase tracking-wider text-white/30 font-medium">Shared Note</span>

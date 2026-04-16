@@ -1,7 +1,7 @@
 # My question 
 I have a beach wedding , and i want to send my fiends the beach based wedding cards . give me ideas how i can design the card for beach based and sundownerr wedign card and the wedding is in May
 
-# EaseBot response 
+# TheWeddingBot response 
 A beach wedding in May sounds dreamy! For your wedding cards, let’s create something that reflects the breezy, romantic vibe of a beach sundowner. Here are a few ideas:
 
 1. **Tropical Minimalism**: Use soft beige or sandy tones as the base, with palm leaves or seashell illustrations framing the text. Include a watercolor sunset gradient for a warm, inviting feel.

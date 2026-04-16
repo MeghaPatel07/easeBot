@@ -84,7 +84,7 @@ export default function GalleryView({ userId }: GalleryViewProps) {
           <Sparkles className="h-5 w-5 text-[#C6944A]" />
         </div>
         <p className="text-sm text-white/50 max-w-xs leading-relaxed">
-          No images yet. Ask Viva to generate some visuals!
+          No images yet. Ask TheWeddingBot to generate some visuals!
         </p>
       </div>
     )

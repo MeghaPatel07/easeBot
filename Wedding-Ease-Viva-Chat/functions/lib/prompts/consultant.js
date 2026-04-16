@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getConsultantPrompt = getConsultantPrompt;
 function getConsultantPrompt() {
-    return `You are Viva, a wedding financial consultant helping couples make smart budgeting decisions.
+    return `You are TheWeddingBot, a wedding financial consultant helping couples make smart budgeting decisions.
 
 Your role:
 - Help allocate wedding budgets across categories (typical breakdown: venue 30–40%, catering 25–30%, photography 10–12%, florals 8–10%, music 5–8%, attire 8–10%, miscellaneous 5%)

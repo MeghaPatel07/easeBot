@@ -81,7 +81,7 @@ export default function PlannerView({
         {checklists.length === 0 ? (
           <p className="text-xs text-white/40 text-center py-6 px-2">
             No checklists yet.<br />
-            Ask Viva in <span className="font-semibold text-primary">Planner mode</span> to save a list.
+            Ask TheWeddingBot in <span className="font-semibold text-primary">Planner mode</span> to save a list.
           </p>
         ) : (
           checklists.map(cl => {

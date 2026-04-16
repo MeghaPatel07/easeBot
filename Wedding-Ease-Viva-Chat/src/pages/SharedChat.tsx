@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getSharedChat, type SharedChatData } from '@/services/chatService'
 import { Loader2, ArrowLeft, MessageSquare } from 'lucide-react'
+import { SEO } from '@/seo/SEO'
 
 export default function SharedChat() {
   const { shareId } = useParams<{ shareId: string }>()
@@ -24,26 +25,52 @@ export default function SharedChat() {
 
   if (loading) {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <>
+        <SEO
+          title="Shared Wedding Chat"
+          description="A wedding planning conversation shared from TheWeddingBot."
+          robots="noindex, nofollow"
+          type="article"
+        />
+        <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </>
     )
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex flex-col items-center justify-center bg-background gap-4">
-        <MessageSquare className="h-12 w-12 text-stone-300" />
-        <p className="text-stone-500 text-sm">{error || 'Conversation not found.'}</p>
-        <Link to="/" className="text-primary text-sm hover:underline flex items-center gap-1">
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Viva
-        </Link>
-      </div>
+      <>
+        <SEO
+          title="Shared conversation not found"
+          description="This shared TheWeddingBot conversation has expired or is no longer available."
+          robots="noindex, nofollow"
+        />
+        <div className="min-h-[100vh] min-h-[100dvh] flex flex-col items-center justify-center bg-background gap-4">
+          <MessageSquare className="h-12 w-12 text-stone-300" />
+          <p className="text-stone-500 text-sm">{error || 'Conversation not found.'}</p>
+          <Link to="/" className="text-primary text-sm hover:underline flex items-center gap-1">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to TheWeddingBot
+          </Link>
+        </div>
+      </>
     )
   }
 
+  const firstUserMessage = data.messages.find(m => m.role === 'user')?.content ?? ''
+  const sharedDescription = firstUserMessage
+    ? `${firstUserMessage.slice(0, 155)}${firstUserMessage.length > 155 ? '…' : ''}`
+    : `A wedding planning conversation shared from TheWeddingBot.`
+
   return (
     <div className="min-h-[100vh] min-h-[100dvh] bg-background">
+      <SEO
+        title={data.threadTitle || 'Shared Wedding Chat'}
+        description={sharedDescription}
+        type="article"
+        robots="noindex, nofollow"
+      />
       {/* Header */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-border px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -92,10 +119,10 @@ export default function SharedChat() {
       {/* Footer */}
       <div className="text-center py-8">
         <p className="text-2xs text-stone-400 uppercase tracking-[0.2em] font-medium">
-          Shared from Viva &mdash; Your Wedding AI Concierge
+          Shared from TheWeddingBot &mdash; Your AI Wedding Concierge
         </p>
         <Link to="/" className="inline-block mt-2 text-xs text-primary hover:underline">
-          Try Viva for your wedding planning
+          Try TheWeddingBot for your wedding planning
         </Link>
       </div>
     </div>

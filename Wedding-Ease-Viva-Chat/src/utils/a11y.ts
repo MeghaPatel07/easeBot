@@ -1,5 +1,5 @@
 /**
- * Accessibility label constants for the EaseBot application.
+ * Accessibility label constants for the TheWeddingBot application.
  * Apply these to components via `aria-label` to provide screen reader support.
  */
 export const A11Y_LABELS = {

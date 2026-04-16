@@ -1,6 +1,6 @@
 # PRD: Image Generation Pipeline V2 — Market-Ready Upgrade
 
-**Product**: WeddingEase Viva (easeBot)
+**Product**: WeddingEase TheWeddingBot (easeBot)
 **Platform**: Azure AI Foundry (gpt-4o + gpt-image-1)
 **Date**: 2026-04-03
 **Status**: Draft
@@ -50,10 +50,10 @@ Regex Classification (classifyImageRequest)
 | `easebot-backend/src/controllers/chatController.ts` | Chat integration: parallel image + LLM execution | 335 |
 | `easebot-backend/src/services/azureAI.ts` | LLM calls with multimodal (vision) support | 243 |
 | `easebot-backend/src/types.ts` | ChatPayload, ChatResponse with imageUrl field | 64 |
-| `Wedding-Ease-Viva-Chat/src/hooks/useChat.ts` | Frontend: sends images, handles imageUrl in responses | 547 |
-| `Wedding-Ease-Viva-Chat/src/services/functionsService.ts` | Frontend: API transport, streaming SSE | 147 |
-| `Wedding-Ease-Viva-Chat/src/pages/Index.tsx` | Frontend: image attach, display, preview | 2400+ |
-| `Wedding-Ease-Viva-Chat/src/types/index.ts` | Frontend: Message type with imageUrl, attachedImage | ~80 |
+| `Wedding-Ease-TheWeddingBot-Chat/src/hooks/useChat.ts` | Frontend: sends images, handles imageUrl in responses | 547 |
+| `Wedding-Ease-TheWeddingBot-Chat/src/services/functionsService.ts` | Frontend: API transport, streaming SSE | 147 |
+| `Wedding-Ease-TheWeddingBot-Chat/src/pages/Index.tsx` | Frontend: image attach, display, preview | 2400+ |
+| `Wedding-Ease-TheWeddingBot-Chat/src/types/index.ts` | Frontend: Message type with imageUrl, attachedImage | ~80 |
 
 ### 2.3 Identified Problems
 
@@ -678,7 +678,7 @@ easebot-backend/src/
   routes/
     images.ts            — Gallery routes
 
-Wedding-Ease-Viva-Chat/src/
+Wedding-Ease-TheWeddingBot-Chat/src/
   components/
     ImageCarousel.tsx    — Multi-variant image display
     ImageActions.tsx     — Download/share/pin overlay

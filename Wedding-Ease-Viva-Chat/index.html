@@ -3,9 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-    <title>EaseBot AI - Your Personal Wedding Planning Assistant</title>
-    <meta name="description" content="EaseBot AI helps you plan your perfect wedding with personalized guidance, expert tips, and 24/7 support." />
-    <meta name="author" content="EaseBot" />
+
+    <!-- Primary meta tags (defaults — per-route values are injected at runtime by src/seo) -->
+    <title>TheWeddingBot · Your AI Wedding Planner & Concierge</title>
+    <meta name="description" content="TheWeddingBot is the AI wedding concierge that plans, styles, and budgets your big day in 10+ languages. Chat for checklists, cultural guidance, vendor ideas, and 24/7 support." />
+    <meta name="keywords" content="AI wedding planner, wedding planning app, wedding chatbot, wedding checklist, wedding budget tracker, Indian wedding planner, multilingual wedding assistant, wedding concierge, TheWeddingBot" />
+    <meta name="author" content="TheWeddingBot" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://theweddingbot.ai/" />
 
     <!-- Mobile browser chrome color (Android Chrome / Safari iOS 15+) -->
     <meta name="theme-color" content="#3A0E20" />
@@ -15,8 +20,31 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="EaseBot" />
+    <meta name="apple-mobile-web-app-title" content="TheWeddingBot" />
     <meta name="format-detection" content="telephone=no" />
+
+    <!-- Open Graph -->
+    <meta property="og:site_name" content="TheWeddingBot" />
+    <meta property="og:title" content="TheWeddingBot · Your AI Wedding Planner & Concierge" />
+    <meta property="og:description" content="Plan, style, and budget your wedding with TheWeddingBot — the multilingual AI concierge. Checklists, cultural guidance, vendor ideas and 24/7 support." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://theweddingbot.ai/" />
+    <meta property="og:image" content="https://theweddingbot.ai/og/theweddingbot-cover.png" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="hi_IN" />
+    <meta property="og:locale:alternate" content="gu_IN" />
+    <meta property="og:locale:alternate" content="es_ES" />
+    <meta property="og:locale:alternate" content="ar_AE" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@theweddingbot" />
+    <meta name="twitter:title" content="TheWeddingBot · Your AI Wedding Planner & Concierge" />
+    <meta name="twitter:description" content="The multilingual AI wedding concierge. Plan, style, budget — in 10+ languages." />
+    <meta name="twitter:image" content="https://theweddingbot.ai/og/theweddingbot-cover.png" />
+
+    <!-- Sitemap hint for crawlers that read <link rel="sitemap"> -->
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 
     <!-- Google Fonts (Stitch: Noto Serif + Inter) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,14 +56,71 @@
     <!-- Preload background image for immediate loading -->
     <link rel="preload" href="/images/IMG_3917.PNG" as="image" type="image/png" />
 
-    <meta property="og:title" content="EaseBot AI - Your Personal Wedding Planning Assistant" />
-    <meta property="og:description" content="EaseBot AI helps you plan your perfect wedding with personalized guidance, expert tips, and 24/7 support." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <!-- ───────────────────────────────────────────────────────────────────
+         Baseline JSON-LD — shipped in static HTML so non-JS crawlers
+         (Perplexity, ChatGPT search, Gemini, Claude) see entity data on
+         first byte. React SEO layer may add route-specific blocks after
+         hydration. See src/seo/structuredData.ts.
+         ─────────────────────────────────────────────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "TheWeddingBot",
+      "url": "https://theweddingbot.ai",
+      "logo": "https://theweddingbot.ai/logo.png",
+      "description": "TheWeddingBot is the AI wedding concierge that plans, styles, and budgets your big day in 10+ languages.",
+      "sameAs": [],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "support@theweddingbot.ai",
+        "contactType": "customer support",
+        "availableLanguage": ["English","Hindi","Gujarati","Spanish","French","Arabic","Portuguese","German","Chinese"]
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "TheWeddingBot",
+      "url": "https://theweddingbot.ai",
+      "inLanguage": ["en","hi","gu","es","fr","ar","pt","de","zh"],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://theweddingbot.ai/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "TheWeddingBot",
+      "applicationCategory": "LifestyleApplication",
+      "applicationSubCategory": "Wedding Planning",
+      "operatingSystem": "Web, iOS, Android",
+      "description": "AI wedding concierge for planning, styling, budgeting, and cultural guidance — in 10+ languages.",
+      "url": "https://theweddingbot.ai",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free tier with optional premium upgrade"
+      },
+      "featureList": [
+        "AI wedding planning chat",
+        "Multilingual support (10+ languages)",
+        "Voice input and text-to-speech",
+        "AI-generated wedding imagery",
+        "Checklists and timelines",
+        "Budget tracker",
+        "Partner collaboration",
+        "Cultural and etiquette guidance"
+      ]
+    }
+    </script>
   </head>
 
   <body>

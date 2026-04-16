@@ -330,7 +330,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               <div>
-                <p className="text-xl font-semibold elegant-heading">Welcome to EaseBot!</p>
+                <p className="text-xl font-semibold elegant-heading">Welcome to TheWeddingBot!</p>
                 <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'}</p>
               </div>
             </div>
@@ -377,7 +377,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
               <div>
-                <p className="text-xl font-semibold elegant-heading">Welcome to EaseBot!</p>
+                <p className="text-xl font-semibold elegant-heading">Welcome to TheWeddingBot!</p>
                 <p className="text-sm text-muted-foreground mt-1">Hello, {signedUpName || 'there'}</p>
               </div>
             </div>
@@ -388,12 +388,12 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <>
               <DialogHeader className="text-center space-y-4">
                 <div className="flex flex-col items-center">
-                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
+                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">TheWeddingBot</div>
                   <div className="font-label uppercase tracking-[0.2em] text-2xs text-white/40">Digital Concierge</div>
                 </div>
                 <DialogTitle className="font-headline text-3xl tracking-tight">Create Your Account</DialogTitle>
                 <DialogDescription className="text-white/50 text-sm">
-                  Join thousands of couples planning their perfect wedding with Viva.
+                  Join thousands of couples planning their perfect wedding with TheWeddingBot.
                 </DialogDescription>
               </DialogHeader>
 

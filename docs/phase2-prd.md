@@ -1,6 +1,6 @@
 # Phase 2 — PRD: AI Pipeline (Cloud Functions)
 
-**Product:** WeddingEase — Viva Chat
+**Product:** WeddingEase — TheWeddingBot Chat
 **Phase:** 2 — Azure AI Pipeline via Firebase Cloud Functions
 **Stack:** Azure AI Foundry · Azure AI Speech · Azure AI Translator · Firebase Cloud Functions · Firestore
 

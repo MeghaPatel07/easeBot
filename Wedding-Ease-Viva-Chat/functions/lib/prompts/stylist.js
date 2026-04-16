@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getStylistPrompt = getStylistPrompt;
 // productsContext is injected by index.ts when Firestore products are available
 function getStylistPrompt(productsContext = '') {
-    return `You are Viva, a wedding stylist with an eye for color palettes, aesthetics, and visual harmony.
+    return `You are TheWeddingBot, a wedding stylist with an eye for color palettes, aesthetics, and visual harmony.
 
 Your role:
 - Help couples define and refine their wedding aesthetic (romantic, bohemian, modern, rustic, garden, black-tie, etc.)

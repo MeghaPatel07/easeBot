@@ -1,4 +1,4 @@
-# Viva — Improvement Checklist
+# TheWeddingBot — Improvement Checklist
 
 > Benchmarked against ChatGPT & Google Gemini (March 2026)
 > Priority: P0 = Quick Win | P1 = High Impact | P2 = Medium Impact | P3 = Differentiator
@@ -44,7 +44,7 @@
 
 ### [done] 6. Typing Indicator with Mode Name
 **Priority:** P0 | **Effort:** Low
-**Description:** Change the typing indicator from "Viva is thinking" to "Viva (Planner) is thinking..." or "Viva (Stylist) is crafting..." showing which mode is actively responding. Use the `selectedMode` state to dynamically set the label and apply the mode's color. Tiny change, but adds personality and clarity about what the AI is doing.
+**Description:** Change the typing indicator from "TheWeddingBot is thinking" to "TheWeddingBot (Planner) is thinking..." or "TheWeddingBot (Stylist) is crafting..." showing which mode is actively responding. Use the `selectedMode` state to dynamically set the label and apply the mode's color. Tiny change, but adds personality and clarity about what the AI is doing.
 **Files:** `src/pages/Index.tsx` (typing indicator JSX block)
 
 ---
@@ -60,7 +60,7 @@
 
 ### [notneeded] 8. Suggested Follow-up Chips
 **Priority:** P1 | **Effort:** Medium
-**Description:** After each AI response, display 2-3 clickable suggestion pills ("Compare venue packages", "Set a seating chart", "Ask about centerpieces"). The backend should return suggested follow-ups alongside the main response — add a `suggestions: string[]` field to the SSE stream's final event. On the frontend, render them as rounded pill buttons below the AI message. Clicking one auto-sends it as the next user message. Both ChatGPT and Gemini do this. For a domain-specific bot like Viva, suggestions can be highly contextual and guide users through the planning journey.
+**Description:** After each AI response, display 2-3 clickable suggestion pills ("Compare venue packages", "Set a seating chart", "Ask about centerpieces"). The backend should return suggested follow-ups alongside the main response — add a `suggestions: string[]` field to the SSE stream's final event. On the frontend, render them as rounded pill buttons below the AI message. Clicking one auto-sends it as the next user message. Both ChatGPT and Gemini do this. For a domain-specific bot like TheWeddingBot, suggestions can be highly contextual and guide users through the planning journey.
 **Files:** `functions/src/controllers/chatController.ts` (add to system prompt: "End every response with 2-3 suggested follow-up questions"), `functions/src/routes/chat.ts`, `src/hooks/useChat.ts`, `src/pages/Index.tsx`
 
 ---
@@ -81,7 +81,7 @@
 
 ### [notneeded] 11. Conversation Export (PDF/TXT)
 **Priority:** P1 | **Effort:** Medium
-**Description:** Add an "Export" option in the thread dropdown menu. Support two formats: (a) Plain text (.txt) — concatenate all messages with timestamps. (b) PDF — use a client-side library like `jsPDF` or `html2pdf.js` to render the conversation with styling, mode badges, and the Viva branding header. Wedding planning conversations contain critical decisions (vendor choices, timelines, budget breakdowns) that users need to save, print, or share with family members who aren't on the app.
+**Description:** Add an "Export" option in the thread dropdown menu. Support two formats: (a) Plain text (.txt) — concatenate all messages with timestamps. (b) PDF — use a client-side library like `jsPDF` or `html2pdf.js` to render the conversation with styling, mode badges, and the TheWeddingBot branding header. Wedding planning conversations contain critical decisions (vendor choices, timelines, budget breakdowns) that users need to save, print, or share with family members who aren't on the app.
 **Files:** `src/pages/Index.tsx`, `src/utils/exportConversation.ts` (create)
 
 ---
@@ -109,7 +109,7 @@
 
 ### [notneeded] 15. Onboarding Flow / Setup Wizard
 **Priority:** P1 | **Effort:** Medium
-**Description:** First-time users see a 3-4 step onboarding wizard: (1) Wedding date, (2) Estimated budget range, (3) Style preference (classic/modern/rustic/bohemian/glamorous), (4) Guest count estimate. Store answers in the user profile (`weddingDate`, `budget`, `style`, `guestCount` fields already partially exist). Feed these into every AI prompt as context so Viva gives personalized responses from the very first message. ChatGPT has Custom Instructions, Gemini has Gems — Viva's onboarding serves the same purpose but is domain-optimized.
+**Description:** First-time users see a 3-4 step onboarding wizard: (1) Wedding date, (2) Estimated budget range, (3) Style preference (classic/modern/rustic/bohemian/glamorous), (4) Guest count estimate. Store answers in the user profile (`weddingDate`, `budget`, `style`, `guestCount` fields already partially exist). Feed these into every AI prompt as context so TheWeddingBot gives personalized responses from the very first message. ChatGPT has Custom Instructions, Gemini has Gems — TheWeddingBot's onboarding serves the same purpose but is domain-optimized.
 **Files:** `src/components/OnboardingWizard.tsx` (create), `src/contexts/AuthContext.tsx`, `src/pages/Index.tsx`, `functions/src/prompts/*.ts`
 
 ---
@@ -146,7 +146,7 @@
 
 ### [done] 20. Checklist Due Dates + Overdue Alerts
 **Priority:** P2 | **Effort:** Medium
-**Description:** Add a `dueDate: Date | null` field to checklist items. Show a date picker inline when editing items. Sort items by deadline. Highlight overdue items in red. Show a badge count of overdue items in the sidebar "Planner" nav item. The AI's `create_checklist` tool should accept optional due dates and the Planner prompt should encourage setting them ("Book venue by June 15"). This extends Viva's unique Planner feature far beyond what ChatGPT or Gemini can do with generic task lists.
+**Description:** Add a `dueDate: Date | null` field to checklist items. Show a date picker inline when editing items. Sort items by deadline. Highlight overdue items in red. Show a badge count of overdue items in the sidebar "Planner" nav item. The AI's `create_checklist` tool should accept optional due dates and the Planner prompt should encourage setting them ("Book venue by June 15"). This extends TheWeddingBot's unique Planner feature far beyond what ChatGPT or Gemini can do with generic task lists.
 **Files:** `src/types/index.ts`, `src/components/ChecklistDetail.tsx`, `src/services/checklistService.ts`, `functions/src/services/plannerTools.ts`
 
 ---
@@ -172,18 +172,18 @@
 
 ---
 
-## TIER 3 — Domain Differentiators (Unique to Viva)
+## TIER 3 — Domain Differentiators (Unique to TheWeddingBot)
 
 ### [phase2] 24. Vendor Search + Recommendations
 **Priority:** P3 | **Effort:** High
-**Description:** Connect to Google Places API, Yelp API, or WeddingWire/The Knot APIs to search for real local vendors. When the user asks "Find florists near me under $2000" or "Best photographers in Mumbai", the AI calls a vendor search tool, retrieves real results (name, rating, price range, photos, reviews), and presents them as rich cards with links. Save favorites to a `vendors` subcollection. Neither ChatGPT nor Gemini has domain-specific vendor search — this is Viva's biggest potential moat.
+**Description:** Connect to Google Places API, Yelp API, or WeddingWire/The Knot APIs to search for real local vendors. When the user asks "Find florists near me under $2000" or "Best photographers in Mumbai", the AI calls a vendor search tool, retrieves real results (name, rating, price range, photos, reviews), and presents them as rich cards with links. Save favorites to a `vendors` subcollection. Neither ChatGPT nor Gemini has domain-specific vendor search — this is TheWeddingBot's biggest potential moat.
 **Files:** `functions/src/services/vendorSearch.ts` (create), `functions/src/services/plannerTools.ts` (add tool), `src/pages/Index.tsx`
 
 ---
 
 ### [done] 25. Budget Tracker Dashboard
 **Priority:** P3 | **Effort:** High
-**Description:** A persistent budget management view. Users set their total budget, then allocate and track spending per category (Venue, Catering, Photography, Flowers, Attire, Music, etc.). Show a pie chart of allocation, a progress bar of spent vs remaining, and a line-item list with vendor names and amounts. The AI Consultant mode can read and update the budget via LLM tools. Store in Firestore as `users/{uid}/budget`. Neither competitor offers persistent financial tracking — this turns Viva from a chatbot into a planning tool.
+**Description:** A persistent budget management view. Users set their total budget, then allocate and track spending per category (Venue, Catering, Photography, Flowers, Attire, Music, etc.). Show a pie chart of allocation, a progress bar of spent vs remaining, and a line-item list with vendor names and amounts. The AI Consultant mode can read and update the budget via LLM tools. Store in Firestore as `users/{uid}/budget`. Neither competitor offers persistent financial tracking — this turns TheWeddingBot from a chatbot into a planning tool.
 **Files:** `src/components/BudgetDashboard.tsx` (create), `src/services/budgetService.ts` (create), `functions/src/services/plannerTools.ts` (add budget tools)
 
 ---
@@ -204,7 +204,7 @@
 
 ### [done] 28. Timeline Visualization
 **Priority:** P3 | **Effort:** High
-**Description:** Render the wedding planning timeline as an interactive visual (vertical timeline or horizontal Gantt chart) instead of plain text. When the Planner mode creates a timeline, parse the milestones into structured data and display them on a visual timeline component with dates, status indicators, and clickable items that link to relevant checklists. Use a library like `react-chrono` or a custom SVG timeline. Neither ChatGPT nor Gemini visualizes timelines — this makes Viva's Planner mode dramatically more useful.
+**Description:** Render the wedding planning timeline as an interactive visual (vertical timeline or horizontal Gantt chart) instead of plain text. When the Planner mode creates a timeline, parse the milestones into structured data and display them on a visual timeline component with dates, status indicators, and clickable items that link to relevant checklists. Use a library like `react-chrono` or a custom SVG timeline. Neither ChatGPT nor Gemini visualizes timelines — this makes TheWeddingBot's Planner mode dramatically more useful.
 **Files:** `src/components/TimelineView.tsx` (create), `functions/src/services/plannerTools.ts` (add timeline tool)
 
 ---

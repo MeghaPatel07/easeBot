@@ -1,3 +1,86 @@
+# ──────────────────────────────────────────────────────────────────────
+# robots.txt — TheWeddingBot
+# See docs/SEO_STRATEGY.md and docs/SEO_PRD.md for rationale.
+# ──────────────────────────────────────────────────────────────────────
+
+User-agent: *
+Allow: /
+Allow: /terms
+Allow: /privacy
+
+# Private, user-scoped workspace routes — never index
+Disallow: /chat/
+Disallow: /share/
+Disallow: /shared/
+Disallow: /*/gallery
+Disallow: /*/planner
+Disallow: /*/liked
+Disallow: /*/reminders
+Disallow: /*/budget
+Disallow: /*/shopping
+Disallow: /*/saved-items
+Disallow: /*/timeline
+Disallow: /*/progress
+Disallow: /*/notifications
+Disallow: /*/collaborate
+Disallow: /*/notes
+
+# Answer-engine crawlers — explicitly welcomed for public marketing pages
+User-agent: GPTBot
+Allow: /
+Allow: /terms
+Allow: /privacy
+Disallow: /chat/
+Disallow: /share/
+Disallow: /shared/
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /terms
+Allow: /privacy
+Disallow: /chat/
+Disallow: /share/
+Disallow: /shared/
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /terms
+Allow: /privacy
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /terms
+Allow: /privacy
+Disallow: /chat/
+Disallow: /share/
+Disallow: /shared/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /terms
+Allow: /privacy
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /terms
+Allow: /privacy
+Disallow: /chat/
+Disallow: /share/
+Disallow: /shared/
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /terms
+Allow: /privacy
+
+User-agent: CCBot
+Allow: /
+Allow: /terms
+Allow: /privacy
+Disallow: /chat/
+Disallow: /share/
+Disallow: /shared/
+
 User-agent: Googlebot
 Allow: /
 
@@ -10,5 +93,4 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-User-agent: *
-Allow: /
+Sitemap: https://theweddingbot.ai/sitemap.xml

@@ -173,7 +173,7 @@ OTP timer: 30-second countdown before "Resend OTP" is enabled.
 ### Step 4 — Success (`step = 'success'`)
 
 
-Shows a checkmark + "Welcome to EaseBot". After 2 seconds → `onSignupComplete()` → `Auth.tsx` triggers redirect.
+Shows a checkmark + "Welcome to TheWeddingBot". After 2 seconds → `onSignupComplete()` → `Auth.tsx` triggers redirect.
 
 
 ---

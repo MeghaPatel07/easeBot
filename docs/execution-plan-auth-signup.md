@@ -11,11 +11,11 @@ Stack snapshot (verified in repo):
 - Users keyed by Firebase UID at Firestore `users/{uid}`; UserProfile type at `src/types/index.ts:49-72`
 
 Primary files this plan touches:
-- `Wedding-Ease-Viva-Chat/src/services/authService.ts`
-- `Wedding-Ease-Viva-Chat/src/components/auth/SignUpModal.tsx`
-- `Wedding-Ease-Viva-Chat/src/components/auth/SignInModal.tsx`
-- `Wedding-Ease-Viva-Chat/src/types/index.ts`
-- `Wedding-Ease-Viva-Chat/firestore.rules` (index only)
+- `Wedding-Ease-TheWeddingBot-Chat/src/services/authService.ts`
+- `Wedding-Ease-TheWeddingBot-Chat/src/components/auth/SignUpModal.tsx`
+- `Wedding-Ease-TheWeddingBot-Chat/src/components/auth/SignInModal.tsx`
+- `Wedding-Ease-TheWeddingBot-Chat/src/types/index.ts`
+- `Wedding-Ease-TheWeddingBot-Chat/firestore.rules` (index only)
 - Firebase/Google Cloud Console (out-of-repo config)
 
 ---
@@ -47,7 +47,7 @@ This warning is **not a code bug**. It comes from Google Cloud's OAuth consent s
 **Phase B — Repo changes to match the chosen scope path**
 
 *If taking the preferred (fast) path:*
-- File: `Wedding-Ease-Viva-Chat/src/services/authService.ts`
+- File: `Wedding-Ease-TheWeddingBot-Chat/src/services/authService.ts`
 - Delete line 195: `provider.addScope('https://www.googleapis.com/auth/calendar')`
 - Remove `googleAccessToken` plumbing on lines 207–208, 225, 232, and return value on line 236. Simplify return type on line 193 to `Promise<import('firebase/auth').User>`.
 - Remove `googleCalendarToken` field from `UserProfile` (`src/types/index.ts`) and from `buildNewUserDoc` (line 88). Ripgrep `googleCalendarToken` to catch call sites before deleting the field.
@@ -82,13 +82,13 @@ This warning is **not a code bug**. It comes from Google Cloud's OAuth consent s
 
 **Step 1 — Install `libphonenumber-js`**
 ```
-cd Wedding-Ease-Viva-Chat
+cd Wedding-Ease-TheWeddingBot-Chat
 npm install libphonenumber-js
 ```
 ~145 KB, tree-shakeable, used by every major auth product. It provides country metadata, E.164 formatting, and validation.
 
 **Step 2 — Create reusable PhoneInput component**
-- New file: `Wedding-Ease-Viva-Chat/src/components/auth/PhoneInput.tsx`
+- New file: `Wedding-Ease-TheWeddingBot-Chat/src/components/auth/PhoneInput.tsx`
 - Props: `{ value: { countryCode: string; national: string }; onChange: (v) => void; error?: string; disabled?: boolean }`
 - Renders a `Select` (use existing `@/components/ui/select`) for country code beside the existing `Input`.
 - Country list: derived from `getCountries()` + `getCountryCallingCode()` in `libphonenumber-js/min`. Sort alphabetically by country name. Default to `IN` (India) since WeddingEase is India-first and PayU is the stated primary gateway (`improvement.md` §2).
@@ -131,7 +131,7 @@ npm install libphonenumber-js
 - Verify OTP flow (`authService.ts:252-270`): the `where('phone', '==', user.phoneNumber)` check on line 260 already uses E.164 because Firebase returns E.164 in `user.phoneNumber`. This now works correctly because new signups store E.164 in the same format.
 
 **Step 7 — One-time backfill (only if production users exist)**
-- New script: `Wedding-Ease-Viva-Chat/scripts/backfill-phone-e164.ts` — iterate `users` collection; for each doc with a non-null `phone`, attempt `parsePhoneNumber(phone)`; if parseable, write back canonical E.164 + split fields; if not, log and leave a sentinel for manual review.
+- New script: `Wedding-Ease-TheWeddingBot-Chat/scripts/backfill-phone-e164.ts` — iterate `users` collection; for each doc with a non-null `phone`, attempt `parsePhoneNumber(phone)`; if parseable, write back canonical E.164 + split fields; if not, log and leave a sentinel for manual review.
 - Run against staging first, commit to git, run against prod with explicit founder approval.
 
 **Step 8 — Firestore index**
@@ -170,7 +170,7 @@ npm install libphonenumber-js
 ### Execution steps
 
 **Step 1 — Shared validator**
-- New file: `Wedding-Ease-Viva-Chat/src/utils/passwordPolicy.ts`
+- New file: `Wedding-Ease-TheWeddingBot-Chat/src/utils/passwordPolicy.ts`
 - Exports:
   ```ts
   export const PASSWORD_MIN_LENGTH = 10
@@ -200,7 +200,7 @@ npm install libphonenumber-js
 - `authService.ts:39` — change message to `"Password does not meet strength requirements"`. Keep the key `auth/weak-password` as Firebase's server-side rejection fallback.
 
 **Step 5 — Tests**
-- New file: `Wedding-Ease-Viva-Chat/src/utils/passwordPolicy.test.ts` (if Vitest is configured — check `package.json`; if not, defer tests and rely on manual QA).
+- New file: `Wedding-Ease-TheWeddingBot-Chat/src/utils/passwordPolicy.test.ts` (if Vitest is configured — check `package.json`; if not, defer tests and rely on manual QA).
 - Cases: empty, 9-char strong, 10-char missing symbol, 10-char all classes, 129-char, `"Password1!"` (in denylist — should reject), unicode password (should accept if length passes — do not reject unicode).
 
 **Acceptance criteria**

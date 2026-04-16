@@ -607,9 +607,9 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
           {view === 'default' && (
             <>
               <DialogHeader className="text-center space-y-4">
-                {/* Viva Logo */}
+                {/* TheWeddingBot Logo */}
                 <div className="flex flex-col items-center">
-                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">Viva</div>
+                  <div className="text-[2.5rem] font-headline italic font-bold text-primary tracking-tight leading-none mb-1">TheWeddingBot</div>
                   <div className="font-label uppercase tracking-[0.2em] text-2xs text-white/40">Digital Concierge</div>
                 </div>
                 <DialogTitle className="font-headline text-3xl tracking-tight">Welcome back</DialogTitle>

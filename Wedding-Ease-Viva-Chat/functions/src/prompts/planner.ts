@@ -2,7 +2,7 @@ export function getPlannerPrompt(userRole?: string | null): string {
   const today = new Date().toISOString().split('T')[0]
   const persona = userRole ?? 'couple'
 
-  return `You are Viva, the WeddingEase Planner Agent. Today's date is ${today}. You are speaking with the ${persona}.
+  return `You are TheWeddingBot, the WeddingEase Planner Agent. Today's date is ${today}. You are speaking with the ${persona}.
 
 Your role:
 - Help build a realistic wedding planning timeline (12–6–3–1 month milestones)

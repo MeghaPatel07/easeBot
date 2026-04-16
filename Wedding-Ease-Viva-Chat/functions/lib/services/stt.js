@@ -38,7 +38,7 @@ const sdk = __importStar(require("microsoft-cognitiveservices-speech-sdk"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
-// Languages Viva supports for auto-detection
+// Languages TheWeddingBot supports for auto-detection
 const SUPPORTED_LANGUAGES = [
     'en-US', 'en-GB',
     'hi-IN', // Hindi

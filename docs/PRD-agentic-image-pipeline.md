@@ -611,7 +611,7 @@ The frontend `ChatMessages.tsx` can render progressive blur-to-sharp transitions
 | `src/services/promptEnhancer.ts` | **DELETE** — replaced by Prompt Architect | — |
 | `src/controllers/chatController.ts` | Modify `handleImageToolCall()` — add grounding, architect, post-processing, partial streaming, style memory, reference images | All stages |
 | `src/types.ts` | Add `StyleMemory`, `styleMemory` to payloads, `referenceImageUrls` | Stage 5 |
-| `Wedding-Ease-Viva-Chat/src/components/chat/ChatMessages.tsx` | Progressive image rendering (blur-to-sharp) | Stage 4 (UX) |
+| `Wedding-Ease-TheWeddingBot-Chat/src/components/chat/ChatMessages.tsx` | Progressive image rendering (blur-to-sharp) | Stage 4 (UX) |
 | `.env` | Add `AZURE_GPT_IMAGE_15_DEPLOYMENT`. Remove `GEMINI_API_KEY`, `GEMINI_IMAGE_MODEL` | — |
 
 ---
