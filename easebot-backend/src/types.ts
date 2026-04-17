@@ -81,6 +81,8 @@ export interface ChatResponse {
   toolActions: ToolAction[]
   mode: Mode
   detectedLanguage: string
+  /** The language the AI actually responded in (used by TTS for correct voice selection). */
+  responseLanguage: string
   imageQuota?: ImageQuotaStatus
   styleMemory?: StyleMemory
 }

@@ -155,6 +155,7 @@
     text-size-adjust: 100%;
   }
 
+
   body {
     background-color: #090807;
   }
@@ -300,9 +301,11 @@
 .gradient-bg,
 .gradient-bg-expanded {
   position: relative;
-  background-color: #090807;
-  overflow: hidden;
+  /* background-color: #090807; */
+      background-color: #1a140e;
   isolation: isolate;
+  /* Prevent mobile overscroll bounce */
+  overscroll-behavior: none;
 }
 
 /* Grid overlay — #2A2A2A @ 14% opacity, 1px lines, ~36px cells */
@@ -331,15 +334,16 @@
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse 55% 80% at 95% 0%, rgba(208, 122, 70, 0.55) 0%, rgba(208, 122, 70, 0.22) 30%, rgba(10, 10, 10, 0) 70%),
-    radial-gradient(ellipse 75% 70% at 5% 100%, rgba(208, 122, 70, 0.55) 0%, rgba(208, 122, 70, 0.22) 30%, rgba(10, 10, 10, 0) 70%);
+    radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208, 123, 70) 0%, rgba(208, 122, 70, 0.22) 30%, rgba(10, 10, 10, 0) 70%),
+    radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208, 123, 70) 0%, rgba(208, 122, 70, 0.22) 30%, rgba(10, 10, 10, 0) 70%);
   filter: blur(120px);
   /* opacity: 0.95; */
 }
 
-/* keep content above bg overlays */
-.gradient-bg>*,
-.gradient-bg-expanded>* {
+/* keep content above bg overlays — but skip fixed-position children
+   (sidebar, backdrop overlay) so they aren't forced to position:relative. */
+.gradient-bg>*:not([class~="fixed"]),
+.gradient-bg-expanded>*:not([class~="fixed"]) {
   position: relative;
   z-index: 1;
 }

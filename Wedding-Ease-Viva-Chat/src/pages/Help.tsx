@@ -50,7 +50,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What are the subscription plans?',
-    a: 'We offer three tiers: Free (limited messages and basic features), Pro at $14.99/month (higher limits, image generation, priority responses), and Pro Max at $39/month (unlimited messages, all image styles, advanced planning tools, and priority support).',
+    a: 'We offer three tiers: Free (limited messages and basic features), Pro at ₹1/month (higher limits, image generation, priority responses), and Pro Max at $39/month (unlimited messages, all image styles, advanced planning tools, and priority support).',
   },
   {
     q: 'How do I invite my partner?',

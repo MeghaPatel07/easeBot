@@ -88,6 +88,8 @@ export interface StreamDoneEvent {
   toolActions: { tool: string; checklistId?: string; itemId?: string; checklistTitle?: string; checklistItems?: string[]; imagePrompt?: string; imageAction?: string; imageAspectRatio?: string; imageVariants?: number }[]
   mode: string
   detectedLanguage: string
+  /** The language the AI actually responded in (for TTS voice selection). */
+  responseLanguage?: string
   audioUrl: string | null
   imageUrl: string | null
   imageUrls?: string[]

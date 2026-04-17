@@ -199,6 +199,14 @@ interface SystemPromptResult {
   algoliaQueried: boolean
 }
 
+// Detect if the user is explicitly asking for product/shopping recommendations.
+// General inspiration, idea, or advice requests should NOT trigger product injection.
+const PRODUCT_INTENT_RE = /\b(show me products?|recommend\s+(?:a |some )?products?|product\s+(?:ideas?|suggestions?|recommendations?)|shop(?:ping)?|buy|purchase|where (?:can i|to) (?:buy|get|find)|suggest\s+(?:a |some )?(?:bags?|clutch|purse|lehenga|dress|gown|saree|ring|jewelry|necklace|earring|outfit|sherwani|kurta))\b/i
+
+function hasProductIntent(userMessage: string): boolean {
+  return PRODUCT_INTENT_RE.test(userMessage)
+}
+
 async function buildSystemPrompt(
   mode: Mode,
   userMessage: string,
@@ -209,23 +217,27 @@ async function buildSystemPrompt(
   const userContext = buildUserContextSuffix(userProfile)
 
   if (mode === 'stylist') {
-    try {
-      const products = await getRelevantProductsViaAlgolia(userMessage)
-      // P0-2: DO NOT charge algolia here. The caller is responsible for
-      // charging via chargeTokens after the main Azure call completes, so
-      // that a post-gate reconcile race cannot push the user over their
-      // monthly cap mid-turn. The pessimistic chat estimate in
-      // quotaMiddleware already reserves room for one algolia query.
-      const context = formatProductsContext(products)
-      return {
-        prompt: getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext,
-        algoliaQueried: true,
+    // Only fetch products when user explicitly asks for product recommendations.
+    // General "give me ideas" or "inspire me" messages should get creative
+    // styling advice, not a product catalogue listing.
+    if (hasProductIntent(userMessage)) {
+      try {
+        const products = await getRelevantProductsViaAlgolia(userMessage)
+        const context = formatProductsContext(products)
+        return {
+          prompt: getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext,
+          algoliaQueried: true,
+        }
+      } catch {
+        return {
+          prompt: getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext,
+          algoliaQueried: false,
+        }
       }
-    } catch {
-      return {
-        prompt: getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext,
-        algoliaQueried: false,
-      }
+    }
+    return {
+      prompt: getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext,
+      algoliaQueried: false,
     }
   }
   switch (mode) {
@@ -319,6 +331,7 @@ async function handleImageToolCall(
     preferredAspectRatio?: ImageSize
     vibeTitle?: string
     vibeDescriptors?: string[]
+    signal?: AbortSignal
   }
 ): Promise<ImageToolResult> {
   const imgPrompt = args.prompt as string
@@ -365,22 +378,23 @@ async function handleImageToolCall(
   if (opts.imageBase64) {
     const sourceSize = await detectImageAspectRatio(opts.imageBase64)
     console.log(`[chatController] User attached image → edit mode | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images })
+    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images, signal: opts.signal })
   } else if (imgAction === 'edit' && opts.lastGeneratedImageUrl) {
     try {
       console.log('[chatController] Iterative edit → fetching previous image from URL')
-      const imgRes = await fetch(opts.lastGeneratedImageUrl)
+      const imgRes = await fetch(opts.lastGeneratedImageUrl, { signal: opts.signal })
       const imgBuf = Buffer.from(await imgRes.arrayBuffer())
       const sourceBase64 = imgBuf.toString('base64')
       const sourceSize = await detectImageAspectRatio(sourceBase64)
       console.log(`[chatController] Iterative edit | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt })
+      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt, signal: opts.signal })
     } catch (fetchErr) {
+      if ((fetchErr as Error).name === 'AbortError') throw fetchErr
       console.error('[chatController] Failed to fetch lastGeneratedImageUrl, falling back to generate:', fetchErr)
-      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage })
+      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal })
     }
   } else {
-    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage })
+    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal })
   }
 
   // Track which size was actually used for storage metadata
@@ -730,6 +744,11 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
     const { text: finalText, audioUrl } = await processOutbound(finalAiText, detectedLanguage)
 
+    // responseLanguage = the language the AI actually responded in.
+    // When targetLanguage is non-English the LLM was instructed to respond in
+    // that language, so we trust it. Falls back to detectedLanguage (input lang).
+    const responseLanguage = targetLanguage !== 'en' ? targetLanguage : detectedLanguage
+
     const response: ChatResponse = {
       text: finalText,
       audioUrl,
@@ -738,6 +757,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       toolActions,
       mode,
       detectedLanguage,
+      responseLanguage,
       styleMemory: imageToolStyleMemory,
     }
     res.status(200).json(response)
@@ -774,6 +794,11 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   res.flushHeaders()
 
   const sse = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`)
+
+  // Abort controller for cancelling in-progress work (image generation, etc.)
+  // when the client disconnects or stops generation.
+  const streamAbort = new AbortController()
+  req.on('close', () => { streamAbort.abort() })
 
   // P0-1: hoisted so the outer catch can refund if the stream throws after
   // we have already debited tokens.
@@ -1041,8 +1066,11 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
             preferredAspectRatio,
             vibeTitle,
             vibeDescriptors,
+            signal: streamAbort.signal,
             onPartialImage: (partialB64: string) => {
-              sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
+              if (!streamAbort.signal.aborted) {
+                sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
+              }
             },
           })
           toolActions.push(imgResult.action)
@@ -1080,9 +1108,19 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // TTS after full text is ready
     const { audioUrl } = await processOutbound(fullText, detectedLanguage)
 
-    sse({ t: 'd', text: fullText, toolActions, mode, detectedLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
+    // responseLanguage = the language the AI actually responded in.
+    const responseLanguage = targetLanguage !== 'en' ? targetLanguage : detectedLanguage
+
+    sse({ t: 'd', text: fullText, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
     res.end()
   } catch (err: any) {
+    // Client disconnected — nothing to write, just clean up silently
+    if (err.name === 'AbortError' || streamAbort.signal.aborted) {
+      console.info('[chatController:stream] Client disconnected, aborting in-progress work')
+      if (!res.writableEnded) res.end()
+      return
+    }
+
     console.error('[chatController:stream]', err)
     // P0-1: if we already debited the user before the stream threw, refund
     // the debit. We capture tokensCharged + consumedFrom on each successful
@@ -1105,7 +1143,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
         })
       }
     }
-    sse({ t: 'e', msg: err.message ?? 'Internal server error' })
-    res.end()
+    if (!res.writableEnded) {
+      sse({ t: 'e', msg: err.message ?? 'Internal server error' })
+      res.end()
+    }
   }
 }

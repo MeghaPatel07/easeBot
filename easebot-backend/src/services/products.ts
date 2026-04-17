@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, limit } from 'firebase/firestore'
+import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 
 export interface ProductResult {
@@ -30,7 +30,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   photo:   ['photo', 'photograph', 'camera', 'videograph', 'film', 'cinemat', 'candid', 'reel'],
 }
 
-function toProduct(d: any): ProductResult {
+function toProduct(d: any, variantImageUrl?: string): ProductResult {
   const data = d.data()
   return {
     uid: d.id,
@@ -42,8 +42,22 @@ function toProduct(d: any): ProductResult {
     vendor: data.vendor ?? '',
     tags: data.tags ?? [],
     productUrl: `https://migration-testshiv97.web.app/product-detail/${d.id}`,
-    imageUrl: data.imageUrl ?? '',
+    imageUrl: data.imageUrl || variantImageUrl || '',
     rating: data.rating ?? 0,
+  }
+}
+
+/** Fetch first variant image for a product when the product doc has no imageUrl */
+async function fetchFirstVariantImage(productId: string): Promise<string> {
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'variants'), where('productId', '==', productId), limit(1))
+    )
+    if (snap.empty) return ''
+    const images = snap.docs[0].data()?.images as string[] | undefined
+    return images?.[0] ?? ''
+  } catch {
+    return ''
   }
 }
 
@@ -54,7 +68,19 @@ function extractCategories(userMessage: string): string[] {
     .map(([category]) => category)
 }
 
-// Fetch up to 5 relevant products from Firestore for the user's message
+/** Convert product docs to ProductResult[], fetching variant images for any missing imageUrl */
+async function resolveProductImages(docs: any[]): Promise<ProductResult[]> {
+  return Promise.all(
+    docs.map(async (d) => {
+      const data = d.data()
+      if (data.imageUrl) return toProduct(d)
+      const variantImg = await fetchFirstVariantImage(d.id)
+      return toProduct(d, variantImg)
+    })
+  )
+}
+
+// Fetch up to 8 relevant products from Firestore for the user's message
 export async function getRelevantProducts(userMessage: string): Promise<ProductResult[]> {
   const categories = extractCategories(userMessage)
 
@@ -64,38 +90,26 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
     )
     // If category-specific query has results, use them; otherwise fall back to any products
     if (categorySnap.docs.length > 0) {
-      return categorySnap.docs.map(d => toProduct(d))
+      return resolveProductImages(categorySnap.docs)
     }
   }
 
   const snap = await getDocs(query(collection(db, 'products'), limit(8)))
-
-  return snap.docs.map(d => {
-    const data = d.data()
-    return {
-      uid: d.id,
-      name: data.name ?? '',
-      description: data.description ?? '',
-      category: data.category ?? '',
-      price: data.price ?? 0,
-      currency: data.currency ?? 'INR',
-      vendor: data.vendor ?? '',
-      tags: data.tags ?? [],
-      productUrl: `https://migration-testshiv97.web.app/product-detail/${d.id}`,
-      imageUrl: data.imageUrl ?? '',
-      rating: data.rating ?? 0,
-    }
-  })
+  return resolveProductImages(snap.docs)
 }
 
 // Format products as a context block injected into the Stylist system prompt
 export function formatProductsContext(products: ProductResult[]): string {
   if (products.length === 0) return ''
 
-  const lines = products.map(p => {
-    const imgTag = p.imageUrl ? `![${p.name}](${p.imageUrl}) ` : ''
+  // Only include products that have a real image URL — products without images
+  // cause the LLM to substitute the product page URL as the image, which breaks rendering.
+  const withImages = products.filter(p => p.imageUrl)
+  if (withImages.length === 0) return ''
+
+  const lines = withImages.map(p => {
     const desc = p.description ? p.description.slice(0, 120).replace(/\n/g, ' ') : ''
-    return `- ${imgTag}[${p.name}](${p.productUrl})||${desc}`
+    return `- ![${p.name}](${p.imageUrl}) [${p.name}](${p.productUrl})|${desc}`
   })
 
   return `\n\nAvailable products from WeddingEase catalogue (copy these lines verbatim — do not reformat):\n${lines.join('\n')}\n`
