@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bell, Plus, Loader2, Trash2, Mail, MessageCircle, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Bell, Plus, Loader2, Trash2, Pencil, Mail, MessageCircle, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
-import { createReminder, deleteReminder } from '@/services/reminderService'
+import { createReminder, updateReminder, deleteReminder } from '@/services/reminderService'
 import { isDerivedPhoneEmail } from '@/services/authService'
 import { resolveTier, getLimits } from '@/config/tierConfig'
 import type { ReminderDoc } from '@/types'
@@ -77,6 +77,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
   const [customLead, setCustomLead] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingReminder, setEditingReminder] = useState<ReminderDoc | null>(null)
 
   const resetForm = () => {
     setTitle('')
@@ -85,6 +86,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
     setDescription('')
     setLeadMinutes(DEFAULT_LEAD_MINUTES)
     setCustomLead('')
+    setEditingReminder(null)
   }
 
   const handleOpenDialog = () => {
@@ -92,6 +94,19 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
       toast.error('Please sign in to create reminders.')
       return
     }
+    resetForm()
+    setDialogOpen(true)
+  }
+
+  const handleOpenEdit = (r: ReminderDoc) => {
+    if (!user) return
+    setEditingReminder(r)
+    setTitle(r.title)
+    setDate(r.eventDateStr)
+    setTime(r.eventTimeStr || '')
+    setDescription(r.description || '')
+    setLeadMinutes(r.leadTimeMinutes)
+    setCustomLead('')
     setDialogOpen(true)
   }
 
@@ -103,9 +118,9 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
     return leadMinutes
   }, [leadMinutes, customLead])
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     if (!user) {
-      toast.error('Please sign in to create reminders.')
+      toast.error('Please sign in to manage reminders.')
       return
     }
     const trimmedTitle = title.trim()
@@ -119,19 +134,25 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
     }
     setSubmitting(true)
     try {
-      await createReminder(user, profile, {
+      const input = {
         title: trimmedTitle,
         eventDateStr: date,
         eventTimeStr: time || null,
         description: description.trim() || null,
         leadTimeMinutes: effectiveLead,
-      })
-      toast.success(`Reminder set · ${formatLeadTime(effectiveLead)}`)
+      }
+      if (editingReminder) {
+        await updateReminder(user.uid, editingReminder.id, input)
+        toast.success('Reminder updated')
+      } else {
+        await createReminder(user, profile, input)
+        toast.success(`Reminder set · ${formatLeadTime(effectiveLead)}`)
+      }
       setDialogOpen(false)
       resetForm()
       await onRefresh()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create reminder'
+      const msg = err instanceof Error ? err.message : 'Failed to save reminder'
       toast.error(msg)
     } finally {
       setSubmitting(false)
@@ -191,19 +212,31 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
       >
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold text-white/80 flex-1 min-w-0 break-words">{r.title}</p>
-          <button
-            type="button"
-            aria-label="Delete reminder"
-            onClick={() => handleDelete(r)}
-            disabled={deletingId === r.id}
-            className="flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-          >
-            {deletingId === r.id ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Trash2 className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {r.status === 'pending' && (
+              <button
+                type="button"
+                aria-label="Edit reminder"
+                onClick={() => handleOpenEdit(r)}
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-white/40 hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
             )}
-          </button>
+            <button
+              type="button"
+              aria-label="Delete reminder"
+              onClick={() => handleDelete(r)}
+              disabled={deletingId === r.id}
+              className="h-7 w-7 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+            >
+              {deletingId === r.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
         </div>
 
         <p className="text-xs text-primary font-medium">{formatEventDate(r)}</p>
@@ -272,7 +305,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
           <Bell className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm">No reminders yet.</p>
           <p className="text-xs mt-1">
-            Ask Easebot or click <span className="font-semibold text-primary">+ New Reminder</span>.
+            Ask TheWeddingBot or click <span className="font-semibold text-primary">+ New Reminder</span>.
           </p>
         </div>
       ) : (
@@ -305,7 +338,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
       >
         <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="font-headline text-lg text-white/90">New Reminder</DialogTitle>
+            <DialogTitle className="font-headline text-lg text-white/90">{editingReminder ? 'Edit Reminder' : 'New Reminder'}</DialogTitle>
             <DialogDescription className="text-white/40 text-xs">
               We'll notify you via {profile?.phone && !isDerivedPhoneEmail(profile?.email) ? 'email or WhatsApp' : profile?.phone ? 'WhatsApp' : 'email'} before the event.
             </DialogDescription>
@@ -414,12 +447,12 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
               Cancel
             </Button>
             <Button
-              onClick={handleCreate}
+              onClick={handleSubmit}
               disabled={submitting || !title.trim() || !date}
               className="rounded-xl gap-1.5"
             >
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {submitting ? 'Creating…' : 'Create'}
+              {submitting ? (editingReminder ? 'Saving…' : 'Creating…') : (editingReminder ? 'Save' : 'Create')}
             </Button>
           </DialogFooter>
         </DialogContent>

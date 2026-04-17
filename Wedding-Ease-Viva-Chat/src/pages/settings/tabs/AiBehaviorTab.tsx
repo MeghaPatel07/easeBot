@@ -125,7 +125,7 @@ export function AiBehaviorTab() {
       await savePersonalization(user.uid, { toneSettings: tone })
       toast({
         title: 'Tone updated',
-        description: 'Easebot will use your new conversation style.',
+        description: 'TheWeddingBot will use your new conversation style.',
       })
     } catch (err) {
       console.error('[AiBehaviorTab] tone save failed:', err)
@@ -285,7 +285,7 @@ export function AiBehaviorTab() {
       }
       toast({
         title: 'Language updated',
-        description: 'Easebot will reply in your new preferred language.',
+        description: 'TheWeddingBot will reply in your new preferred language.',
       })
     } catch (err) {
       setLanguageState(previous)
@@ -303,7 +303,7 @@ export function AiBehaviorTab() {
   return (
     <TabShell
       title="AI Behavior"
-      description="Tone, voice, and the default mode Easebot reaches for first."
+      description="Tone, voice, and the default mode TheWeddingBot reaches for first."
     >
       {/* ── Tone sliders ─────────────────────────────────────────────────── */}
       <Card className="p-6">
@@ -313,7 +313,7 @@ export function AiBehaviorTab() {
               Conversation tone
             </h3>
             <p className="mt-1 text-xs text-white/90">
-              Shape how Easebot writes — every slider runs 0 to 100.
+              Shape how TheWeddingBot writes — every slider runs 0 to 100.
             </p>
           </div>
 
@@ -504,7 +504,7 @@ export function AiBehaviorTab() {
         <div className="mb-4">
           <h3 className="text-base font-semibold">Language</h3>
           <p className="mt-1 text-xs text-white/90">
-            Easebot will try to reply in this language. Auto-detect lets the AI
+            TheWeddingBot will try to reply in this language. Auto-detect lets the AI
             mirror whatever language you write in.
           </p>
         </div>
@@ -543,7 +543,7 @@ export function AiBehaviorTab() {
               Default AI mode
             </h3>
             <p className="mt-1 text-xs text-white/90">
-              Which mode Easebot starts new chats in. Coming soon — saving is
+              Which mode TheWeddingBot starts new chats in. Coming soon — saving is
               disabled until the backend wires this up.
             </p>
           </div>

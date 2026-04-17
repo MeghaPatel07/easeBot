@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { CheckSquare, X, Pencil, Trash2, Plus, Check, Calendar, AlertTriangle, Copy } from 'lucide-react'
+import { CheckSquare, X, Pencil, Trash2, Plus, Check, Calendar, AlertTriangle, Copy, MoreVertical } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import {
   subscribeToChecklists,
@@ -8,6 +14,7 @@ import {
   addChecklistItem,
   deleteChecklistItem,
   updateItemDueDate,
+  reorderChecklistItems,
 } from '@/services/checklistService'
 import type { Checklist, ChecklistItem } from '@/types'
 
@@ -54,6 +61,9 @@ export default function ChecklistDetail({
   const [showAddInput, setShowAddInput] = useState(false)
   const [editingDueDateId, setEditingDueDateId] = useState<string | null>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
+  const dragItemRef = useRef<string | null>(null)
+  const dragOverItemRef = useRef<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
   const today = new Date().toISOString().slice(0, 10)
 
   useEffect(() => {
@@ -119,6 +129,46 @@ export default function ChecklistDetail({
 
   async function handleDeleteItem(itemId: string) {
     await deleteChecklistItem(userId, checklist!.id, itemId)
+  }
+
+  async function handleCopyItem(text: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Copied to clipboard')
+    } catch {
+      toast.error("Couldn't copy to clipboard")
+    }
+  }
+
+  function handleDragStart(itemId: string) {
+    dragItemRef.current = itemId
+  }
+
+  function handleDragOver(e: React.DragEvent, itemId: string) {
+    e.preventDefault()
+    dragOverItemRef.current = itemId
+    setDragOverId(itemId)
+  }
+
+  function handleDragEnd() {
+    setDragOverId(null)
+    if (!dragItemRef.current || !dragOverItemRef.current || dragItemRef.current === dragOverItemRef.current) {
+      dragItemRef.current = null
+      dragOverItemRef.current = null
+      return
+    }
+    const items = [...sortedItems]
+    const dragIdx = items.findIndex(i => i.id === dragItemRef.current)
+    const overIdx = items.findIndex(i => i.id === dragOverItemRef.current)
+    if (dragIdx === -1 || overIdx === -1) return
+    const [dragged] = items.splice(dragIdx, 1)
+    items.splice(overIdx, 0, dragged)
+    const orderedIds = items.map(i => i.id)
+    reorderChecklistItems(userId, checklist!.id, orderedIds).catch(() =>
+      toast.error('Failed to reorder items')
+    )
+    dragItemRef.current = null
+    dragOverItemRef.current = null
   }
 
   async function handleDueDateChange(itemId: string, date: string) {
@@ -274,13 +324,17 @@ export default function ChecklistDetail({
             return (
               <div
                 key={item.id}
-                className={`flex flex-col gap-1 p-3 rounded-xl border transition-all duration-200 group ${
+                draggable
+                onDragStart={() => handleDragStart(item.id)}
+                onDragOver={(e) => handleDragOver(e, item.id)}
+                onDragEnd={handleDragEnd}
+                className={`flex flex-col gap-1 p-3 rounded-xl border transition-all duration-200 group cursor-grab active:cursor-grabbing ${
                   isOverdue
                     ? 'bg-red-500/10/50 border-red-200'
                     : item.completed
                     ? 'bg-emerald-500/5 border-emerald-500/20'
                     : 'bg-white/[0.06] border-white/[0.06] hover:hover:bg-white/[0.08]'
-                } ${justToggled ? 'ring-2 ring-blue-300 ring-offset-1' : ''}`}
+                } ${justToggled ? 'ring-2 ring-blue-300 ring-offset-1' : ''} ${dragOverId === item.id ? 'border-primary/50 bg-primary/5' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Number badge */}
@@ -321,33 +375,36 @@ export default function ChecklistDetail({
                     </span>
                   )}
 
-                  {/* Action buttons — always visible on mobile, hover on desktop */}
+                  {/* 3-dot menu — always visible on mobile, hover on desktop */}
                   {!isEditing && (
-                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <button
-                        onClick={() => setEditingDueDateId(editingDueDateId === item.id ? null : item.id)}
-                        className={`h-7 w-7 flex items-center justify-center rounded-lg transition-colors ${
-                          item.dueDate ? 'text-primary hover:text-primary/70 hover:bg-primary/10' : 'text-white/50 hover:text-primary hover:bg-primary/10'
-                        }`}
-                        title="Set due date"
-                      >
-                        <Calendar className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => { setEditingItemId(item.id); setEditText(item.text) }}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/50 hover:text-primary hover:bg-primary/10 transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="h-6 w-6 flex items-center justify-center rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="h-7 w-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.08] transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
+                          title="More actions"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="min-w-[140px]">
+                        <DropdownMenuItem onClick={() => { setEditingItemId(item.id); setEditText(item.text) }}>
+                          <Pencil className="h-3.5 w-3.5 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleCopyItem(item.text)}>
+                          <Copy className="h-3.5 w-3.5 mr-2" />
+                          Copy
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingDueDateId(editingDueDateId === item.id ? null : item.id)}>
+                          <Calendar className="h-3.5 w-3.5 mr-2" />
+                          {item.dueDate ? 'Change due date' : 'Set due date'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDeleteItem(item.id)} className="text-red-400 focus:text-red-400">
+                          <Trash2 className="h-3.5 w-3.5 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
 
                   {/* Confirm / cancel while editing */}

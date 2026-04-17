@@ -111,6 +111,26 @@ export async function updateItemDueDate(
   await updateDoc(ref, { items, updatedAt: serverTimestamp() })
 }
 
+export async function reorderChecklistItems(
+  userId: string,
+  checklistId: string,
+  orderedItemIds: string[]
+): Promise<void> {
+  const ref = checklistDoc(userId, checklistId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const currentItems = snap.data().items as ChecklistItem[]
+  const itemMap = new Map(currentItems.map(i => [i.id, i]))
+  const reordered = orderedItemIds
+    .map(id => itemMap.get(id))
+    .filter((i): i is ChecklistItem => !!i)
+  // Append any items not in the ordered list (safety net)
+  for (const item of currentItems) {
+    if (!orderedItemIds.includes(item.id)) reordered.push(item)
+  }
+  await updateDoc(ref, { items: reordered, updatedAt: serverTimestamp() })
+}
+
 export async function deleteChecklist(userId: string, checklistId: string): Promise<void> {
   await deleteDoc(checklistDoc(userId, checklistId))
 }

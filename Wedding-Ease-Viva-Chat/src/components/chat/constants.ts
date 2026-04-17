@@ -38,7 +38,7 @@ export const MODE_CONFIG: ModeConfig[] = [
   {
     key: 'auto',
     label: 'Auto',
-    description: 'Let Easebot choose the best approach for you',
+    description: 'Let TheWeddingBot choose the best approach for you',
     icon: Sparkles,
     pill: 'bg-mode-auto/10 text-mode-auto',
     active: 'bg-[#8A7E72] text-white shadow-sm',

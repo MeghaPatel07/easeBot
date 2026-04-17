@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://weddingease.ai/</loc>
+    <loc>https://theweddingbot.ai/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://weddingease.ai/pricing</loc>
+    <loc>https://theweddingbot.ai/pricing</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://weddingease.ai/terms</loc>
+    <loc>https://theweddingbot.ai/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://weddingease.ai/privacy</loc>
+    <loc>https://theweddingbot.ai/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

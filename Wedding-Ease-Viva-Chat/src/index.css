@@ -2,14 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Shared soft-light text color — rgb(216,216,216) */
+/* System font stack — matches Claude's clean sans-serif look */
+
+/* Shared soft-light text color */
 .text-soft {
-  color: rgb(216, 216, 216);
+  color: #cfcecc;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
    EaseBot — Final Chatbot theme (Figma: Final-Chatbot)
-   Background #090807, bronze accent #A17A63, rose text #D9C3C3,
+   Background #090807, bronze accent #A17A63, white text,
    glass sidebar (#D07A46 @ 2% fill, #603B25 @ 52% stroke),
    warm radial bloom, subtle grid overlay.
    ────────────────────────────────────────────────────────────────────────── */
@@ -19,16 +21,16 @@
     /* Surface */
     --background: 20 13% 3%;
     /* #090807 */
-    --foreground: 0 22% 81%;
-    /* #D9C3C3 chat text */
+    --foreground: 0 0% 100%;
+    /* white chat text */
 
     --card: 20 10% 6%;
     /* lifted dark glass surface */
-    --card-foreground: 0 22% 81%;
+    --card-foreground: 0 0% 100%;
 
     --popover: 20 10% 6%;
     /* lifted near-black for menus */
-    --popover-foreground: 0 22% 85%;
+    --popover-foreground: 0 0% 100%;
 
     /* Brand — bronze */
     --primary: 22 25% 51%;
@@ -42,8 +44,8 @@
     --secondary-foreground: 20 13% 3%;
 
     --muted: 20 10% 8%;
-    --muted-foreground: 0 15% 70%;
-    /* D9C3C3 @ ~70% */
+    --muted-foreground: 0 0% 85%;
+    /* white @ ~85% */
 
     --accent: 22 25% 51%;
     /* bronze */
@@ -86,8 +88,8 @@
     /* Figma theme raw values (use in utilities / inline) */
     --bronze: 161 122 99;
     /* #A17A63 */
-    --rose: 217 195 195;
-    /* #D9C3C3 */
+    --rose: 255 255 255;
+    /* white */
     --header-pink: 214 193 199;
     /* #D6C1C7 */
     --sidebar-fill: 208 122 70;
@@ -102,18 +104,18 @@
 
   .dark {
     --background: 20 13% 3%;
-    --foreground: 0 22% 81%;
+    --foreground: 0 0% 100%;
     --card: 20 10% 6%;
-    --card-foreground: 0 22% 81%;
+    --card-foreground: 0 0% 100%;
     --popover: 20 10% 6%;
-    --popover-foreground: 0 22% 85%;
+    --popover-foreground: 0 0% 100%;
     --primary: 22 25% 51%;
     --primary-foreground: 0 0% 100%;
     --primary-muted: 22 20% 65%;
     --secondary: 343 14% 80%;
     --secondary-foreground: 20 13% 3%;
     --muted: 20 10% 8%;
-    --muted-foreground: 0 15% 70%;
+    --muted-foreground: 0 0% 85%;
     --accent: 22 25% 51%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 45%;
@@ -149,6 +151,7 @@
   html,
   body {
     @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
@@ -398,12 +401,12 @@
   background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
-  color: #D9C3C3;
+  color: #FFFFFF;
 }
 
 /* Elegant heading */
 .elegant-heading {
-  font-family: 'Noto Serif', serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-weight: 700;
   font-style: italic;
   letter-spacing: -0.01em;

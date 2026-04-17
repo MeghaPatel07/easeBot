@@ -157,14 +157,14 @@ export function AppearanceTab() {
   return (
     <TabShell
       title="Appearance"
-      description="Theme, density, and language for the WeddingEase interface."
+      description="Theme, density, and language for the TheWeddingBot interface."
     >
       {/* Theme card */}
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Theme</h3>
           <p className="mt-1 text-xs text-white/90">
-            Choose how WeddingEase looks. Your selection is applied instantly.
+            Choose how TheWeddingBot looks. Your selection is applied instantly.
           </p>
         </div>
         <RadioGroup
@@ -240,7 +240,7 @@ export function AppearanceTab() {
         <div className="mb-4">
           <h3 className="text-base font-semibold">Language</h3>
           <p className="mt-1 text-xs text-white/90">
-            Easebot will try to reply in this language. Auto-detect lets the AI mirror
+            TheWeddingBot will try to reply in this language. Auto-detect lets the AI mirror
             whatever language you write in.
           </p>
         </div>

@@ -171,7 +171,7 @@ export function SettingsModal({ open, onClose }: Props) {
             <h2 className="font-headline text-[1.5rem] leading-tight tracking-tight text-white">
               Make it <span className="text-primary">yours</span>
             </h2>
-            <p className="text-xs text-white/40 mt-1.5">Customize how Viva interacts with you</p>
+            <p className="text-xs text-white/40 mt-1.5">Customize how TheWeddingBot interacts with you</p>
           </div>
 
           {/* Tab bar */}

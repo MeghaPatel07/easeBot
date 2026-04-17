@@ -40,7 +40,6 @@ import { addSavedItem } from '@/services/savedItemsService';
 import { getVoicePreset } from '@/services/voicePresets';
 import { getLocalVoiceId } from '@/services/settingsService';
 import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
-import '@fontsource/lato';
 import chatbotBg from '@/assets/images/chatbot background.avif';
 
 // ── Extracted components ────────────────────────────────────────────────────
@@ -57,12 +56,12 @@ const Index = () => {
   const navigate = useNavigate();
   const { threadId: urlThreadId, checklistId: urlChecklistId, userId: urlUserId } = useParams<{ threadId: string; checklistId: string; userId: string }>();
   const location = useLocation();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, loading: authLoading } = useAuth();
   const {
     messages, threads, activeThreadId, isTyping, allLikedMessages, reminders, lastToolActions,
     sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
-    hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders,
+    hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError,
   } = useChat();
 
   // ── Flash checkbox on AI mark_as_done ─────────────────────────────────────
@@ -829,7 +828,7 @@ const Index = () => {
   const handleNativeShareChat = async () => {
     if (!shareModalUrl) return;
     if (navigator.share) {
-      try { await navigator.share({ url: shareModalUrl, title: `Wedding Ease — ${shareModalTitle}`, text: 'Check out this conversation from Wedding Ease!' }); } catch { /* cancelled */ }
+      try { await navigator.share({ url: shareModalUrl, title: `TheWeddingBot — ${shareModalTitle}`, text: 'Check out this conversation from TheWeddingBot!' }); } catch { /* cancelled */ }
     }
     setShareModalUrl(null);
   };
@@ -843,12 +842,12 @@ const Index = () => {
     {
       name: 'Twitter / X', color: 'text-white',
       icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>,
-      getUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this wedding conversation from Wedding Ease!')}`
+      getUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this wedding conversation from TheWeddingBot!')}`
     },
     {
       name: 'Email', color: 'text-blue-400',
       icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>,
-      getUrl: (url: string) => `mailto:?subject=${encodeURIComponent('Wedding Ease — Shared Conversation')}&body=${encodeURIComponent(`Check out this conversation: ${url}`)}`
+      getUrl: (url: string) => `mailto:?subject=${encodeURIComponent('TheWeddingBot — Shared Conversation')}&body=${encodeURIComponent(`Check out this conversation: ${url}`)}`
     },
   ];
 
@@ -881,13 +880,17 @@ const Index = () => {
 
         {/* Social platforms */}
         <div className="grid grid-cols-3 gap-2 mb-4">
-          {CHAT_SHARE_PLATFORMS.map(platform => (
-            <a key={platform.name} href={platform.getUrl(shareModalUrl)} target="_blank" rel="noopener noreferrer" onClick={() => setShareModalUrl(null)}
+          {CHAT_SHARE_PLATFORMS.map(platform => {
+            const url = platform.getUrl(shareModalUrl)
+            const isMailto = url.startsWith('mailto:')
+            return (
+            <a key={platform.name} href={url} target={isMailto ? '_self' : '_blank'} rel={isMailto ? undefined : 'noopener noreferrer'} onClick={() => setShareModalUrl(null)}
               className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-white/[0.06] transition-colors">
               <div className={platform.color}><platform.icon /></div>
               <span className="text-3xs text-white/40">{platform.name}</span>
             </a>
-          ))}
+            )
+          })}
         </div>
 
         {/* Native share (mobile) */}
@@ -964,6 +967,38 @@ const Index = () => {
   void showSettingsModal;
   const settingsModalJSX = <SettingsShell onShowSignIn={() => setShowSignInModal(true)} onShowSignUp={() => setShowSignUpModal(true)} />;
 
+  // ── Auth wall for unauthorized chat access ────────────────────────────────
+  // If someone navigates to /chat/:threadId without being logged in, or if the
+  // logged-in user doesn't own the thread (Firestore returns permission error),
+  // show a gate instead of an empty chat.
+  if (urlThreadId && !authLoading && (!user || chatLoadError)) {
+    return (
+      <div className="gradient-bg min-h-screen flex flex-col items-center justify-center px-6 text-center" style={bgStyle}>
+        {authModalsJSX}
+        <div className="max-w-sm mx-auto">
+          <Lock className="h-12 w-12 text-[#A17A63]/60 mx-auto mb-4" />
+          <h2 className="font-headline text-xl text-white/90 mb-2">You cannot view this chat</h2>
+          <p className="text-sm text-white/50 mb-6">Login or signup to view.</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={() => setShowSignInModal(true)}
+              className="rounded-xl px-6"
+            >
+              Login
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowSignUpModal(true)}
+              className="rounded-xl px-6"
+            >
+              Sign up
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
@@ -974,7 +1009,7 @@ const Index = () => {
         {authModalsJSX}
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className={`flex-1 flex flex-col overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
           <header className="flex items-center gap-2 px-2 sm:px-4 h-14  backdrop-blur-md border-b border-[#A17A63]/20 flex-shrink-0">
             {sidebarToggleJSX}
             <h2 className="font-headline text-lg text-white/90">Planner</h2>
@@ -1003,7 +1038,7 @@ const Index = () => {
       {authModalsJSX}
       {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
-      <main className="flex-1 flex flex-col overflow-x-hidden overflow-hidden">
+      <main className={`flex-1 flex flex-col overflow-x-hidden overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
         <header className="flex items-center gap-2 px-2 sm:px-4 h-14 flex-shrink-0">
           {sidebarToggleJSX}
           <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-7 w-7 p-0 rounded-lg">
@@ -1120,7 +1155,7 @@ const Index = () => {
         {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
 
-        <main className="flex-1 min-w-0 flex flex-col relative overflow-hidden">
+        <main className={`flex-1 min-w-0 flex flex-col relative overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
           <ChatHeader
             isSidebarOpen={isSidebarOpen}
             onToggleSidebar={() => setIsSidebarOpen(v => !v)}
@@ -1264,7 +1299,7 @@ const Index = () => {
       {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
 
-      <main className="flex-1 flex flex-col relative overflow-hidden">
+      <main className={`flex-1 flex flex-col relative overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
         <ChatHeader
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(v => !v)}
@@ -1296,17 +1331,30 @@ const Index = () => {
             <div className="relative z-10 w-full">
               {/* Bot logo */}
               <div className="mx-auto mb-2 sm:mb-4">
-                <img src="/images/logo.png" alt="WeddingEase" className="h-14 sm:h-20 object-contain mx-auto" />
+                <img src="/images/logo.png" alt="TheWeddingBot" className="h-14 sm:h-20 object-contain mx-auto" />
               </div>
               {/* <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#A17A63]/60 font-label mb-6 text-center">Your Wedding Concierge</p> */}
 
               {/* Hero heading — tighter on mobile */}
-              <h2 className="font-headline text-lg sm:text-2xl md:text-[1.5rem] text-soft mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
-                Hi, I'm here to <span className="italic text-[#A17A63]">guide you.</span>
+              <h2 className="mt-12 font-headline text-lg sm:text-xl md:text-[1.3rem] text-soft mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
+  Hi!   <span className='text-[#a17a63cc]'>I'm here to help...</span>
               </h2>
-              <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
+              {/* <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
                 Tell me your event, style or budget — I'll guide you step by step.
-              </p>
+              </p> */}
+  <div className="hidden sm:flex items-center gap-3 bg-white/[0.04] backdrop-blur-md rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
+                <Sparkles className="w-5 h-5 text-[#A17A63]/70 flex-shrink-0" />
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold text-soft">Not sure where to start?</p>
+                  <p className="text-xs text-soft">Tell me what you are looking for your celebration</p>
+                </div>
+                <button
+                  onClick={() => setInputText('Help me decide what I need for my wedding')}
+                  className="px-4 py-2 rounded-full bg-white/[0.06] backdrop-blur-md text-soft text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-all flex-shrink-0"
+                >
+                  Help me decide <Sparkles className="w-3 h-3" />
+                </button>
+              </div>
 
               {/* Quick prompt cards — 2×2 on mobile, 4-across on desktop */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-5 max-w-2xl mx-auto">
@@ -1320,20 +1368,7 @@ const Index = () => {
 
               {/* "Not sure what you need?" banner — desktop only (mobile users have
                   the prompt cards above which already cover this) */}
-              <div className="hidden sm:flex items-center gap-3 bg-white/[0.04] backdrop-blur-md rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
-                <Sparkles className="w-5 h-5 text-[#A17A63]/70 flex-shrink-0" />
-                <div className="flex-1 text-left">
-                  <p className="text-sm font-semibold text-soft">Not sure what you need?</p>
-                  <p className="text-xs text-soft">Tell me your event, style or budget</p>
-                </div>
-                <button
-                  onClick={() => setInputText('Help me decide what I need for my wedding')}
-                  className="px-4 py-2 rounded-full bg-white/[0.06] backdrop-blur-md text-soft text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-all flex-shrink-0"
-                >
-                  Help me decide <Sparkles className="w-3 h-3" />
-                </button>
-              </div>
-
+            
               <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
             </div>
           </div>

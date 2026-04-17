@@ -235,6 +235,32 @@ export async function createReminder(
   }
 }
 
+export async function updateReminder(
+  userId: string,
+  reminderId: string,
+  input: ReminderInput,
+): Promise<void> {
+  const title = input.title.trim()
+  if (!title) throw new Error('Title is required.')
+  if (!input.eventDateStr) throw new Error('Date is required.')
+
+  const timezone = resolveTimezone()
+  const eventAt = computeEventAt(input.eventDateStr, input.eventTimeStr)
+  const notifyAt = new Date(eventAt.getTime() - input.leadTimeMinutes * 60_000)
+
+  await updateDoc(reminderDocRef(userId, reminderId), {
+    title,
+    description: input.description?.trim() || null,
+    eventAt: Timestamp.fromDate(eventAt),
+    eventDateStr: input.eventDateStr,
+    eventTimeStr: input.eventTimeStr || null,
+    leadTimeMinutes: input.leadTimeMinutes,
+    notifyAt: Timestamp.fromDate(notifyAt),
+    timezone,
+    updatedAt: serverTimestamp(),
+  })
+}
+
 export async function deleteReminder(userId: string, reminderId: string): Promise<void> {
   await deleteDoc(reminderDocRef(userId, reminderId))
 }

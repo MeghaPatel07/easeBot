@@ -374,7 +374,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-soft prose-headings:text-[rgb(216,216,216)] prose-strong:text-[rgb(216,216,216)] prose-em:text-[rgb(216,216,216)] prose-li:text-[rgb(216,216,216)] prose-p:text-[rgb(216,216,216)] prose-blockquote:text-[rgb(216,216,216)] prose-code:text-[rgb(216,216,216)]">
+              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[15px] sm:text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-[#cfcecc] prose-headings:text-[#cfcecc] prose-strong:text-[#cfcecc] prose-em:text-[#cfcecc] prose-li:text-[#cfcecc] prose-p:text-[#cfcecc] prose-blockquote:text-[#cfcecc] prose-code:text-[#cfcecc]">
                 <TypewriterMarkdown
                   text={message.text}
                   isStreaming={message.id === streamingMsgId}
@@ -714,7 +714,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       <Sparkles className="h-5 w-5 text-[#A17A63]/50 animate-pulse" />
                     </div>
                     <div className="space-y-1.5 text-center">
-                      <p className="text-xs text-white/40 font-medium">viva is generating...</p>
+                      <p className="text-xs text-white/40 font-medium">generating...</p>
                       <p className="text-3xs text-white/25">creating your image</p>
                     </div>
                     <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">

@@ -208,13 +208,13 @@ const editorStyles = `
   font-size: 2em;
   font-weight: 700;
   margin: 1em 0 0.5em;
-  font-family: 'Lato', serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 .ProseMirror h2 {
   font-size: 1.5em;
   font-weight: 600;
   margin: 0.8em 0 0.4em;
-  font-family: 'Lato', serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 .ProseMirror h3 {
   font-size: 1.25em;

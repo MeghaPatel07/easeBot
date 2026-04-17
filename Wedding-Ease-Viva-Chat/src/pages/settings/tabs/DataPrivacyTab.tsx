@@ -72,7 +72,7 @@ export function DataPrivacyTab() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `weddingease-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = `theweddingbot-export-${new Date().toISOString().slice(0, 10)}.json`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -115,14 +115,14 @@ export function DataPrivacyTab() {
   return (
     <TabShell
       title="Data & Privacy"
-      description="Control how WeddingEase stores, uses, and shares your information."
+      description="Control how TheWeddingBot stores, uses, and shares your information."
     >
       {/* Data training */}
       {/* <Card className="p-6">
         <div className="mb-2">
           <h3 className="text-base font-semibold">Improve the model for everyone</h3>
           <p className="mt-1 text-xs text-white/90">
-            By default, anonymized snippets of your chats may be used to make Easebot
+            By default, anonymized snippets of your chats may be used to make TheWeddingBot
             better. Opt out at any time.
           </p>
         </div>
@@ -213,7 +213,7 @@ export function DataPrivacyTab() {
           <div>
             <h3 className="text-base font-semibold">Cookie preferences</h3>
             <p className="mt-1 text-xs text-white/90">
-              WeddingEase only uses essential cookies for authentication and session
+              TheWeddingBot only uses essential cookies for authentication and session
               continuity. Tracking and analytics cookies are managed in your browser
               settings.
             </p>

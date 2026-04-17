@@ -99,7 +99,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <header className="flex items-center gap-1.5 w-full px-3 sm:px-5 h-14  z-10 flex-shrink-0">
       <SidebarToggle isSidebarOpen={isSidebarOpen} onToggleSidebar={onToggleSidebar} onNewChat={onNewChat} />
-      <img src="/images/logo.png" alt="WeddingEase" className="h-7 sm:h-8 object-contain" />
+      <img src="/images/logo.png" alt="TheWeddingBot" className="h-7 sm:h-8 object-contain" />
       <div className="flex-1" />
       <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
         <div className="hidden sm:block">

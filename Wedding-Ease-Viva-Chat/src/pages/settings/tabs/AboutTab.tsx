@@ -28,7 +28,7 @@ interface LinkItem {
 const LINKS: LinkItem[] = [
   {
     label: 'Terms of Service',
-    description: 'The agreement between you and WeddingEase.',
+    description: 'The agreement between you and TheWeddingBot.',
     href: '/terms',
     Icon: FileText,
   },
@@ -41,7 +41,7 @@ const LINKS: LinkItem[] = [
   {
     label: 'Help center',
     description: 'Email our team for guides, tutorials, and contact options.',
-    href: 'mailto:support@weddingease.com',
+    href: 'mailto:support@theweddingbot.ai',
     Icon: LifeBuoy,
     external: true,
   },
@@ -80,9 +80,9 @@ export function AboutTab() {
       <Card className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-base font-semibold">WeddingEase</h3>
+            <h3 className="text-base font-semibold">TheWeddingBot</h3>
             <p className="mt-1 text-xs text-white/90">
-              The official WeddingEase web client.
+              The official TheWeddingBot web client.
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -101,7 +101,7 @@ export function AboutTab() {
         <div className="mb-4">
           <h3 className="text-base font-semibold">Resources</h3>
           <p className="mt-1 text-xs text-white/90">
-            Legal, status, and help resources for WeddingEase.
+            Legal, status, and help resources for TheWeddingBot.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -114,7 +114,7 @@ export function AboutTab() {
       {/* Credit */}
       <Card className="p-6 text-center">
         <Separator className="mb-4 bg-white/[0.06]" />
-        <p className="text-xs text-white/90">Built with care by WeddingEase.</p>
+        <p className="text-xs text-white/90">Built with care by TheWeddingBot.</p>
       </Card>
     </TabShell>
   )

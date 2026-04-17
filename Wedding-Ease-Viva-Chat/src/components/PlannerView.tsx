@@ -61,7 +61,7 @@ export default function PlannerView({
       return
     }
     if (atLimit) {
-      toast.error('Free plan limited to 5 checklists. Upgrade to add more.')
+      toast.error('Plan limited to 5 checklists. Upgrade to add more.')
       return
     }
     const itemTexts = newItems
@@ -92,7 +92,7 @@ export default function PlannerView({
           size="sm"
           onClick={() => {
             if (atLimit) {
-              toast.error('Free plan limited to 5 checklists. Upgrade to add more.')
+              toast.error('Plan limited to 5 checklists. Upgrade to add more.')
               return
             }
             setDialogOpen(true)
@@ -129,7 +129,7 @@ export default function PlannerView({
         <div className="mb-3 flex-shrink-0 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2 flex items-start gap-2">
           <Lock className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
           <p className="text-2xs text-amber-700 leading-snug">
-            Free limit: 5 checklists. Upgrade for unlimited.
+            Limit: 5 checklists. Upgrade for unlimited.
           </p>
         </div>
       )}
@@ -139,7 +139,7 @@ export default function PlannerView({
         {checklists.length === 0 ? (
           <p className="text-xs text-white/40 text-center py-6 px-2">
             No checklists yet.<br />
-            Tap <span className="font-semibold text-primary">+ New Checklist</span> above, or ask Viva in <span className="font-semibold text-primary">Planner mode</span> to save a list.
+            Tap <span className="font-semibold text-primary">+ New Checklist</span> above, or ask TheWeddingBot in <span className="font-semibold text-primary">Planner mode</span> to save a list.
           </p>
         ) : (
           checklists.map(cl => {
