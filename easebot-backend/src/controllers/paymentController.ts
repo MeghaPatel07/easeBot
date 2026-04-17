@@ -38,8 +38,8 @@ interface PriceRow {
 }
 
 const PRICES: Record<string, PriceRow> = {
-  'pro:monthly':    { plan: 'pro',      cycle: 'monthly', usd: 14.99, productinfo: 'Easebot Pro — Monthly' },
-  'pro:annual':     { plan: 'pro',      cycle: 'annual',  usd: 119,   productinfo: 'Easebot Pro — Annual' },
+  'pro:monthly':    { plan: 'pro',      cycle: 'monthly', usd: 0.01,  productinfo: 'Easebot Pro — Monthly' },
+  'pro:annual':     { plan: 'pro',      cycle: 'annual',  usd: 0.12,  productinfo: 'Easebot Pro — Annual' },
   'promax:monthly': { plan: 'promax',   cycle: 'monthly', usd: 39,    productinfo: 'Easebot Pro Max — Monthly' },
   'promax:annual':  { plan: 'promax',   cycle: 'annual',  usd: 299,   productinfo: 'Easebot Pro Max — Annual' },
   'topup_2m:once':  { plan: 'topup_2m', cycle: 'once',    usd: 10,    productinfo: 'Easebot Top-up — 2M tokens' },

@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
+import { useTypewriter } from '@/hooks/useTypewriter';
 import {
   Send, Sparkles, Calendar, CheckSquare,
   Copy, Download, ThumbsUp, Edit3, Lock,
@@ -83,6 +84,24 @@ export interface ChatMessagesProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Typewriter markdown — reveals characters gradually during streaming,
+// then renders full text with markdown once streaming finishes.
+// ─────────────────────────────────────────────────────────────────────────────
+const TypewriterMarkdown: React.FC<{
+  text: string
+  isStreaming: boolean
+  remarkPlugins: any[]
+  components: any
+}> = ({ text, isStreaming, remarkPlugins, components }) => {
+  const displayed = useTypewriter(text, isStreaming, 12, 2)
+  return (
+    <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+      {displayed}
+    </ReactMarkdown>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 const ChatMessages: React.FC<ChatMessagesProps> = ({
@@ -157,6 +176,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     }
     onDownloadMessage(text, id);
   };
+
+  // Identify the message currently being streamed (last AI message while typing)
+  const streamingMsgId = useMemo(() => {
+    if (!isTyping) return null
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].sender === 'ai') return messages[i].id
+    }
+    return null
+  }, [isTyping, messages])
 
   return (
     <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-6 space-y-6 noise-overlay relative">
@@ -347,23 +375,25 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 </div>
               )}
               <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-soft prose-headings:text-[rgb(216,216,216)] prose-strong:text-[rgb(216,216,216)] prose-em:text-[rgb(216,216,216)] prose-li:text-[rgb(216,216,216)] prose-p:text-[rgb(216,216,216)] prose-blockquote:text-[rgb(216,216,216)] prose-code:text-[rgb(216,216,216)]">
-                <ReactMarkdown
+                <TypewriterMarkdown
+                  text={message.text}
+                  isStreaming={message.id === streamingMsgId}
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    a: ({ href, children }) => (
+                    a: ({ href, children }: any) => (
                       <a href={href} target="_blank" rel="noopener noreferrer" className="text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors">
                         {children}
                       </a>
                     ),
-                    img: ({ src, alt }) => (
+                    img: ({ src, alt }: any) => (
                       <img
                         src={src}
                         alt={alt ?? ''}
                         className="max-w-full w-[120px] sm:w-[200px] h-auto sm:h-[200px] object-cover rounded-xl shadow-sm flex-shrink-0"
                       />
                     ),
-                    table: ({ children, ...props }) => {
-                      const tableLines = message.text.split('\n').filter(l => l.trim().startsWith('|'));
+                    table: ({ children, ...props }: any) => {
+                      const tableLines = message.text.split('\n').filter((l: string) => l.trim().startsWith('|'));
                       if (tableLines.length >= 3) {
                         const rawTable = tableLines.join('\n');
                         return (
@@ -381,7 +411,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       }
                       return <table {...props}>{children}</table>;
                     },
-                    li: ({ children }) => {
+                    li: ({ children }: any) => {
                       const flat = (nodes: React.ReactNode): React.ReactNode[] =>
                         React.Children.toArray(nodes).flatMap(n =>
                           React.isValidElement(n) && (n.type === 'p' || n.type === 'span')
@@ -433,9 +463,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       return <li>{children}</li>;
                     },
                   }}
-                >
-                  {message.text}
-                </ReactMarkdown>
+                />
               </div>
               {message.audioUrl && (
                 <audio controls src={message.audioUrl} className="mt-1 mb-2 w-full max-w-xs rounded-xl h-8" />

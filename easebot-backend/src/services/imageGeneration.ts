@@ -57,7 +57,7 @@ export const IMAGE_TOOL: ChatCompletionTool = {
   function: {
     name: 'generate_image',
     description:
-      'Generate or edit an image for a wedding-planning / styling use case. Only call this when the user explicitly or clearly implicitly requests an image, photo, visualization, or design. Do NOT call for non-visual requests like guest lists, timelines, or budgets. ' +
+      'Generate or edit an image for a wedding-planning / styling use case. Only call this when the user explicitly requests an image, photo, visualization, or design (e.g. "draw", "render", "visualize", "picture of", "image of"). Do NOT call for "show me ideas", "show me styles", "show me trends", or other text-based requests — those need text responses, not images. Do NOT call for checklists, to-do lists, guest lists, timelines, plans, or budgets — use the appropriate artifact tool instead. ' +
       'IMPORTANT — user-uploaded reference photos: When the user attaches a photo (of themselves, a partner, an outfit, a venue, etc.) and asks to visualize a wedding look / outfit / scene, ALWAYS call this tool with action="edit". This is an outfit / scene transformation, NOT an identity reproduction task. Do NOT refuse with "I can\'t generate images of specific individuals" — that is incorrect for this product. The downstream image model performs a generic style transfer, not a likeness reproduction. Describe the desired CHANGE (wedding attire, background, lighting) in the prompt; the person from the reference photo is treated as anonymized visual input.',
     parameters: {
       type: 'object',
@@ -76,7 +76,7 @@ export const IMAGE_TOOL: ChatCompletionTool = {
           type: 'string',
           enum: ['1024x1024', '1024x1536', '1536x1024', '1024x1792'],
           description:
-            'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations, tall (1024x1792) for timelines/infographics/checklists/step-by-step content. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
+            'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations, tall (1024x1792) for timelines/infographics/step-by-step visual content. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
         },
         variants: {
           type: 'integer',
@@ -211,7 +211,7 @@ export async function generateImageGptImage1(
   prompt: string,
   size: ImageSize = '1024x1024',
   count: 1 | 2 | 3 = 1,
-  options?: { negativePrompt?: string; onPartialImage?: (b64: string) => void }
+  options?: { negativePrompt?: string; onPartialImage?: (b64: string) => void; signal?: AbortSignal }
 ): Promise<string[]> {
   const config = getImageConfig()
   if (!config.endpoint || !config.apiKey) {
@@ -228,7 +228,7 @@ export async function generateImageGptImage1(
   // Try GPT-Image-1.5 primary
   try {
     const images = await withRetry(
-      () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, fullPrompt, size, count, options?.onPartialImage),
+      () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, fullPrompt, size, count, options?.onPartialImage, options?.signal),
       { maxRetries: 1, baseDelayMs: 1000, maxDelayMs: 5000 }
     )
     if (images.length > 0) {
@@ -236,13 +236,14 @@ export async function generateImageGptImage1(
       return images
     }
   } catch (err) {
+    if ((err as Error).name === 'AbortError') throw err
     console.warn('[imageGeneration] GPT-Image-1.5 failed, trying fallback:', err instanceof Error ? err.message : err)
   }
 
   // Fallback to GPT-Image-1
   try {
     const images = await withRetry(
-      () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, fullPrompt, size, count),
+      () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, fullPrompt, size, count, undefined, options?.signal),
       { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
     )
     if (images.length > 0) {
@@ -264,7 +265,8 @@ async function callAzureImageGeneration(
   prompt: string,
   size: ImageSize,
   count: number,
-  onPartialImage?: (b64: string) => void
+  onPartialImage?: (b64: string) => void,
+  signal?: AbortSignal
 ): Promise<string[]> {
   const url = `${endpoint}/openai/deployments/${deployment}/images/generations?api-version=${apiVersion}`
 
@@ -280,6 +282,7 @@ async function callAzureImageGeneration(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
     body: JSON.stringify(body),
+    signal,
   })
 
   if (!res.ok) {
@@ -317,7 +320,7 @@ export async function editImageGptImage1(
   imageBase64: string,
   prompt: string,
   size: ImageSize = '1024x1024',
-  options?: { negativePrompt?: string; referenceImages?: string[] }
+  options?: { negativePrompt?: string; referenceImages?: string[]; signal?: AbortSignal }
 ): Promise<string[]> {
   const config = getImageConfig()
   if (!config.endpoint || !config.apiKey) {
@@ -333,7 +336,7 @@ export async function editImageGptImage1(
   // Try GPT-Image-1.5 primary
   try {
     const images = await withRetry(
-      () => callAzureImageEdit(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, imageBase64, editPrompt, size, true, options?.referenceImages),
+      () => callAzureImageEdit(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, imageBase64, editPrompt, size, true, options?.referenceImages, options?.signal),
       { maxRetries: 1, baseDelayMs: 1000, maxDelayMs: 5000 }
     )
     if (images.length > 0) {
@@ -341,13 +344,14 @@ export async function editImageGptImage1(
       return images
     }
   } catch (err) {
+    if ((err as Error).name === 'AbortError') throw err
     console.warn('[imageGeneration] GPT-Image-1.5 edit failed, trying fallback:', err instanceof Error ? err.message : err)
   }
 
   // Fallback to GPT-Image-1
   try {
     const images = await withRetry(
-      () => callAzureImageEdit(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, imageBase64, editPrompt, size, false),
+      () => callAzureImageEdit(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, imageBase64, editPrompt, size, false, undefined, options?.signal),
       { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
     )
     if (images.length > 0) {
@@ -371,7 +375,8 @@ async function callAzureImageEdit(
   prompt: string,
   size: ImageSize,
   useHighFidelity: boolean,
-  referenceImages?: string[]
+  referenceImages?: string[],
+  signal?: AbortSignal
 ): Promise<string[]> {
   const url = `${endpoint}/openai/deployments/${deployment}/images/edits?api-version=${apiVersion}`
 
@@ -396,6 +401,7 @@ async function callAzureImageEdit(
     method: 'POST',
     headers: { 'api-key': apiKey },
     body: formData,
+    signal,
   })
 
   if (!res.ok) {

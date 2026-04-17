@@ -48,7 +48,7 @@ export async function upgrade(
       res.status(409).json({ error: 'no_active_period' }); return
     }
     const currentPlanUsd =
-      sub.billingCycle === 'annual' ? 119 : 14.99
+      sub.billingCycle === 'annual' ? 0.12 : 0.01
     const targetPlanUsd = cycle === 'annual' ? 299 : 39
     const credit = computeUpgradeCredit({
       currentPlanUsd,

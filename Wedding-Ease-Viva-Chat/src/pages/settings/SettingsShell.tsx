@@ -123,8 +123,18 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
   // the URL doesn't churn on every back/forward.
   const [mobileShowingContent, setMobileShowingContent] = useState(false)
   useEffect(() => {
-    // Whenever the tab changes via URL, default to showing content on mobile.
-    if (open) setMobileShowingContent(true)
+    if (!open) {
+      // Reset when modal closes so next open starts at the list view.
+      setMobileShowingContent(false)
+      return
+    }
+    // On mobile, don't auto-show content — let the user pick a tab from the
+    // list first. The MobileTabList onSelect handler sets mobileShowingContent
+    // directly. On tablet/desktop, always show the content pane immediately.
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+    if (!isMobile) {
+      setMobileShowingContent(true)
+    }
   }, [open, activeTab])
 
   // ── URL helpers ────────────────────────────────────────────────────────────
@@ -396,21 +406,22 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
               <span>Log out</span>
             </button>
           ) : (
-            <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => { onClose(); onShowSignIn?.() }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-primary hover:bg-primary/[0.08] transition-all font-medium"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs text-primary hover:bg-primary/[0.08] transition-all font-medium"
               >
                 <LogIn className="h-4 w-4 flex-shrink-0" />
                 <span>Sign in</span>
               </button>
+              <span className="text-white/20 text-xs">|</span>
               <button
                 type="button"
                 onClick={() => { onClose(); onShowSignUp?.() }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-white/45 hover:text-white/70 hover:bg-white/[0.04] transition-all"
+                className="flex-1 flex items-center justify-center px-3 py-2 rounded-xl text-xs text-white/45 hover:text-white/70 hover:bg-white/[0.04] transition-all"
               >
-                <span className="ml-7">Sign up</span>
+                <span>Sign up</span>
               </button>
             </div>
           )}

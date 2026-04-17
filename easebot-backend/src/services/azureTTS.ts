@@ -46,6 +46,13 @@ const LANG_VOICE_MAP: Record<string, { female: string; male: string }> = {
   it: { female: 'it-IT-ElsaNeural',      male: 'it-IT-DiegoNeural' },
 }
 
+// Map short language code → BCP-47 locale used in SSML xml:lang
+const LANG_LOCALE_MAP: Record<string, string> = {
+  hi: 'hi-IN', gu: 'gu-IN', es: 'es-ES', fr: 'fr-FR', ar: 'ar-SA',
+  pt: 'pt-BR', de: 'de-DE', zh: 'zh-CN', ja: 'ja-JP', ko: 'ko-KR',
+  ru: 'ru-RU', it: 'it-IT', en: 'en-US',
+}
+
 function resolveAzureVoice(voiceName: string, language?: string): string {
   // If the frontend already sent a fully-qualified Azure voice name (contains 'Neural'), honour it.
   if (/Neural$/.test(voiceName)) return voiceName
@@ -61,6 +68,16 @@ function resolveAzureVoice(voiceName: string, language?: string): string {
   return englishVoice
 }
 
+/** Escape text for safe embedding in SSML */
+function escapeSSML(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 export async function generateSpeech(options: TTSOptions): Promise<Buffer> {
   const key = process.env.AZURE_SPEECH_KEY
   const region = process.env.AZURE_SPEECH_REGION
@@ -70,7 +87,6 @@ export async function generateSpeech(options: TTSOptions): Promise<Buffer> {
   const azureVoice = resolveAzureVoice(voiceName, language)
 
   const speechConfig = sdk.SpeechConfig.fromSubscription(key, region)
-  speechConfig.speechSynthesisVoiceName = azureVoice
   // Riff24Khz16BitMonoPcm returns a fully-formed WAV (RIFF header + PCM data).
   speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Riff24Khz16BitMonoPcm
 
@@ -78,9 +94,19 @@ export async function generateSpeech(options: TTSOptions): Promise<Buffer> {
   // the synthesized bytes come back via result.audioData.
   const synthesizer = new sdk.SpeechSynthesizer(speechConfig, null as any)
 
+  // Use SSML to set the voice and xml:lang explicitly. This ensures Azure
+  // TTS uses the correct language model for multilingual/non-English text
+  // rather than trying to force-fit the text through an English phoneme set.
+  const locale = LANG_LOCALE_MAP[language ?? 'en'] ?? LANG_LOCALE_MAP['en']
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}">
+  <voice name="${azureVoice}">
+    ${escapeSSML(text)}
+  </voice>
+</speak>`
+
   return new Promise<Buffer>((resolve, reject) => {
-    synthesizer.speakTextAsync(
-      text,
+    synthesizer.speakSsmlAsync(
+      ssml,
       (result) => {
         try {
           if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {

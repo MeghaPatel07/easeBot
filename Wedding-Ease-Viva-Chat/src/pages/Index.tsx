@@ -967,7 +967,7 @@ const Index = () => {
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
-      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
+      <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
@@ -996,7 +996,7 @@ const Index = () => {
 
   // ── Helper: main-area shell ───────────────────────────────────────────────
   const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
-    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
+    <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}
@@ -1112,7 +1112,7 @@ const Index = () => {
   // ── Expanded chat view ────────────────────────────────────────────────────
   if (isExpanded) {
     return (
-      <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
+      <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
@@ -1231,7 +1231,7 @@ const Index = () => {
           />
 
           {/* Input Bar Area */}
-          <div className="mt-auto px-4 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="mt-auto px-3 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
             {!user && guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
               <div className="max-w-3xl mx-auto w-full text-center py-3 space-y-2">
                 <p className="text-xs text-white/50">You've reached the guest message limit.</p>
@@ -1256,7 +1256,7 @@ const Index = () => {
 
   // ── Landing page ──────────────────────────────────────────────────────────
   return (
-    <div className={`gradient-bg flex h-[100vh] h-[100dvh] overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={bgStyle}>
+    <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}
