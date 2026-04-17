@@ -279,12 +279,15 @@ const Index = () => {
   // ── Guest experience state ──────────────────────────────────────────────
   const GUEST_MESSAGE_LIMIT = 10;
   const GUEST_IMAGE_LIMIT = 3;
-  const [guestMessageCount, setGuestMessageCount] = useState(0);
-  const [guestImageCount, setGuestImageCount] = useState(0);
+  // Initialize counts from sessionStorage so they persist across new chats
+  const storedMsgCount = () => { try { return Number(localStorage.getItem('easebot-guest-msg-count')) || 0 } catch { return 0 } }
+  const storedImgCount = () => { try { return Number(localStorage.getItem('easebot-guest-img-count')) || 0 } catch { return 0 } }
+  const [guestMessageCount, setGuestMessageCount] = useState(storedMsgCount);
+  const [guestImageCount, setGuestImageCount] = useState(storedImgCount);
   // Ref mirrors guestMessageCount so the send-guard reads the freshest value,
   // preventing two rapid clicks from both passing the limit check.
-  const guestMessageCountRef = useRef(0);
-  const guestImageCountRef = useRef(0);
+  const guestMessageCountRef = useRef(guestMessageCount);
+  const guestImageCountRef = useRef(guestImageCount);
 
   // ── Guest message counting helper ─────────────────────────────────────────
   // Returns false if the guest has hit the limit (caller should abort).
@@ -294,6 +297,7 @@ const Index = () => {
     if (guestMessageCountRef.current >= GUEST_MESSAGE_LIMIT) return false;
     guestMessageCountRef.current += 1;
     setGuestMessageCount(guestMessageCountRef.current);
+    try { localStorage.setItem('easebot-guest-msg-count', String(guestMessageCountRef.current)) } catch {}
     return true;
   };
 
@@ -476,7 +480,9 @@ const Index = () => {
 
   const handleNewChat = () => {
     startNewChat(); setInputText(''); setSelectedChecklistId(null); setBranchMap({}); navigate('/');
-    if (!user) { sessionStorage.removeItem('easebot-guest-chat'); sessionStorage.removeItem('easebot-guest-images'); setGuestMessageCount(0); guestMessageCountRef.current = 0; setGuestImageCount(0); guestImageCountRef.current = 0; }
+    // Clear chat messages but KEEP the guest usage counts — the limit is
+    // per-session, not per-chat, to prevent unlimited usage via new chats.
+    if (!user) { sessionStorage.removeItem('easebot-guest-chat'); sessionStorage.removeItem('easebot-guest-images'); }
   };
   const handleLoadChat = (threadId: string) => { setBranchMap({}); navigate(`/chat/${threadId}`); };
 
@@ -570,7 +576,11 @@ const Index = () => {
       const effectiveVoiceId = getLocalVoiceId() ?? profile?.voiceId ?? undefined;
       const preset = effectiveVoiceId ? getVoicePreset(effectiveVoiceId) : undefined;
       const voiceName = preset?.geminiVoiceName;
+      // Use the message's response language (the language the AI actually replied in).
+      // If the user has a preferred language override, honour it; otherwise trust the
+      // responseLanguage stored on the message by the backend.
       const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en');
+      console.log(`[TTS] Playing message ${message.id} in language: ${activeLang} (message.language=${message.language}, preferredLang=${preferredLang})`);
       const audioUrl = await requestTTS({ text: message.text, voiceName, language: activeLang });
       setTtsAudioUrls(prev => ({ ...prev, [message.id]: audioUrl }));
       setTtsActiveId(message.id);
@@ -608,6 +618,8 @@ const Index = () => {
       guestImageCountRef.current = 0;
       sessionStorage.removeItem('easebot-guest-chat');
       sessionStorage.removeItem('easebot-guest-images');
+      localStorage.removeItem('easebot-guest-msg-count');
+      localStorage.removeItem('easebot-guest-img-count');
     }
   }, [user]);
 
@@ -625,16 +637,10 @@ const Index = () => {
               timestamp: new Date(m.timestamp),
             }));
             restoreMessages(restored);
-            // Count user messages to sync guestMessageCount
-            const userMsgCount = restored.filter(m => m.sender === 'user').length;
-            setGuestMessageCount(userMsgCount);
-            guestMessageCountRef.current = userMsgCount;
-            // Count AI messages that have images to sync guestImageCount
-            const imgCount = restored.filter(m => m.sender === 'ai' && (m.imageUrl || m.imageUrls?.length)).length;
-            setGuestImageCount(imgCount);
-            guestImageCountRef.current = imgCount;
           }
         }
+        // Counts are already initialized from sessionStorage in useState —
+        // no need to re-derive from messages here.
       } catch { /* corrupted sessionStorage — ignore */ }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -643,9 +649,12 @@ const Index = () => {
   useEffect(() => {
     if (user) return;
     const imgCount = messages.filter(m => m.sender === 'ai' && (m.imageUrl || (m.imageUrls && m.imageUrls.length > 0))).length;
-    if (imgCount !== guestImageCountRef.current) {
-      guestImageCountRef.current = imgCount;
-      setGuestImageCount(imgCount);
+    // Only ratchet up — never decrease the count (prevents reset when new chat clears messages)
+    const totalImgCount = Math.max(imgCount, guestImageCountRef.current);
+    if (totalImgCount !== guestImageCountRef.current) {
+      guestImageCountRef.current = totalImgCount;
+      setGuestImageCount(totalImgCount);
+      try { localStorage.setItem('easebot-guest-img-count', String(totalImgCount)) } catch {}
     }
   }, [user, messages]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -681,7 +690,7 @@ const Index = () => {
   const defaultActionButtons = [
     { icon: Calendar, text: 'Plan my timeline', action: 'Help me create a wedding planning timeline' },
     { icon: Heart, text: 'Find my style', action: 'Help me discover my wedding style' },
-    { icon: Lightbulb, text: 'Get inspiration', action: 'Show me trending wedding ideas' },
+    { icon: Lightbulb, text: 'Get inspiration', action: 'Give me trending wedding ideas' },
     { icon: Sparkles, text: 'Create custom', action: 'Help me create a custom wedding plan' },
   ];
 
@@ -689,49 +698,49 @@ const Index = () => {
     Engagement: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my engagement ceremony timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect outfit for my engagement' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me engagement decoration and theme ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me engagement decoration and theme ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom engagement ceremony' },
     ],
     Haldi: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my haldi ceremony timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect haldi outfit and look' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me haldi decoration and theme ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me haldi decoration and theme ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom haldi ceremony' },
     ],
     Mhendi: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my mehndi ceremony timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect mehndi outfit and style' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me mehndi decoration and design ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me mehndi decoration and design ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom mehndi ceremony' },
     ],
     Cocktail: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my cocktail party timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect cocktail party outfit' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me cocktail party theme and decor ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me cocktail party theme and decor ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom cocktail party' },
     ],
     Wedding: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my wedding day timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect wedding outfit and style' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me wedding decoration and theme ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me wedding decoration and theme ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan my custom dream wedding' },
     ],
     Sangeet: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my sangeet night timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect sangeet outfit and dance look' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me sangeet performance and decor ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me sangeet performance and decor ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom sangeet night' },
     ],
     Reception: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my wedding reception timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect reception outfit' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me reception decoration and theme ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me reception decoration and theme ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom wedding reception' },
     ],
     Baraat: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my baraat procession timeline' },
       { icon: Heart, text: 'Find my style', action: 'Help me find the perfect baraat outfit for the groom' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Show me baraat entry and decoration ideas' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me baraat entry and decoration ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a grand baraat procession' },
     ],
   };
@@ -742,21 +751,29 @@ const Index = () => {
     return [
       { icon: Calendar, text: 'Plan my timeline', action: `Help me plan my ${occasion} ceremony timeline` },
       { icon: Heart, text: 'Find my style', action: `Help me find the perfect outfit for my ${occasion}` },
-      { icon: Lightbulb, text: 'Get inspiration', action: `Show me ${occasion} decoration and theme ideas` },
+      { icon: Lightbulb, text: 'Get inspiration', action: `Give me ${occasion} decoration and theme ideas` },
       { icon: Sparkles, text: 'Create custom', action: `Help me plan a custom ${occasion} celebration` },
     ];
   };
 
   // Guest-specific quick actions — lighter, exploratory prompts
   const guestActionButtons = [
-    { icon: Heart, text: 'Explore styles', action: 'Show me popular wedding styles and trends' },
+    { icon: Heart, text: 'Explore styles', action: 'What are popular wedding styles and trends?' },
     { icon: Sparkles, text: 'Get ideas', action: 'Give me creative wedding inspiration ideas' },
     { icon: Calendar, text: 'Quick plan', action: 'Help me outline a basic wedding plan' },
     { icon: Lightbulb, text: 'Ask anything', action: 'What should I know about planning a wedding?' },
   ];
 
+  // Guest-specific occasion buttons (dynamic based on selected occasion)
+  const getGuestOccasionButtons = (occasion: string) => [
+    { icon: Heart, text: `${occasion} styles`, action: `What are popular ${occasion} styles and trends?` },
+    { icon: Sparkles, text: `${occasion} ideas`, action: `Give me creative ${occasion} inspiration ideas` },
+    { icon: Calendar, text: `${occasion} plan`, action: `Help me outline a ${occasion} plan` },
+    { icon: Lightbulb, text: 'Ask anything', action: `What should I know about planning a ${occasion}?` },
+  ];
+
   const actionButtons = !user
-    ? guestActionButtons
+    ? (selectedOccasion ? getGuestOccasionButtons(selectedOccasion) : guestActionButtons)
     : selectedOccasion
       ? getOccasionButtons(selectedOccasion)
       : defaultActionButtons;
@@ -1277,13 +1294,10 @@ const Index = () => {
         <div className="flex-1 flex flex-col items-center justify-center px-3 pt-3 pb-2 sm:p-6 noise-overlay relative floral-overlay overflow-y-auto">
           <div className="text-center max-w-3xl mx-auto w-full relative z-10 flex flex-col items-center">
             <div className="relative z-10 w-full">
-              {/* Bot avatar — smaller on mobile */}
-              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full border-2 border-[#A17A63]/60 flex items-center justify-center shadow-lg mx-auto mb-2 sm:mb-4 bot-avatar overflow-hidden bg-gradient-to-br from-[#B89382]/20 to-[#8A6651]/20">
-                <div className="w-11 h-11 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-[#B89382] to-[#8A6651] flex items-center justify-center text-white text-lg sm:text-2xl italic font-headline">E</div>
+              {/* Bot logo */}
+              <div className="mx-auto mb-2 sm:mb-4">
+                <img src="/images/logo.png" alt="WeddingEase" className="h-14 sm:h-20 object-contain mx-auto" />
               </div>
-
-              {/* Brand labels — hidden on mobile; header already carries the app brand */}
-              <h1 className="hidden sm:block uppercase tracking-[0.2em] text-sm font-bold text-[#A17A63] text-center mb-0.5">Ease Bot</h1>
               {/* <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#A17A63]/60 font-label mb-6 text-center">Your Wedding Concierge</p> */}
 
               {/* Hero heading — tighter on mobile */}

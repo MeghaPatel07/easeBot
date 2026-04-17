@@ -414,6 +414,7 @@ export function useChat(): UseChatResult {
         : null
 
       // Finalize the message with clean text + metadata
+      // Use responseLanguage (language the AI replied in) for TTS; fall back to detectedLanguage
       setMessages(prev => prev.map(m => m.id === aiMsgId ? {
         ...m,
         text: finalMeta!.text || streamedText,
@@ -425,7 +426,7 @@ export function useChat(): UseChatResult {
         calendarEvent: finalMeta!.calendarEvent ?? null,
         convertToTable: TABLE_CONTENT_RE.test(finalMeta!.text || streamedText),
         truncated: isTruncated(finalMeta!.text || streamedText),
-        language: finalMeta!.detectedLanguage || 'en',
+        language: finalMeta!.responseLanguage || finalMeta!.detectedLanguage || 'en',
         checklistData,
       } : m))
 
@@ -446,16 +447,17 @@ export function useChat(): UseChatResult {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        // Mark the partial AI message as stopped
-        const last = messagesRef.current[messagesRef.current.length - 1]
-        const stoppedText = last && last.sender === 'ai'
-          ? (last.text ? last.text + '\n\n---\n*You stopped this response*' : '*You stopped this response*')
+        // Mark the partial AI message as stopped — use the closure's
+        // `streamedText` which always holds the latest accumulated text,
+        // rather than messagesRef which may lag behind due to batched renders.
+        const stoppedText = streamedText
+          ? streamedText + '\n\n---\n*You stopped this response*'
           : '*You stopped this response*'
 
         setMessages(prev => {
           const lastMsg = prev[prev.length - 1]
           if (lastMsg && lastMsg.sender === 'ai') {
-            return [...prev.slice(0, -1), { ...lastMsg, text: stoppedText }]
+            return [...prev.slice(0, -1), { ...lastMsg, text: stoppedText, imageGenerating: false }]
           }
           return prev
         })
