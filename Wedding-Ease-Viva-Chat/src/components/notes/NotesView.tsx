@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Plus, Layout, Loader2, ImagePlus, X } from 'lucide-react';
+import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
@@ -325,6 +325,39 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               onBack={() => setActiveNoteId(null)}
             />
             <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {/* Shared note info banner */}
+              {!isOwner && note.ownerEmail && (
+                <div className="max-w-3xl mx-auto px-3 sm:px-6 pt-3">
+                  <div className="flex flex-col gap-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
+                      <p className="text-xs text-white/60">
+                        <span className="text-white/80 font-medium">Shared by</span>{' '}
+                        {note.ownerEmail}
+                      </p>
+                    </div>
+                    {note.collaborators?.length > 0 && (
+                      <div className="flex items-start gap-2">
+                        <Users className="h-3.5 w-3.5 text-white/30 flex-shrink-0 mt-0.5" />
+                        <div className="flex flex-wrap gap-1">
+                          {note.collaborators.map((c) => (
+                            <span
+                              key={c.userId}
+                              className="inline-flex items-center gap-1 text-[10px] bg-white/[0.06] border border-white/[0.08] rounded-full px-2 py-0.5 text-white/50"
+                            >
+                              {c.name || c.email.split('@')[0]}
+                              <span className="text-white/25">
+                                {c.permission === 'editor' ? 'edit' : c.permission === 'commenter' ? 'comment' : 'view'}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Cover image area */}
               <div
                 className="relative max-w-3xl mx-auto"

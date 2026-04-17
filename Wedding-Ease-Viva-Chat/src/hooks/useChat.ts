@@ -84,6 +84,7 @@ export interface UseChatResult {
   loadMoreMessages: () => Promise<void>
   deleteMessageImage: (messageId: string, imageUrl: string) => Promise<void>
   refetchReminders: () => Promise<void>
+  chatLoadError: boolean
 }
 
 export function useChat(): UseChatResult {
@@ -97,6 +98,7 @@ export function useChat(): UseChatResult {
   const [reminders, setReminders] = useState<ReminderDoc[]>([])
   const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const [chatLoadError, setChatLoadError] = useState(false)
   const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null)
   const [styleMemory, setStyleMemory] = useState<import('@/types').StyleMemory | null>(null)
   const firstDocRef = useRef<DocumentSnapshot | null>(null)
@@ -370,6 +372,39 @@ export function useChat(): UseChatResult {
         }
       }
 
+      // If the user aborted while streaming, the loop may exit cleanly
+      // (no AbortError thrown). Detect this and persist the interrupted message.
+      if (controller.signal.aborted) {
+        const wasGeneratingImage = messagesRef.current[messagesRef.current.length - 1]?.imageGenerating
+        const stoppedSuffix = wasGeneratingImage
+          ? '\n\n---\n*The response was interrupted*'
+          : '\n\n---\n*You stopped this response*'
+        const stoppedText = streamedText
+          ? streamedText + stoppedSuffix
+          : wasGeneratingImage ? '*The response was interrupted*' : '*You stopped this response*'
+
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1]
+          if (lastMsg && lastMsg.sender === 'ai') {
+            return [...prev.slice(0, -1), { ...lastMsg, text: stoppedText, imageGenerating: false, partialImageUrl: undefined }]
+          }
+          return prev
+        })
+
+        if (user && threadId) {
+          addMessage(threadId, {
+            role: 'assistant',
+            content: stoppedText,
+            originalContent: null,
+            mode: (mode ?? 'assistant') as Mode,
+            language: 'en',
+            audioUrl: null,
+            liked: false,
+          } as NewMessage).catch(e => console.error('[useChat] persist stopped msg error:', e))
+        }
+        return
+      }
+
       if (!finalMeta) return
 
       const imageUrl = finalMeta.imageUrl ?? null
@@ -437,7 +472,7 @@ export function useChat(): UseChatResult {
           content: finalMeta.text || streamedText,
           originalContent: null,
           mode: finalMeta.mode as Mode,
-          language: finalMeta.detectedLanguage,
+          language: finalMeta.responseLanguage || finalMeta.detectedLanguage,
           audioUrl: finalMeta.audioUrl,
           imageUrl: imageUrl,
           imageUrls: imageUrls,
@@ -450,9 +485,14 @@ export function useChat(): UseChatResult {
         // Mark the partial AI message as stopped — use the closure's
         // `streamedText` which always holds the latest accumulated text,
         // rather than messagesRef which may lag behind due to batched renders.
+        // Check if the AI was generating an image when stopped.
+        const wasGeneratingImage = messagesRef.current[messagesRef.current.length - 1]?.imageGenerating
+        const stoppedSuffix = wasGeneratingImage
+          ? '\n\n---\n*The response was interrupted*'
+          : '\n\n---\n*You stopped this response*'
         const stoppedText = streamedText
-          ? streamedText + '\n\n---\n*You stopped this response*'
-          : '*You stopped this response*'
+          ? streamedText + stoppedSuffix
+          : wasGeneratingImage ? '*The response was interrupted*' : '*You stopped this response*'
 
         setMessages(prev => {
           const lastMsg = prev[prev.length - 1]
@@ -561,6 +601,7 @@ export function useChat(): UseChatResult {
   // ── Load a thread from Firestore (paginated — latest 30) ──────────────────
   const loadChat = useCallback(async (threadId: string) => {
     if (threadId === activeThreadIdRef.current) return
+    setChatLoadError(false)
     setActiveThreadId(threadId)
     activeThreadIdRef.current = threadId
     try {
@@ -586,6 +627,7 @@ export function useChat(): UseChatResult {
       )
     } catch (err) {
       console.error('[useChat] loadChat error:', err)
+      setChatLoadError(true)
     }
   }, [])
 
@@ -693,5 +735,6 @@ export function useChat(): UseChatResult {
     loadMoreMessages,
     deleteMessageImage,
     refetchReminders,
+    chatLoadError,
   }
 }

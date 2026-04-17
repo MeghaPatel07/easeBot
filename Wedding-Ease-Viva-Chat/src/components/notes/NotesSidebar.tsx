@@ -162,6 +162,8 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   const isTrashView = activeFilter === 'trash';
 
   // ── Note item renderer ────────────────────────────────────────────────────
+  const isSharedView = activeFilter === 'shared';
+
   const renderNoteItem = (note: Note) => (
     <div
       key={note.id}
@@ -185,8 +187,23 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
           </Badge>
           <span className="text-[9px] text-white/30">{timeAgo(note.updatedAt)}</span>
         </div>
+
+        {/* Sharing info for "Shared with Me" view */}
+        {isSharedView && (
+          <div className="mt-1 space-y-0.5">
+            <p className="text-[9px] text-white/40 truncate">
+              <span className="text-white/55">Owner:</span> {note.ownerEmail}
+            </p>
+            {note.collaborators?.length > 1 && (
+              <p className="text-[9px] text-white/35 truncate">
+                <Users className="inline h-2.5 w-2.5 mr-0.5 -mt-px" />
+                {note.collaborators.map(c => c.name || c.email.split('@')[0]).join(', ')}
+              </p>
+            )}
+          </div>
+        )}
       </div>
-      {note.favorited && <Star className="h-3 w-3 text-primary/60 flex-shrink-0 mt-1 fill-primary/60" />}
+      {note.favorited && !isSharedView && <Star className="h-3 w-3 text-primary/60 flex-shrink-0 mt-1 fill-primary/60" />}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -262,7 +279,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   const filterButtons: { key: SidebarFilter; icon: React.ElementType; label: string; count: number }[] = [
     { key: 'all', icon: FileText, label: 'All Notes', count: allNotesCount },
     { key: 'favorites', icon: Star, label: 'Favorites', count: favoritesCount },
-    // { key: 'shared', icon: Users, label: 'Shared with Me', count: sharedNotes.length },
+    { key: 'shared', icon: Users, label: 'Shared with Me', count: sharedNotes.length },
     // { key: 'trash', icon: Trash2, label: 'Trash', count: trashCount },
   ];
 

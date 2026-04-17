@@ -7,7 +7,7 @@
  *   SMTP_HOST              (optional) — defaults to smtp.gmail.com
  *   SMTP_PORT              (optional) — defaults to 465
  *   SMTP_SECURE            (optional) — 'true' | 'false', defaults to true (465)
- *   REMINDER_FROM_EMAIL    (optional) — defaults to "WeddingEase <SMTP_USER>"
+ *   REMINDER_FROM_EMAIL    (optional) — defaults to "TheWeddingBot <SMTP_USER>"
  *
  * Dry-run mode: if SMTP_USER or SMTP_PASS is unset, log and return without
  * throwing. Keeps local dev and QA flows green without accidental real sends.
@@ -55,7 +55,7 @@ export async function sendEmailNotification(args: SendEmailArgs): Promise<void> 
   }
   const from =
     process.env.REMINDER_FROM_EMAIL ||
-    `WeddingEase <${process.env.SMTP_USER}>`
+    `TheWeddingBot <${process.env.SMTP_USER}>`
 
   await transporter.sendMail({
     from,
@@ -91,23 +91,23 @@ export function buildReminderEmail(args: BuildReminderEmailArgs): {
 
   const text = `Hi ${greetingName},
 
-This is a reminder from WeddingEase.
+This is a reminder from TheWeddingBot.
 
 📌 ${args.title}
 📅 ${args.humanFormattedDate}
 ${descriptionLine}
 Open your planner: https://theweddingbot.ai/chat
 
-Need to reschedule? Just ask Easebot.
+Need to reschedule? Just ask TheWeddingBot.
 
-— The WeddingEase team
+— TheWeddingBot team
 `
 
   const html = `<!doctype html>
 <html>
   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#faf7f3; padding:24px; color:#2d2a26;">
     <div style="max-width: 560px; margin: 0 auto; background:#ffffff; border-radius:12px; padding:32px; border:1px solid #efe7dc;">
-      <h2 style="margin:0 0 16px 0; color:#8a5a2b;">⏰ Reminder from WeddingEase</h2>
+      <h2 style="margin:0 0 16px 0; color:#8a5a2b;">⏰ Reminder from TheWeddingBot</h2>
       <p style="margin:0 0 16px 0;">Hi ${escapeHtml(greetingName)},</p>
       <p style="margin:0 0 16px 0;">This is a friendly nudge from your wedding planner.</p>
       <div style="background:#fbf6ee; border-left:4px solid #c9a26a; padding:16px; border-radius:6px; margin:16px 0;">
@@ -118,8 +118,8 @@ Need to reschedule? Just ask Easebot.
       <p style="margin:16px 0;">
         <a href="https://theweddingbot.ai/chat" style="display:inline-block; background:#c9a26a; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px; font-weight:600;">Open your planner</a>
       </p>
-      <p style="margin:16px 0 0 0; color:#888; font-size:13px;">Need to reschedule? Just ask Easebot.</p>
-      <p style="margin:24px 0 0 0; color:#888; font-size:13px;">— The WeddingEase team</p>
+      <p style="margin:16px 0 0 0; color:#888; font-size:13px;">Need to reschedule? Just ask TheWeddingBot.</p>
+      <p style="margin:24px 0 0 0; color:#888; font-size:13px;">— TheWeddingBot team</p>
     </div>
   </body>
 </html>`
@@ -150,7 +150,7 @@ export function buildNoteInviteEmail(args: BuildNoteInviteEmailArgs): {
     : args.permission === 'commenter' ? 'comment on'
     : 'view'
 
-  const subject = `${args.inviterName} shared a note with you on WeddingEase`
+  const subject = `${args.inviterName} shared a note with you on TheWeddingBot`
   const appUrl = 'https://theweddingbot.ai/chat'
   const noteUrl = args.shareId
     ? `https://theweddingbot.ai/shared/note/${args.shareId}`
@@ -158,13 +158,13 @@ export function buildNoteInviteEmail(args: BuildNoteInviteEmailArgs): {
 
   const text = `Hi ${args.recipientName},
 
-${args.inviterName} (${args.inviterEmail}) invited you to ${permissionLabel} a note on WeddingEase:
+${args.inviterName} (${args.inviterEmail}) invited you to ${permissionLabel} a note on TheWeddingBot:
 
 "${args.noteTitle}"
 
 Open it here: ${noteUrl}
 
-— The WeddingEase team
+— TheWeddingBot team
 `
 
   const html = `<!doctype html>
@@ -173,14 +173,14 @@ Open it here: ${noteUrl}
     <div style="max-width: 560px; margin: 0 auto; background:#ffffff; border-radius:12px; padding:32px; border:1px solid #efe7dc;">
       <h2 style="margin:0 0 16px 0; color:#8a5a2b;">📝 You've been invited to a note</h2>
       <p style="margin:0 0 16px 0;">Hi ${escapeHtml(args.recipientName)},</p>
-      <p style="margin:0 0 16px 0;"><strong>${escapeHtml(args.inviterName)}</strong> (${escapeHtml(args.inviterEmail)}) invited you to <strong>${escapeHtml(permissionLabel)}</strong> a note on WeddingEase.</p>
+      <p style="margin:0 0 16px 0;"><strong>${escapeHtml(args.inviterName)}</strong> (${escapeHtml(args.inviterEmail)}) invited you to <strong>${escapeHtml(permissionLabel)}</strong> a note on TheWeddingBot.</p>
       <div style="background:#fbf6ee; border-left:4px solid #c9a26a; padding:16px; border-radius:6px; margin:16px 0;">
         <p style="margin:0; font-size:18px; font-weight:600;">📌 ${escapeHtml(args.noteTitle)}</p>
       </div>
       <p style="margin:16px 0;">
         <a href="${noteUrl}" style="display:inline-block; background:#c9a26a; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px; font-weight:600;">Open note</a>
       </p>
-      <p style="margin:24px 0 0 0; color:#888; font-size:13px;">— The WeddingEase team</p>
+      <p style="margin:24px 0 0 0; color:#888; font-size:13px;">— TheWeddingBot team</p>
     </div>
   </body>
 </html>`

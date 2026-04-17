@@ -16,4 +16,4 @@ Disallow: /checkout
 Disallow: /payment/
 Disallow: /login
 
-Sitemap: https://weddingease.ai/sitemap.xml
+Sitemap: https://theweddingbot.ai/sitemap.xml

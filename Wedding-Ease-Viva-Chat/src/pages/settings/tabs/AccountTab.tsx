@@ -418,44 +418,6 @@ export function AccountTab() {
     }
   }
 
-  // ── Delete account ────────────────────────────────────────────────────────
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
-  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
-
-  const closeDeleteDialog = () => {
-    setDeleteDialogOpen(false)
-    setDeleteConfirmEmail('')
-  }
-
-  const canSubmitDelete =
-    !!profile?.email && deleteConfirmEmail === profile.email // case-sensitive
-
-  // Sprint 4 (Kenji) C-1 fix: real backend delete + sign-out + redirect.
-  const handleSubmitDelete = async () => {
-    if (!canSubmitDelete || deleteSubmitting) return
-    setDeleteSubmitting(true)
-    try {
-      await apiDeleteAccount()
-      // On success: terminate the session and bounce to landing. We do not
-      // close the dialog first — the page is about to navigate away.
-      try {
-        await auth.signOut()
-      } catch {
-        /* ignore — we're navigating away anyway */
-      }
-      window.location.href = '/'
-    } catch (err) {
-      toast({
-        title: 'Could not delete account',
-        description: (err as Error)?.message ?? 'Please try again later.',
-        variant: 'destructive',
-      })
-      setDeleteSubmitting(false)
-      // Dialog stays open per spec so user can retry.
-    }
-  }
-
   // ── Sign out of all devices ───────────────────────────────────────────────
   const [signOutAllSubmitting, setSignOutAllSubmitting] = useState(false)
   const handleSignOutEverywhere = async () => {
@@ -692,7 +654,7 @@ export function AccountTab() {
               <div className="flex-1">
                 <h3 className="text-base font-semibold text-white/90">Password</h3>
                 <p className="mt-1 text-xs text-white/90">
-                  Use a strong password unique to WeddingEase.
+                  Use a strong password unique to TheWeddingBot.
                 </p>
               </div>
             </div>
@@ -790,33 +752,6 @@ export function AccountTab() {
         </div>
       </Card>
 
-      {/* 6. Danger zone */}
-      <Card className="p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_48px_-12px_rgba(220,38,38,0.25)]">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle aria-hidden="true" className="mt-1 h-5 w-5 text-destructive" />
-            <div className="flex-1">
-              <h3 className="text-base font-semibold text-destructive">Danger zone</h3>
-              <p className="mt-1 text-xs text-white/90">
-                Deleting your account is permanent. This cannot be undone.
-              </p>
-            </div>
-          </div>
-
-          <Separator className="bg-white/[0.06]" />
-
-          <div className="flex justify-start">
-            <Button
-              type="button"
-              onClick={() => setDeleteDialogOpen(true)}
-              className="min-h-11 min-w-11 bg-destructive text-destructive-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <Trash2 aria-hidden="true" className="mr-2 h-4 w-4" />
-              Delete account
-            </Button>
-          </div>
-        </div>
-      </Card>
 
       {/* ── Email change dialog ──────────────────────────────────────────── */}
       <AlertDialog
@@ -987,58 +922,6 @@ export function AccountTab() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Delete account dialog ────────────────────────────────────────── */}
-      <AlertDialog
-        open={deleteDialogOpen}
-        onOpenChange={(o) => (o ? setDeleteDialogOpen(true) : closeDeleteDialog())}
-      >
-        <AlertDialogContent className="bg-[#0F0D0C]/90 text-white/90 border border-white/[0.08] backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              Delete your account?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-white/90">
-              This is irreversible. Your profile, chats, notes, and checklists
-              will be scheduled for permanent deletion. To confirm, type your
-              email address exactly:{' '}
-              <span className="font-medium text-white/90 break-all">
-                {profile?.email ?? ''}
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-2">
-            <Label htmlFor="delete-confirm-email" className="text-sm font-medium">
-              Type your email to confirm
-            </Label>
-            <Input
-              id="delete-confirm-email"
-              type="email"
-              autoComplete="off"
-              value={deleteConfirmEmail}
-              onChange={(e) => setDeleteConfirmEmail(e.target.value)}
-              placeholder={profile?.email ?? ''}
-              className="min-h-11 bg-white/[0.04] border-0 text-white/90 placeholder:text-white/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            />
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel
-              onClick={closeDeleteDialog}
-              className="min-h-11 min-w-11 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleSubmitDelete}
-              disabled={!canSubmitDelete || deleteSubmitting}
-              className="min-h-11 min-w-11 bg-destructive text-destructive-foreground hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              {deleteSubmitting ? 'Deleting…' : 'Delete account'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </TabShell>
   )
 }

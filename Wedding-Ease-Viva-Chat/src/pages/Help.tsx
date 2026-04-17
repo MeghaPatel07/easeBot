@@ -30,15 +30,15 @@ import {
 const FAQ_ITEMS = [
   {
     q: 'How do I start planning my wedding?',
-    a: 'Once you sign in, you can jump right in using quick actions and occasion chips on the home screen. Just tap a chip like "Find a venue" or "Plan my reception" and Viva will walk you through it step by step.',
+    a: 'Once you sign in, you can jump right in using quick actions and occasion chips on the home screen. Just tap a chip like "Find a venue" or "Plan my reception" and TheWeddingBot will walk you through it step by step.',
   },
   {
     q: 'What AI modes are available?',
-    a: 'Viva offers four specialized modes: Planner (timeline and logistics), Stylist (decor, outfits, aesthetics), Knowledge (vendor research, traditions, etiquette), and Assistant (general help, reminders, quick answers). You can switch modes from the mode selector in the chat.',
+    a: 'TheWeddingBot offers four specialized modes: Planner (timeline and logistics), Stylist (decor, outfits, aesthetics), Knowledge (vendor research, traditions, etiquette), and Assistant (general help, reminders, quick answers). You can switch modes from the mode selector in the chat.',
   },
   {
     q: 'How do I generate wedding images?',
-    a: 'Head to the Image Hub from the sidebar. Pick a vibe (or create a custom one), and Viva will generate mood boards, decor concepts, and outfit ideas tailored to your style. You can save, share, or regenerate any image.',
+    a: 'Head to the Image Hub from the sidebar. Pick a vibe (or create a custom one), and TheWeddingBot will generate mood boards, decor concepts, and outfit ideas tailored to your style. You can save, share, or regenerate any image.',
   },
   {
     q: 'Can I share my conversations?',
@@ -46,7 +46,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I track my wedding budget?',
-    a: 'Open the Budget Dashboard from the sidebar. You can set a total budget, add line items by category (venue, catering, decor, etc.), and track spent vs. remaining in real time. Viva can also suggest budget-friendly alternatives during your chats.',
+    a: 'Open the Budget Dashboard from the sidebar. You can set a total budget, add line items by category (venue, catering, decor, etc.), and track spent vs. remaining in real time. TheWeddingBot can also suggest budget-friendly alternatives during your chats.',
   },
   {
     q: 'What are the subscription plans?',
@@ -54,7 +54,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I invite my partner?',
-    a: 'Use the Collaborate feature in the sidebar. Enter your partner\'s email and they\'ll receive an invitation to join your wedding workspace. Once they accept, you can both chat with Viva and see each other\'s saved items.',
+    a: 'Use the Collaborate feature in the sidebar. Enter your partner\'s email and they\'ll receive an invitation to join your wedding workspace. Once they accept, you can both chat with TheWeddingBot and see each other\'s saved items.',
   },
   {
     q: 'Is my data private?',
@@ -62,7 +62,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How do I change my AI\'s tone?',
-    a: 'Go to Settings > AI Behavior. You can adjust Viva\'s personality on sliders for formality, enthusiasm, and detail level. You can also set custom instructions so Viva remembers your preferences across sessions.',
+    a: 'Go to Settings > AI Behavior. You can adjust TheWeddingBot\'s personality on sliders for formality, enthusiasm, and detail level. You can also set custom instructions so TheWeddingBot remembers your preferences across sessions.',
   },
   {
     q: 'How do I contact support?',
@@ -173,7 +173,7 @@ export default function Help() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="gradient-bg min-h-screen text-white/90/85 font-['Lato',sans-serif]">
+    <div className="gradient-bg min-h-screen text-white/90/85 font-body">
       {/* Background blurs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -184,10 +184,10 @@ export default function Help() {
         {/* Back link */}
         <Link
           to="/"
-          aria-label="Back to Viva home"
+          aria-label="Back to TheWeddingBot home"
           className="inline-flex items-center gap-2 text-sm text-white/90 hover:text-white/90/90 transition mb-8"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Viva
+          <ArrowLeft className="h-4 w-4" /> Back to TheWeddingBot
         </Link>
 
         {/* Header */}

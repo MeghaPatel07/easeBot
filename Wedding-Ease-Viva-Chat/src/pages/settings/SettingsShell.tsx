@@ -344,7 +344,7 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
   function DesktopSideNav({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
       <aside
-        className="w-[220px] shrink-0 m-3 flex flex-col rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]"
+        className="w-[220px] shrink-0 m-3 flex flex-col rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-body"
         aria-label="Settings sections"
       >
         <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
@@ -448,7 +448,7 @@ interface TopTabBarProps {
 const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
   function TopTabBar({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
-      <div className="flex flex-col m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]">
+      <div className="flex flex-col m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-body">
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <h1 className="text-sm font-medium tracking-tight text-white/70">
             Settings
@@ -545,7 +545,7 @@ interface MobileTabListProps {
 const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
   function MobileTabList({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-['Lato',sans-serif]">
+      <div className="flex flex-col flex-1 min-h-0 m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-body">
         <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
           <h1 className="text-sm font-medium tracking-tight text-white/70">
             Settings

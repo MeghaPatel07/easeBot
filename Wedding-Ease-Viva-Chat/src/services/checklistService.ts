@@ -42,6 +42,12 @@ export async function createChecklist(
   return checklist as unknown as Checklist
 }
 
+export async function duplicateChecklist(userId: string, source: Checklist): Promise<void> {
+  const title = `${source.title} (Copy)`
+  const itemTexts = source.items.map(i => i.text)
+  await createChecklist(userId, title, itemTexts)
+}
+
 export async function updateChecklistItem(
   userId: string,
   checklistId: string,
@@ -109,6 +115,26 @@ export async function updateItemDueDate(
     item.id === itemId ? { ...item, dueDate } : item
   )
   await updateDoc(ref, { items, updatedAt: serverTimestamp() })
+}
+
+export async function reorderChecklistItems(
+  userId: string,
+  checklistId: string,
+  orderedItemIds: string[]
+): Promise<void> {
+  const ref = checklistDoc(userId, checklistId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return
+  const currentItems = snap.data().items as ChecklistItem[]
+  const itemMap = new Map(currentItems.map(i => [i.id, i]))
+  const reordered = orderedItemIds
+    .map(id => itemMap.get(id))
+    .filter((i): i is ChecklistItem => !!i)
+  // Append any items not in the ordered list (safety net)
+  for (const item of currentItems) {
+    if (!orderedItemIds.includes(item.id)) reordered.push(item)
+  }
+  await updateDoc(ref, { items: reordered, updatedAt: serverTimestamp() })
 }
 
 export async function deleteChecklist(userId: string, checklistId: string): Promise<void> {

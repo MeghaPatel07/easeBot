@@ -133,7 +133,16 @@
       "Bash(screencapture -x /tmp/chat_view.png)",
       "Bash(xargs sed *)",
       "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
-      "Bash(grep -E \"\\\\.\\(ts|tsx|js|jsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js|jsx\\)$\")",
+      "Bash(unzip -l /tmp/inter.zip)",
+      "Bash(unzip -o -j /tmp/inter.zip \"extras/ttf/Inter-Regular.ttf\" -d /tmp/)",
+      "Bash(cp /tmp/Inter-Regular.ttf /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/fonts_new.ttf)",
+      "Bash(awk -F= '{print \\(length\\($2\\) > 0 ? \"KEY SET \\(\" length\\($2\\) \" chars\\)\" : \"KEY EMPTY\"\\)}')",
+      "Bash(kill -9 29099)",
+      "Bash(xargs kill *)",
+      "Bash(xxd -l 44 /private/tmp/test-tts.wav)",
+      "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
+      "Bash(grep -E \"\\\\.\\(ts|js|tsx\\)$\")"
     ]
   }
 }

@@ -159,13 +159,13 @@ export async function addCollaborator(
 
   collaborators.push({
     userId: collaborator.userId,
-    email: collaborator.email,
-    name: collaborator.name || collaborator.email.split('@')[0],
+    email: normalizedEmail,
+    name: collaborator.name || normalizedEmail.split('@')[0],
     permission: collaborator.permission,
     addedAt: new Date().toISOString(),
   })
-  if (!collaboratorEmails.includes(collaborator.email)) {
-    collaboratorEmails.push(collaborator.email)
+  if (!collaboratorEmails.includes(normalizedEmail)) {
+    collaboratorEmails.push(normalizedEmail)
   }
 
   await updateDoc(noteRef(noteId), {
@@ -187,6 +187,12 @@ export async function sendCollaboratorInvites(
     permission: string
   }>
 
+  // Ensure a public share link exists so the email contains a direct note link
+  let shareId: string | null = note.publicShareId || null
+  if (!shareId) {
+    shareId = await enablePublicLink(noteId, 'view')
+  }
+
   const sent: string[] = []
   const skipped: string[] = []
 
@@ -204,7 +210,7 @@ export async function sendCollaboratorInvites(
         recipientName: collab.name || collab.email.split('@')[0],
         noteTitle: note.title || 'Untitled note',
         permission: collab.permission,
-        shareId: note.publicShareId || null,
+        shareId,
       })
       await sendEmailNotification({ to: collab.email, subject, html, text })
       sent.push(collab.email)

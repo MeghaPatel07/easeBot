@@ -121,7 +121,7 @@ export function NotificationsTab() {
   return (
     <TabShell
       title="Notifications"
-      description="Decide how Easebot reaches out about reminders, tips, and product news."
+      description="Decide how TheWeddingBot reaches out about reminders, tips, and product news."
     >
       {/* Email notifications */}
       <Card className="p-6">

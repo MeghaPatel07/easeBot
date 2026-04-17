@@ -210,6 +210,7 @@ const ChatInput = ({
                 }
               }}
               placeholder={placeholder}
+              readOnly={voiceState === 'recording' || voiceState === 'transcribing'}
               rows={1}
               className="flex-1 min-w-0 bg-transparent border-none text-white/90 py-2 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-white/40 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 min-h-[34px] sm:min-h-[36px]"
               style={{ maxHeight: `${maxHeight}px` }}
@@ -276,7 +277,7 @@ const ChatInput = ({
               ) : (
                 <button
                   onClick={onSend}
-                  disabled={!hasContent}
+                  disabled={!hasContent || voiceState === 'recording' || voiceState === 'transcribing'}
                   title="Send"
                   className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center text-white rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
                 >

@@ -8,6 +8,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import LoadingScreen from "@/components/ui/loading-screen";
 import { CapHitBanner } from "@/components/pricing/CapHitBanner";
+import { useCanonical } from "@/hooks/useCanonical";
+
+/** Runs route-level side-effects that need router context. */
+function RouteEffects() {
+  useCanonical()
+  return null
+}
 
 const Index = lazy(() => import('./pages/Index'));
 const SharedChat = lazy(() => import('./pages/SharedChat'));
@@ -33,6 +40,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <RouteEffects />
           <CapHitBanner />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>

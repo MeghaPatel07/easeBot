@@ -139,7 +139,7 @@ export function PersonalizationTab() {
       })
       toast({
         title: 'Custom instructions saved',
-        description: 'Easebot will use these on your next chat.',
+        description: 'TheWeddingBot will use these on your next chat.',
       })
     } catch (err) {
       toast({
@@ -210,7 +210,7 @@ export function PersonalizationTab() {
     toast({
       title: 'Ask the chat to clear your vibe',
       description:
-        'Vibes are managed from chat — say "clear my vibe" and Easebot will do it.',
+        'Vibes are managed from chat — say "clear my vibe" and TheWeddingBot will do it.',
     })
   }
 
@@ -221,7 +221,7 @@ export function PersonalizationTab() {
   return (
     <TabShell
       title="Personalization"
-      description="Wedding details, active vibe, and how Easebot adapts to your big day."
+      description="Wedding details, active vibe, and how TheWeddingBot adapts to your big day."
     >
       {/* ── Wedding details ──────────────────────────────────────────────── */}
       <Card className="p-6">
@@ -380,14 +380,14 @@ export function PersonalizationTab() {
         <div className="mb-5">
           <h3 className="text-base font-semibold text-white/90">Custom instructions</h3>
           <p className="mt-1 text-xs text-white/90">
-            Tell Easebot what to remember about you and how you want it to respond.
+            Tell TheWeddingBot what to remember about you and how you want it to respond.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-5">
           <div className="space-y-2">
             <Label htmlFor="custom-about" className="text-sm font-medium">
-              What should Easebot know about you?
+              What should TheWeddingBot know about you?
             </Label>
             <Textarea
               id="custom-about"
@@ -409,7 +409,7 @@ export function PersonalizationTab() {
 
           <div className="space-y-2">
             <Label htmlFor="custom-response" className="text-sm font-medium">
-              How should Easebot respond?
+              How should TheWeddingBot respond?
             </Label>
             <Textarea
               id="custom-response"
@@ -460,7 +460,7 @@ export function PersonalizationTab() {
           <div>
             <h3 className="text-base font-semibold text-white/90">Active vibe</h3>
             <p className="mt-1 text-xs text-white/90">
-              The aesthetic Easebot uses for image generation and styling.
+              The aesthetic TheWeddingBot uses for image generation and styling.
             </p>
           </div>
           <Sparkles
@@ -516,7 +516,7 @@ export function PersonalizationTab() {
           Wedding context summary
         </h3>
         <p className="mt-1 text-xs text-white/90">
-          A read-only snapshot Easebot uses to tailor responses.
+          A read-only snapshot TheWeddingBot uses to tailor responses.
         </p>
 
         <dl className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">

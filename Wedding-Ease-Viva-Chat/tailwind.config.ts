@@ -20,9 +20,9 @@ export default {
 		extend: {
 			// ─── Typography ─────────────────────────────────────────────────────────
 			fontFamily: {
-				headline: ['Noto Serif', 'serif'],
-				body: ['Inter', 'sans-serif'],
-				label: ['Inter', 'sans-serif'],
+				headline: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+				body: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+				label: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
 			},
 			fontSize: {
 				// Micro scale — used for labels, badges, timestamps

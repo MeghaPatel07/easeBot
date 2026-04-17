@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
 const EFFECTIVE_DATE = 'April 13, 2026'
-const CONTACT_EMAIL = 'support@easebot.app'
-const COMPANY_NAME = 'EaseBot'
-const SERVICE_NAME = 'Viva by EaseBot'
+const CONTACT_EMAIL = 'support@theweddingbot.ai'
+const COMPANY_NAME = 'TheWeddingBot'
+const SERVICE_NAME = 'TheWeddingBot'
 
 export default function TermsOfService() {
   return (

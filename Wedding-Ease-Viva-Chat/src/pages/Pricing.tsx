@@ -13,7 +13,7 @@ import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
 import { auth } from '@/lib/firebase'
 
-const SERVICE_NAME = 'Viva by EaseBot'
+const SERVICE_NAME = 'TheWeddingBot'
 
 type BillingCycle = 'monthly' | 'annual'
 
@@ -34,22 +34,22 @@ const TIERS: TierPricing[] = [
 const CURRENCY_OPTIONS = ['USD', 'INR', 'GBP', 'EUR', 'AED', 'SGD', 'AUD', 'CAD'] as const
 
 const TIER_LABEL: Record<'pro' | 'promax', string> = {
-  pro: 'Easebot Pro',
-  promax: 'Easebot Pro Max',
+  pro: 'TheWeddingBot Pro',
+  promax: 'TheWeddingBot Pro Max',
 }
 
 const FAQ_ITEMS = [
   {
-    q: 'What is EaseBot and how does it work?',
-    a: 'EaseBot is an AI-powered wedding planning assistant. It helps you plan your entire wedding — from venue research and vendor comparisons to budget tracking, style inspiration, and timeline management — all through natural conversation.',
+    q: 'What is TheWeddingBot and how does it work?',
+    a: 'TheWeddingBot is an AI-powered wedding planning assistant. It helps you plan your entire wedding — from venue research and vendor comparisons to budget tracking, style inspiration, and timeline management — all through natural conversation.',
   },
   {
-    q: 'What should I use EaseBot for?',
-    a: 'Use EaseBot for brainstorming wedding ideas, getting style and vibe recommendations, tracking your budget, managing your planning checklist, creating timelines, and getting instant answers to wedding planning questions 24/7.',
+    q: 'What should I use TheWeddingBot for?',
+    a: 'Use TheWeddingBot for brainstorming wedding ideas, getting style and vibe recommendations, tracking your budget, managing your planning checklist, creating timelines, and getting instant answers to wedding planning questions 24/7.',
   },
   {
     q: 'How much does it cost to use?',
-    a: 'EaseBot offers a free tier to get started. Pro (₹1/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($39/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.',
+    a: 'TheWeddingBot offers a free tier to get started. Pro (₹1/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($39/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.',
   },
   {
     q: 'Can I cancel my subscription anytime?',
@@ -500,7 +500,7 @@ export default function Pricing() {
         )}
 
         <p className="text-center text-2xs text-white/35 mb-12">
-          *Usage limits apply. Prices shown don't include applicable tax. Prices and plans are subject to change at EaseBot's discretion.
+          *Usage limits apply. Prices shown don't include applicable tax. Prices and plans are subject to change at TheWeddingBot's discretion.
         </p>
 
         {/* ── Detailed Comparison Table ───────────────────────────────────── */}
@@ -549,8 +549,8 @@ export default function Pricing() {
           Base currency is USD. Local prices update every minute via
           exchangerate-api. Final checkout locks the rate server-side.
           Questions?{' '}
-          <a href="mailto:support@easebot.app" className="text-primary hover:underline">
-            support@easebot.app
+          <a href="mailto:support@theweddingbot.ai" className="text-primary hover:underline">
+            support@theweddingbot.ai
           </a>
         </p>
       </div>

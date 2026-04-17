@@ -99,10 +99,15 @@ export async function updateNote(
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
+  // Soft-delete the note document
   await updateDoc(noteDoc(noteId), {
     isDeleted: true,
     deletedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+  })
+  // Clean up Firebase Storage images in the background
+  deleteStorageFolder(`notes/${noteId}/images`).catch(() => {
+    // Non-critical: storage cleanup is best-effort
   })
 }
 
@@ -213,7 +218,7 @@ export function subscribeToSharedNotes(
 ): Unsubscribe {
   const q = query(
     notesCol(),
-    where('collaboratorEmails', 'array-contains', userEmail)
+    where('collaboratorEmails', 'array-contains', userEmail.trim().toLowerCase())
   )
   return onSnapshot(
     q,

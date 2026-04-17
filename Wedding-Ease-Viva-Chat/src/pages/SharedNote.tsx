@@ -7,7 +7,7 @@ import { subscribeToNote } from '@/services/notesService';
 import NoteEditor from '@/components/notes/NoteEditor';
 import type { Note } from '@/types/notes';
 
-type PageState = 'loading' | 'not-found' | 'error' | 'ready';
+type PageState = 'loading' | 'not-found' | 'no-access' | 'error' | 'ready';
 
 export default function SharedNote() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -37,9 +37,14 @@ export default function SharedNote() {
         // Set up real-time subscription using the note ID
         unsubscribe = subscribeToNote(sharedNote.id, (updatedNote) => {
           if (cancelled) return;
-          if (!updatedNote || !updatedNote.publicAccess?.enabled) {
+          if (!updatedNote) {
             setNote(null);
             setPageState('not-found');
+            return;
+          }
+          if (!updatedNote.publicAccess?.enabled) {
+            setNote(updatedNote);
+            setPageState('no-access');
             return;
           }
           setNote(updatedNote);
@@ -80,11 +85,38 @@ export default function SharedNote() {
           <AlertCircle className="h-12 w-12 text-white/20 mx-auto" />
           <h2 className="text-lg font-headline text-white/60">Note not found</h2>
           <p className="text-sm text-white/40">
-            This note doesn't exist or sharing has been disabled.
+            This note doesn't exist or the link may be invalid.
           </p>
           <Link to="/">
             <Button variant="outline" className="border-primary/40 text-primary hover:bg-primary/10 mt-4">
-              Go to EaseBot
+              Go to TheWeddingBot
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── No access state ─────────────────────────────────────────────────────────
+  if (pageState === 'no-access') {
+    return (
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+        <div className="text-center space-y-4 max-w-md px-6">
+          <div className="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
+            <AlertCircle className="h-8 w-8 text-amber-400/60" />
+          </div>
+          <h2 className="text-lg font-headline text-white/60">Access Restricted</h2>
+          <p className="text-sm text-white/40">
+            This note exists but sharing has been disabled by the owner.
+            {note?.ownerEmail && (
+              <span className="block mt-2 text-white/50">
+                Contact <span className="text-primary/80">{note.ownerEmail}</span> to request access.
+              </span>
+            )}
+          </p>
+          <Link to="/">
+            <Button variant="outline" className="border-primary/40 text-primary hover:bg-primary/10 mt-4">
+              Go to TheWeddingBot
             </Button>
           </Link>
         </div>
@@ -112,7 +144,7 @@ export default function SharedNote() {
             </Button>
             <Link to="/">
               <Button variant="outline" className="border-primary/40 text-primary hover:bg-primary/10">
-                Go to EaseBot
+                Go to TheWeddingBot
               </Button>
             </Link>
           </div>
@@ -136,7 +168,7 @@ export default function SharedNote() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              <span className="text-sm font-headline text-primary/80 tracking-wide">EaseBot</span>
+              <span className="text-sm font-headline text-primary/80 tracking-wide">TheWeddingBot</span>
             </div>
             <div className="h-5 w-px bg-white/10" />
             <span className="text-[10px] uppercase tracking-wider text-white/30 font-medium">Shared Note</span>

@@ -8,7 +8,7 @@ interface ImageCarouselProps {
   onSaveToGallery?: (imageUrl: string) => void
   onDelete?: (imageUrl: string) => void
   isGuest?: boolean
-  /** Show "Made with Easebot" watermark overlay (free-tier images). */
+  /** Show "Made with TheWeddingBot" watermark overlay (free-tier images). */
   watermarked?: boolean
 }
 
@@ -161,7 +161,7 @@ function WatermarkOverlay() {
   return (
     <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-3">
       <span className="bg-black/50 text-white/70 text-[10px] font-medium px-2 py-1 rounded-md backdrop-blur-sm">
-        Made with Easebot
+        Made with TheWeddingBot
       </span>
     </div>
   )
