@@ -419,6 +419,17 @@ async function handleImageToolCall(
     }
   }
 
+  // If client disconnected during generation, skip storage
+  if (opts.signal?.aborted) {
+    console.log('[chatController] Client disconnected, skipping image storage')
+    return {
+      result: 'Image generation was cancelled.',
+      action: { tool: 'generate_image', imagePrompt: finalPrompt },
+      imageUrls: [],
+      styleDescriptors: [],
+    }
+  }
+
   // Store images (for logged-in users)
   let imageUrls: string[] = []
   if (opts.isLoggedIn && opts.uid) {
@@ -1073,6 +1084,14 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
               }
             },
           })
+
+          // If client disconnected while image was generating, discard results
+          if (streamAbort.signal.aborted) {
+            console.info('[chatController] Client disconnected during image generation, discarding results')
+            if (!res.writableEnded) res.end()
+            return
+          }
+
           toolActions.push(imgResult.action)
           imageUrls = imgResult.imageUrls
           imageToolStyleMemory = imgResult.styleMemory

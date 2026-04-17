@@ -33,12 +33,13 @@ export default function ResizableImageView({
   // Show toolbar on hover OR when selected
   const toolbarVisible = isEditable && (showToolbar || selected) && !isResizing;
 
-  // ── Mouse-based resize ────────────────────────────────────────────────────
-  const onMouseDown = useCallback(
-    (e: React.MouseEvent, side: "left" | "right") => {
+  // ── Pointer-based resize (mouse + touch) ──────────────────────────────────
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent, side: "left" | "right") => {
       if (!isEditable) return;
       e.preventDefault();
       e.stopPropagation();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
       setIsResizing(true);
       startXRef.current = e.clientX;
       resizeSideRef.current = side;
@@ -52,22 +53,22 @@ export default function ResizableImageView({
   useEffect(() => {
     if (!isResizing) return;
 
-    const onMouseMove = (e: MouseEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       const delta = e.clientX - startXRef.current;
       const direction = resizeSideRef.current === "right" ? 1 : -1;
       const newWidth = Math.max(MIN_WIDTH, startWidthRef.current + delta * direction);
       updateAttributes({ width: Math.round(newWidth) });
     };
 
-    const onMouseUp = () => {
+    const onPointerUp = () => {
       setIsResizing(false);
     };
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
     return () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
     };
   }, [isResizing, updateAttributes]);
 
@@ -139,15 +140,17 @@ export default function ResizableImageView({
           <>
             {/* Left handle */}
             <div
-              className="absolute left-0 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              onMouseDown={(e) => onMouseDown(e, "left")}
+              className="absolute left-0 top-0 bottom-0 w-4 cursor-col-resize flex items-center justify-center opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+              style={{ touchAction: "none" }}
+              onPointerDown={(e) => onPointerDown(e, "left")}
             >
               <div className="w-1 h-10 max-h-[40%] rounded-full bg-white/70 shadow-md" />
             </div>
             {/* Right handle */}
             <div
-              className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              onMouseDown={(e) => onMouseDown(e, "right")}
+              className="absolute right-0 top-0 bottom-0 w-4 cursor-col-resize flex items-center justify-center opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+              style={{ touchAction: "none" }}
+              onPointerDown={(e) => onPointerDown(e, "right")}
             >
               <div className="w-1 h-10 max-h-[40%] rounded-full bg-white/70 shadow-md" />
             </div>

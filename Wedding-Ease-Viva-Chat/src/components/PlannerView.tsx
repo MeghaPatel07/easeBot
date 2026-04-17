@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Trash2, CheckSquare, Lock, Plus } from 'lucide-react'
+import { Trash2, CheckSquare, Lock, Plus, MoreVertical, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -164,12 +164,45 @@ export default function PlannerView({
                   </p>
                   <p className="text-2xs text-white/40">{done}/{total} done</p>
                 </div>
-                <button
-                  onClick={e => { e.stopPropagation(); if (!window.confirm('Delete this checklist? This cannot be undone.')) return; deleteChecklist(userId, cl.id) }}
-                  className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition-all flex-shrink-0"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
+                <div className="relative opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation()
+                      const menu = (e.currentTarget.nextElementSibling as HTMLElement)
+                      menu.classList.toggle('hidden')
+                    }}
+                    className="text-white/30 hover:text-white/60 p-0.5 rounded"
+                  >
+                    <MoreVertical className="h-3 w-3" />
+                  </button>
+                  <div className="hidden absolute right-0 top-full mt-1 z-50 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-xl py-1 min-w-[120px]">
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        (e.currentTarget.parentElement as HTMLElement).classList.add('hidden');
+                        const text = `${cl.title}\n${cl.items.map(i => `${i.completed ? '✅' : '☐'} ${i.text}`).join('\n')}`
+                        try {
+                          await navigator.clipboard.writeText(text);
+                          toast.success('Copied to clipboard');
+                        } catch { toast.error('Failed to copy'); }
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <Copy className="h-3 w-3" /> Copy
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        (e.currentTarget.parentElement as HTMLElement).classList.add('hidden');
+                        if (!window.confirm('Delete this checklist? This cannot be undone.')) return;
+                        deleteChecklist(userId, cl.id);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete
+                    </button>
+                  </div>
+                </div>
               </div>
             )
           })

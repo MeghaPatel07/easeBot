@@ -77,6 +77,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
   const [customLead, setCustomLead] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteReminder, setConfirmDeleteReminder] = useState<ReminderDoc | null>(null)
   const [editingReminder, setEditingReminder] = useState<ReminderDoc | null>(null)
 
   const resetForm = () => {
@@ -159,11 +160,14 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
     }
   }
 
-  const handleDelete = async (r: ReminderDoc) => {
-    if (!user) return
+  const handleDeleteConfirm = async () => {
+    if (!user || !confirmDeleteReminder) return
+    const r = confirmDeleteReminder
+    setConfirmDeleteReminder(null)
     setDeletingId(r.id)
     try {
       await deleteReminder(user.uid, r.id)
+      toast.success('Reminder deleted')
       await onRefresh()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete reminder'
@@ -226,7 +230,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
             <button
               type="button"
               aria-label="Delete reminder"
-              onClick={() => handleDelete(r)}
+              onClick={() => setConfirmDeleteReminder(r)}
               disabled={deletingId === r.id}
               className="h-7 w-7 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
             >
@@ -453,6 +457,35 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
             >
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {submitting ? (editingReminder ? 'Saving…' : 'Creating…') : (editingReminder ? 'Save' : 'Create')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!confirmDeleteReminder} onOpenChange={(o) => { if (!o) setConfirmDeleteReminder(null) }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-sm glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-lg text-white/90">Delete Reminder</DialogTitle>
+            <DialogDescription className="text-white/40 text-xs">
+              This will permanently delete "{confirmDeleteReminder?.title}" and cancel any scheduled notification. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDeleteReminder(null)}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              className="rounded-xl gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

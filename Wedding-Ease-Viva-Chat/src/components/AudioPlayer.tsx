@@ -119,10 +119,13 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
     if (!audio) return
     setDuration(audio.duration)
     audio.playbackRate = speed
-    // Auto-play once metadata is ready
+    // Auto-play once metadata is ready.
+    // If browser blocks autoplay (gesture context expired after async TTS fetch),
+    // fall back to 'paused' — user can tap the play button which IS a gesture.
     audio.play().then(() => {
       setState('playing')
-    }).catch(() => {
+    }).catch((err) => {
+      console.warn('[AudioPlayer] Autoplay blocked, tap play to start:', err?.message)
       setState('paused')
     })
   }
@@ -134,8 +137,12 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
   }
 
   const handleError = () => {
+    const audio = audioRef.current
+    const code = audio?.error?.code
+    const msg = audio?.error?.message
+    console.error('[AudioPlayer] Audio error:', { code, msg, src: audioUrl?.slice(0, 60) })
     setState('error')
-    setErrorMsg('Failed to load audio')
+    setErrorMsg(msg || 'Failed to load audio')
     onError?.()
   }
 

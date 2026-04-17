@@ -42,6 +42,12 @@ export async function createChecklist(
   return checklist as unknown as Checklist
 }
 
+export async function duplicateChecklist(userId: string, source: Checklist): Promise<void> {
+  const title = `${source.title} (Copy)`
+  const itemTexts = source.items.map(i => i.text)
+  await createChecklist(userId, title, itemTexts)
+}
+
 export async function updateChecklistItem(
   userId: string,
   checklistId: string,

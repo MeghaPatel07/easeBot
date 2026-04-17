@@ -601,9 +601,29 @@ const Index = () => {
     setTtsActiveId(null);
   };
 
-  useEffect(() => {
-    return () => { Object.values(ttsAudioUrls).forEach(u => URL.revokeObjectURL(u)); };
+  // Reset all TTS state: stop playback, revoke blobs, clear IDs
+  const ttsAudioUrlsRef = useRef(ttsAudioUrls);
+  ttsAudioUrlsRef.current = ttsAudioUrls;
+
+  const resetTts = useCallback(() => {
+    Object.values(ttsAudioUrlsRef.current).forEach(u => URL.revokeObjectURL(u));
+    setTtsAudioUrls({});
+    setTtsActiveId(null);
+    setTtsLoadingId(null);
   }, []);
+
+  // Clean up on unmount
+  useEffect(() => resetTts, [resetTts]);
+
+  // Stop playback when user navigates away, switches tabs, or changes thread
+  useEffect(() => {
+    const handleVisibility = () => { if (document.hidden) resetTts(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [resetTts]);
+
+  // Reset TTS when switching to a different chat thread
+  useEffect(() => { resetTts(); }, [activeThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Occasion selection state ───────────────────────────────────────────────
   const [selectedOccasion, setSelectedOccasion] = useState<string | null>(null);

@@ -625,7 +625,7 @@ export default function Login() {
       <header className="relative z-10 flex items-center justify-between px-6 py-4 md:px-10 md:py-6">
         <Link to="/" className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <span className="font-headline text-lg text-white tracking-tight">EaseBot</span>
+          <span className="font-headline text-lg text-white tracking-tight">TheWeddingBot</span>
         </Link>
         <Link
           to="/pricing"

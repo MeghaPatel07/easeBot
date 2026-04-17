@@ -372,6 +372,39 @@ export function useChat(): UseChatResult {
         }
       }
 
+      // If the user aborted while streaming, the loop may exit cleanly
+      // (no AbortError thrown). Detect this and persist the interrupted message.
+      if (controller.signal.aborted) {
+        const wasGeneratingImage = messagesRef.current[messagesRef.current.length - 1]?.imageGenerating
+        const stoppedSuffix = wasGeneratingImage
+          ? '\n\n---\n*The response was interrupted*'
+          : '\n\n---\n*You stopped this response*'
+        const stoppedText = streamedText
+          ? streamedText + stoppedSuffix
+          : wasGeneratingImage ? '*The response was interrupted*' : '*You stopped this response*'
+
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1]
+          if (lastMsg && lastMsg.sender === 'ai') {
+            return [...prev.slice(0, -1), { ...lastMsg, text: stoppedText, imageGenerating: false, partialImageUrl: undefined }]
+          }
+          return prev
+        })
+
+        if (user && threadId) {
+          addMessage(threadId, {
+            role: 'assistant',
+            content: stoppedText,
+            originalContent: null,
+            mode: (mode ?? 'assistant') as Mode,
+            language: 'en',
+            audioUrl: null,
+            liked: false,
+          } as NewMessage).catch(e => console.error('[useChat] persist stopped msg error:', e))
+        }
+        return
+      }
+
       if (!finalMeta) return
 
       const imageUrl = finalMeta.imageUrl ?? null
@@ -439,7 +472,7 @@ export function useChat(): UseChatResult {
           content: finalMeta.text || streamedText,
           originalContent: null,
           mode: finalMeta.mode as Mode,
-          language: finalMeta.detectedLanguage,
+          language: finalMeta.responseLanguage || finalMeta.detectedLanguage,
           audioUrl: finalMeta.audioUrl,
           imageUrl: imageUrl,
           imageUrls: imageUrls,

@@ -14,12 +14,47 @@ import CharacterCount from "@tiptap/extension-character-count";
 import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import TextAlign from "@tiptap/extension-text-align";
-import { Node } from "@tiptap/core";
+import { Node, Extension } from "@tiptap/core";
 import FloatingToolbar from "./toolbar/FloatingToolbar";
 import SlashCommandMenu from "./toolbar/SlashCommandMenu";
 import ResizableImageView from "./ResizableImageView";
 
 import type { Editor } from "@tiptap/react";
+
+const FontSize = Extension.create({
+  name: "fontSize",
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["textStyle"],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize?.replace(/['"]+/g, "") || null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize: string) =>
+        ({ chain }) => {
+          return chain().setMark("textStyle", { fontSize }).run();
+        },
+      unsetFontSize:
+        () =>
+        ({ chain }) => {
+          return chain().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run();
+        },
+    } as any;
+  },
+});
 
 const CalloutExtension = Node.create({
   name: 'callout',
@@ -117,6 +152,7 @@ export default function NoteEditor({
       CharacterCount,
       Color,
       TextStyle,
+      FontSize,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       CalloutExtension,
     ],

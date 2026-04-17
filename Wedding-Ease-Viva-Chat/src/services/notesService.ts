@@ -218,7 +218,7 @@ export function subscribeToSharedNotes(
 ): Unsubscribe {
   const q = query(
     notesCol(),
-    where('collaboratorEmails', 'array-contains', userEmail)
+    where('collaboratorEmails', 'array-contains', userEmail.trim().toLowerCase())
   )
   return onSnapshot(
     q,

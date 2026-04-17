@@ -1,6 +1,6 @@
 {
-  "name": "EaseBot AI — Wedding Planning Assistant",
-  "short_name": "EaseBot",
+  "name": "TheWeddingBot — AI Wedding Planning Assistant",
+  "short_name": "TheWeddingBot",
   "description": "Your personal AI wedding planner. Plan timelines, find styles, track budgets, and get 24/7 guidance.",
   "start_url": "/",
   "display": "standalone",

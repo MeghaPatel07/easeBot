@@ -277,7 +277,7 @@ const ChatInput = ({
               ) : (
                 <button
                   onClick={onSend}
-                  disabled={!hasContent}
+                  disabled={!hasContent || voiceState === 'recording' || voiceState === 'transcribing'}
                   title="Send"
                   className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center text-white rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
                 >

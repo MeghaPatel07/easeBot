@@ -309,7 +309,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                     {message.attachedImage && (
                       <img src={message.attachedImage} alt="Attached" className="mb-2 rounded-lg max-w-[200px] max-h-[200px] object-cover" />
                     )}
-                    <p className="text-caption leading-relaxed">{message.text}</p>
+                    <p className="text-[15px] sm:text-caption leading-relaxed">{message.text}</p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 mr-1">
                     <span className="text-3xs text-white/40 uppercase tracking-wider">
@@ -374,7 +374,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[15px] sm:text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-[#cfcecc] prose-headings:text-[#cfcecc] prose-strong:text-[#cfcecc] prose-em:text-[#cfcecc] prose-li:text-[#cfcecc] prose-p:text-[#cfcecc] prose-blockquote:text-[#cfcecc] prose-code:text-[#cfcecc]">
+              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[17px] sm:text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-[#cfcecc] prose-headings:text-[#cfcecc] prose-strong:text-[#cfcecc] prose-em:text-[#cfcecc] prose-li:text-[#cfcecc] prose-p:text-[#cfcecc] prose-blockquote:text-[#cfcecc] prose-code:text-[#cfcecc]">
                 <TypewriterMarkdown
                   text={message.text}
                   isStreaming={message.id === streamingMsgId}
@@ -651,13 +651,13 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 </Tooltip>
               </div>
 
-              {/* Gemini TTS AudioPlayer */}
+              {/* TTS AudioPlayer */}
               {ttsActiveId === message.id && ttsAudioUrls[message.id] && (
                 <div className="mt-2">
                   <AudioPlayer
                     audioUrl={ttsAudioUrls[message.id]}
                     onEnded={() => onTtsClose(message.id)}
-                    onError={() => onTtsClose(message.id)}
+                    onClose={() => onTtsClose(message.id)}
                   />
                 </div>
               )}
