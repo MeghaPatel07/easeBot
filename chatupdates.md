@@ -1,0 +1,5 @@
+- on each responsed messgae gice 2-4 followup prompt qurestions for thart generratedd response and context . 
+- make sure ot have it in bubblker formate 
+- on click of whcuh quick promp will happend for that suggesation 
+- if the user copy the messge then that option should not be coppied . 
+- if user plays the sudio then also it should not be playedd , neither it should be played in audio 

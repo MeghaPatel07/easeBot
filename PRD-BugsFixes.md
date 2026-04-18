@@ -451,15 +451,15 @@
 **Bug:** Favicon needs to be updated to TheWeddingBot brand icon.
 
 **Current State:**
-- Favicon is in `public/favicon.ico` or referenced in `index.html`
+- Favicon is in `public/images/logo.png` or referenced in `index.html`
 
 **Implementation:**
-1. Replace `public/favicon.ico` with new TheWeddingBot favicon
+1. Replace `public/images/logo.png` with new TheWeddingBot favicon
 2. Also update `public/apple-touch-icon.png` and any PWA icons in `public/manifest.json`
 3. Ensure multiple sizes: 16x16, 32x32, 180x180 (apple-touch), 192x192 and 512x512 (PWA)
 
 **Files:**
-- `public/favicon.ico` — replace
+- `public/images/logo.png` — replace
 - `public/` — apple-touch-icon, PWA icons
 - `public/manifest.json` — icon references
 - `index.html` — favicon link tag

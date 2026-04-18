@@ -188,6 +188,133 @@ Open it here: ${noteUrl}
   return { subject, html, text }
 }
 
+interface BuildInvoiceEmailArgs {
+  recipientName: string | null
+  invoiceNumber: string
+  plan: string
+  cycle: string
+  amountLocal: number
+  currency: string
+  txnid: string
+  paidAtIso: string
+  legalEntityName: string
+}
+
+export function buildInvoiceEmail(args: BuildInvoiceEmailArgs): {
+  subject: string
+  html: string
+  text: string
+} {
+  const greetingName =
+    args.recipientName && args.recipientName.trim().length > 0
+      ? args.recipientName.trim()
+      : 'there'
+
+  const planLabel =
+    args.plan.toLowerCase() === 'promax' ? 'Pro Max'
+    : args.plan.toLowerCase() === 'pro' ? 'Pro'
+    : args.plan.charAt(0).toUpperCase() + args.plan.slice(1)
+
+  const cycleLabel =
+    args.cycle.toLowerCase() === 'annual' ? 'Annual'
+    : args.cycle.toLowerCase() === 'monthly' ? 'Monthly'
+    : args.cycle.charAt(0).toUpperCase() + args.cycle.slice(1)
+
+  const amountFormatted = `${args.currency} ${args.amountLocal.toFixed(2)}`
+  const paidOn = new Date(args.paidAtIso).toUTCString().replace(' GMT', ' UTC')
+
+  const subject = `Payment receipt — Invoice ${args.invoiceNumber} — TheWeddingBot`
+
+  const text = `Hi ${greetingName},
+
+Thank you for subscribing to TheWeddingBot ${planLabel} (${cycleLabel}). Your payment has been received and your plan is now active.
+
+Invoice number: ${args.invoiceNumber}
+Plan:           TheWeddingBot ${planLabel} (${cycleLabel})
+Amount paid:    ${amountFormatted}
+Payment date:   ${paidOn}
+Transaction ID: ${args.txnid}
+
+A tax-compliant PDF copy of this invoice is available in Settings → Billing:
+https://theweddingbot.ai/settings/billing
+
+Refunds: Per our terms (§6.5), payments are non-refundable for partial cycles, unused tokens, or top-up packs.
+
+Need help? Reply to this email or write to support@theweddingbot.ai.
+
+Thank you for planning with us,
+— TheWeddingBot team
+
+${args.legalEntityName}
+This is a transactional receipt for a confirmed payment. Please retain it for your records.
+`
+
+  const html = `<!doctype html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#faf7f3; padding:24px; color:#2d2a26; margin:0;">
+    <div style="max-width: 560px; margin: 0 auto; background:#ffffff; border-radius:12px; padding:32px; border:1px solid #efe7dc;">
+      <h2 style="margin:0 0 8px 0; color:#8a5a2b;">Payment receipt</h2>
+      <p style="margin:0 0 24px 0; color:#888; font-size:13px;">Invoice ${escapeHtml(args.invoiceNumber)}</p>
+
+      <p style="margin:0 0 16px 0;">Hi ${escapeHtml(greetingName)},</p>
+      <p style="margin:0 0 20px 0;">Thank you for subscribing to <strong>TheWeddingBot ${escapeHtml(planLabel)}</strong>. Your payment has been received and your plan is now active.</p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%; background:#fbf6ee; border:1px solid #efe2cb; border-radius:8px; padding:0; margin:16px 0;">
+        <tbody>
+          <tr><td style="padding:12px 16px; color:#666; font-size:13px; width:42%;">Invoice number</td><td style="padding:12px 16px; font-weight:600; text-align:right;">${escapeHtml(args.invoiceNumber)}</td></tr>
+          <tr><td style="padding:12px 16px; color:#666; font-size:13px; border-top:1px solid #efe2cb;">Plan</td><td style="padding:12px 16px; font-weight:600; text-align:right; border-top:1px solid #efe2cb;">TheWeddingBot ${escapeHtml(planLabel)} (${escapeHtml(cycleLabel)})</td></tr>
+          <tr><td style="padding:12px 16px; color:#666; font-size:13px; border-top:1px solid #efe2cb;">Amount paid</td><td style="padding:12px 16px; font-weight:600; text-align:right; border-top:1px solid #efe2cb;">${escapeHtml(amountFormatted)}</td></tr>
+          <tr><td style="padding:12px 16px; color:#666; font-size:13px; border-top:1px solid #efe2cb;">Payment date</td><td style="padding:12px 16px; font-weight:600; text-align:right; border-top:1px solid #efe2cb;">${escapeHtml(paidOn)}</td></tr>
+          <tr><td style="padding:12px 16px; color:#666; font-size:13px; border-top:1px solid #efe2cb;">Transaction ID</td><td style="padding:12px 16px; font-weight:600; text-align:right; font-family:Menlo, Consolas, monospace; font-size:13px; border-top:1px solid #efe2cb;">${escapeHtml(args.txnid)}</td></tr>
+        </tbody>
+      </table>
+
+      <p style="margin:24px 0 8px 0;">A tax-compliant PDF copy of this invoice is available in your billing tab:</p>
+      <p style="margin:0 0 24px 0;">
+        <a href="https://theweddingbot.ai/settings/billing" style="display:inline-block; background:#c9a26a; color:#ffffff; text-decoration:none; padding:12px 20px; border-radius:8px; font-weight:600;">View invoice</a>
+      </p>
+
+      <p style="margin:16px 0; color:#666; font-size:13px;"><strong>Refunds:</strong> Per our terms (§6.5), payments are non-refundable for partial cycles, unused tokens, or top-up packs.</p>
+
+      <p style="margin:16px 0; color:#666; font-size:13px;">Need help? Reply to this email or write to <a href="mailto:support@theweddingbot.ai" style="color:#8a5a2b;">support@theweddingbot.ai</a>.</p>
+
+      <p style="margin:24px 0 4px 0; color:#888; font-size:13px;">Thank you for planning with us,</p>
+      <p style="margin:0 0 24px 0; color:#888; font-size:13px;">— TheWeddingBot team</p>
+
+      <hr style="border:none; border-top:1px solid #efe7dc; margin:16px 0;" />
+      <p style="margin:0; color:#aaa; font-size:11px;">${escapeHtml(args.legalEntityName)}</p>
+      <p style="margin:4px 0 0 0; color:#aaa; font-size:11px;">This is a transactional receipt for a confirmed payment. Please retain it for your records.</p>
+    </div>
+  </body>
+</html>`
+
+  return { subject, html, text }
+}
+
+export async function sendOtpEmail(to: string, otp: string): Promise<void> {
+  const subject = 'Your Password Reset Code'
+  const text = `Your password reset code is: ${otp}\n\nThis code expires in 10 minutes. If you didn't request this, please ignore this email.`
+  const html = `<!doctype html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#faf7f3; padding:24px; color:#2d2a26; margin:0;">
+    <div style="max-width: 480px; margin: 0 auto; background:#ffffff; border-radius:12px; padding:32px; border:1px solid #efe7dc;">
+      <div style="text-align:center; margin-bottom:24px;">
+        <h2 style="color:#8a5a2b; font-size:20px; margin:0;">Password Reset</h2>
+        <p style="color:#888; font-size:13px; margin:8px 0 0;">TheWeddingBot</p>
+      </div>
+      <div style="background:#fbf6ee; border-radius:12px; padding:24px; text-align:center; margin-bottom:24px; border:1px solid #efe2cb;">
+        <p style="color:#666; font-size:14px; margin:0 0 12px;">Your verification code is</p>
+        <div style="font-size:32px; font-weight:700; letter-spacing:8px; color:#c9a26a; font-family: Menlo, Consolas, monospace;">${otp}</div>
+      </div>
+      <p style="color:#999; font-size:12px; text-align:center; margin:0;">
+        This code expires in 10 minutes.<br/>If you didn't request this, please ignore this email.
+      </p>
+    </div>
+  </body>
+</html>`
+  await sendEmailNotification({ to, subject, text, html })
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
