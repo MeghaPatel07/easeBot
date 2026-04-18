@@ -1,9 +1,11 @@
 // useTokenPool — wraps useUsageStats to provide x/y counts + percentage
 // for the TokenPoolBar component in the ProfileMenu dropdown.
 
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUsageStats } from '@/hooks/useUsageStats'
 import { formatTokenCount, getLimits, resolveTier } from '@/config/tierConfig'
+import { onQuotaExceeded, type QuotaExceededPayload } from '@/services/accountService'
 
 export interface TokenPoolState {
   /** Raw snapshot from the backend */
@@ -19,6 +21,8 @@ export interface TokenPoolState {
   dailyLabel: string     // e.g. "12K / 300K"
   /** Warning level based on monthly usage */
   level: 'ok' | 'warning' | 'critical' | 'exceeded'
+  /** Set when the most recent backend call returned 402 — pins the relevant bar to 100% */
+  cappedReason: 'daily_cap_exceeded' | 'monthly_cap_exceeded' | null
   /** Whether the user can refetch */
   refetch: () => void
 }
@@ -28,6 +32,26 @@ export function useTokenPool(): TokenPoolState {
   const tier = resolveTier(profile)
   const limits = getLimits(tier)
   const { snapshot, isLoading, isError, error, refetch } = useUsageStats()
+
+  // Track the most recent 402 from the backend. Pins the relevant bar to 100%
+  // until either the reset time passes or a refetch shows usage actually
+  // dropped below the cap (e.g. midnight UTC roll-over).
+  const [capped, setCapped] = useState<QuotaExceededPayload | null>(null)
+  useEffect(() => {
+    return onQuotaExceeded((payload) => {
+      setCapped(payload)
+      refetch()
+    })
+  }, [refetch])
+
+  // Auto-clear the cap if the snapshot's resetAt has passed.
+  useEffect(() => {
+    if (!capped?.resetAt) return
+    const ms = new Date(capped.resetAt).getTime() - Date.now()
+    if (ms <= 0) { setCapped(null); return }
+    const t = setTimeout(() => setCapped(null), ms + 1000)
+    return () => clearTimeout(t)
+  }, [capped])
 
   const enabled = !!user && tier !== 'guest'
 
@@ -41,6 +65,7 @@ export function useTokenPool(): TokenPoolState {
       monthlyLabel: `0 / ${formatTokenCount(limits.monthlyTokenPool)}`,
       dailyLabel: `0 / ${formatTokenCount(limits.dailyTokenCap)}`,
       level: 'ok',
+      cappedReason: null,
       refetch,
     }
   }
@@ -53,12 +78,23 @@ export function useTokenPool(): TokenPoolState {
   // dailyMax can be null in backend response — fall back to tier config
   const dailyCap = snapshot.dailyMax ?? limits.dailyTokenCap ?? 0
 
-  const monthlyPct = monthlyPool > 0
+  // Force the matching bar to 100% if the backend most recently returned 402
+  // for that dimension — the pessimistic-estimate gate can lock the user out
+  // before the bar mathematically reaches 100%.
+  const cappedReason: TokenPoolState['cappedReason'] =
+    capped?.reason === 'daily_cap_exceeded' || capped?.reason === 'monthly_cap_exceeded'
+      ? capped.reason
+      : null
+
+  const rawMonthlyPct = monthlyPool > 0
     ? Math.min(100, Math.round((monthlyUsed / monthlyPool) * 100))
     : 0
-  const dailyPct = dailyCap > 0
+  const rawDailyPct = dailyCap > 0
     ? Math.min(100, Math.round((dailyUsed / dailyCap) * 100))
     : 0
+
+  const monthlyPct = cappedReason === 'monthly_cap_exceeded' ? 100 : rawMonthlyPct
+  const dailyPct = cappedReason === 'daily_cap_exceeded' ? 100 : rawDailyPct
 
   const level: TokenPoolState['level'] =
     monthlyPct >= 100 ? 'exceeded'
@@ -75,6 +111,7 @@ export function useTokenPool(): TokenPoolState {
     monthlyLabel: `${formatTokenCount(monthlyUsed)} / ${formatTokenCount(monthlyPool)}`,
     dailyLabel: `${formatTokenCount(dailyUsed)} / ${formatTokenCount(dailyCap)}`,
     level,
+    cappedReason,
     refetch,
   }
 }

@@ -6,17 +6,19 @@ import { useTokenPool } from '@/hooks/useTokenPool'
 import { cn } from '@/lib/utils'
 
 export function TokenPoolBar({ className }: { className?: string }) {
-  const { monthlyPct, dailyPct, monthlyLabel, dailyLabel, level, isLoading, snapshot } = useTokenPool()
+  const { monthlyPct, dailyPct, monthlyLabel, dailyLabel, level, cappedReason, isLoading, snapshot } = useTokenPool()
 
   // Don't render for guests or while loading the first time
   if (!snapshot && !isLoading) return null
   if (!snapshot) return null
 
   const barColor =
-    level === 'exceeded' ? 'bg-destructive'
+    level === 'exceeded' || cappedReason ? 'bg-destructive'
       : level === 'critical' ? 'bg-amber-500'
         : level === 'warning' ? 'bg-amber-400'
           : 'bg-primary'
+
+  const dailyCapped = cappedReason === 'daily_cap_exceeded'
 
   return (
     <div className={cn('space-y-2', className)}>
@@ -50,7 +52,9 @@ export function TokenPoolBar({ className }: { className?: string }) {
       <div>
         <div className="flex items-center justify-between text-2xs text-white/60 mb-1">
           <span>Today</span>
-          <span>{dailyLabel}</span>
+          <span className={cn(dailyCapped && 'text-destructive font-medium')}>
+            {dailyLabel}
+          </span>
         </div>
         <div
           role="progressbar"
@@ -61,10 +65,15 @@ export function TokenPoolBar({ className }: { className?: string }) {
           className="h-1 w-full rounded-full bg-white/[0.08] overflow-hidden"
         >
           <div
-            className="h-full rounded-full bg-white/30 transition-all duration-500"
+            className={cn('h-full rounded-full transition-all duration-500', dailyCapped ? 'bg-destructive' : 'bg-white/30')}
             style={{ width: `${dailyPct}%` }}
           />
         </div>
+        {dailyCapped && (
+          <p className="text-2xs text-destructive font-medium mt-1">
+            Daily limit reached. Resets at midnight UTC.
+          </p>
+        )}
       </div>
 
       {/* Warning / upgrade prompt */}

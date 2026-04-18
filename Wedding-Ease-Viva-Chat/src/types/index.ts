@@ -11,6 +11,36 @@ export type Mode =
 
 export type MessageRole = 'user' | 'assistant'
 
+// Kind discriminator for artifacts pinned to a specific chat send.
+// Kept in lockstep with ChatAttachmentKind in ChatAttachmentsContext — a
+// separate alias lives here so types/ stays dependency-free.
+export type MessageAttachmentKind =
+  | 'note'
+  | 'checklist'
+  | 'timeline'
+  | 'image'
+  | 'file'
+  | 'reminder'
+
+// Display-only snapshot of an attachment stored ON a persisted user message.
+// The full `payload` (which the backend injects into the LLM) is intentionally
+// NOT stored here — it's sent once at request time and the underlying artifact
+// remains the source of truth. When the user scrolls back through history we
+// resolve `id` against live collections to show a clickable chip or, if the
+// artifact was deleted, a greyed "Deleted artifact" chip.
+export interface MessageAttachment {
+  kind: MessageAttachmentKind
+  id: string
+  title: string
+  preview?: string
+  /**
+   * Gallery-image-only: persisted thumbnail URL so the chip can render even
+   * if the attached image is later moved off-screen. Images already live in
+   * Firebase Storage so it's safe to keep the URL.
+   */
+  url?: string
+}
+
 export interface TokenUsage {
   totalPromptTokens: number
   totalCompletionTokens: number
@@ -184,6 +214,10 @@ export interface ChatMessage {
   liked: boolean
   imageDeleted?: boolean
   checklistData?: { id: string; title: string; items: string[] } | null
+  // Artifacts the user attached from the AttachmentPicker for this specific
+  // send. Stored as a display snapshot — click-through resolves against live
+  // collections at render time; missing IDs render as "Deleted artifact".
+  attachments?: MessageAttachment[]
 }
 
 export interface Product {
@@ -214,6 +248,22 @@ export interface ChatFunctionPayload {
   preferredAspectRatio?: string
   vibeTitle?: string
   vibeDescriptors?: string[]
+  /**
+   * Request-scoped artifact attachments (notes, checklists, timelines, images,
+   * files) that the user wants the AI to reason about for this turn. Sourced
+   * from ChatAttachmentsContext; cleared by the UI after a successful send.
+   * Backend zod-validates and processes regardless of auth. The shape mirrors
+   * ChatAttachment from src/contexts/ChatAttachmentsContext.tsx — we redeclare
+   * the minimal fields inline here so this pure types module doesn't depend
+   * on the React-context module.
+   */
+  attachments?: Array<{
+    kind: 'note' | 'checklist' | 'timeline' | 'image' | 'file'
+    id: string
+    title: string
+    preview?: string
+    payload: unknown
+  }>
 }
 
 export interface CalendarEvent {
@@ -260,7 +310,7 @@ export interface TimelineEvent {
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'create_reminder' | 'web_search' | 'generate_image'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'create_reminder' | 'web_search' | 'generate_image' | 'create_note' | 'append_to_note' | 'create_timeline_event'
   checklistId?: string
   itemId?: string
   searchQuery?: string
@@ -270,6 +320,13 @@ export interface ToolAction {
   imageAction?: 'generate' | 'edit'
   imageAspectRatio?: string
   imageVariants?: number
+  noteId?: string
+  noteTitle?: string
+  timelineEventId?: string
+  timelineEventTitle?: string
+  reminderId?: string
+  reminderTitle?: string
+  blocked?: 'free_limit' | 'no_auth'
 }
 
 export interface ChatFunctionResponse {

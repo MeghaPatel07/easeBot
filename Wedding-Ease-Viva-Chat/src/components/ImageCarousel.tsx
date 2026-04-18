@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { ImageActions } from './ImageActions'
+import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
 
 interface ImageCarouselProps {
   imageUrls: string[]
@@ -10,6 +13,13 @@ interface ImageCarouselProps {
   isGuest?: boolean
   /** Show "Made with TheWeddingBot" watermark overlay (free-tier images). */
   watermarked?: boolean
+  /** Prompt that generated these images — used to label the chat attachment. */
+  prompt?: string
+}
+
+/** Stable id derived from a URL so addAttachment can dedup. */
+function attachmentIdFromUrl(url: string): string {
+  return `img-${url.split('?')[0].slice(-48)}`
 }
 
 /** Fullscreen image preview overlay */
@@ -19,6 +29,7 @@ function ImagePreview({
   onClose,
   onSaveToGallery,
   onDelete,
+  onAttachToChat,
   isGuest,
 }: {
   imageUrls: string[]
@@ -26,6 +37,7 @@ function ImagePreview({
   onClose: () => void
   onSaveToGallery?: (imageUrl: string) => void
   onDelete?: (imageUrl: string) => void
+  onAttachToChat?: (imageUrl: string) => void
   isGuest?: boolean
 }) {
   const [index, setIndex] = useState(initialIndex)
@@ -129,6 +141,7 @@ function ImagePreview({
             imageUrl={imageUrls[index]}
             onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[index]) : undefined}
             onDelete={onDelete ? () => onDelete(imageUrls[index]) : undefined}
+            onAttachToChat={onAttachToChat ? () => onAttachToChat(imageUrls[index]) : undefined}
             variant="preview"
             isGuest={isGuest}
           />
@@ -167,9 +180,26 @@ function WatermarkOverlay() {
   )
 }
 
-export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelete, isGuest, watermarked }: ImageCarouselProps) {
+export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelete, isGuest, watermarked, prompt }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const navigate = useNavigate()
+  const { addAttachment } = useChatAttachments()
+
+  // Stage the (AI-generated) image as a reference for the user's next chat
+  // message, close the preview, and route to the chat so the chip is visible.
+  const handleAttachToChat = useCallback((imageUrl: string) => {
+    addAttachment({
+      kind: 'image',
+      id: attachmentIdFromUrl(imageUrl),
+      title: prompt?.slice(0, 60) || 'AI-generated image',
+      preview: prompt?.slice(0, 200),
+      payload: { url: imageUrl, prompt },
+    })
+    toast.success('Image attached — ask Viva about it in chat')
+    setPreviewOpen(false)
+    navigate('/')
+  }, [addAttachment, navigate, prompt])
 
   if (imageUrls.length === 0) return null
 
@@ -190,7 +220,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             onClick={() => setPreviewOpen(true)}
           />
           {watermarked && <WatermarkOverlay />}
-          <ImageActions imageUrl={imageUrls[0]} onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[0]) : undefined} onDelete={onDelete ? () => onDelete(imageUrls[0]) : undefined} isGuest={isGuest} />
+          <ImageActions imageUrl={imageUrls[0]} onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[0]) : undefined} onDelete={onDelete ? () => onDelete(imageUrls[0]) : undefined} onAttachToChat={() => handleAttachToChat(imageUrls[0])} isGuest={isGuest} />
         </div>
         {previewOpen && (
           <ImagePreview
@@ -199,6 +229,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             onClose={() => setPreviewOpen(false)}
             onSaveToGallery={onSaveToGallery}
             onDelete={onDelete}
+            onAttachToChat={handleAttachToChat}
             isGuest={isGuest}
           />
         )}
@@ -223,6 +254,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             imageUrl={imageUrls[activeIndex]}
             onSaveToGallery={onSaveToGallery ? () => onSaveToGallery(imageUrls[activeIndex]) : undefined}
             onDelete={onDelete ? () => onDelete(imageUrls[activeIndex]) : undefined}
+            onAttachToChat={() => handleAttachToChat(imageUrls[activeIndex])}
             isGuest={isGuest}
           />
           {/* Navigation arrows */}
@@ -270,6 +302,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
           onClose={() => setPreviewOpen(false)}
           onSaveToGallery={onSaveToGallery}
           onDelete={onDelete}
+          onAttachToChat={handleAttachToChat}
           isGuest={isGuest}
         />
       )}

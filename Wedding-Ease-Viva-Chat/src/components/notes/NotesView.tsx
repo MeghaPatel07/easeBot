@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,8 @@ function extractText(json: any): string {
 }
 
 export default function NotesView({ userId, userEmail, userName }: NotesViewProps) {
+  const { noteId: urlNoteId } = useParams<{ noteId?: string }>();
+  const navigate = useNavigate();
   const {
     notes, sharedNotes, folders, activeNoteId, setActiveNoteId,
     searchQuery, setSearchQuery, isLoading,
@@ -59,6 +62,21 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
     createFolder, updateFolder, deleteFolder,
     moveNoteToFolder,
   } = useNotes(userId, userEmail);
+
+  // Sync activeNoteId with URL :noteId param — lets /:userId/notes/:noteId
+  // deeplinks (e.g. from the AI message chip) open the target note.
+  useEffect(() => {
+    if (urlNoteId && urlNoteId !== activeNoteId) {
+      setActiveNoteId(urlNoteId);
+    }
+  }, [urlNoteId, activeNoteId, setActiveNoteId]);
+
+  // Keep URL in sync when the user selects a different note in the sidebar.
+  const handleSelectNote = useCallback((nextId: string | null) => {
+    setActiveNoteId(nextId);
+    if (nextId) navigate(`/${userId}/notes/${nextId}`, { replace: true });
+    else navigate(`/${userId}/notes`, { replace: true });
+  }, [navigate, setActiveNoteId, userId]);
 
   const {
     note, isSaving, lastSavedAt, hasUnsavedChanges, save,
@@ -270,8 +288,8 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
             activeNoteId to return to the list.
       */}
 
-      {/* Left sidebar — hidden on mobile when a note is open */}
-      <div className={`${activeNoteId ? 'hidden sm:flex' : 'flex'} sm:flex flex-shrink-0 h-full`}>
+      {/* Left sidebar — hidden on mobile when a note is open; full-width on mobile */}
+      <div className={`${activeNoteId ? 'hidden sm:flex' : 'flex w-full'} sm:w-auto sm:flex flex-shrink-0 h-full min-w-0`}>
         <NotesSidebar
           notes={notes}
           sharedNotes={sharedNotes}
@@ -279,9 +297,10 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
           activeNoteId={activeNoteId}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onSelectNote={setActiveNoteId}
+          onSelectNote={handleSelectNote}
           onCreateNote={() => createNote()}
           onDeleteNote={deleteNote}
+          onRenameNote={(noteId, title) => updateNote(noteId, { title })}
           onRestoreNote={handleRestoreNote}
           onDuplicateNote={handleDuplicateNote}
           onCreateFolder={createFolder}
@@ -289,7 +308,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
           onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
           onMoveNote={moveNoteToFolder}
           onToggleFavorite={handleToggleFavorite}
-          onBack={() => setActiveNoteId(null)}
+          onBack={() => { if (activeNoteId) handleSelectNote(null); else navigate('/'); }}
           trashedCount={trashedCount}
         />
       </div>
@@ -322,7 +341,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               editor={editorInstance}
               onToggleComments={() => setShowComments(v => !v)}
               commentsCount={comments.length}
-              onBack={() => setActiveNoteId(null)}
+              onBack={() => handleSelectNote(null)}
             />
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {/* Shared note info banner */}

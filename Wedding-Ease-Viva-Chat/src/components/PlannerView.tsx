@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Trash2, CheckSquare, Lock, Plus, MoreVertical, Copy } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Trash2, CheckSquare, Lock, Plus, MoreVertical, Copy, MessageSquarePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -18,6 +19,7 @@ import {
   createChecklist,
   computeStats,
 } from '@/services/checklistService'
+import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
 import type { Checklist } from '@/types'
 
 interface PlannerViewProps {
@@ -40,11 +42,32 @@ export default function PlannerView({
   const [newTitle, setNewTitle] = useState('')
   const [newItems, setNewItems] = useState('')
   const [creating, setCreating] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const menuContainerRef = useRef<HTMLDivElement | null>(null)
+  const navigate = useNavigate()
+  const { addAttachment } = useChatAttachments()
 
   useEffect(() => {
     const unsub = subscribeToChecklists(userId, setChecklists)
     return unsub
   }, [userId])
+
+  // Dismiss the more-menu on outside tap/click
+  useEffect(() => {
+    if (!openMenuId) return
+    const handler = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node
+      if (menuContainerRef.current && !menuContainerRef.current.contains(target)) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [openMenuId])
 
   const stats = computeStats(checklists)
   const atLimit = !isPremium && checklists.length >= 5
@@ -75,6 +98,8 @@ export default function PlannerView({
       toast.success('Checklist created')
       setDialogOpen(false)
       resetForm()
+      // onSnapshot subscription will push the new checklist into state
+      // automatically — we still call onSelectChecklist to navigate into it.
       onSelectChecklist(created.id)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create checklist'
@@ -82,6 +107,57 @@ export default function PlannerView({
     } finally {
       setCreating(false)
     }
+  }
+
+  const handleAttachToChat = (cl: Checklist) => {
+    setOpenMenuId(null)
+    const total = cl.items.length
+    const completed = cl.items.filter(i => i.completed).length
+    const firstFive = cl.items.slice(0, 5).map(i => i.text).filter(Boolean)
+    const preview = total === 0
+      ? `${completed}/${total} done — (empty checklist)`
+      : `${completed}/${total} done — first ${firstFive.length} items: ${firstFive.join(', ')}`
+    // Convert Firestore Timestamp to ISO string so the payload stays
+    // JSON-serializable (backend chatController serializes this over the wire).
+    let createdAtIso: string | null = null
+    try {
+      createdAtIso = cl.createdAt?.toDate?.().toISOString() ?? null
+    } catch {
+      createdAtIso = null
+    }
+    addAttachment({
+      kind: 'checklist',
+      id: cl.id,
+      title: cl.title,
+      preview,
+      payload: {
+        checklistId: cl.id,
+        title: cl.title,
+        items: cl.items.map(i => ({ label: i.text, done: i.completed })),
+        createdAt: createdAtIso,
+      },
+    })
+    toast.success('Checklist attached — ask Viva about it in chat')
+    navigate('/')
+  }
+
+  const handleCopy = async (cl: Checklist) => {
+    setOpenMenuId(null)
+    const text = `${cl.title}\n${cl.items
+      .map(i => `${i.completed ? '✅' : '☐'} ${i.text}`)
+      .join('\n')}`
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Copied to clipboard')
+    } catch {
+      toast.error('Failed to copy')
+    }
+  }
+
+  const handleDelete = (cl: Checklist) => {
+    setOpenMenuId(null)
+    if (!window.confirm('Delete this checklist? This cannot be undone.')) return
+    deleteChecklist(userId, cl.id).catch(() => toast.error('Failed to delete'))
   }
 
   return (
@@ -97,7 +173,7 @@ export default function PlannerView({
             }
             setDialogOpen(true)
           }}
-          className="w-full h-9 rounded-xl gap-1.5 text-xs font-medium"
+          className="w-full h-11 sm:h-9 rounded-xl gap-1.5 text-xs font-medium touch-manipulation"
         >
           <Plus className="h-3.5 w-3.5" />
           New Checklist
@@ -135,7 +211,7 @@ export default function PlannerView({
       )}
 
       {/* Checklist list */}
-      <div className="flex-1 overflow-y-auto space-y-1">
+      <div className="flex-1 overflow-y-auto space-y-1" style={{ touchAction: 'pan-y' }}>
         {checklists.length === 0 ? (
           <p className="text-xs text-white/40 text-center py-6 px-2">
             No checklists yet.<br />
@@ -146,16 +222,28 @@ export default function PlannerView({
             const done = cl.items.filter(i => i.completed).length
             const total = cl.items.length
             const isSelected = selectedChecklistId === cl.id
+            const menuOpen = openMenuId === cl.id
 
             return (
               <div
                 key={cl.id}
-                className={`group flex items-center gap-2 rounded-xl px-3 py-2.5 cursor-pointer transition-all ${
+                role="button"
+                tabIndex={0}
+                aria-label={`Open checklist ${cl.title}`}
+                aria-pressed={isSelected}
+                onClick={() => onSelectChecklist(cl.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSelectChecklist(cl.id)
+                  }
+                }}
+                className={`group flex items-center gap-2 rounded-xl px-3 py-2.5 min-h-[44px] cursor-pointer transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
                   isSelected
                     ? 'bg-primary/10 border border-primary/20'
                     : 'hover:bg-white/10 border border-transparent hover:border-border'
                 }`}
-                onClick={() => onSelectChecklist(cl.id)}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <CheckSquare className={`h-3.5 w-3.5 flex-shrink-0 ${isSelected ? 'text-primary' : 'text-white/40'}`} />
                 <div className="flex-1 min-w-0">
@@ -164,44 +252,65 @@ export default function PlannerView({
                   </p>
                   <p className="text-2xs text-white/40">{done}/{total} done</p>
                 </div>
-                <div className="relative opacity-0 group-hover:opacity-100 transition-all flex-shrink-0" onClick={e => e.stopPropagation()}>
+                <div
+                  className="relative flex-shrink-0"
+                  ref={menuOpen ? menuContainerRef : undefined}
+                  onClick={e => e.stopPropagation()}
+                >
                   <button
+                    type="button"
+                    aria-label={`More actions for ${cl.title}`}
+                    aria-haspopup="menu"
+                    aria-expanded={menuOpen}
                     onClick={e => {
                       e.stopPropagation()
-                      const menu = (e.currentTarget.nextElementSibling as HTMLElement)
-                      menu.classList.toggle('hidden')
+                      setOpenMenuId(menuOpen ? null : cl.id)
                     }}
-                    className="text-white/30 hover:text-white/60 p-0.5 rounded"
+                    className="inline-flex items-center justify-center h-9 w-9 sm:h-7 sm:w-7 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 active:bg-white/15 sm:opacity-60 sm:group-hover:opacity-100 transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
-                    <MoreVertical className="h-3 w-3" />
+                    <MoreVertical className="h-4 w-4 sm:h-3 sm:w-3" />
                   </button>
-                  <div className="hidden absolute right-0 top-full mt-1 z-50 bg-black/90 backdrop-blur-md border border-white/10 rounded-lg shadow-xl py-1 min-w-[120px]">
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        (e.currentTarget.parentElement as HTMLElement).classList.add('hidden');
-                        const text = `${cl.title}\n${cl.items.map(i => `${i.completed ? '✅' : '☐'} ${i.text}`).join('\n')}`
-                        try {
-                          await navigator.clipboard.writeText(text);
-                          toast.success('Copied to clipboard');
-                        } catch { toast.error('Failed to copy'); }
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                  {menuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full mt-1 z-50 bg-black/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl py-1 min-w-[160px]"
                     >
-                      <Copy className="h-3 w-3" /> Copy
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        (e.currentTarget.parentElement as HTMLElement).classList.add('hidden');
-                        if (!window.confirm('Delete this checklist? This cannot be undone.')) return;
-                        deleteChecklist(userId, cl.id);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                      <Trash2 className="h-3 w-3" /> Delete
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleAttachToChat(cl)
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-primary hover:bg-primary/10 active:bg-primary/15 transition-colors min-h-[40px] touch-manipulation"
+                      >
+                        <MessageSquarePlus className="h-3.5 w-3.5" /> Attach to chat
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCopy(cl)
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 hover:text-white transition-colors min-h-[40px] touch-manipulation"
+                      >
+                        <Copy className="h-3.5 w-3.5" /> Copy
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(cl)
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors min-h-[40px] touch-manipulation"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -263,14 +372,14 @@ export default function PlannerView({
                 resetForm()
               }}
               disabled={creating}
-              className="rounded-xl"
+              className="rounded-xl touch-manipulation"
             >
               Cancel
             </Button>
             <Button
               onClick={handleCreate}
               disabled={creating || !newTitle.trim()}
-              className="rounded-xl"
+              className="rounded-xl touch-manipulation"
             >
               {creating ? 'Creating…' : 'Create'}
             </Button>

@@ -31,12 +31,6 @@ interface Props {
   className?: string
 }
 
-function flagFromCode(code: string): string {
-  return String.fromCodePoint(
-    ...[...code.toUpperCase()].map((c) => 0x1f1e6 - 65 + c.charCodeAt(0))
-  )
-}
-
 export function toE164(value: PhoneInputValue): string | null {
   if (!value.national) return null
   try {
@@ -106,7 +100,6 @@ interface CountryEntry {
   code: CountryCode
   name: string
   dial: string
-  flag: string
 }
 
 function PhoneInput({
@@ -135,7 +128,6 @@ function PhoneInput({
         code,
         name,
         dial: '+' + getCountryCallingCode(code),
-        flag: flagFromCode(code),
       }
     })
     list.sort((a, b) => a.name.localeCompare(b.name))
@@ -189,9 +181,7 @@ function PhoneInput({
           <SelectTrigger className="h-12 w-[100px] rounded-2xl bg-transparent border border-white/[0.12] focus:ring-1 focus:ring-primary/20 focus:border-primary/40 text-sm">
             <SelectValue>
               {current ? (
-                <span className="text-sm">
-                  {current.flag} {current.dial}
-                </span>
+                <span className="text-sm">{current.dial}</span>
               ) : (
                 <span className="text-sm">{value.countryCode}</span>
               )}
@@ -200,7 +190,7 @@ function PhoneInput({
           <SelectContent>
             {countries.map((c) => (
               <SelectItem key={c.code} value={c.code}>
-                {c.flag} {c.name} ({c.dial})
+                {c.name} ({c.dial})
               </SelectItem>
             ))}
           </SelectContent>

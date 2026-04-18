@@ -73,6 +73,8 @@ export function mapAuthError(code: string): string {
     'PHONE_DEVICE_MISMATCH': 'This phone is not registered on this device. Please use email sign-in, or sign up again on this device.',
     'USE_PHONE_SIGNIN': 'This account was created with a phone number. Please sign in with your phone.',
     'USE_EMAIL_SIGNIN': 'This account was created with email. Please sign in with email and password.',
+    'NETWORK_ERROR': 'Network error. Please check your connection and try again.',
+    'FORGOT_PASSWORD_ERROR': 'Something went wrong. Please try again.',
   }
   return map[code] ?? 'Something went wrong. Please try again.'
 }
@@ -384,8 +386,58 @@ export async function verifyPhoneOtp(
   return profile
 }
 
-// ── Forgot Password (authflow.md §6) — Firebase reset email ──────────────────
+// ── Forgot Password (authflow.md §6) — Backend OTP flow ─────────────────────
+//
+// 4-step flow: send-otp → verify-otp → reset-password. The backend (mounted at
+// `${VITE_API_BASE_URL}/api/auth/forgot-password/*`) generates a 6-digit code,
+// emails it, and issues a short-lived `resetToken` after the OTP is verified.
+// We keep `sendForgotPasswordEmail` (Firebase magic-link) below as a fallback.
 
+const FORGOT_API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`${FORGOT_API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw makeAuthError('NETWORK_ERROR')
+  }
+  let data: { error?: string } & Record<string, unknown> = {}
+  try { data = await res.json() } catch { /* empty body */ }
+  if (!res.ok) {
+    const err = new Error(data.error ?? 'Request failed') as AuthFlowError
+    err.code = data.error ?? 'FORGOT_PASSWORD_ERROR'
+    throw err
+  }
+  return data as T
+}
+
+export async function sendForgotPasswordOtp(email: string): Promise<void> {
+  await postJson<{ message: string }>('/api/auth/forgot-password/send-otp', { email })
+}
+
+export async function verifyForgotPasswordOtp(
+  email: string,
+  otp: string,
+): Promise<{ resetToken: string }> {
+  return postJson<{ resetToken: string }>('/api/auth/forgot-password/verify-otp', { email, otp })
+}
+
+export async function updatePasswordByEmail(
+  email: string,
+  resetToken: string,
+  newPassword: string,
+): Promise<void> {
+  await postJson<{ message: string }>('/api/auth/forgot-password/reset-password', {
+    email, resetToken, newPassword,
+  })
+}
+
+// Firebase magic-link reset email — kept as a fallback only.
 export async function sendForgotPasswordEmail(email: string): Promise<void> {
   const snap = await getDocs(query(collection(db, 'users'), where('email', '==', email)))
   if (snap.empty) throw makeAuthError('USER_NOT_FOUND')
@@ -503,6 +555,35 @@ export async function signUpWithPhoneCredential(
     // Best-effort rollback of the half-created account
     try { await user.delete() } catch { /* ignore */ }
     throw err
+  }
+}
+
+/**
+ * Used by SignUpModal's "Verify via Phone" choice step (authflow.md §1 Step C).
+ * The Firebase Auth account already exists (email/password from sign-up form);
+ * we briefly sign in with that credential to satisfy Firestore rules, flip
+ * `isVerified`/`isValidated`, then sign back out — matching the post-signUp
+ * sign-out behaviour of `signUpWithEmail`. Returns silently on success.
+ */
+export async function markEmailUserVerifiedAfterPhoneOtp(
+  email: string,
+  password: string,
+): Promise<void> {
+  let credential
+  try {
+    credential = await signInWithEmailAndPassword(auth, email, password)
+  } catch (err) {
+    const e = err as { code?: string; message?: string }
+    throw makeAuthError(e.code ?? e.message ?? 'auth/unknown')
+  }
+  try {
+    await updateDoc(doc(db, 'users', credential.user.uid), {
+      isVerified: true,
+      isValidated: true,
+      verifiedAt: serverTimestamp(),
+    })
+  } finally {
+    await firebaseSignOut(auth)
   }
 }
 

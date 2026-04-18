@@ -195,37 +195,35 @@ function ComparisonTable({ className }: { className?: string }) {
               </th>
             </tr>
           </thead>
-          <tbody>
-            {COMPARISON_DATA.map((group) => (
-              <>
-                <tr key={`heading-${group.heading}`}>
-                  <td
-                    colSpan={4}
-                    className="bg-white/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-wider text-white/60 border-t border-white/[0.06]"
-                  >
-                    {group.heading}
+          {COMPARISON_DATA.map((group) => (
+            <tbody key={group.heading}>
+              <tr>
+                <td
+                  colSpan={4}
+                  className="bg-white/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-wider text-white/60 border-t border-white/[0.06]"
+                >
+                  {group.heading}
+                </td>
+              </tr>
+              {group.rows.map((row) => (
+                <tr
+                  key={row.feature}
+                  className="border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                >
+                  <td className="py-3 px-5 text-white/70">{row.feature}</td>
+                  <td className="py-3 px-4 text-center text-xs">
+                    <ComparisonCell value={row.free} />
+                  </td>
+                  <td className="py-3 px-4 text-center text-xs">
+                    <ComparisonCell value={row.pro} />
+                  </td>
+                  <td className="py-3 px-4 text-center text-xs">
+                    <ComparisonCell value={row.promax} />
                   </td>
                 </tr>
-                {group.rows.map((row) => (
-                  <tr
-                    key={row.feature}
-                    className="border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="py-3 px-5 text-white/70">{row.feature}</td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <ComparisonCell value={row.free} />
-                    </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <ComparisonCell value={row.pro} />
-                    </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <ComparisonCell value={row.promax} />
-                    </td>
-                  </tr>
-                ))}
-              </>
-            ))}
-          </tbody>
+              ))}
+            </tbody>
+          ))}
         </table>
       </div>
     </section>

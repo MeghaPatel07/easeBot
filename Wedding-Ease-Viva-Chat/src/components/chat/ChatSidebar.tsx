@@ -6,6 +6,7 @@ import {
   Tag, X, ChevronDown, ChevronRight,
   ThumbsUp, Bell, CheckSquare, DollarSign, ShoppingCart, ImagePlus,
   Clock, BarChart3, Users, Settings, LogIn, FileText, CircleHelp, Sparkles,
+  MessageSquareHeart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ import {
 import type { ChatThread, UserProfile } from '@/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ProfileMenu } from '@/components/ProfileMenu';
+import FeedbackDialog from '@/components/FeedbackDialog';
 import { useAccount } from '@/hooks/useAccount';
 import { resolveTier, getLimits } from '@/config/tierConfig';
 import { TAG_PRESETS, getTagStyle } from './constants';
@@ -109,6 +111,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [tagPickerThreadId, setTagPickerThreadId] = useState<string | null>(null);
   const [deleteConfirmThreadId, setDeleteConfirmThreadId] = useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const submitRename = async (threadId: string) => {
     const trimmed = renameValue.trim();
@@ -281,6 +284,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     <>
       {tagPickerModal}
       {deleteConfirmModal}
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-body ${isOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-[#A17A63]/15 backdrop-blur-2xl bg-white/[0.04] overflow-hidden">
 
@@ -448,6 +452,21 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               </div>
             )}
           </nav>
+
+          {/* Send Feedback — always visible, works for guests and logged-in users */}
+          <div className="flex-shrink-0 px-3 pt-1.5 pb-1">
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              aria-label="Send Feedback"
+              title="Send Feedback"
+              className="w-full flex items-center gap-3 px-2.5 py-2.5 min-h-[40px] rounded-xl transition-all duration-200 text-xs text-white/70 hover:text-white hover:bg-primary/10 border border-transparent hover:border-primary/30"
+            >
+              <MessageSquareHeart className="h-4 w-4 flex-shrink-0 text-primary" />
+              <span className="font-medium">Send Feedback</span>
+              <span className="ml-auto text-2xs uppercase tracking-wider text-primary/70 font-semibold">New</span>
+            </button>
+          </div>
 
           {/* Bottom: profile dropdown (logged-in) or guest actions */}
           <div className="flex-shrink-0 border-t border-white/[0.06] px-3 py-2.5" style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}>

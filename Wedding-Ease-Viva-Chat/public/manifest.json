@@ -9,9 +9,9 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
+      "src": "/images/typo.png",
+      "sizes": "any",
+      "type": "image/png"
     }
   ],
   "categories": ["lifestyle", "productivity"]

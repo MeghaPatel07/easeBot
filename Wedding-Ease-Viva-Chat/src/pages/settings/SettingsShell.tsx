@@ -231,11 +231,15 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
     >
       <DialogContent
         // Override the default sm:max-w-lg constraint with a wider settings shell.
+        // Hide the shadcn DialogContent default close button (a direct-child <button>
+        // rendered by DialogPrimitive.Close) so only our contextual X in each
+        // responsive pane header is visible — avoids duplicate X icons.
         className={cn(
           'w-[100vw] h-[100dvh] max-w-none translate-x-0 translate-y-0 left-0 top-0 rounded-none p-0 border-0',
           'sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2',
           'sm:w-[95vw] sm:max-w-[960px] sm:h-[85dvh] sm:rounded-2xl sm:border sm:border-white/[0.08]',
           'bg-[#0F0D0C]/90 backdrop-blur-2xl text-white/90 flex flex-col overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]',
+          '[&>button.absolute]:hidden',
         )}
         aria-labelledby="settings-shell-title"
         aria-describedby="settings-shell-desc"

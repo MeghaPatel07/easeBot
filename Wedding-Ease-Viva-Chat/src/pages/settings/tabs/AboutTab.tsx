@@ -13,9 +13,10 @@ import TabShell from './_TabShell'
 // Sprint 4 (Hana) — sourced from package.json via Vite `define` (Marcus QA M-7).
 // See vite.config.ts and src/vite-env.d.ts for the global declarations.
 const APP_VERSION: string =
-  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
-const APP_ENVIRONMENT: string =
-  (import.meta as unknown as { env?: { MODE?: string } }).env?.MODE ?? 'development'
+  typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1'
+// Display-only label — underlying Vite `MODE` is unchanged so build behavior
+// (e.g. dev vs prod bundles) continues to work normally.
+const APP_ENVIRONMENT: string = 'Beta Release'
 
 interface LinkItem {
   label: string
@@ -87,7 +88,7 @@ export function AboutTab() {
           </div>
           <div className="flex flex-col items-end gap-2">
             <Badge variant="secondary" className="bg-muted text-white/90">
-              v{APP_VERSION}
+              V{APP_VERSION}
             </Badge>
             <Badge variant="outline" className="bg-white/[0.06] text-white/90 border-0">
               {APP_ENVIRONMENT}
