@@ -7,7 +7,10 @@ import {
   Check, Volume2, X, ImagePlus,
   ChevronUp, ChevronLeft, ChevronRight,
   Minimize2, Maximize2, Type, GraduationCap, ImageOff,
+  Share2,
 } from 'lucide-react';
+import { shareArtifact, type ArtifactKind } from '@/lib/shareArtifact';
+import MessageAttachmentChips, { type KnownArtifactIds } from './MessageAttachmentChips';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip, TooltipContent, TooltipTrigger,
@@ -20,6 +23,7 @@ import { AudioPlayer } from '@/components/AudioPlayer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { modeConfig, markdownToHtml, type ModeOrAuto } from './constants';
+import easebotAvatar from '@/assets/images/easebot.png';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -81,6 +85,10 @@ export interface ChatMessagesProps {
   // Setters for input (for table conversion flow)
   onSetInputText: (text: string) => void;
   onSetSelectedMode: (mode: ModeOrAuto) => void;
+  // Known-artifact id sets used to render attached artifact chips as clickable
+  // vs "Deleted artifact" in the user message trail. Defaults to empty sets
+  // (all chips resolve as deleted) when the caller hasn't wired this yet.
+  knownArtifactIds?: KnownArtifactIds;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -116,7 +124,18 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   copiedMsgId, savedProductIds,
   pendingScrollToId,
   onSetInputText, onSetSelectedMode,
+  knownArtifactIds,
 }) => {
+  // Fall back to empty sets when caller hasn't wired knownArtifactIds yet.
+  // With empty sets every attachment resolves as deleted, which matches the
+  // "artifact gone" display — safe default while Index.tsx is updated.
+  const resolvedKnownIds: KnownArtifactIds = knownArtifactIds ?? {
+    notes: new Set<string>(),
+    checklists: new Set<string>(),
+    timelines: new Set<string>(),
+    images: new Set<string>(),
+    reminders: new Set<string>(),
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -176,6 +195,21 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     }
     onDownloadMessage(text, id);
   };
+
+  // Share an artifact — reuses the thread-level share flow. The shared page
+  // renders the whole conversation, so the artifact is visible in context.
+  const handleShareArtifact = (kind: ArtifactKind, titleHint?: string) => {
+    void shareArtifact(activeThreadId, titleHint ?? 'Shared chat', kind);
+  };
+
+  // Keyboard activation (Enter / Space) for non-button share icons.
+  const onShareKeyDown = (kind: ArtifactKind, titleHint?: string) =>
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleShareArtifact(kind, titleHint);
+      }
+    };
 
   // Identify the message currently being streamed (last AI message while typing)
   const streamingMsgId = useMemo(() => {
@@ -309,7 +343,14 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                     {message.attachedImage && (
                       <img src={message.attachedImage} alt="Attached" className="mb-2 rounded-lg max-w-[200px] max-h-[200px] object-cover" />
                     )}
-                    <p className="text-[15px] sm:text-caption leading-relaxed">{message.text}</p>
+                    {message.attachments && message.attachments.length > 0 && (
+                      <MessageAttachmentChips
+                        attachments={message.attachments}
+                        knownIds={resolvedKnownIds}
+                        userId={activeUserId}
+                      />
+                    )}
+                    <p className="text-[13px] leading-relaxed">{message.text}</p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 mr-1">
                     <span className="text-3xs text-white/40 uppercase tracking-wider">
@@ -361,7 +402,9 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
             <div className="max-w-[calc(100%-2rem)] sm:max-w-sm md:max-w-lg lg:max-w-xl group msg-enter">
               {message.mode && (
                 <div className="mb-1.5 flex items-center gap-1.5">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#B89382] to-[#8A6651] flex items-center justify-center text-white text-2xs italic font-headline shadow-sm bot-avatar">E</div>
+                  <div className="w-[31px] h-[31px] rounded-full bg-transparent border border-white/15 flex items-center justify-center overflow-hidden bot-avatar">
+                    <img src={easebotAvatar} alt="" className="w-full h-full object-cover -scale-x-100" />
+                  </div>
                   {(() => {
                     const cfg = modeConfig(message.mode);
                     const Icon = cfg.icon;
@@ -374,7 +417,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[17px] sm:text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-[#cfcecc] prose-headings:text-[#cfcecc] prose-strong:text-[#cfcecc] prose-em:text-[#cfcecc] prose-li:text-[#cfcecc] prose-p:text-[#cfcecc] prose-blockquote:text-[#cfcecc] prose-code:text-[#cfcecc]">
+              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-[#cfcecc] prose-headings:text-[#cfcecc] prose-strong:text-[#cfcecc] prose-em:text-[#cfcecc] prose-li:text-[#cfcecc] prose-p:text-[#cfcecc] prose-blockquote:text-[#cfcecc] prose-code:text-[#cfcecc]">
                 <TypewriterMarkdown
                   text={message.text}
                   isStreaming={message.id === streamingMsgId}
@@ -385,13 +428,30 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         {children}
                       </a>
                     ),
-                    img: ({ src, alt }: any) => (
-                      <img
-                        src={src}
-                        alt={alt ?? ''}
-                        className="max-w-full w-[120px] sm:w-[200px] h-auto sm:h-[200px] object-cover rounded-xl shadow-sm flex-shrink-0"
-                      />
-                    ),
+                    img: ({ src, alt }: any) => {
+                      // Skip known-bad / hallucinated image hosts. The LLM
+                      // sometimes emits markdown pointing to cdn.openai.com
+                      // or placeholder domains that 404. Generated images are
+                      // surfaced by the carousel from the tool result, so we
+                      // never need to render model-authored <img> tags from
+                      // those hosts.
+                      const BAD_HOSTS = ['cdn.openai.com', 'example.com', 'placeholder.com', 'placehold.it'];
+                      if (typeof src === 'string' && BAD_HOSTS.some(h => src.includes(h))) {
+                        return null;
+                      }
+                      return (
+                        <img
+                          src={src}
+                          alt={alt ?? ''}
+                          className="max-w-full w-[120px] sm:w-[200px] h-auto sm:h-[200px] object-cover rounded-xl shadow-sm flex-shrink-0"
+                          onError={(e) => {
+                            // Hide broken images silently rather than leaving
+                            // a broken-image icon in the chat bubble.
+                            (e.currentTarget as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      );
+                    },
                     table: ({ children, ...props }: any) => {
                       const tableLines = message.text.split('\n').filter((l: string) => l.trim().startsWith('|'));
                       if (tableLines.length >= 3) {
@@ -456,6 +516,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                                   <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleShareArtifact('product', typeof title === 'string' ? title : undefined)}
+                                onKeyDown={onShareKeyDown('product', typeof title === 'string' ? title : undefined)}
+                                aria-label="Share this artifact"
+                                tabIndex={0}
+                                className="flex-shrink-0 h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg transition-all text-white/40 hover:text-primary hover:bg-primary/10"
+                              >
+                                <Share2 className="h-4 w-4" />
+                              </button>
                             </div>
                           </li>
                         );
@@ -465,6 +534,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   }}
                 />
               </div>
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="mt-2">
+                  <MessageAttachmentChips
+                    attachments={message.attachments}
+                    knownIds={resolvedKnownIds}
+                    userId={activeUserId}
+                  />
+                </div>
+              )}
               {message.audioUrl && (
                 <audio controls src={message.audioUrl} className="mt-1 mb-2 w-full max-w-xs rounded-xl h-8" />
               )}
@@ -537,16 +615,30 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       <li className="text-3xs text-white/40 pl-5">+{message.checklistData.items.length - 8} more items</li>
                     )}
                   </ul>
-                  {user && (
-                    <div className="px-4 py-2 border-t border-white/[0.06]">
+                  <div className="px-4 py-2 border-t border-white/[0.06] flex items-center gap-3">
+                    {user && (
                       <button
                         className="text-xs text-primary font-semibold hover:underline"
                         onClick={() => onOpenPlanner(message.checklistData!.id)}
                       >
                         Open in Planner
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleShareArtifact('checklist', message.checklistData?.title)}
+                          onKeyDown={onShareKeyDown('checklist', message.checklistData?.title)}
+                          aria-label="Share this artifact"
+                          tabIndex={0}
+                          className="ml-auto inline-flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-md text-white/50 hover:text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          <Share2 className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top"><p>Share checklist</p></TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
               )}
               {message.calendarEvent && message.calendarAdded && (
@@ -554,14 +646,46 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
                   <span className="font-semibold">Added to Google Calendar</span>
                   <span className="font-medium text-white/50">. {message.calendarEvent.date}</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleShareArtifact('calendar', message.calendarEvent?.title)}
+                        onKeyDown={onShareKeyDown('calendar', message.calendarEvent?.title)}
+                        aria-label="Share this artifact"
+                        tabIndex={0}
+                        className="ml-1 inline-flex items-center justify-center h-10 w-10 sm:h-6 sm:w-6 rounded-md text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        <Share2 className="h-3 w-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top"><p>Share event</p></TooltipContent>
+                  </Tooltip>
                 </div>
               )}
               {message.calendarEvent && !message.calendarAdded && !user && (
                 <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm p-4 rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12"></div>
                   <div className="relative z-10">
-                    <p className="text-3xs text-primary font-bold uppercase tracking-widest mb-0.5">Upcoming Event</p>
-                    <h4 className="font-headline text-base text-white/85">{message.calendarEvent.title}</h4>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-3xs text-primary font-bold uppercase tracking-widest mb-0.5">Upcoming Event</p>
+                        <h4 className="font-headline text-base text-white/85">{message.calendarEvent.title}</h4>
+                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => handleShareArtifact('calendar', message.calendarEvent?.title)}
+                            onKeyDown={onShareKeyDown('calendar', message.calendarEvent?.title)}
+                            aria-label="Share this artifact"
+                            tabIndex={0}
+                            className="inline-flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-md text-white/50 hover:text-primary hover:bg-primary/10 transition-colors flex-shrink-0"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top"><p>Share event</p></TooltipContent>
+                      </Tooltip>
+                    </div>
                     <div className="flex items-center gap-3 mt-2 text-white/50 text-xs">
                       <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {message.calendarEvent.date}</span>
                       {message.calendarEvent.time && <span className="flex items-center gap-1">{message.calendarEvent.time}</span>}
@@ -586,7 +710,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   Save as Table in Planner
                 </Button>
               )}
-              <div className="flex items-center gap-1 flex-wrap opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+              <div className="flex items-center flex-wrap opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
@@ -647,6 +771,29 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
                     <p>{ttsActiveId === message.id ? 'Close player' : 'Listen'}</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Share artifact — copies thread share link to clipboard */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost" size="sm"
+                      onClick={() => handleShareArtifact(
+                        (message.imageUrl || message.imageUrls?.length) ? 'image'
+                          : message.checklistData ? 'checklist'
+                          : message.calendarEvent ? 'calendar'
+                          : 'message'
+                      )}
+                      aria-label="Share this artifact"
+                      tabIndex={0}
+                      className="h-10 w-10 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md"
+                    >
+                      <Share2 className="h-3 w-3 text-white/50" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Share</p>
                   </TooltipContent>
                 </Tooltip>
               </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { collection, query, where, getDocs, DocumentSnapshot } from 'firebase/firestore'
+import { collection, query, where, getDocs, getDoc, doc, DocumentSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -20,7 +20,8 @@ import {
 } from '@/services/chatService'
 import { streamChatMessage, type StreamDoneEvent } from '@/services/functionsService'
 import { listReminders } from '@/services/reminderService'
-import type { ChatThread, ChatMessage, Mode, CalendarEvent, ReminderDoc, ToolAction, UserPersonalization } from '@/types'
+import type { ChatThread, ChatMessage, MessageAttachment, Mode, CalendarEvent, ReminderDoc, ToolAction, UserPersonalization } from '@/types'
+import type { ChatAttachment } from '@/contexts/ChatAttachmentsContext'
 
 export interface Message {
   id: string
@@ -41,6 +42,11 @@ export interface Message {
   imageUrls?: string[]  // Multiple image variants
   imageGenerating?: boolean // true while image is being generated server-side
   imageDeleted?: boolean    // true when image was deleted from chat
+  // Display snapshot of artifacts the user attached when sending this message
+  // (notes, checklists, timeline events, gallery images). Rendered as chips
+  // below the user bubble — click navigates to the source artifact; missing
+  // IDs show a "Deleted artifact" chip.
+  attachments?: MessageAttachment[]
   partialImageUrl?: string    // partial progressive render from GPT-Image-1.5
 }
 
@@ -55,6 +61,13 @@ export interface SendMessageOptions {
   preferredAspectRatio?: string
   vibeTitle?: string
   vibeDescriptors?: string[]
+  /**
+   * Request-scoped attachments (notes, checklists, timelines, etc.) to send
+   * alongside this turn. Attachments are request-scoped, not thread-scoped —
+   * they describe "what the user pinned to this specific send," so retries /
+   * regenerates / continues do NOT auto-carry them.
+   */
+  attachments?: ChatAttachment[]
 }
 
 export interface UseChatResult {
@@ -85,6 +98,63 @@ export interface UseChatResult {
   deleteMessageImage: (messageId: string, imageUrl: string) => Promise<void>
   refetchReminders: () => Promise<void>
   chatLoadError: boolean
+}
+
+// Synthesizes clickable chips for artifacts the AI just created or updated.
+// Edit/toggle actions point at the parent checklist (no per-item deeplink yet).
+// Deduplicates by (kind, id) so repeated edits to the same checklist surface
+// a single chip.
+function toolActionsToMessageAttachments(
+  actions: ToolAction[],
+): MessageAttachment[] {
+  const out: MessageAttachment[] = []
+  const seen = new Set<string>()
+  const push = (att: MessageAttachment) => {
+    const key = `${att.kind}:${att.id}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(att)
+  }
+  for (const a of actions) {
+    switch (a.tool) {
+      case 'create_checklist':
+        if (a.checklistId) {
+          push({
+            kind: 'checklist',
+            id: a.checklistId,
+            title: a.checklistTitle || 'Checklist',
+            preview: a.checklistItems?.length ? `${a.checklistItems.length} items` : undefined,
+          })
+        }
+        break
+      case 'edit_checklist_item':
+      case 'mark_as_done':
+        if (a.checklistId) {
+          push({ kind: 'checklist', id: a.checklistId, title: a.checklistTitle || 'Checklist' })
+        }
+        break
+      case 'create_note':
+      case 'append_to_note':
+        if (a.noteId) {
+          push({ kind: 'note', id: a.noteId, title: a.noteTitle || 'Note' })
+        }
+        break
+      case 'create_timeline_event':
+        if (a.timelineEventId) {
+          push({ kind: 'timeline', id: a.timelineEventId, title: a.timelineEventTitle || 'Timeline event' })
+        }
+        break
+      case 'create_reminder':
+      case 'save_reminder':
+        if (a.reminderId) {
+          push({ kind: 'reminder', id: a.reminderId, title: a.reminderTitle || 'Reminder' })
+        }
+        break
+      default:
+        break
+    }
+  }
+  return out
 }
 
 export function useChat(): UseChatResult {
@@ -216,6 +286,7 @@ export function useChat(): UseChatResult {
     imageBase64Arg?: string,
     imageMimeTypeArg?: string,
   ) => {
+    if (isTyping) return
     // Normalize: support both positional and options-object call styles.
     const isOptionsObject =
       audioBase64OrOptions !== undefined &&
@@ -239,8 +310,30 @@ export function useChat(): UseChatResult {
     const preferredAspectRatio = opts.preferredAspectRatio
     const vibeTitle = opts.vibeTitle
     const vibeDescriptors = opts.vibeDescriptors
+    const attachments = opts.attachments
 
     if (!text.trim() && !audioBase64 && !imageBase64) return
+
+    // Compact display snapshot — strip the `payload` field since it was
+    // already sent to the backend for LLM injection and isn't needed at render.
+    const attachmentSnapshot: MessageAttachment[] | undefined =
+      attachments && attachments.length > 0
+        ? attachments.map((a) => {
+            const snap: MessageAttachment = {
+              kind: a.kind,
+              id: a.id,
+              title: a.title,
+              preview: a.preview,
+            }
+            // Gallery images: persist the URL so the chip thumbnail renders
+            // without needing a round-trip to resolve the image.
+            if (a.kind === 'image') {
+              const p = a.payload as { url?: string } | undefined
+              if (p?.url) snap.url = p.url
+            }
+            return snap
+          })
+        : undefined
 
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -249,6 +342,7 @@ export function useChat(): UseChatResult {
       timestamp: new Date(),
       liked: false,
       attachedImage: imageBase64 ? `data:${imageMimeType || 'image/png'};base64,${imageBase64}` : undefined,
+      attachments: attachmentSnapshot,
     }
     setMessages((prev) => [...prev, userMsg])
     setIsTyping(true)
@@ -257,6 +351,10 @@ export function useChat(): UseChatResult {
     abortControllerRef.current = controller
 
     let threadId = activeThreadIdRef.current
+
+    // Hoisted so the catch block can reference the partial stream on AbortError
+    // (let-inside-try is not visible to the sibling catch).
+    let streamedText = ''
 
     try {
       const aiMsgId = (Date.now() + 1).toString()
@@ -297,6 +395,9 @@ export function useChat(): UseChatResult {
           audioUrl: null,
           attachedImageUrl,
           liked: false,
+          // Persist the compact attachment snapshot so it renders in history.
+          // Omit entirely when empty to avoid Firestore storing `undefined`.
+          ...(attachmentSnapshot ? { attachments: attachmentSnapshot } : {}),
         } as NewMessage)
       }
 
@@ -306,7 +407,6 @@ export function useChat(): UseChatResult {
         content: m.attachedImage ? `[User attached an image] ${m.text}` : m.text,
       }))
 
-      let streamedText = ''
       let finalMeta: StreamDoneEvent | null = null
 
       const userPersonalization: UserPersonalization | undefined = profile ? {
@@ -334,6 +434,7 @@ export function useChat(): UseChatResult {
           ...(preferredAspectRatio !== undefined ? { preferredAspectRatio } : {}),
           ...(vibeTitle !== undefined ? { vibeTitle } : {}),
           ...(vibeDescriptors !== undefined ? { vibeDescriptors } : {}),
+          ...(attachments && attachments.length > 0 ? { attachments } : {}),
         },
         controller.signal
       )) {
@@ -413,6 +514,9 @@ export function useChat(): UseChatResult {
       // Track last generated image for iterative editing
       if (imageUrl) {
         setLastGeneratedImageUrl(imageUrl)
+        try {
+          window.dispatchEvent(new CustomEvent('easebot:gallery-refresh'))
+        } catch { /* noop */ }
       }
 
       // Update style memory for cross-generation consistency
@@ -438,6 +542,39 @@ export function useChat(): UseChatResult {
         }
       }
 
+      if (user && finalMeta.toolActions?.length) {
+        const touchedChecklistIds = new Set<string>()
+        for (const a of finalMeta.toolActions as Array<{ tool?: string; checklistId?: string }>) {
+          if ((a.tool === 'edit_checklist_item' || a.tool === 'mark_as_done') && a.checklistId) {
+            touchedChecklistIds.add(a.checklistId)
+          }
+        }
+        for (const clId of touchedChecklistIds) {
+          try {
+            const snap = await getDoc(doc(db, 'users', user.uid, 'checklists', clId))
+            if (!snap.exists()) continue
+            const data = snap.data() as { items?: Array<{ completed?: boolean }> }
+            const items = data.items ?? []
+            const done = items.filter(i => i.completed).length
+            const newPreview = `${items.length} items · ${done} done`
+            setMessages(prev => prev.map(m => {
+              if (m.sender !== 'user') return m
+              if (!m.attachments?.some(att => att.kind === 'checklist' && att.id === clId)) return m
+              return {
+                ...m,
+                attachments: m.attachments.map(att =>
+                  att.kind === 'checklist' && att.id === clId
+                    ? { ...att, preview: newPreview }
+                    : att
+                ),
+              }
+            }))
+          } catch (err) {
+            console.error('[useChat] chip preview refresh failed:', err)
+          }
+        }
+      }
+
       // Extract inline checklist data from tool actions
       console.log('[useChat] toolActions:', JSON.stringify(finalMeta.toolActions))
       const createdChecklist = finalMeta.toolActions?.find(
@@ -447,6 +584,15 @@ export function useChat(): UseChatResult {
       const checklistData = createdChecklist
         ? { id: createdChecklist.checklistId!, title: createdChecklist.checklistTitle || 'Checklist', items: createdChecklist.checklistItems || [] }
         : null
+
+      // Synthesize display chips for artifacts the AI created or updated this
+      // turn — rendered as clickable pills below the assistant bubble so the
+      // user can jump straight to the created note / checklist / reminder /
+      // timeline event. IDs resolve live via useKnownArtifactIds at render
+      // time; missing IDs show "Deleted artifact".
+      const aiAttachments = toolActionsToMessageAttachments(
+        (finalMeta.toolActions ?? []) as ToolAction[],
+      )
 
       // Finalize the message with clean text + metadata
       // Use responseLanguage (language the AI replied in) for TTS; fall back to detectedLanguage
@@ -463,6 +609,7 @@ export function useChat(): UseChatResult {
         truncated: isTruncated(finalMeta!.text || streamedText),
         language: finalMeta!.responseLanguage || finalMeta!.detectedLanguage || 'en',
         checklistData,
+        attachments: aiAttachments.length > 0 ? aiAttachments : undefined,
       } : m))
 
       // Persist assistant message to Firestore (including image URLs)
@@ -478,6 +625,7 @@ export function useChat(): UseChatResult {
           imageUrls: imageUrls,
           liked: false,
           checklistData: checklistData ?? null,
+          ...(aiAttachments.length > 0 ? { attachments: aiAttachments } : {}),
         } as NewMessage)
       }
     } catch (err: any) {
@@ -517,21 +665,41 @@ export function useChat(): UseChatResult {
         return
       }
       console.error('[useChat] sendMessage error:', err)
-      setMessages((prev) => [
-        ...prev,
-        {
+
+      // Drop the empty placeholder AI message before appending the error bubble,
+      // otherwise the user sees a blank assistant message followed by the error.
+      let errorText = 'Something went wrong. Please try again.'
+      if (err?.code === 'quota_exceeded') {
+        const reason = err?.details?.reason as string | undefined
+        if (reason === 'daily_cap_exceeded') {
+          errorText = "You've used today's token allowance. It refreshes at midnight UTC — feel free to come back then."
+        } else if (reason === 'monthly_cap_exceeded') {
+          errorText = "You've used this month's token pool. [Upgrade or top up](/pricing) to keep planning."
+        } else if (reason === 'guest_limit_exceeded') {
+          errorText = "You've reached the guest limit. [Sign up](/signup) for a free account to keep chatting."
+        } else {
+          errorText = err.message || 'Quota exceeded.'
+        }
+      }
+
+      setMessages((prev) => {
+        const next = [...prev]
+        const last = next[next.length - 1]
+        if (last && last.sender === 'ai' && !last.text) next.pop()
+        next.push({
           id: (Date.now() + 1).toString(),
-          text: 'Something went wrong. Please try again.',
+          text: errorText,
           sender: 'ai',
           timestamp: new Date(),
           liked: false,
-        },
-      ])
+        })
+        return next
+      })
     } finally {
       setIsTyping(false)
       abortControllerRef.current = null
     }
-  }, [user, profile, refetchReminders])
+  }, [user, profile, refetchReminders, isTyping])
 
   // ── Toggle like ────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (messageId: string) => {
@@ -623,6 +791,7 @@ export function useChat(): UseChatResult {
           attachedImage: data.attachedImageUrl ?? undefined,
           language: data.language || 'en',
           checklistData: data.checklistData ?? null,
+          attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
         } as Message))
       )
     } catch (err) {
@@ -653,6 +822,7 @@ export function useChat(): UseChatResult {
         attachedImage: data.attachedImageUrl ?? undefined,
         language: data.language || 'en',
         checklistData: data.checklistData ?? null,
+        attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
       }))
       setMessages(prev => [...older, ...prev])
     } catch (err) {

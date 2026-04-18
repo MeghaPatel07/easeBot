@@ -7,16 +7,16 @@ import type { Mode } from '@/types';
 // Supported languages for the language selector
 // ─────────────────────────────────────────────────────────────────────────────
 export const SUPPORTED_LANGUAGES = [
-  { code: 'auto', label: '🌐 Auto-detect' },
-  { code: 'en', label: '🇬🇧 English' },
-  { code: 'hi', label: '🇮🇳 Hindi' },
-  { code: 'gu', label: '🇮🇳 Gujarati' },
-  { code: 'es', label: '🇪🇸 Spanish' },
-  { code: 'fr', label: '🇫🇷 French' },
-  { code: 'ar', label: '🇸🇦 Arabic' },
-  { code: 'pt', label: '🇧🇷 Portuguese' },
-  { code: 'de', label: '🇩🇪 German' },
-  { code: 'zh', label: '🇨🇳 Chinese' },
+  { code: 'auto', label: 'Auto-detect' },
+  { code: 'en', label: 'English' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'gu', label: 'Gujarati' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'de', label: 'German' },
+  { code: 'zh', label: 'Chinese' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,22 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import * as SpeechSDK from 'microsoft-cognitiveservices-speech-sdk'
+import { AudioRecorder } from '@/services/audioRecorder'
+import { transcribeAudio } from '@/services/functionsService'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+/**
+ * ChatGPT-style record-then-transcribe voice hook.
+ *
+ * Flow:
+ *   idle → (tap mic) → requesting → recording → (tap stop / auto-stop)
+ *     → transcribing → idle (text available in result)
+ *
+ * Unlike the previous live-streaming implementation, we do NOT surface interim
+ * text to the UI. The textarea stays untouched during recording; only after
+ * transcription completes do we return the final transcript in one shot.
+ *
+ * Implementation: MediaRecorder → webm/ogg blob → POST /api/transcribe
+ * (which wraps Azure STT server-side). Keeps client simple and consistent
+ * with mobile browsers where the Azure SDK mic pipeline can be flaky.
+ */
 
 /** Maximum recording duration in seconds before auto-stop */
 const MAX_RECORDING_DURATION = 60
@@ -10,37 +25,33 @@ export type VoiceState = 'idle' | 'requesting' | 'recording' | 'transcribing'
 
 export interface UseVoiceResult {
   voiceState: VoiceState
+  /** Kept for back-compat with existing ChatInput prop contract. */
   isRecording: boolean
+  /** Always empty now — no live interim text. Kept so callers don't break. */
   interimText: string
   recordingDuration: number
   error: string | null
+  /** Begin recording. Returns error message string on failure, else null. */
   startRecording: () => Promise<string | null>
+  /** Stop + transcribe. Resolves with final text + detected language. */
   stopRecording: () => Promise<{ text: string; detectedLanguage: string } | null>
+  /** Abort recording without transcribing. */
   cancelRecording: () => void
   clearError: () => void
 }
 
-async function fetchSpeechToken(): Promise<{ token: string; region: string }> {
-  const res = await fetch(`${API_BASE}/api/speech-token`)
-  if (!res.ok) throw new Error('Failed to fetch speech token')
-  return res.json()
-}
-
 export function useVoice(): UseVoiceResult {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
-  const [interimText, setInterimText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [recordingDuration, setRecordingDuration] = useState(0)
 
-  const recognizerRef = useRef<SpeechSDK.SpeechRecognizer | null>(null)
-  const finalTextRef = useRef<string>('')
-  const resolveStopRef = useRef<((result: { text: string; detectedLanguage: string } | null) => void) | null>(null)
-  const detectedLangRef = useRef<string>('en-US')
+  const recorderRef = useRef<AudioRecorder | null>(null)
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const maxDurationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const stopRecordingRef = useRef<() => Promise<{ text: string; detectedLanguage: string } | null>>()
+  const cancelledRef = useRef<boolean>(false)
 
-  /** Clear all timers related to recording duration */
+  /** Clear both the second-ticker and the max-duration cutoff. */
   const clearTimers = useCallback(() => {
     if (durationIntervalRef.current !== null) {
       clearInterval(durationIntervalRef.current)
@@ -52,16 +63,13 @@ export function useVoice(): UseVoiceResult {
     }
   }, [])
 
-  /** Start the duration counter and auto-stop timeout */
+  /** Start the 1-Hz duration counter and the 60-second auto-stop timeout. */
   const startTimers = useCallback(() => {
     setRecordingDuration(0)
-
     durationIntervalRef.current = setInterval(() => {
       setRecordingDuration((prev) => prev + 1)
     }, 1000)
-
     maxDurationTimeoutRef.current = setTimeout(() => {
-      // Auto-stop after max duration
       stopRecordingRef.current?.()
     }, MAX_RECORDING_DURATION * 1000)
   }, [])
@@ -73,145 +81,106 @@ export function useVoice(): UseVoiceResult {
   const startRecording = useCallback(async (): Promise<string | null> => {
     if (voiceState !== 'idle') return null
     setError(null)
-    setInterimText('')
     setRecordingDuration(0)
-    finalTextRef.current = ''
-    detectedLangRef.current = 'en-US'
-
+    cancelledRef.current = false
     setVoiceState('requesting')
 
     try {
-      const { token, region } = await fetchSpeechToken()
-
-      const speechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(token, region)
-      speechConfig.speechRecognitionLanguage = 'en-US'
-
-      // Auto-detect language (up to 4)
-      const autoDetect = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages([
-        'en-US', 'hi-IN', 'gu-IN', 'es-ES',
-      ])
-
-      const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput()
-      const recognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechConfig, autoDetect, audioConfig)
-      recognizerRef.current = recognizer
-
-      // Interim results — shown live in the input box
-      recognizer.recognizing = (_s, e) => {
-        if (e.result.reason === SpeechSDK.ResultReason.RecognizingSpeech) {
-          setInterimText(finalTextRef.current + e.result.text)
-        }
-      }
-
-      // Final result for a phrase — append to accumulated text
-      recognizer.recognized = (_s, e) => {
-        if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech && e.result.text) {
-          finalTextRef.current += (finalTextRef.current ? ' ' : '') + e.result.text
-          setInterimText(finalTextRef.current)
-
-          // Capture detected language from first recognized phrase
-          const langResult = SpeechSDK.AutoDetectSourceLanguageResult.fromResult(e.result)
-          if (langResult.language) detectedLangRef.current = langResult.language
-        }
-      }
-
-      recognizer.canceled = (_s, e) => {
-        if (e.reason === SpeechSDK.CancellationReason.Error) {
-          setError(`Speech error: ${e.errorDetails}`)
-        }
-        cleanup()
-        resolveStopRef.current?.({ text: finalTextRef.current, detectedLanguage: detectedLangRef.current })
-        resolveStopRef.current = null
-      }
-
-      recognizer.sessionStopped = () => {
-        cleanup()
-        resolveStopRef.current?.({ text: finalTextRef.current, detectedLanguage: detectedLangRef.current })
-        resolveStopRef.current = null
-      }
-
-      await new Promise<void>((res, rej) =>
-        recognizer.startContinuousRecognitionAsync(res, rej)
-      )
-
+      const recorder = new AudioRecorder()
+      await recorder.start()
+      recorderRef.current = recorder
       setVoiceState('recording')
       startTimers()
       return null
     } catch (err: any) {
-      const msg = err.message ?? 'Microphone access denied'
+      const msg = err?.message ?? 'Microphone access denied'
       setError(msg)
       setVoiceState('idle')
+      recorderRef.current = null
       return msg
     }
   }, [voiceState, startTimers])
 
-  const stopRecording = useCallback((): Promise<{ text: string; detectedLanguage: string } | null> => {
-    const recognizer = recognizerRef.current
-    if (!recognizer || (voiceState !== 'recording' && voiceState !== 'requesting')) {
-      return Promise.resolve(null)
+  const stopRecording = useCallback(async (): Promise<{ text: string; detectedLanguage: string } | null> => {
+    const recorder = recorderRef.current
+    if (!recorder || (voiceState !== 'recording' && voiceState !== 'requesting')) {
+      return null
     }
 
     clearTimers()
+    // Snapshot duration BEFORE we flip state + stop (UI shows transcribing spinner).
+    const capturedDuration = recordingDuration
     setVoiceState('transcribing')
 
-    return new Promise((resolve) => {
-      resolveStopRef.current = (result) => {
+    try {
+      const { audioBase64 } = await recorder.stop()
+      recorderRef.current = null
+
+      if (cancelledRef.current) {
         setVoiceState('idle')
-        setInterimText('')
         setRecordingDuration(0)
-        resolve(result)
+        return null
       }
 
-      recognizer.stopContinuousRecognitionAsync(
-        () => {},
-        (err) => {
-          setError(`Stop error: ${err}`)
-          setVoiceState('idle')
-          setInterimText('')
-          setRecordingDuration(0)
-          resolve({ text: finalTextRef.current, detectedLanguage: detectedLangRef.current })
-        }
-      )
-    })
-  }, [voiceState, clearTimers])
+      // Guard: extremely short recordings almost always produce empty transcripts.
+      if (!audioBase64 || audioBase64.length < 500) {
+        setVoiceState('idle')
+        setRecordingDuration(0)
+        return { text: '', detectedLanguage: 'en' }
+      }
 
-  // Keep stopRecordingRef in sync so the auto-stop timeout can call the latest version
+      const result = await transcribeAudio(audioBase64)
+      setVoiceState('idle')
+      setRecordingDuration(0)
+      return {
+        text: result.text ?? '',
+        detectedLanguage: result.detectedLanguage ?? 'en',
+      }
+    } catch (err: any) {
+      const msg = err?.message ?? 'Could not transcribe'
+      setError(msg)
+      setVoiceState('idle')
+      setRecordingDuration(0)
+      recorderRef.current = null
+      // Surface to the UI via toast in the caller; return null so callers skip fill.
+      return null
+    }
+    // Duration state is read inside this callback — intentional, we want the
+    // latest value each stop. React's setState closure semantics handle that
+    // via the dep in the reducer above.
+
+  }, [voiceState, clearTimers, recordingDuration])
+
+  // Keep stopRecordingRef in sync so the auto-stop timeout fires the newest version.
   useEffect(() => {
     stopRecordingRef.current = stopRecording
   }, [stopRecording])
 
   const cancelRecording = useCallback(() => {
     clearTimers()
-    const recognizer = recognizerRef.current
-    if (recognizer) {
-      resolveStopRef.current = null
-      recognizer.stopContinuousRecognitionAsync(
-        () => { recognizer.close(); recognizerRef.current = null },
-        () => { try { recognizer.close() } catch {} recognizerRef.current = null }
-      )
+    cancelledRef.current = true
+    const recorder = recorderRef.current
+    if (recorder) {
+      try { recorder.cancel() } catch { /* noop */ }
+      recorderRef.current = null
     }
-    finalTextRef.current = ''
-    setInterimText('')
     setRecordingDuration(0)
     setVoiceState('idle')
   }, [clearTimers])
 
-  function cleanup() {
-    clearTimers()
-    try { recognizerRef.current?.close() } catch {}
-    recognizerRef.current = null
-  }
-
-  // Clean up timers on unmount
+  // Clean up timers + any in-flight recorder on unmount.
   useEffect(() => {
     return () => {
       clearTimers()
+      try { recorderRef.current?.cancel() } catch { /* noop */ }
+      recorderRef.current = null
     }
   }, [clearTimers])
 
   return {
     voiceState,
     isRecording: voiceState === 'recording',
-    interimText,
+    interimText: '',
     recordingDuration,
     error,
     startRecording,

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, Phone, Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
+import { Mail, Phone, Loader2, CheckCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,8 +16,7 @@ import type { AuthCredential } from 'firebase/auth'
 import PhoneInput, { toE164, type PhoneInputValue } from './PhoneInput'
 
 type Tab = 'email' | 'phone'
-type ForgotTab = 'email' | 'phone'
-type ForgotStep = 'email-input' | 'sent' | 'phone-input' | 'phone-otp' | 'phone-done'
+type ForgotStep = 'email' | 'otp' | 'newpass' | 'success'
 type View = 'default' | 'forgot' | 'unverified' | 'link-google'
 
 interface Props {
@@ -38,12 +37,15 @@ const GoogleIcon = () => (
 const REMEMBER_KEY = 'wedding_ease_remembered_email'
 const OTP_RESEND_COOLDOWN = 30
 const OTP_EXPIRY_SECONDS = 5 * 60
+const FP_RESEND_COOLDOWN = 60
 
 export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Props) {
   const {
     signIn,
     signInWithGoogle,
-    forgotPassword,
+    sendForgotPasswordOtp,
+    verifyForgotPasswordOtp,
+    updatePasswordByEmail,
     resendVerification,
     sendPhoneOtpWhatsApp,
     verifyPhoneOtpWhatsApp,
@@ -72,14 +74,17 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   const [linkPassword, setLinkPassword] = useState('')
   const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null)
 
-  // Forgot password
-  const [fpTab, setFpTab] = useState<ForgotTab>('email')
-  const [fpStep, setFpStep] = useState<ForgotStep>('email-input')
+  // Forgot password (email-only OTP flow per authflow.md §6)
+  const [fpStep, setFpStep] = useState<ForgotStep>('email')
   const [fpEmail, setFpEmail] = useState('')
-  const [fpPhone, setFpPhone] = useState<PhoneInputValue>({ countryCode: 'IN', national: '' })
-  const [fpOtp, setFpOtp] = useState('')
+  const [fpOtp, setFpOtp] = useState<string[]>(['', '', '', '', '', ''])
+  const [fpResetToken, setFpResetToken] = useState('')
+  const [fpNewPassword, setFpNewPassword] = useState('')
+  const [fpConfirmPassword, setFpConfirmPassword] = useState('')
+  const [fpShowNewPass, setFpShowNewPass] = useState(false)
+  const [fpShowConfirmPass, setFpShowConfirmPass] = useState(false)
   const [fpResendTimer, setFpResendTimer] = useState(0)
-  const [fpExpiryTimer, setFpExpiryTimer] = useState(0)
+  const fpOtpInputsRef = useRef<(HTMLInputElement | null)[]>([])
 
   // Unverified recovery
   const [unverifiedUser, setUnverifiedUser] = useState<{ uid: string; email: string; name: string; phone: string | null } | null>(null)
@@ -100,17 +105,12 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     const id = setTimeout(() => setOtpExpiryTimer(t => t - 1), 1000)
     return () => clearTimeout(id)
   }, [otpExpiryTimer])
-  // Forgot-password phone tab
+  // Forgot-password resend cooldown
   useEffect(() => {
     if (fpResendTimer <= 0) return
     const id = setTimeout(() => setFpResendTimer(t => t - 1), 1000)
     return () => clearTimeout(id)
   }, [fpResendTimer])
-  useEffect(() => {
-    if (fpExpiryTimer <= 0) return
-    const id = setTimeout(() => setFpExpiryTimer(t => t - 1), 1000)
-    return () => clearTimeout(id)
-  }, [fpExpiryTimer])
 
   function reset() {
     setTab('email')
@@ -125,13 +125,15 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     setOtpResendTimer(0)
     setOtpExpiryTimer(0)
     setDeviceMismatch(false)
-    setFpTab('email')
-    setFpStep('email-input')
+    setFpStep('email')
     setFpEmail('')
-    setFpPhone({ countryCode: 'IN', national: '' })
-    setFpOtp('')
+    setFpOtp(['', '', '', '', '', ''])
+    setFpResetToken('')
+    setFpNewPassword('')
+    setFpConfirmPassword('')
+    setFpShowNewPass(false)
+    setFpShowConfirmPass(false)
     setFpResendTimer(0)
-    setFpExpiryTimer(0)
     setUnverifiedUser(null)
     setResendPassword('')
     setResendSent(false)
@@ -258,87 +260,100 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     }
   }
 
-  // ── Forgot password ───────────────────────────────────────────────────────
+  // ── Forgot password — 4-step OTP (authflow.md §6) ────────────────────────
 
-  async function handleForgotPassword() {
-    if (!fpEmail) { setError('Enter your email'); return }
+  async function handleFpSendOtp() {
+    const target = fpEmail.trim()
+    if (!target) { setError('Enter your email'); return }
     setError('')
     setLoading(true)
     try {
-      await forgotPassword(fpEmail)
-      setFpStep('sent')
-    } catch (err: any) {
-      const msg = mapAuthError(err.code ?? err.message)
-      if (msg) setError(msg)
+      await sendForgotPasswordOtp(target)
+      setFpStep('otp')
+      setFpOtp(['', '', '', '', '', ''])
+      setFpResendTimer(FP_RESEND_COOLDOWN)
+      setTimeout(() => fpOtpInputsRef.current[0]?.focus(), 100)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
     } finally {
       setLoading(false)
     }
   }
 
-  // ── Forgot password (Phone via WhatsApp OTP) ─────────────────────────────
-
-  async function handleFpPhoneSend() {
-    const e164 = toE164(fpPhone)
-    if (!e164) { setError('Enter a valid phone number'); return }
+  async function handleFpResendOtp() {
+    if (fpResendTimer > 0) return
     setError('')
     setLoading(true)
     try {
-      await sendPhoneOtpWhatsApp(e164, 'reset')
-      setFpStep('phone-otp')
-      setFpOtp('')
-      setFpResendTimer(OTP_RESEND_COOLDOWN)
-      setFpExpiryTimer(OTP_EXPIRY_SECONDS)
+      await sendForgotPasswordOtp(fpEmail.trim())
+      setFpResendTimer(FP_RESEND_COOLDOWN)
+      setFpOtp(['', '', '', '', '', ''])
+      fpOtpInputsRef.current[0]?.focus()
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
-      if (msg) setError(msg)
+      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleFpPhoneResend() {
-    const e164 = toE164(fpPhone)
-    if (!e164) return
+  function handleFpOtpChange(index: number, value: string) {
+    if (!/^\d*$/.test(value)) return
+    const next = [...fpOtp]
+    next[index] = value.slice(-1)
+    setFpOtp(next)
+    setError('')
+    if (value && index < 5) fpOtpInputsRef.current[index + 1]?.focus()
+  }
+
+  function handleFpOtpKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === 'Backspace' && !fpOtp[index] && index > 0) {
+      fpOtpInputsRef.current[index - 1]?.focus()
+    }
+  }
+
+  function handleFpOtpPaste(e: React.ClipboardEvent) {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!text) return
+    const next = [...fpOtp]
+    for (let i = 0; i < text.length; i++) next[i] = text[i]
+    setFpOtp(next)
+    fpOtpInputsRef.current[Math.min(text.length, 5)]?.focus()
+  }
+
+  async function handleFpVerifyOtp() {
+    const code = fpOtp.join('')
+    if (code.length !== 6) { setError('Enter the 6-digit code'); return }
     setError('')
     setLoading(true)
     try {
-      await sendPhoneOtpWhatsApp(e164, 'reset')
-      setFpResendTimer(OTP_RESEND_COOLDOWN)
-      setFpExpiryTimer(OTP_EXPIRY_SECONDS)
+      const { resetToken } = await verifyForgotPasswordOtp(fpEmail.trim(), code)
+      setFpResetToken(resetToken)
+      setFpNewPassword('')
+      setFpConfirmPassword('')
+      setFpStep('newpass')
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
-      if (msg) setError(msg)
+      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleFpPhoneVerify() {
-    const e164 = toE164(fpPhone)
-    if (!e164) { setError('Enter a valid phone number'); return }
-    if (fpOtp.length < 6) { setError('Enter the 6-digit code'); return }
+  async function handleFpResetPassword() {
+    if (!fpNewPassword) { setError('Enter a new password'); return }
+    if (fpNewPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (fpNewPassword !== fpConfirmPassword) { setError('Passwords do not match'); return }
     setError('')
     setLoading(true)
     try {
-      const ok = await verifyPhoneOtpWhatsApp(e164, fpOtp, 'reset')
-      if (!ok) {
-        setError('Incorrect or expired code')
-        return
-      }
-      await rotatePhonePassword(e164)
-      setFpStep('phone-done')
-      // Sign-in succeeded; close shortly after showing success
-      setTimeout(() => { onOpenChange(false); reset() }, 1200)
+      await updatePasswordByEmail(fpEmail.trim(), fpResetToken, fpNewPassword)
+      setFpStep('success')
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      if (e.code === 'PHONE_DEVICE_MISMATCH') {
-        setError(mapAuthError('PHONE_DEVICE_MISMATCH'))
-      } else {
-        const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
-        if (msg) setError(msg)
-      }
+      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
     } finally {
       setLoading(false)
     }
@@ -391,143 +406,187 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-h-[90dvh] overflow-y-auto custom-scrollbar p-6 md:p-8">
-          {/* ── Forgot Password view ── */}
+          {/* ── Forgot Password — 4-step OTP (authflow.md §6) ── */}
           {view === 'forgot' && (
             <>
-              <DialogHeader className="text-left space-y-3">
-                <p className="text-xs font-medium uppercase tracking-widest text-primary">Reset password</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
-                  Recover your <span className="text-primary">account</span>
-                </DialogTitle>
-                <DialogDescription className="text-sm text-white/40">
-                  Enter your email and we'll send a reset link.
-                </DialogDescription>
-              </DialogHeader>
-
-              {/* Phone-based forgot password is temporarily disabled. */}
-              {/*
-              {fpStep !== 'sent' && fpStep !== 'phone-done' && (
-                <div className="flex bg-white/[0.03] border border-white/[0.06] p-1 rounded-full gap-1 mb-4 mt-5">
-                  {(['email', 'phone'] as ForgotTab[]).map(t => (
+              {/* Step 1 — Email */}
+              {fpStep === 'email' && (
+                <>
+                  <DialogHeader className="text-left space-y-3">
+                    <p className="text-xs font-medium uppercase tracking-widest text-primary">Reset password</p>
+                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                      Recover your <span className="text-primary">account</span>
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-white/40">
+                      Enter your email and we'll send you a 6-digit verification code.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-5 mt-6">
+                    <div className="space-y-2">
+                      <label className="text-xs text-white/50 ml-1">Email</label>
+                      <Input
+                        type="email"
+                        value={fpEmail}
+                        onChange={e => setFpEmail(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleFpSendOtp()}
+                        placeholder="Enter your mail"
+                        className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                      />
+                    </div>
+                    {error && <p className="text-sm text-red-400">{error}</p>}
+                    <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleFpSendOtp} disabled={loading}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                      Send Verification Code
+                    </Button>
                     <button
-                      key={t}
-                      onClick={() => {
-                        setFpTab(t)
-                        setFpStep(t === 'email' ? 'email-input' : 'phone-input')
-                        setError('')
-                      }}
-                      className={`flex-1 py-2.5 text-xs font-semibold rounded-full transition-all ${fpTab === t ? 'bg-primary text-primary-foreground shadow-sm' : 'text-white/40 hover:text-white/60'}`}
+                      type="button"
+                      className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                      onClick={() => { setView('default'); setError('') }}
                     >
-                      {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1" />Phone</>}
+                      <ArrowLeft className="h-4 w-4" /> Back to Sign In
                     </button>
-                  ))}
-                </div>
-              )}
-              */}
-
-              {fpStep === 'email-input' && (
-                <div className="space-y-5 mt-6">
-                  <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Email</label>
-                    <Input
-                      type="email"
-                      value={fpEmail}
-                      onChange={e => setFpEmail(e.target.value)}
-                      placeholder="Enter your mail"
-                      className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
-                    />
                   </div>
-                  {error && <p className="text-sm text-red-400">{error}</p>}
-                  <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleForgotPassword} disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-                    Send Reset Link
-                  </Button>
-                  <button
-                    type="button"
-                    className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
-                    onClick={() => { setView('default'); setError('') }}
-                  >
-                    <ArrowLeft className="h-4 w-4" /> Back to Sign In
-                  </button>
-                </div>
+                </>
               )}
 
-              {fpStep === 'sent' && (
+              {/* Step 2 — OTP */}
+              {fpStep === 'otp' && (
+                <>
+                  <DialogHeader className="text-left space-y-3">
+                    <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
+                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                      Enter your <span className="text-primary">code</span>
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-white/40">
+                      We sent a 6-digit code to <span className="text-white/70">{fpEmail}</span>
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-5 mt-6">
+                    <div className="flex justify-center gap-2 sm:gap-3" onPaste={handleFpOtpPaste}>
+                      {fpOtp.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={el => { fpOtpInputsRef.current[i] = el }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={e => handleFpOtpChange(i, e.target.value)}
+                          onKeyDown={e => handleFpOtpKeyDown(i, e)}
+                          className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/90 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+                        />
+                      ))}
+                    </div>
+                    {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+                    <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleFpVerifyOtp} disabled={loading || fpOtp.join('').length !== 6}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Verify Code
+                    </Button>
+                    <div className="text-center">
+                      {fpResendTimer > 0 ? (
+                        <p className="text-xs text-white/40">
+                          Resend code in <span className="text-white/60 font-medium">{fpResendTimer}s</span>
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleFpResendOtp}
+                          disabled={loading}
+                          className="text-xs text-primary/80 hover:text-primary transition-colors disabled:opacity-50"
+                        >
+                          Didn't receive a code? Resend
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                      onClick={() => { setFpStep('email'); setError('') }}
+                    >
+                      <ArrowLeft className="h-4 w-4" /> Back
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3 — New Password */}
+              {fpStep === 'newpass' && (
+                <>
+                  <DialogHeader className="text-left space-y-3">
+                    <p className="text-xs font-medium uppercase tracking-widest text-primary">New password</p>
+                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                      Create a new <span className="text-primary">password</span>
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-white/40">
+                      Identity verified. Set a new password for your account.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-6">
+                    <div className="space-y-2">
+                      <label className="text-xs text-white/50 ml-1">New password</label>
+                      <div className="relative">
+                        <Input
+                          type={fpShowNewPass ? 'text' : 'password'}
+                          value={fpNewPassword}
+                          onChange={e => setFpNewPassword(e.target.value)}
+                          placeholder="Enter new password"
+                          className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFpShowNewPass(s => !s)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/60"
+                          tabIndex={-1}
+                        >
+                          {fpShowNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-white/50 ml-1">Confirm password</label>
+                      <div className="relative">
+                        <Input
+                          type={fpShowConfirmPass ? 'text' : 'password'}
+                          value={fpConfirmPassword}
+                          onChange={e => setFpConfirmPassword(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleFpResetPassword()}
+                          placeholder="Re-enter new password"
+                          className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFpShowConfirmPass(s => !s)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/60"
+                          tabIndex={-1}
+                        >
+                          {fpShowConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    {error && <p className="text-sm text-red-400">{error}</p>}
+                    <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleFpResetPassword} disabled={loading}>
+                      {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Reset Password
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 4 — Success */}
+              {fpStep === 'success' && (
                 <div className="py-6 space-y-5 text-center mt-4">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                  <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                    Password <span className="text-primary">updated</span>
+                  </DialogTitle>
                   <p className="text-sm text-white/60">
-                    A password reset link was sent to <span className="font-medium text-white/70">{fpEmail}</span>.
-                    Check your inbox.
+                    Sign in with your new password.
                   </p>
-                  <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email-input'); setFpEmail('') }}>
+                  <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email'); setFpEmail(''); setFpResetToken(''); setFpNewPassword(''); setFpConfirmPassword('') }}>
                     Back to Sign In
                   </Button>
                 </div>
               )}
-
-              {/* Phone-based forgot password is temporarily disabled. */}
-              {/*
-              {fpStep === 'phone-input' && (
-                <div className="space-y-4 py-2">
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Phone Number</label>
-                    <PhoneInput value={fpPhone} onChange={setFpPhone} placeholder="98765 43210" />
-                  </div>
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  <Button className="w-full h-10 rounded-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneSend} disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Phone className="mr-2 h-4 w-4" />}
-                    Send OTP on WhatsApp
-                  </Button>
-                  <Button variant="ghost" className="w-full" onClick={() => { setView('default'); setError('') }}>
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Sign In
-                  </Button>
-                </div>
-              )}
-
-              {fpStep === 'phone-otp' && (
-                <div className="space-y-3 py-2">
-                  <p className="text-xs text-white/60">
-                    Code sent via WhatsApp to {toE164(fpPhone) ?? ''}. Expires in {Math.floor(fpExpiryTimer / 60)}:{(fpExpiryTimer % 60).toString().padStart(2, '0')}.
-                  </p>
-                  <div className="space-y-1">
-                    <label className="font-label uppercase tracking-widest text-label text-white/50 ml-1">Verification Code</label>
-                    <Input
-                      value={fpOtp}
-                      onChange={e => setFpOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="6-digit code"
-                      maxLength={6}
-                      className="bg-white/70 text-center tracking-widest text-lg"
-                      onKeyDown={e => e.key === 'Enter' && handleFpPhoneVerify()}
-                    />
-                  </div>
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  <Button className="w-full h-10 rounded-full bg-primary hover:bg-primary/90" onClick={handleFpPhoneVerify} disabled={loading || fpOtp.length < 6}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Verify & Reset
-                  </Button>
-                  <div className="flex justify-between items-center text-xs text-white/50">
-                    <button
-                      type="button"
-                      onClick={handleFpPhoneResend}
-                      disabled={loading || fpResendTimer > 0}
-                      className="hover:text-white/80 disabled:opacity-50"
-                    >
-                      {fpResendTimer > 0 ? `Resend in ${fpResendTimer}s` : 'Resend code'}
-                    </button>
-                    <button type="button" onClick={() => { setFpStep('phone-input'); setError('') }} className="hover:text-white/80">
-                      Change phone
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {fpStep === 'phone-done' && (
-                <div className="py-6 space-y-4 text-center">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                  <p className="text-sm text-white/90">You're signed in. Redirecting...</p>
-                </div>
-              )}
-              */}
             </>
           )}
 
@@ -676,7 +735,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                       <button
                         type="button"
                         className="text-xs text-white/35 hover:text-primary transition-colors"
-                        onClick={() => { setView('forgot'); setFpEmail(email); setError('') }}
+                        onClick={() => { setView('forgot'); setFpStep('email'); setFpEmail(email); setError('') }}
                       >
                         Forgot Password?
                       </button>

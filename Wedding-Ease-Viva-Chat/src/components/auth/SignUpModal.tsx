@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, Phone, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Mail, Phone, CheckCircle, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,8 +18,9 @@ import PhoneInput, { toE164, isValidPhone, type PhoneInputValue } from './PhoneI
 import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH } from '@/utils/passwordPolicy'
 
 type Tab = 'email' | 'phone'
-type EmailStep = 'form' | 'verifying'
+type EmailStep = 'form' | 'choice' | 'verifying' | 'success'
 type PhoneStep = 'form' | 'otp' | 'success'
+type VerifyMethod = 'email' | 'phone'
 
 interface Props {
   open: boolean
@@ -85,6 +88,8 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     sendPhoneOtpWhatsApp,
     verifyPhoneOtpWhatsApp,
     confirmPhoneSignup,
+    resendVerification,
+    markEmailUserVerifiedAfterPhoneOtp,
   } = useAuth()
 
   const [tab, setTab] = useState<Tab>('email')
@@ -96,6 +101,16 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
   const [emailAuthError, setEmailAuthError] = useState('')
   const [signedUpEmail, setSignedUpEmail] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+
+  // Post-signUp state for the choice + verifying steps (authflow.md §1 Step C/D)
+  const [signupUser, setSignupUser] = useState<{
+    uid: string; email: string; name: string; phone: string | null; password: string
+  } | null>(null)
+  const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>('email')
+  const [verifyOtp, setVerifyOtp] = useState<string[]>(['', '', '', '', '', ''])
+  const [verifyResendTimer, setVerifyResendTimer] = useState(0)
+  const [verifyExpiryTimer, setVerifyExpiryTimer] = useState(0)
+  const verifyOtpInputsRef = useRef<(HTMLInputElement | null)[]>([])
 
   // Phone flow
   const [phoneStep, setPhoneStep] = useState<PhoneStep>('form')
@@ -124,6 +139,30 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     const id = setTimeout(() => setPhoneExpiryTimer(t => t - 1), 1000)
     return () => clearTimeout(id)
   }, [phoneExpiryTimer])
+  useEffect(() => {
+    if (verifyResendTimer <= 0) return
+    const id = setTimeout(() => setVerifyResendTimer(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  }, [verifyResendTimer])
+  useEffect(() => {
+    if (verifyExpiryTimer <= 0) return
+    const id = setTimeout(() => setVerifyExpiryTimer(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  }, [verifyExpiryTimer])
+
+  // Live listener: when the email-verification link is clicked elsewhere and
+  // flips the Firestore flag, advance to success automatically (authflow.md §1 Step D).
+  useEffect(() => {
+    if (emailStep !== 'verifying' || verifyMethod !== 'email' || !signupUser) return
+    const unsub = onSnapshot(doc(db, 'users', signupUser.uid), (snap) => {
+      const data = snap.data() as { isVerified?: boolean; isValidated?: boolean } | undefined
+      if (data && (data.isVerified === true || data.isValidated === true)) {
+        setEmailStep('success')
+        setTimeout(() => { onOpenChange(false); reset() }, 1800)
+      }
+    })
+    return unsub
+  }, [emailStep, verifyMethod, signupUser?.uid])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Email handlers ───────────────────────────────────────────────────────
 
@@ -157,7 +196,20 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       )
       setSignedUpEmail(result.email)
       setSignedUpName(result.name)
-      setEmailStep('verifying')
+      setSignupUser({
+        uid: result.uid,
+        email: result.email,
+        name: result.name,
+        phone: result.phone,
+        password: emailForm.password,
+      })
+      // Phone supplied → let user pick verification method; otherwise default to email.
+      if (result.phone) {
+        setEmailStep('choice')
+      } else {
+        setVerifyMethod('email')
+        setEmailStep('verifying')
+      }
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
       if (e.code === 'auth/email-already-in-use') {
@@ -169,6 +221,120 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       } else {
         setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
       }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Choice + verifying handlers (authflow.md §1 Steps C–E) ───────────────
+
+  async function handleSelectVerification(method: VerifyMethod) {
+    if (!signupUser) return
+    setEmailAuthError('')
+    setVerifyMethod(method)
+    if (method === 'email') {
+      // Verification email was already sent during signUp — just transition.
+      setEmailStep('verifying')
+      return
+    }
+    // Phone path — send WhatsApp OTP
+    if (!signupUser.phone) return
+    setLoading(true)
+    try {
+      await sendPhoneOtpWhatsApp(signupUser.phone, 'signup')
+      setVerifyOtp(['', '', '', '', '', ''])
+      setVerifyResendTimer(OTP_RESEND_COOLDOWN)
+      setVerifyExpiryTimer(OTP_EXPIRY_SECONDS)
+      setEmailStep('verifying')
+      setTimeout(() => verifyOtpInputsRef.current[0]?.focus(), 100)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResendVerifyEmail() {
+    if (!signupUser) return
+    setEmailAuthError('')
+    setLoading(true)
+    try {
+      await resendVerification(signupUser.email, signupUser.password)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResendVerifyPhoneOtp() {
+    if (!signupUser?.phone) return
+    setEmailAuthError('')
+    setLoading(true)
+    try {
+      await sendPhoneOtpWhatsApp(signupUser.phone, 'signup')
+      setVerifyResendTimer(OTP_RESEND_COOLDOWN)
+      setVerifyExpiryTimer(OTP_EXPIRY_SECONDS)
+      setVerifyOtp(['', '', '', '', '', ''])
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleVerifyOtpChange(index: number, value: string) {
+    if (!/^\d*$/.test(value)) return
+    const next = [...verifyOtp]
+    next[index] = value.slice(-1)
+    setVerifyOtp(next)
+    setEmailAuthError('')
+    if (value && index < 5) verifyOtpInputsRef.current[index + 1]?.focus()
+    // Auto-submit when all six digits are entered
+    if (next.every(d => d.length === 1) && next.join('').length === 6) {
+      handleVerifyPhoneOtpSubmit(next.join(''))
+    }
+  }
+
+  function handleVerifyOtpKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === 'Backspace' && !verifyOtp[index] && index > 0) {
+      verifyOtpInputsRef.current[index - 1]?.focus()
+    }
+  }
+
+  function handleVerifyOtpPaste(e: React.ClipboardEvent) {
+    e.preventDefault()
+    const text = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!text) return
+    const next = [...verifyOtp]
+    for (let i = 0; i < text.length; i++) next[i] = text[i]
+    setVerifyOtp(next)
+    verifyOtpInputsRef.current[Math.min(text.length, 5)]?.focus()
+    if (text.length === 6) handleVerifyPhoneOtpSubmit(next.join(''))
+  }
+
+  async function handleVerifyPhoneOtpSubmit(codeOverride?: string) {
+    if (!signupUser?.phone) return
+    const code = codeOverride ?? verifyOtp.join('')
+    if (code.length < 6) { setEmailAuthError('Enter the 6-digit code'); return }
+    setEmailAuthError('')
+    setLoading(true)
+    try {
+      const ok = await verifyPhoneOtpWhatsApp(signupUser.phone, code, 'signup')
+      if (!ok) {
+        setEmailAuthError('Incorrect or expired code')
+        return
+      }
+      // Flip Firestore verification flag — briefly signs in then signs out.
+      await markEmailUserVerifiedAfterPhoneOtp(signupUser.email, signupUser.password)
+      setEmailStep('success')
+      setTimeout(() => { onOpenChange(false); reset() }, 1500)
+    } catch (err: unknown) {
+      const e = err as { code?: string; message?: string }
+      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
     } finally {
       setLoading(false)
     }
@@ -289,6 +455,11 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     setSignedUpEmail('')
     setSignedUpName('')
     setShowPassword(false)
+    setSignupUser(null)
+    setVerifyMethod('email')
+    setVerifyOtp(['', '', '', '', '', ''])
+    setVerifyResendTimer(0)
+    setVerifyExpiryTimer(0)
 
     setPhoneStep('form')
     setPhoneForm(initialPhoneForm)
@@ -326,6 +497,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
           {/* Success (google) */}
           {googleSuccess && (
             <div className="py-8 space-y-4 text-center">
+              <DialogTitle className="sr-only">Sign up complete</DialogTitle>
               <div className="flex justify-center">
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>
@@ -336,11 +508,70 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             </div>
           )}
 
-          {/* Email verifying */}
-          {!googleSuccess && emailStep === 'verifying' && (
+          {/* Choice — pick verification method (authflow.md §1 Step C) */}
+          {!googleSuccess && emailStep === 'choice' && (
             <>
-              <DialogHeader>
-                <DialogTitle className="elegant-heading">Verify Your Email</DialogTitle>
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Almost there</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Verify your <span className="text-primary">account</span>
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/40">
+                  Choose how you'd like to verify.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => handleSelectVerification('email')}
+                  disabled={loading}
+                  className="w-full p-4 rounded-2xl bg-white/[0.04] border border-white/[0.12] hover:border-primary/40 hover:bg-white/[0.06] transition-all flex items-center gap-4 text-left disabled:opacity-50"
+                >
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Mail className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90">Verify via Email</p>
+                    <p className="text-xs text-white/40 mt-0.5">{signupUser?.email}</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectVerification('phone')}
+                  disabled={loading || !signupUser?.phone}
+                  className="w-full p-4 rounded-2xl bg-white/[0.04] border border-white/[0.12] hover:border-primary/40 hover:bg-white/[0.06] transition-all flex items-center gap-4 text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Phone className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white/90">Verify via Phone</p>
+                    <p className="text-xs text-white/40 mt-0.5">
+                      {signupUser?.phone ?? 'No phone number provided'}
+                    </p>
+                  </div>
+                </button>
+                {emailAuthError && <p className="text-sm text-red-400">{emailAuthError}</p>}
+                {loading && (
+                  <p className="text-xs text-white/40 text-center flex items-center justify-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Sending code…
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Verifying — Email path (authflow.md §1 Step D) */}
+          {!googleSuccess && emailStep === 'verifying' && verifyMethod === 'email' && (
+            <>
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Check your <span className="text-primary">inbox</span>
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/40">
+                  We sent a verification link to <span className="text-white/70">{signedUpEmail}</span>. Click it to activate your account.
+                </DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-4 text-center">
                 <div className="flex justify-center">
@@ -348,31 +579,117 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                     <Mail className="h-8 w-8 text-primary" />
                   </div>
                 </div>
-                <div>
-                  <p className="font-medium text-white/85">Check your inbox</p>
-                  <p className="text-sm text-white/90 mt-1">
-                    We sent a verification link to <span className="font-medium text-white/70">{signedUpEmail}</span>
-                  </p>
-                  <p className="text-sm text-white/90 mt-2">
-                    Click the link in the email to activate your account, then sign in.
-                  </p>
-                </div>
-                <Button className="w-full h-10 rounded-full bg-primary hover:bg-primary/90" onClick={switchToSignIn}>
+                {emailAuthError && <p className="text-sm text-red-400">{emailAuthError}</p>}
+                <Button
+                  className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+                  onClick={handleResendVerifyEmail}
+                  disabled={loading}
+                >
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                  Resend email
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full h-12 rounded-full border-white/[0.12]"
+                  onClick={switchToSignIn}
+                >
                   Go to Sign In
                 </Button>
-                <p className="text-xs text-white/90">
-                  Didn't receive it?{' '}
-                  <Button variant="link" className="p-0 h-auto text-xs" onClick={() => setEmailStep('form')}>
-                    Go back and try again
-                  </Button>
-                </p>
+                {signupUser?.phone && (
+                  <button
+                    type="button"
+                    className="text-xs text-white/40 hover:text-white/70 transition-colors flex items-center justify-center gap-1 mx-auto"
+                    onClick={() => { setEmailStep('choice'); setEmailAuthError('') }}
+                  >
+                    <ArrowLeft className="h-3 w-3" /> Use phone instead
+                  </button>
+                )}
               </div>
             </>
+          )}
+
+          {/* Verifying — Phone path (authflow.md §1 Step D) */}
+          {!googleSuccess && emailStep === 'verifying' && verifyMethod === 'phone' && (
+            <>
+              <DialogHeader className="text-left space-y-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  Verify your <span className="text-primary">phone</span>
+                </DialogTitle>
+                <DialogDescription className="text-sm text-white/40">
+                  Enter the 6-digit code we sent via WhatsApp to {signupUser?.phone}.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-5 mt-6">
+                <p className="text-xs text-white/40 text-center">
+                  Expires in {Math.floor(verifyExpiryTimer / 60)}:{(verifyExpiryTimer % 60).toString().padStart(2, '0')}
+                </p>
+                <div className="flex justify-center gap-2 sm:gap-3" onPaste={handleVerifyOtpPaste}>
+                  {verifyOtp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={el => { verifyOtpInputsRef.current[i] = el }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleVerifyOtpChange(i, e.target.value)}
+                      onKeyDown={e => handleVerifyOtpKeyDown(i, e)}
+                      className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/90 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+                    />
+                  ))}
+                </div>
+                {emailAuthError && <p className="text-sm text-red-400 text-center">{emailAuthError}</p>}
+                <Button
+                  className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+                  onClick={() => handleVerifyPhoneOtpSubmit()}
+                  disabled={loading || verifyOtp.join('').length !== 6}
+                >
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Verify & Create Account
+                </Button>
+                <div className="flex justify-between items-center text-xs text-white/35">
+                  <button
+                    type="button"
+                    onClick={handleResendVerifyPhoneOtp}
+                    disabled={loading || verifyResendTimer > 0}
+                    className="hover:text-primary disabled:opacity-50 transition-colors"
+                  >
+                    {verifyResendTimer > 0 ? `Resend in ${verifyResendTimer}s` : 'Resend code'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEmailStep('choice'); setEmailAuthError('') }}
+                    className="hover:text-primary transition-colors flex items-center gap-1"
+                  >
+                    <ArrowLeft className="h-3 w-3" /> Change method
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Success (email-tab path, authflow.md §1 Step E) */}
+          {!googleSuccess && emailStep === 'success' && (
+            <div className="py-8 space-y-4 text-center">
+              <DialogTitle className="sr-only">Sign up complete</DialogTitle>
+              <div className="flex justify-center">
+                <CheckCircle className="h-16 w-16 text-green-500" />
+              </div>
+              <div>
+                <p className="text-xl font-semibold elegant-heading">Welcome to TheWeddingBot!</p>
+                <p className="text-sm text-white/90 mt-1">Hello, {signedUpName || 'there'}</p>
+                <p className="text-xs text-white/50 mt-2">
+                  Your account is verified. Redirecting…
+                </p>
+              </div>
+            </div>
           )}
 
           {/* Phone success */}
           {!googleSuccess && phoneStep === 'success' && (
             <div className="py-8 space-y-4 text-center">
+              <DialogTitle className="sr-only">Sign up complete</DialogTitle>
               <div className="flex justify-center">
                 <CheckCircle className="h-16 w-16 text-green-500" />
               </div>

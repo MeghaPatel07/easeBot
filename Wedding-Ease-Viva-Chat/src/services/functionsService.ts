@@ -1,9 +1,30 @@
 import { httpsCallable } from 'firebase/functions'
 import { auth, functions } from '@/lib/firebase'
 import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@/types'
+import { QUOTA_EVENT, type QuotaExceededPayload } from '@/services/accountService'
 // CalendarEvent kept here transitionally — used in StreamDoneEvent below until backend drops the field.
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+
+export interface ChatQuotaError extends Error {
+  code: 'quota_exceeded'
+  status: 402
+  details: QuotaExceededPayload
+}
+
+function dispatchQuotaEvent(payload: QuotaExceededPayload): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(QUOTA_EVENT, { detail: payload }))
+  }
+}
+
+function makeQuotaError(payload: QuotaExceededPayload): ChatQuotaError {
+  const err = new Error(payload.message || 'Quota exceeded') as ChatQuotaError
+  err.code = 'quota_exceeded'
+  err.status = 402
+  err.details = payload
+  return err
+}
 
 // ── Backend REST API ──────────────────────────────────────────────────────────
 
@@ -28,6 +49,17 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
     signal,
   })
 
+  if (res.status === 402) {
+    const payload = (await res.json().catch(() => null)) as QuotaExceededPayload | null
+    if (payload) dispatchQuotaEvent(payload)
+    throw makeQuotaError(payload ?? {
+      error: 'quota_exceeded',
+      reason: 'daily_cap_exceeded',
+      message: 'Quota exceeded',
+      resetAt: null,
+      upgradeUrl: '/pricing',
+    })
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error((err as any).error ?? `Request failed: ${res.status}`)
@@ -118,6 +150,17 @@ export async function* streamChatMessage(
     signal,
   })
 
+  if (res.status === 402) {
+    const payload = (await res.json().catch(() => null)) as QuotaExceededPayload | null
+    if (payload) dispatchQuotaEvent(payload)
+    throw makeQuotaError(payload ?? {
+      error: 'quota_exceeded',
+      reason: 'daily_cap_exceeded',
+      message: 'Quota exceeded',
+      resetAt: null,
+      upgradeUrl: '/pricing',
+    })
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error((err as any).error ?? `Stream failed: ${res.status}`)

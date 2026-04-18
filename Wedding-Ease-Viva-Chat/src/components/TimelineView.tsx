@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Calendar,
   CheckCircle2,
@@ -9,7 +9,14 @@ import {
   Flag,
   Plus,
   Loader2,
+  MoreVertical,
+  Trash2,
+  Pencil,
+  Circle,
+  MessageSquarePlus,
+  Paperclip,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -23,8 +30,15 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
-import { createReminder } from '@/services/reminderService'
-import { createChecklist, updateItemDueDate } from '@/services/checklistService'
+import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
+import { createReminder, deleteReminder } from '@/services/reminderService'
+import {
+  createChecklist,
+  updateItemDueDate,
+  toggleItemDone,
+  deleteChecklistItem,
+} from '@/services/checklistService'
+import { deleteTimelineEvent } from '@/services/timelineEventsService'
 import type { ReminderDoc, TimelineEvent } from '@/types'
 
 interface TimelineViewProps {
@@ -59,6 +73,7 @@ interface TimelineEntry {
   type: EntryType
   status: EntryStatus
   sourceId: string
+  itemId: string | null
   description: string | null
   completed: boolean
   htmlLink: string | null
@@ -110,10 +125,10 @@ const statusLabel: Record<EntryStatus, { text: string; className: string }> = {
 }
 
 const statusIcon: Record<EntryStatus, React.ReactNode> = {
-  completed: <CheckCircle2 className="h-3 w-3 text-emerald-400" />,
-  upcoming: <Clock className="h-3 w-3 text-[#A17A63]" />,
-  overdue: <AlertTriangle className="h-3 w-3 text-red-400" />,
-  today: <Flag className="h-3 w-3 text-amber-400" />,
+  completed: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />,
+  upcoming: <Clock className="h-3.5 w-3.5 text-[#A17A63]" />,
+  overdue: <AlertTriangle className="h-3.5 w-3.5 text-red-400" />,
+  today: <Flag className="h-3.5 w-3.5 text-amber-400" />,
 }
 
 export default function TimelineView({
@@ -125,9 +140,14 @@ export default function TimelineView({
   onRefresh,
 }: TimelineViewProps) {
   const { user, profile } = useAuth()
+  const { addAttachment } = useChatAttachments()
+  const navigate = useNavigate()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [chooserMode, setChooserMode] = useState<ChooserMode>('chooser')
   const [submitting, setSubmitting] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
 
   // Event form state
   const [evTitle, setEvTitle] = useState('')
@@ -138,6 +158,23 @@ export default function TimelineView({
   // Task form state
   const [taskText, setTaskText] = useState('')
   const [taskDueDate, setTaskDueDate] = useState('')
+
+  // Close open menu when tapping outside
+  useEffect(() => {
+    if (!openMenuId) return
+    const handler = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setOpenMenuId(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
+  }, [openMenuId])
 
   const resetForms = () => {
     setEvTitle('')
@@ -215,12 +252,74 @@ export default function TimelineView({
       }
       toast.success('Task created')
       closeDialog()
-      await onRefresh()
+      // Kick off reminders refresh but don't block UI updates, which come
+      // via Firestore onSnapshot subscriptions in the parent.
+      void onRefresh()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create task'
       toast.error(msg)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleToggleTask = async (entry: TimelineEntry) => {
+    if (entry.type !== 'task' || !entry.itemId) return
+    setBusyId(entry.id)
+    try {
+      await toggleItemDone(userId, entry.sourceId, entry.itemId)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update task'
+      toast.error(msg)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleDelete = async (entry: TimelineEntry) => {
+    setOpenMenuId(null)
+    if (!window.confirm(`Delete "${entry.title}"? This cannot be undone.`)) return
+    setBusyId(entry.id)
+    try {
+      if (entry.source === 'checklist' && entry.itemId) {
+        await deleteChecklistItem(userId, entry.sourceId, entry.itemId)
+      } else if (entry.source === 'reminder') {
+        await deleteReminder(userId, entry.sourceId)
+        void onRefresh()
+      } else if (entry.source === 'timelineEvent') {
+        await deleteTimelineEvent(entry.sourceId)
+      }
+      toast.success('Deleted')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete'
+      toast.error(msg)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleEditDueDate = async (entry: TimelineEntry) => {
+    setOpenMenuId(null)
+    if (entry.source !== 'checklist' || !entry.itemId) {
+      toast.info('Editing dates for this item is not supported yet.')
+      return
+    }
+    const next = window.prompt('New due date (YYYY-MM-DD):', entry.dateStr)
+    if (!next) return
+    const trimmed = next.trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      toast.error('Invalid date. Use YYYY-MM-DD.')
+      return
+    }
+    setBusyId(entry.id)
+    try {
+      await updateItemDueDate(userId, entry.sourceId, entry.itemId, trimmed)
+      toast.success('Due date updated')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update date'
+      toast.error(msg)
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -239,6 +338,7 @@ export default function TimelineView({
           type: 'task',
           status: getStatus(item.dueDate, item.completed),
           sourceId: cl.id,
+          itemId: item.id,
           description: null,
           completed: item.completed,
           htmlLink: null,
@@ -260,6 +360,7 @@ export default function TimelineView({
         type: 'event',
         status: getStatus(r.eventDateStr, false),
         sourceId: r.id,
+        itemId: null,
         description: r.description,
         completed: false,
         htmlLink: null,
@@ -289,6 +390,7 @@ export default function TimelineView({
         type: 'event',
         status: getStatus(dateStr, false),
         sourceId: ev.id,
+        itemId: null,
         description: ev.description ?? null,
         completed: false,
         htmlLink: null,
@@ -301,6 +403,51 @@ export default function TimelineView({
     items.sort((a, b) => a.date.getTime() - b.date.getTime())
     return items
   }, [checklists, reminders, timelineEvents])
+
+  const handleAttachItem = (entry: TimelineEntry) => {
+    setOpenMenuId(null)
+    addAttachment({
+      kind: 'timeline',
+      id: entry.id,
+      title: entry.title,
+      preview: `${entry.dateStr} — ${entry.title}`,
+      payload: {
+        itemId: entry.id,
+        title: entry.title,
+        date: entry.dateStr,
+        status: entry.status,
+        description: entry.description,
+      },
+    })
+    toast.success('Item attached')
+    navigate('/')
+  }
+
+  const handleAttachWholeTimeline = () => {
+    if (entries.length === 0) {
+      toast.info('No timeline items to attach yet.')
+      return
+    }
+    const earliestDate = entries[0]?.dateStr ?? ''
+    const latestDate = entries[entries.length - 1]?.dateStr ?? ''
+    addAttachment({
+      kind: 'timeline',
+      id: `timeline-${userId}-${Date.now()}`,
+      title: 'Full wedding timeline',
+      preview: `${entries.length} items from ${earliestDate} to ${latestDate}`,
+      payload: {
+        items: entries.map((e) => ({
+          date: e.dateStr,
+          title: e.title,
+          status: e.status,
+          description: e.description,
+        })),
+        totalCount: entries.length,
+      },
+    })
+    toast.success('Timeline attached — ask Viva about it in chat')
+    navigate('/')
+  }
 
   const grouped = useMemo(() => {
     const map = new Map<string, TimelineEntry[]>()
@@ -318,6 +465,7 @@ export default function TimelineView({
           type: 'event',
           status: 'upcoming',
           sourceId: '',
+          itemId: null,
           description: null,
           completed: false,
           htmlLink: null,
@@ -363,14 +511,26 @@ export default function TimelineView({
   }, [weddingDate])
 
   const toolbar = (
-    <div className="flex-shrink-0 px-4 pt-4">
+    <div className="flex-shrink-0 px-4 pt-4 flex items-center gap-2">
       <Button
         size="sm"
         onClick={handleOpenDialog}
-        className="h-9 rounded-xl gap-1.5 text-xs font-medium"
+        className="h-11 sm:h-9 rounded-xl gap-1.5 text-xs font-medium touch-manipulation"
       >
         <Plus className="h-3.5 w-3.5" />
         New
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={handleAttachWholeTimeline}
+        disabled={entries.length === 0}
+        aria-label="Attach whole timeline to chat"
+        title="Attach whole timeline to chat"
+        className="h-11 sm:h-9 rounded-xl gap-1.5 text-xs font-medium touch-manipulation"
+      >
+        <Paperclip className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Attach to chat</span>
       </Button>
     </div>
   )
@@ -397,7 +557,7 @@ export default function TimelineView({
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 onClick={() => setChooserMode('event')}
-                className="flex-1 h-20 rounded-xl flex flex-col gap-1"
+                className="flex-1 h-20 rounded-xl flex flex-col gap-1 touch-manipulation"
                 disabled={!user}
               >
                 <Calendar className="h-5 w-5" />
@@ -405,7 +565,7 @@ export default function TimelineView({
               </Button>
               <Button
                 onClick={() => setChooserMode('task')}
-                className="flex-1 h-20 rounded-xl flex flex-col gap-1"
+                className="flex-1 h-20 rounded-xl flex flex-col gap-1 touch-manipulation"
                 variant="outline"
               >
                 <CheckCircle2 className="h-5 w-5" />
@@ -486,14 +646,14 @@ export default function TimelineView({
                 variant="outline"
                 onClick={() => setChooserMode('chooser')}
                 disabled={submitting}
-                className="rounded-xl"
+                className="rounded-xl touch-manipulation"
               >
                 Back
               </Button>
               <Button
                 onClick={handleCreateEvent}
                 disabled={submitting || !evTitle.trim() || !evDate}
-                className="rounded-xl gap-1.5"
+                className="rounded-xl gap-1.5 touch-manipulation"
               >
                 {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {submitting ? 'Creating…' : 'Create Event'}
@@ -541,14 +701,14 @@ export default function TimelineView({
                 variant="outline"
                 onClick={() => setChooserMode('chooser')}
                 disabled={submitting}
-                className="rounded-xl"
+                className="rounded-xl touch-manipulation"
               >
                 Back
               </Button>
               <Button
                 onClick={handleCreateTask}
                 disabled={submitting || !taskText.trim() || !taskDueDate}
-                className="rounded-xl gap-1.5"
+                className="rounded-xl gap-1.5 touch-manipulation"
               >
                 {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {submitting ? 'Adding…' : 'Add Task'}
@@ -579,7 +739,6 @@ export default function TimelineView({
     )
   }
 
-  const weddingDateStr = weddingDate ? toDateStr(weddingDate) : null
   const weddingMonthKey = weddingDate ? formatMonthYear(weddingDate) : null
 
   return (
@@ -610,7 +769,7 @@ export default function TimelineView({
       </div>
 
       {/* Timeline */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
+      <div className="flex-1 overflow-y-auto px-4 pb-6" style={{ touchAction: 'pan-y' }}>
         {Array.from(grouped.entries()).map(([monthKey, monthEntries]) => (
           <div key={monthKey} className="mb-6">
             {/* Month header */}
@@ -628,10 +787,20 @@ export default function TimelineView({
             {/* Entries */}
             <div className="relative">
               {/* Vertical line */}
-              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-white/[0.08]" />
+              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-white/[0.08] pointer-events-none" />
 
               {monthEntries.map((entry, idx) => {
                 const isLast = idx === monthEntries.length - 1
+                const isBusy = busyId === entry.id
+                const isTask = entry.type === 'task'
+                const menuOpen = openMenuId === entry.id
+                const primaryAction = isTask
+                  ? () => handleToggleTask(entry)
+                  : () => {
+                      if (entry.htmlLink) {
+                        window.open(entry.htmlLink, '_blank', 'noopener,noreferrer')
+                      }
+                    }
 
                 return (
                   <div key={entry.id} className={`relative flex gap-3 ${isLast ? '' : 'mb-3'}`}>
@@ -641,7 +810,25 @@ export default function TimelineView({
                     </div>
 
                     {/* Card */}
-                    <div className="flex-1 rounded-xl bg-white/[0.06] border border-white/[0.08] px-3 py-2.5 min-w-0 hover:bg-white/[0.08] transition-colors">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label={
+                        isTask
+                          ? `${entry.completed ? 'Mark incomplete' : 'Mark complete'}: ${entry.title}`
+                          : entry.title
+                      }
+                      aria-busy={isBusy}
+                      onClick={primaryAction}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          primaryAction()
+                        }
+                      }}
+                      className={`flex-1 rounded-xl bg-white/[0.06] border border-white/[0.08] px-3 py-2.5 min-w-0 active:bg-white/[0.1] hover:bg-white/[0.08] transition-colors min-h-[44px] cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${isBusy ? 'opacity-60' : ''}`}
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
                       {/* Date row */}
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-2xs text-white/40 font-medium">
@@ -666,11 +853,122 @@ export default function TimelineView({
                           </span>
                         )}
 
-                        {/* Status */}
-                        <span className={`flex items-center gap-0.5 text-2xs font-medium ml-auto ${statusLabel[entry.status].className}`}>
-                          {statusIcon[entry.status]}
-                          <span className="hidden sm:inline">{statusLabel[entry.status].text}</span>
-                        </span>
+                        {/* Status flag — interactive for tasks, static for events */}
+                        {isTask ? (
+                          <button
+                            type="button"
+                            aria-label={`Toggle status for ${entry.title}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToggleTask(entry)
+                            }}
+                            disabled={isBusy}
+                            className={`ml-auto inline-flex items-center gap-1 min-h-[28px] min-w-[28px] px-2 py-1 rounded-full text-2xs font-medium leading-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 hover:bg-white/10 active:bg-white/15 transition-colors ${statusLabel[entry.status].className}`}
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                          >
+                            {statusIcon[entry.status]}
+                            <span className="hidden sm:inline">{statusLabel[entry.status].text}</span>
+                          </button>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center gap-1 ml-auto text-2xs font-medium ${statusLabel[entry.status].className}`}
+                            aria-label={`Status: ${statusLabel[entry.status].text}`}
+                          >
+                            {statusIcon[entry.status]}
+                            <span className="hidden sm:inline">{statusLabel[entry.status].text}</span>
+                          </span>
+                        )}
+
+                        {/* Menu button (delete / edit) */}
+                        <div
+                          className="relative flex-shrink-0"
+                          ref={menuOpen ? menuRef : undefined}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            aria-label={`More actions for ${entry.title}`}
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOpenMenuId(menuOpen ? null : entry.id)
+                            }}
+                            className="inline-flex items-center justify-center h-10 w-10 sm:h-7 sm:w-7 rounded-lg text-white/50 hover:text-white/90 hover:bg-white/10 active:bg-white/15 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                          {menuOpen && (
+                            <div
+                              role="menu"
+                              className="absolute right-0 top-full mt-1 z-50 bg-black/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl py-1 min-w-[160px]"
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAttachItem(entry)
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors min-h-[40px] touch-manipulation"
+                              >
+                                <MessageSquarePlus className="h-3.5 w-3.5" />
+                                Attach to chat
+                              </button>
+                              {isTask && entry.itemId && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setOpenMenuId(null)
+                                    handleToggleTask(entry)
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors min-h-[40px] touch-manipulation"
+                                >
+                                  {entry.completed ? (
+                                    <>
+                                      <Circle className="h-3.5 w-3.5" />
+                                      Mark incomplete
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="h-3.5 w-3.5" />
+                                      Mark complete
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                              {isTask && entry.itemId && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEditDueDate(entry)
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors min-h-[40px] touch-manipulation"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Edit due date
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDelete(entry)
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors min-h-[40px] touch-manipulation"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Title */}
@@ -690,6 +988,7 @@ export default function TimelineView({
                             href={entry.htmlLink}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center ml-1.5 text-[#A17A63]/70 hover:text-[#A17A63] transition-colors"
                           >
                             <ExternalLink className="h-3 w-3" />

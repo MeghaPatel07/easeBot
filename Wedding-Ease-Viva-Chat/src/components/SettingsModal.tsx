@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Slider } from '@/components/ui/slider'
 import { useAuth } from '@/contexts/AuthContext'
 import { savePersonalization } from '@/services/settingsService'
@@ -160,6 +160,7 @@ export function SettingsModal({ open, onClose }: Props) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent className="w-[95vw] sm:max-w-[520px] glass-panel rounded-2xl p-0 border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
+        <DialogTitle className="sr-only">Personalization settings</DialogTitle>
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />

@@ -27,6 +27,7 @@ import {
   GET_CHECKLIST_STATS_TOOL,
   CREATE_REMINDER_TOOL,
   CREATE_NOTE_TOOL,
+  APPEND_TO_NOTE_TOOL,
   CREATE_TIMELINE_EVENT_TOOL,
 } from '../services/plannerTools'
 import { chargeTokens, refundTokens } from '../services/tokenMeter'
@@ -34,6 +35,62 @@ import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
 import { buildPersonalizationSuffix } from '../utils/toneInjector'
 import { determineTargetLanguage, buildLanguageInstruction } from '../pipeline/languageInstruction'
+import {
+  ChatAttachmentSchema,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  type ChatAttachment,
+} from '../types/chatAttachments'
+import { injectAttachmentsIntoUserMessage } from '../utils/attachmentFormatter'
+
+/**
+ * Validate the raw attachments array from the request body. Returns a tuple of
+ * [validAttachments, errorMessage]. errorMessage is non-null only when the
+ * input is shape-invalid at the top level (e.g. not an array, over the cap).
+ * Per-item failures are logged + dropped, NOT fatal — one bad attachment must
+ * not tank the whole chat request.
+ */
+function parseAttachments(
+  raw: unknown,
+): { attachments: ChatAttachment[]; error: string | null } {
+  if (raw === undefined || raw === null) return { attachments: [], error: null }
+  if (!Array.isArray(raw)) {
+    return { attachments: [], error: 'attachments must be an array' }
+  }
+  if (raw.length > MAX_ATTACHMENTS_PER_MESSAGE) {
+    return {
+      attachments: [],
+      error: `attachments exceeds max of ${MAX_ATTACHMENTS_PER_MESSAGE} per message`,
+    }
+  }
+  const valid: ChatAttachment[] = []
+  for (let i = 0; i < raw.length; i++) {
+    const parsed = ChatAttachmentSchema.safeParse(raw[i])
+    if (parsed.success) {
+      valid.push(parsed.data)
+    } else {
+      console.warn('[chatController] dropping invalid attachment', {
+        index: i,
+        issues: parsed.error.issues.map(iss => ({ path: iss.path, message: iss.message })),
+      })
+    }
+  }
+  return { attachments: valid, error: null }
+}
+
+function logAttachmentsReceived(
+  scope: 'chat' | 'chat:stream',
+  attachments: ChatAttachment[],
+  userId: string | null,
+  threadId: string | undefined,
+): void {
+  if (attachments.length === 0) return
+  console.log(`[${scope}] attachments received`, {
+    count: attachments.length,
+    kinds: attachments.map(a => a.kind),
+    userId,
+    threadId: threadId ?? null,
+  })
+}
 
 interface UserProfileContext {
   weddingDate?: string | null
@@ -120,6 +177,26 @@ function buildForceImageSuffix(force?: boolean): string {
   return `\nIMPORTANT: The user is in the Images Hub — call the generate_image tool for this turn to produce an image that satisfies their request.`
 }
 
+// When the client has a last-generated image URL, expose it to the LLM so
+// references like "save this image to notes" / "add that picture" on a
+// follow-up turn can thread the actual URL into create_note. Tool results
+// from the prior turn are stripped from history, so without this the LLM
+// would hallucinate a save it can't perform.
+function buildLastImageContextSuffix(lastGeneratedImageUrl?: string | null): string {
+  if (!lastGeneratedImageUrl) return ''
+  return `\nCONTEXT — LAST GENERATED IMAGE: The most recently generated image in this conversation is at URL: ${lastGeneratedImageUrl}\nIf the user asks to save "this image" / "that image" / "the image" to a note, pass this exact URL in create_note's image_urls parameter. Do NOT invent a different URL.`
+}
+
+// Guests can only generate images — no checklist/note/reminder/timeline
+// persistence. Without this instruction the LLM sees only generate_image in
+// its toolset and, when the user affirms "yes save it" to a checklist
+// suggestion, misroutes to image generation. Telling it the constraint
+// upfront lets it respond with a sign-in prompt instead.
+function buildGuestLimitationSuffix(isLoggedIn: boolean): string {
+  if (isLoggedIn) return ''
+  return `\nIMPORTANT — GUEST USER: This user is not signed in. You CANNOT save checklists, notes, reminders, or timeline events for them — those tools are not available. If the user asks to save/create any of these (or confirms "yes", "save it", "create it" in response to such a suggestion), DO NOT call generate_image. Instead, reply warmly in plain text that saving planner items requires signing in, invite them to sign in or create a free account to unlock saving, and offer to keep helping in the meantime. Image generation is the only artifact tool available to guests.`
+}
+
 // Per-mode tool binding. IMAGE_TOOL is always available for logged-in users.
 // Guest users get no tools. Each mode gets a curated artifact tool set.
 function getToolsForMode(mode: string, isLoggedIn: boolean): ChatCompletionTool[] {
@@ -134,6 +211,7 @@ function getToolsForMode(mode: string, isLoggedIn: boolean): ChatCompletionTool[
         CREATE_REMINDER_TOOL,
         CREATE_TIMELINE_EVENT_TOOL,
         CREATE_NOTE_TOOL,
+        APPEND_TO_NOTE_TOOL,
         EDIT_CHECKLIST_ITEM_TOOL,
         MARK_AS_DONE_TOOL,
         GET_CHECKLIST_STATS_TOOL,
@@ -141,11 +219,11 @@ function getToolsForMode(mode: string, isLoggedIn: boolean): ChatCompletionTool[
     case 'stylist':
     // case 'therapist': // disabled
     case 'knowledge':
-      return [...base, CREATE_NOTE_TOOL]
+      return [...base, CREATE_NOTE_TOOL, APPEND_TO_NOTE_TOOL]
     // case 'consultant': // disabled
     //   return [...base, CREATE_NOTE_TOOL, CREATE_REMINDER_TOOL]
     default:
-      return [...base, CREATE_NOTE_TOOL]
+      return [...base, CREATE_NOTE_TOOL, APPEND_TO_NOTE_TOOL]
   }
 }
 
@@ -472,8 +550,13 @@ async function handleImageToolCall(
     lastGeneratedImageUrl: imageUrls[0] ?? null,
   }
 
+  // Surface the URLs inside the tool result so a subsequent tool call on the
+  // same turn (e.g. create_note with image_urls) can reference them. The
+  // assistant receives the result string verbatim — it does not see the
+  // `imageUrls` field on this object.
+  const urlsJson = JSON.stringify(imageUrls)
   return {
-    result: `Image${imageUrls.length > 1 ? 's' : ''} generated successfully. ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''} created.`,
+    result: `Image${imageUrls.length > 1 ? 's' : ''} generated successfully. ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''} created. image_urls=${urlsJson}`,
     action: {
       tool: 'generate_image',
       imagePrompt: finalPrompt,
@@ -497,8 +580,16 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     return
   }
 
+  // Parse attachments (non-fatal per-item; fatal only for top-level shape errors).
+  const { attachments, error: attachmentsError } = parseAttachments((req.body as { attachments?: unknown }).attachments)
+  if (attachmentsError) {
+    res.status(400).json({ error: attachmentsError })
+    return
+  }
+
   const uid = req.user?.uid ?? null
   const isLoggedIn = uid !== null
+  logAttachmentsReceived('chat', attachments, uid, threadId)
 
   // P0-1: hoisted refund tracking — see streaming handler for rationale.
   let chargedTokens = 0
@@ -539,7 +630,9 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       baseSystemPrompt +
       buildLanguageInstruction(targetLanguage) +
       buildVibeSystemSuffix(vibeTitle, vibeDescriptors) +
-      buildForceImageSuffix(forceImageGeneration)
+      buildForceImageSuffix(forceImageGeneration) +
+      buildGuestLimitationSuffix(isLoggedIn) +
+      buildLastImageContextSuffix(lastGeneratedImageUrl)
 
     // Conversation summarization: compress older messages when history is long
     let effectiveHistory = history
@@ -577,7 +670,35 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // P0-3: count actual vision image parts so we charge what we sent.
     const visionImageCount = visionData ? 1 : 0
 
-    const aiResult = await callAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)
+    // Prepend the structured attachments block to the user message so the LLM
+    // receives note/checklist/timeline/file context as user-provided content
+    // for this turn (not as a permanent system instruction).
+    const userMessageForLLM = injectAttachmentsIntoUserMessage(englishText, attachments)
+
+    // Gather image URLs from this turn's attachments for the note-tool safety
+    // net (see ToolCallContext in plannerTools.ts). This array is mutated
+    // below to also include URLs produced by generate_image calls in this
+    // same turn — so a subsequent create_note / append_to_note can fall back
+    // to them if the LLM forgets to echo them into image_urls.
+    // Also seeded with lastGeneratedImageUrl so "add that image to my note"
+    // works across turns (user referring to the previous turn's image).
+    const turnImageUrls: string[] = (attachments ?? [])
+      .filter((a) => a.kind === 'image')
+      .map((a) => {
+        const p = (a.payload ?? {}) as Record<string, unknown>
+        const u = p['url']
+        return typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null
+      })
+      .filter((u): u is string => u !== null)
+    if (
+      typeof lastGeneratedImageUrl === 'string' &&
+      /^https?:\/\//i.test(lastGeneratedImageUrl) &&
+      !turnImageUrls.includes(lastGeneratedImageUrl)
+    ) {
+      turnImageUrls.push(lastGeneratedImageUrl)
+    }
+
+    const aiResult = await callAzureAI(effectiveHistory, userMessageForLLM, systemPrompt, tools, visionData, temperature)
 
     // Post-call reconciliation. We charge directly (instead of via the
     // quotaCtx.reconcile closure) so we can observe the ChargeResult and
@@ -691,65 +812,97 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       finalAiText = ''
     }
 
-    // Execute tool calls if any
+    // Execute tool calls if any. Loop so the LLM can chain dependent calls
+    // (e.g. generate_image → append_to_note with the resulting URL). See the
+    // streaming handler for the equivalent multi-round loop and rationale.
     if (aiResult.toolCalls.length > 0) {
-      const toolResults: { id: string; result: string }[] = []
+      const MAX_TOOL_ROUNDS = 3
+      const priorRounds: { toolCalls: typeof aiResult.toolCalls; toolResults: { id: string; result: string }[] }[] = []
+      let pendingToolCalls = aiResult.toolCalls
 
-      for (const tc of aiResult.toolCalls) {
-        // Handle generate_image inline (needs image-specific context)
-        if (tc.name === 'generate_image') {
-          const imgResult = await handleImageToolCall(tc.args, {
-            uid,
-            isLoggedIn,
-            isPremium,
-            imageBase64,
-            lastGeneratedImageUrl,
-            mode,
-            threadId,
-            userProfile,
-            styleMemory: styleMemory ?? undefined,
-            preferredAspectRatio,
-            vibeTitle,
-            vibeDescriptors,
-          })
-          toolActions.push(imgResult.action)
-          imageUrls = imgResult.imageUrls
-          imageToolStyleMemory = imgResult.styleMemory
-          toolResults.push({ id: tc.id, result: imgResult.result })
-          continue
+      for (let round = 0; round < MAX_TOOL_ROUNDS && pendingToolCalls.length > 0; round++) {
+        const orderedCalls = [...pendingToolCalls].sort((a, b) => {
+          if (a.name === 'generate_image' && b.name !== 'generate_image') return -1
+          if (b.name === 'generate_image' && a.name !== 'generate_image') return 1
+          return 0
+        })
+        const toolResults: { id: string; result: string }[] = []
+        let storageLimitHit = false
+
+        for (const tc of orderedCalls) {
+          if (tc.name === 'generate_image') {
+            const imgResult = await handleImageToolCall(tc.args, {
+              uid,
+              isLoggedIn,
+              isPremium,
+              imageBase64,
+              lastGeneratedImageUrl,
+              mode,
+              threadId,
+              userProfile,
+              styleMemory: styleMemory ?? undefined,
+              preferredAspectRatio,
+              vibeTitle,
+              vibeDescriptors,
+            })
+            toolActions.push(imgResult.action)
+            imageUrls = imgResult.imageUrls
+            imageToolStyleMemory = imgResult.styleMemory
+            toolResults.push({ id: tc.id, result: imgResult.result })
+            for (const u of imgResult.imageUrls ?? []) {
+              if (typeof u === 'string' && /^https?:\/\//i.test(u) && !turnImageUrls.includes(u)) {
+                turnImageUrls.push(u)
+              }
+            }
+            continue
+          }
+
+          if (!isLoggedIn) continue
+
+          const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium, undefined, { turnImageUrls })
+          toolActions.push(outcome.action)
+
+          if (outcome.result === 'STORAGE_LIMIT_REACHED') {
+            const { text: limitText, audioUrl } = await processOutbound(
+              "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!",
+              detectedLanguage
+            )
+            res.status(200).json({
+              text: limitText,
+              audioUrl,
+              imageUrl: null,
+              imageUrls: undefined,
+              toolActions,
+              mode,
+              detectedLanguage,
+            } as ChatResponse)
+            storageLimitHit = true
+            break
+          }
+
+          toolResults.push({ id: tc.id, result: outcome.result })
         }
 
-        // Planner tools (logged-in only)
-        if (!isLoggedIn) continue
+        if (storageLimitHit) return
 
-        const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium)
-        toolActions.push(outcome.action)
+        priorRounds.push({ toolCalls: orderedCalls, toolResults })
+        pendingToolCalls = []
 
-        if (outcome.result === 'STORAGE_LIMIT_REACHED') {
-          const { text: limitText, audioUrl } = await processOutbound(
-            "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!",
-            detectedLanguage
-          )
-          res.status(200).json({
-            text: limitText,
-            audioUrl,
-            imageUrl: null,
-            imageUrls: undefined,
-            toolActions,
-            mode,
-            detectedLanguage,
-          } as ChatResponse)
-          return
-        }
-
-        toolResults.push({ id: tc.id, result: outcome.result })
-      }
-
-      // Second LLM call to get user-facing reply with tool results injected
-      if (toolResults.length > 0) {
-        finalAiText = await callAzureAIWithToolResults(
-          history, englishText, systemPrompt, aiResult.toolCalls, toolResults
+        const allowMoreTools = round < MAX_TOOL_ROUNDS - 1
+        const nextResult = await callAzureAIWithToolResults(
+          history,
+          userMessageForLLM,
+          systemPrompt,
+          priorRounds,
+          allowMoreTools ? tools : undefined,
+          temperature,
         )
+
+        finalAiText = nextResult.text
+        if (nextResult.toolCalls.length > 0) {
+          finalAiText = ''
+          pendingToolCalls = nextResult.toolCalls
+        }
       }
     }
 
@@ -824,8 +977,18 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       res.end(); return
     }
 
+    // Parse attachments. Top-level shape errors are surfaced via the SSE
+    // error channel (headers are already flushed — we can't send a 400).
+    // Per-item validation failures are dropped + logged inside parseAttachments.
+    const { attachments, error: attachmentsError } = parseAttachments((req.body as { attachments?: unknown }).attachments)
+    if (attachmentsError) {
+      sse({ t: 'e', msg: attachmentsError })
+      res.end(); return
+    }
+
     const uid = req.user?.uid ?? null
     const isLoggedIn = uid !== null
+    logAttachmentsReceived('chat:stream', attachments, uid, threadId)
 
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, language)
     const mode: Mode = requestedMode ?? detectMode(englishText)
@@ -860,7 +1023,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       baseSystemPrompt +
       buildLanguageInstruction(targetLanguage) +
       buildVibeSystemSuffix(vibeTitle, vibeDescriptors) +
-      buildForceImageSuffix(forceImageGeneration)
+      buildForceImageSuffix(forceImageGeneration) +
+      buildGuestLimitationSuffix(isLoggedIn) +
+      buildLastImageContextSuffix(lastGeneratedImageUrl)
 
     // Conversation summarization: compress older messages when history is long
     let effectiveHistory = history
@@ -897,6 +1062,32 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // P0-3: actual vision image count (currently vision is single-image per turn).
     const visionImageCount = visionData ? 1 : 0
 
+    // Inject the attachments block into the user message for both LLM passes.
+    // englishText remains the raw user intent (used for mode detection, product
+    // intent, forced-image heuristics) — we only augment what the LLM sees.
+    const userMessageForLLM = injectAttachmentsIntoUserMessage(englishText, attachments)
+
+    // Image URLs from this turn's attachments — used as a safety net in the
+    // note-tool handlers (see ToolCallContext in plannerTools.ts). Mutable
+    // so generate_image URLs produced later in this turn can be appended.
+    // Also seeded with lastGeneratedImageUrl so the user can ask "add that
+    // image to my note" in a turn after the image was generated.
+    const turnImageUrls: string[] = (attachments ?? [])
+      .filter((a) => a.kind === 'image')
+      .map((a) => {
+        const p = (a.payload ?? {}) as Record<string, unknown>
+        const u = p['url']
+        return typeof u === 'string' && /^https?:\/\//i.test(u) ? u : null
+      })
+      .filter((u): u is string => u !== null)
+    if (
+      typeof lastGeneratedImageUrl === 'string' &&
+      /^https?:\/\//i.test(lastGeneratedImageUrl) &&
+      !turnImageUrls.includes(lastGeneratedImageUrl)
+    ) {
+      turnImageUrls.push(lastGeneratedImageUrl)
+    }
+
     const toolActions: ToolAction[] = []
     let imageUrls: string[] = []
     let imageToolStyleMemory: import('../types').StyleMemory | undefined
@@ -910,7 +1101,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     let firstPassToolCalls: { id: string; name: string; args: Record<string, any> }[] = []
     let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
 
-    for await (const event of streamCallAzureAI(effectiveHistory, englishText, systemPrompt, tools, visionData, temperature)) {
+    for await (const event of streamCallAzureAI(effectiveHistory, userMessageForLLM, systemPrompt, tools, visionData, temperature)) {
       if (event.type === 'chunk') {
         sse({ t: 'c', v: event.text })
         fullText += event.text
@@ -1052,74 +1243,140 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    // ── Execute tool calls and stream second pass ────────────────────────────
+    // ── Multi-round tool execution + streaming ───────────────────────────────
+    // Some user intents require chained tool calls with data dependencies —
+    // e.g. "generate this image AND save it to my timeline note" needs
+    // generate_image (round 1) → append_to_note (round 2, using the URL from
+    // round 1's result). The LLM cannot emit both in parallel because the
+    // second call depends on the first call's output, so we loop:
+    //   round → execute tool calls → next pass (with tools) → if more tool
+    //   calls, repeat; else stream final text.
+    // Capped at MAX_TOOL_ROUNDS to prevent runaway loops.
     if (firstPassToolCalls.length > 0) {
       // Reset text — when tools are called the first pass emits no readable content
       fullText = ''
-      const toolResults: { id: string; result: string }[] = []
 
-      for (const tc of firstPassToolCalls) {
-        // Handle generate_image inline (needs image-specific context)
-        if (tc.name === 'generate_image') {
-          // Signal frontend immediately so it can show the skeleton
-          sse({ t: 'img', status: 'generating' })
+      const MAX_TOOL_ROUNDS = 3
+      const priorRounds: { toolCalls: typeof firstPassToolCalls; toolResults: { id: string; result: string }[] }[] = []
+      let pendingToolCalls = firstPassToolCalls
+      let storageLimitHit = false
 
-          const imgResult = await handleImageToolCall(tc.args, {
-            uid,
-            isLoggedIn,
-            isPremium,
-            imageBase64,
-            lastGeneratedImageUrl,
-            mode,
-            threadId,
-            userProfile,
-            styleMemory: styleMemory ?? undefined,
-            preferredAspectRatio,
-            vibeTitle,
-            vibeDescriptors,
-            signal: streamAbort.signal,
-            onPartialImage: (partialB64: string) => {
-              if (!streamAbort.signal.aborted) {
-                sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
-              }
-            },
-          })
+      for (let round = 0; round < MAX_TOOL_ROUNDS && pendingToolCalls.length > 0; round++) {
+        if (streamAbort.signal.aborted) break
 
-          // If client disconnected while image was generating, discard results
+        // Sort: run generate_image before any note tool so the URL is in
+        // turnImageUrls before append_to_note / create_note executes.
+        const orderedCalls = [...pendingToolCalls].sort((a, b) => {
+          if (a.name === 'generate_image' && b.name !== 'generate_image') return -1
+          if (b.name === 'generate_image' && a.name !== 'generate_image') return 1
+          return 0
+        })
+
+        const toolResults: { id: string; result: string }[] = []
+
+        for (const tc of orderedCalls) {
           if (streamAbort.signal.aborted) {
-            console.info('[chatController] Client disconnected during image generation, discarding results')
-            if (!res.writableEnded) res.end()
-            return
+            console.info('[chatController:stream] Client disconnected, skipping remaining tool calls')
+            break
+          }
+          // Handle generate_image inline (needs image-specific context)
+          if (tc.name === 'generate_image') {
+            // Signal frontend immediately so it can show the skeleton
+            sse({ t: 'img', status: 'generating' })
+
+            const imgResult = await handleImageToolCall(tc.args, {
+              uid,
+              isLoggedIn,
+              isPremium,
+              imageBase64,
+              lastGeneratedImageUrl,
+              mode,
+              threadId,
+              userProfile,
+              styleMemory: styleMemory ?? undefined,
+              preferredAspectRatio,
+              vibeTitle,
+              vibeDescriptors,
+              signal: streamAbort.signal,
+              onPartialImage: (partialB64: string) => {
+                if (!streamAbort.signal.aborted) {
+                  sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
+                }
+              },
+            })
+
+            if (streamAbort.signal.aborted) {
+              console.info('[chatController] Client disconnected during image generation, discarding results')
+              if (!res.writableEnded) res.end()
+              return
+            }
+
+            toolActions.push(imgResult.action)
+            imageUrls = imgResult.imageUrls
+            imageToolStyleMemory = imgResult.styleMemory
+            toolResults.push({ id: tc.id, result: imgResult.result })
+            for (const u of imgResult.imageUrls ?? []) {
+              if (typeof u === 'string' && /^https?:\/\//i.test(u) && !turnImageUrls.includes(u)) {
+                turnImageUrls.push(u)
+              }
+            }
+            continue
           }
 
-          toolActions.push(imgResult.action)
-          imageUrls = imgResult.imageUrls
-          imageToolStyleMemory = imgResult.styleMemory
-          toolResults.push({ id: tc.id, result: imgResult.result })
-          continue
+          // Planner tools (logged-in only)
+          if (!isLoggedIn) continue
+
+          const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium, undefined, { turnImageUrls })
+          toolActions.push(outcome.action)
+
+          if (outcome.result === 'STORAGE_LIMIT_REACHED') {
+            const limitMsg = "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!"
+            sse({ t: 'c', v: limitMsg })
+            sse({ t: 'd', text: limitMsg, toolActions, mode, detectedLanguage, audioUrl: null, imageUrl: null, imageUrls: [] })
+            res.end()
+            storageLimitHit = true
+            break
+          }
+
+          toolResults.push({ id: tc.id, result: outcome.result })
         }
 
-        // Planner tools (logged-in only)
-        if (!isLoggedIn) continue
-
-        const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium)
-        toolActions.push(outcome.action)
-
-        if (outcome.result === 'STORAGE_LIMIT_REACHED') {
-          const limitMsg = "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!"
-          sse({ t: 'c', v: limitMsg })
-          sse({ t: 'd', text: limitMsg, toolActions, mode, detectedLanguage, audioUrl: null, imageUrl: null, imageUrls: [] })
-          res.end(); return
+        if (storageLimitHit) return
+        if (streamAbort.signal.aborted) {
+          if (!res.writableEnded) res.end()
+          return
         }
 
-        toolResults.push({ id: tc.id, result: outcome.result })
-      }
+        priorRounds.push({ toolCalls: orderedCalls, toolResults })
+        pendingToolCalls = []
 
-      // Second pass: stream LLM response with tool results
-      if (toolResults.length > 0) {
-        for await (const chunk of streamCallAzureAIWithToolResults(history, englishText, systemPrompt, firstPassToolCalls, toolResults)) {
-          sse({ t: 'c', v: chunk })
-          fullText += chunk
+        // Run the next pass. If this is the final allowed round, omit tools so
+        // the LLM is forced to emit a textual reply instead of looping further.
+        const allowMoreTools = round < MAX_TOOL_ROUNDS - 1
+        let nextRoundToolCalls: typeof firstPassToolCalls = []
+
+        for await (const event of streamCallAzureAIWithToolResults(
+          effectiveHistory,
+          userMessageForLLM,
+          systemPrompt,
+          priorRounds,
+          allowMoreTools ? tools : undefined,
+          temperature,
+        )) {
+          if (event.type === 'chunk') {
+            sse({ t: 'c', v: event.text })
+            fullText += event.text
+          } else {
+            nextRoundToolCalls = event.toolCalls
+          }
+        }
+
+        if (nextRoundToolCalls.length > 0) {
+          // The LLM wants another round — wipe the partial text it streamed
+          // alongside the tool calls (typically an "I'll save this next" line
+          // that becomes redundant once the save actually happens).
+          fullText = ''
+          pendingToolCalls = nextRoundToolCalls
         }
       }
     }

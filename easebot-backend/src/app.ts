@@ -7,8 +7,10 @@ import imageRouter from './routes/image'
 import checklistsRouter from './routes/checklists'
 import notesRouter from './routes/notes'
 import accountRouter from './routes/account'
+import authRouter from './routes/auth'
 import ttsRouter from './routes/tts'
 import paymentRouter from './routes/payment'
+import feedbackRouter from './routes/feedbackRoutes'
 import healthRouter from './routes/health'
 import { getSpeechToken } from './controllers/speechTokenController'
 import { apiRateLimiter, imageRateLimiter } from './middleware/rateLimiter'
@@ -80,8 +82,10 @@ const mountRoutes = (prefix: string): void => {
   app.use(`${prefix}/checklists`, checklistsRouter)
   app.use(`${prefix}/notes`, notesRouter)
   app.use(`${prefix}/account`, accountRouter)
+  app.use(`${prefix}/auth`, authRouter)
   app.use(`${prefix}/tts`, ttsRouter)
   app.use(`${prefix}/payment`, paymentRouter)
+  app.use(`${prefix}/feedback`, feedbackRouter)
   app.get(`${prefix}/speech-token`, getSpeechToken)
 }
 

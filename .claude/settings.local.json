@@ -142,7 +142,26 @@
       "Bash(xargs kill *)",
       "Bash(xxd -l 44 /private/tmp/test-tts.wav)",
       "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
-      "Bash(grep -E \"\\\\.\\(ts|js|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|js|tsx\\)$\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(echo \"---exit:$?---\")",
+      "Bash(nohup npm *)",
+      "Bash(grep -oE '.{0,40}0\\\\.0\\\\.1.{0,40}' /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/dist/assets/Index-DE6ZPnJB.js)",
+      "Bash(grep -oE '.{0,60}\"0\\\\.0\\\\.1\".{0,60}' /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/dist/assets/Index-BBp4cwl-.js)",
+      "Bash(echo \"---exit $?---\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/node_modules/.bin/tsc --noEmit -p /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat)",
+      "Bash(echo \"---EXIT: $?\")",
+      "Bash(/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/node_modules/.bin/tsc --noEmit -p /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/tsconfig.app.json)",
+      "Bash(echo \"---exit: $?\")",
+      "Bash(echo \"---EXIT $?\")",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('scripts:', list\\(p.get\\('scripts',{}\\).keys\\(\\)\\)\\); print\\('playwright:', 'playwright' in \\(list\\(p.get\\('dependencies',{}\\).keys\\(\\)\\)+list\\(p.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\\)\")",
+      "Bash(ps -p 7334 -o command=)",
+      "Bash(python3 -c \"import json,sys; p=json.load\\(sys.stdin\\); print\\('scripts:', list\\(p.get\\('scripts',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(echo \"---BACKEND EXIT $?---\")",
+      "Bash(echo \"---FRONTEND EXIT $?---\")",
+      "Bash(echo \"---EXIT $?---\")",
+      "Bash(wait)"
     ]
   }
 }

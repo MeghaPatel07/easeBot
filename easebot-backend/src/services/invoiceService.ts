@@ -29,7 +29,7 @@ import {
 } from 'firebase/firestore'
 import PDFDocument from 'pdfkit'
 import { db } from '../lib/firebase'
-import { sendEmailNotification } from './emailService'
+import { sendEmailNotification, buildInvoiceEmail } from './emailService'
 import { emit } from '../lib/observability'
 
 export interface InvoiceJob {
@@ -351,12 +351,21 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
   const email = p.buyer?.email
   if (email) {
     try {
-      await sendEmailNotification({
-        to: email,
-        subject: `Your Easebot invoice ${invoiceNumber}`,
-        html: `<p>Your invoice <strong>${invoiceNumber}</strong> is attached (download from the Billing tab).</p><p>Amount: ${p.currency} ${Number(p.amountLocal).toFixed(2)}</p><p>Per terms §6.5, no refunds.</p>`,
-        text: `Invoice ${invoiceNumber}\nAmount: ${p.currency} ${Number(p.amountLocal).toFixed(2)}\n\nDownload from the Billing tab in Settings.\nPer terms §6.5, no refunds.`,
+      const paidAtIso = p.paidAt?.toDate
+        ? p.paidAt.toDate().toISOString()
+        : new Date().toISOString()
+      const { subject, html, text } = buildInvoiceEmail({
+        recipientName: p.buyer?.firstname ?? null,
+        invoiceNumber,
+        plan: p.plan,
+        cycle: p.cycle,
+        amountLocal: Number(p.amountLocal),
+        currency: p.currency,
+        txnid: p.txnid,
+        paidAtIso,
+        legalEntityName: LEGAL_ENTITY_NAME,
       })
+      await sendEmailNotification({ to: email, subject, html, text })
     } catch (err) {
       console.warn('[invoiceService] email dispatch failed', err)
     }

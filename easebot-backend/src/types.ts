@@ -1,6 +1,11 @@
 // Disabled: 'therapist' | 'consultant' removed per EXECUTION_PLAN §0 guardrail #7
 export type Mode = 'planner' | 'stylist' | 'knowledge' | 'assistant'
 
+// Re-export so consumers of `types` have the attachment shape alongside
+// ChatPayload without importing a second module.
+export type { ChatAttachment, ChatAttachmentKind } from './types/chatAttachments'
+import type { ChatAttachment as _ChatAttachment } from './types/chatAttachments'
+
 export interface ToneSettings {
   warm?: number
   analytical?: number
@@ -37,10 +42,13 @@ export interface ChatPayload {
   preferredAspectRatio?: '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
   vibeTitle?: string
   vibeDescriptors?: string[]
+  // Structured context the user explicitly attached to this message (e.g.
+  // "Attach to chat" on a saved note). Validated per-item in the controller.
+  attachments?: _ChatAttachment[]
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'create_reminder' | 'generate_image' | 'create_note' | 'create_timeline_event'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'create_reminder' | 'generate_image' | 'create_note' | 'append_to_note' | 'create_timeline_event'
   checklistId?: string
   itemId?: string
   checklistTitle?: string
@@ -53,6 +61,9 @@ export interface ToolAction {
   noteTitle?: string
   timelineEventId?: string
   timelineEventTitle?: string
+  reminderId?: string
+  reminderTitle?: string
+  blocked?: 'free_limit' | 'no_auth'
 }
 
 export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'

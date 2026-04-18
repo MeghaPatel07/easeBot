@@ -163,89 +163,140 @@ export async function* streamCallAzureAI(
 }
 
 /**
- * Stream the second-pass call (after tool execution). Yields text chunks only.
+ * One pass in the assistant→tools→assistant loop. Replays the prior assistant
+ * tool_calls + tool results, then optionally allows the LLM to issue another
+ * round of tool calls. Yields chunk events as they arrive and a final 'done'
+ * event with any new tool calls + usage.
  */
 export async function* streamCallAzureAIWithToolResults(
   history: HistoryMessage[],
   userMessage: string,
   systemPrompt: string,
-  assistantToolCalls: { id: string; name: string; args: Record<string, any> }[],
-  toolResults: { id: string; result: string }[]
-): AsyncGenerator<string> {
+  priorRounds: { toolCalls: { id: string; name: string; args: Record<string, any> }[]; toolResults: { id: string; result: string }[] }[],
+  tools?: ChatCompletionTool[],
+  temperature: number = 0.7
+): AsyncGenerator<StreamEvent> {
   const client = getClient()
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history,
     { role: 'user', content: userMessage },
-    {
+  ]
+
+  for (const round of priorRounds) {
+    messages.push({
       role: 'assistant',
       content: null,
-      tool_calls: assistantToolCalls.map(tc => ({
+      tool_calls: round.toolCalls.map(tc => ({
         id: tc.id,
         type: 'function' as const,
         function: { name: tc.name, arguments: JSON.stringify(tc.args) },
       })),
-    },
-    ...toolResults.map(r => ({
-      role: 'tool' as const,
-      tool_call_id: r.id,
-      content: r.result,
-    })),
-  ]
+    })
+    for (const r of round.toolResults) {
+      messages.push({ role: 'tool' as const, tool_call_id: r.id, content: r.result })
+    }
+  }
 
   const stream = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
     max_tokens: 4096,
-    temperature: 0.7,
+    temperature,
     stream: true,
+    stream_options: { include_usage: true },
+    ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
   })
 
+  const tcMap: Record<number, { id: string; name: string; arguments: string }> = {}
+  let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
+
   for await (const raw of stream) {
-    const delta = raw.choices[0]?.delta?.content
-    if (delta) yield delta
+    const delta = raw.choices[0]?.delta
+    if (delta?.content) {
+      yield { type: 'chunk', text: delta.content }
+    }
+    if (delta?.tool_calls) {
+      for (const tc of delta.tool_calls) {
+        if (!tcMap[tc.index]) tcMap[tc.index] = { id: '', name: '', arguments: '' }
+        if (tc.id) tcMap[tc.index].id = tc.id
+        if (tc.function?.name) tcMap[tc.index].name += tc.function.name
+        if (tc.function?.arguments) tcMap[tc.index].arguments += tc.function.arguments
+      }
+    }
+    if (raw.usage) {
+      streamUsage = {
+        promptTokens: raw.usage.prompt_tokens,
+        completionTokens: raw.usage.completion_tokens,
+        totalTokens: raw.usage.total_tokens,
+      }
+    }
   }
+
+  const toolCalls = Object.values(tcMap).map(tc => ({
+    id: tc.id,
+    name: tc.name,
+    args: (() => { try { return JSON.parse(tc.arguments) } catch { return {} } })(),
+  }))
+
+  yield { type: 'done', toolCalls, usage: streamUsage }
 }
 
 /**
- * Second-pass call: feeds tool results back to get the final user-facing reply.
+ * Non-streaming variant of the second-pass call. Allows continued tool calls.
  */
 export async function callAzureAIWithToolResults(
   history: HistoryMessage[],
   userMessage: string,
   systemPrompt: string,
-  assistantToolCalls: { id: string; name: string; args: Record<string, any> }[],
-  toolResults: { id: string; result: string }[]
-): Promise<string> {
+  priorRounds: { toolCalls: { id: string; name: string; args: Record<string, any> }[]; toolResults: { id: string; result: string }[] }[],
+  tools?: ChatCompletionTool[],
+  temperature: number = 0.7
+): Promise<AIResult> {
   const client = getClient()
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...history,
     { role: 'user', content: userMessage },
-    {
+  ]
+
+  for (const round of priorRounds) {
+    messages.push({
       role: 'assistant',
       content: null,
-      tool_calls: assistantToolCalls.map(tc => ({
+      tool_calls: round.toolCalls.map(tc => ({
         id: tc.id,
         type: 'function' as const,
         function: { name: tc.name, arguments: JSON.stringify(tc.args) },
       })),
-    },
-    ...toolResults.map(r => ({
-      role: 'tool' as const,
-      tool_call_id: r.id,
-      content: r.result,
-    })),
-  ]
+    })
+    for (const r of round.toolResults) {
+      messages.push({ role: 'tool' as const, tool_call_id: r.id, content: r.result })
+    }
+  }
 
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages,
     max_tokens: 4096,
-    temperature: 0.7,
+    temperature,
+    ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
   })
 
-  return completion.choices[0]?.message?.content ?? ''
+  const message = completion.choices[0]?.message
+  const toolCalls = (message?.tool_calls ?? []).map(tc => ({
+    id: tc.id,
+    name: tc.function.name,
+    args: (() => { try { return JSON.parse(tc.function.arguments || '{}') } catch { return {} } })(),
+  }))
+
+  const usage = completion.usage ? {
+    promptTokens: completion.usage.prompt_tokens,
+    completionTokens: completion.usage.completion_tokens,
+    totalTokens: completion.usage.total_tokens,
+  } : null
+
+  return { text: message?.content ?? '', toolCalls, usage }
 }

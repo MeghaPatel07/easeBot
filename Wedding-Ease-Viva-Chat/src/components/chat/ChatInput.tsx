@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Send, Image, StopCircle, Mic, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
+  Send, Image as ImageIcon, StopCircle, Mic, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
+  Paperclip, FileText, ListChecks, Calendar, File as FileIcon,
 } from 'lucide-react';
 import { MODE_CONFIG, modeConfig, type ModeOrAuto } from './constants';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useChatAttachments, type ChatAttachment, type ChatAttachmentKind } from '@/contexts/ChatAttachmentsContext';
+import AttachmentPicker from './AttachmentPicker';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ChatInput — text input, image attachment, voice, mode selector, send/stop
@@ -10,7 +14,13 @@ import { MODE_CONFIG, modeConfig, type ModeOrAuto } from './constants';
 export interface ChatInputProps {
   inputText: string;
   onInputChange: (v: string) => void;
-  onSend: () => void;
+  /**
+   * Fired when the user hits send. Receives the current text plus any
+   * attachments currently staged in ChatAttachmentsContext. The parent owns
+   * clearing the tray (only after a successful send) so a failed send
+   * doesn't make the user re-pick attachments.
+   */
+  onSend: (text: string, attachments: ChatAttachment[]) => void;
   onStop?: () => void;
   isTyping: boolean;
   placeholder: string;
@@ -33,6 +43,17 @@ const MAX_HEIGHT_MOBILE = 160;    // ~8 lines
 const EXPANDED_MAX_DESKTOP = 480; // ~24 lines
 const EXPANDED_MAX_MOBILE = 360;  // ~18 lines
 
+// Icon lookup for attachment chips — matches ChatAttachmentKind discriminator.
+const ATTACHMENT_ICONS: Record<ChatAttachmentKind, React.ElementType> = {
+  note: FileText,
+  checklist: ListChecks,
+  timeline: Calendar,
+  image: ImageIcon,
+  file: FileIcon,
+};
+
+const truncate = (s: string, n = 30) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+
 const ChatInput = ({
   inputText, onInputChange, onSend, onStop, isTyping, placeholder,
   isRecording, voiceState, onMicClick, attachedImage, onAttachImage, onRemoveImage,
@@ -43,16 +64,17 @@ const ChatInput = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
-  // Track viewport size reactively
-  const [isMobileViewport, setIsMobileViewport] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < 640 : false
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onResize = () => setIsMobileViewport(window.innerWidth < 640);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  // Unified mobile breakpoint (768px) — was previously hardcoded 640px here
+  // while use-mobile.tsx used 768. One source of truth now.
+  const isMobileViewport = useIsMobile();
+
+  // Attachment tray — sourced from ChatAttachmentsContext. If the provider
+  // isn't mounted yet (Wave-1 state), the hook returns an empty array + no-op
+  // mutators so this just renders nothing. Note: we intentionally do NOT
+  // clear the tray from here — the parent (Index.tsx) clears it only after
+  // sendMessage resolves successfully, so a failed send keeps the user's
+  // attachments intact for retry.
+  const { attachments, removeAttachment } = useChatAttachments();
   const collapsedMax = isMobileViewport ? MAX_HEIGHT_MOBILE : MAX_HEIGHT_DESKTOP;
   const expandedMax = isMobileViewport ? EXPANDED_MAX_MOBILE : EXPANDED_MAX_DESKTOP;
   const maxHeight = isExpanded ? expandedMax : collapsedMax;
@@ -94,9 +116,20 @@ const ChatInput = ({
 
   const hasContent = inputText.trim().length > 0 || !!attachedImage;
 
-  // Shared mode-dropdown menu
+  // Forward the current text + staged attachments to the parent. The parent
+  // owns threading `attachments` into sendMessage() and clearing the tray on
+  // success — see rationale above.
+  const handleSend = () => {
+    onSend(inputText, attachments);
+  };
+
+  // Shared mode-dropdown menu. On mobile we render it slightly wider + center
+  // so it sits comfortably within the viewport above the chip. The parent
+  // wrapper deliberately avoids overflow:hidden so the absolute popover isn't
+  // clipped (this was the root cause of the "Auto shows nothing on mobile"
+  // bug — an ancestor `overflow-x-auto` was clipping the menu).
   const modeDropdownMenuJSX = showModeDropdown ? (
-    <div className="absolute bottom-full left-0 sm:left-auto sm:right-0 mb-2 w-[min(18rem,calc(100vw-2rem))] max-h-[60dvh] overflow-y-auto custom-scrollbar rounded-xl bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/40 py-1.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mb-2 w-[min(18rem,calc(100vw-2rem))] max-h-[60dvh] overflow-y-auto custom-scrollbar rounded-xl bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/40 py-1.5 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-150">
       {MODE_CONFIG.map(m => {
         const isActive = selectedMode === m.key;
         return (
@@ -121,9 +154,12 @@ const ChatInput = ({
 
   return (
     <div className="max-w-3xl mx-auto w-full">
-      {/* MOBILE-ONLY mode chip row, ABOVE the input */}
+      {/* MOBILE-ONLY mode chip row, ABOVE the input.
+          IMPORTANT: no overflow-x-auto on this wrapper — it would clip the
+          absolute-positioned dropdown above the chip and the sub-agent list
+          would render off-screen on mobile (previous bug). */}
       {onModeChange && (
-        <div className="flex sm:hidden items-center justify-center gap-2 mb-2 px-0.5 overflow-x-auto scrollbar-hide">
+        <div className="flex sm:hidden items-center justify-center gap-2 mb-2 px-0.5">
           <div className="relative flex-shrink-0" data-mode-dropdown>
             <button
               type="button"
@@ -139,20 +175,53 @@ const ChatInput = ({
         </div>
       )}
 
+      {/* Attachment chip row — appears above the textarea, below the mode chip.
+          Only renders when the tray has entries. Horizontal scroll is contained
+          to this row via overflow-x-auto + min-w-0; never leaks to the page. */}
+      {attachments.length > 0 && (
+        <div className="mb-2 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-1.5 w-max px-0.5">
+            {attachments.map(att => {
+              const Icon = ATTACHMENT_ICONS[att.kind] ?? FileIcon;
+              return (
+                <div
+                  key={`${att.kind}:${att.id}`}
+                  className="flex items-center gap-1.5 h-7 pl-2 pr-1 rounded-full bg-white/[0.08] border border-white/[0.12] text-xs text-white/80 flex-shrink-0 max-w-[220px]"
+                  title={att.preview ?? att.title}
+                >
+                  <Icon className="h-3.5 w-3.5 text-[#A17A63]/80 flex-shrink-0" />
+                  <span className="truncate">{truncate(att.title)}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(att.id, att.kind)}
+                    aria-label={`Remove ${att.title}`}
+                    className="h-5 w-5 flex items-center justify-center rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.1] transition-colors flex-shrink-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Mobile layout: [ + ]  [ input pill ]  ─────────────────────── */}
       {/* ── Desktop layout: [ input pill with + inside ]  ──────────────── */}
       <div className="flex items-end gap-2.5 sm:gap-0">
 
-        {/* + button — OUTSIDE pill on mobile, hidden on desktop (desktop has it inside).
-            Matches the input pill's collapsed height (44px) and border-radius (22px). */}
-        <button
-          type="button"
-          onClick={onAttachImage}
-          title="Attach image"
-          className="sm:hidden h-11 w-11 flex items-center justify-center rounded-[22px] border border-white/[0.12] bg-white/[0.08] backdrop-blur-xl text-white/55 hover:text-[#A17A63] hover:bg-white/[0.12] active:scale-95 transition-all flex-shrink-0 shadow-lg shadow-black/20"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
+        {/* Mobile attachment picker — OUTSIDE the pill on mobile, hidden on desktop.
+            Opens a menu: Note | Checklist | Timeline | Gallery | Upload image.
+            "Upload image" falls through to onAttachImage so the existing
+            device-file-picker flow is preserved. */}
+        <div className="sm:hidden flex-shrink-0">
+          <AttachmentPicker
+            onUploadImage={onAttachImage}
+            triggerClassName="h-11 w-11 flex items-center justify-center rounded-[22px] border border-white/[0.12] bg-white/[0.08] backdrop-blur-xl text-white/55 hover:text-[#A17A63] hover:bg-white/[0.12] active:scale-95 transition-all flex-shrink-0 shadow-lg shadow-black/20"
+            TriggerIcon={Plus}
+            triggerIconClassName="h-5 w-5"
+          />
+        </div>
 
         {/* ── Input pill ───────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 bg-white/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-white/[0.12] input-glow transition-shadow duration-300">
@@ -188,15 +257,17 @@ const ChatInput = ({
 
           {/* Main row: [attach(desktop)] [textarea] [mode(desktop)] [mic|send] */}
           <div className="flex items-end gap-0.5 sm:gap-1">
-            {/* Attach — Image icon DESKTOP ONLY (mobile has the external + circle) */}
-            <button
-              type="button"
-              onClick={onAttachImage}
-              title="Attach image"
-              className="hidden sm:flex h-9 w-9 items-center justify-center text-white/55 hover:text-[#A17A63] hover:bg-white/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0"
-            >
-              <Image className="h-4 w-4" />
-            </button>
+            {/* Attach picker — DESKTOP ONLY inside the pill. Mobile has the
+                external + circle above. Opens a 2-level menu: pick a category
+                (Note/Checklist/Timeline/Gallery/Upload) → pick an item. */}
+            <div className="hidden sm:flex flex-shrink-0">
+              <AttachmentPicker
+                onUploadImage={onAttachImage}
+                triggerClassName="h-9 w-9 flex items-center justify-center text-white/55 hover:text-[#A17A63] hover:bg-white/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0"
+                TriggerIcon={Paperclip}
+                triggerIconClassName="h-4 w-4"
+              />
+            </div>
 
             {/* Textarea — auto-grows with content */}
             <textarea
@@ -206,10 +277,14 @@ const ChatInput = ({
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  onSend();
+                  handleSend();
                 }
               }}
-              placeholder={placeholder}
+              placeholder={
+                voiceState === 'recording' ? 'Recording…'
+                : voiceState === 'transcribing' ? 'Transcribing…'
+                : placeholder
+              }
               readOnly={voiceState === 'recording' || voiceState === 'transcribing'}
               rows={1}
               className="flex-1 min-w-0 bg-transparent border-none text-white/90 py-2 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-white/40 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 min-h-[34px] sm:min-h-[36px]"
@@ -276,7 +351,7 @@ const ChatInput = ({
                 </button>
               ) : (
                 <button
-                  onClick={onSend}
+                  onClick={handleSend}
                   disabled={!hasContent || voiceState === 'recording' || voiceState === 'transcribing'}
                   title="Send"
                   className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center text-white rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
@@ -293,7 +368,7 @@ const ChatInput = ({
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
               </span>
               <span className="text-3xs font-semibold text-red-400 tracking-wide">
-                Listening{recordingDuration != null ? ` · ${Math.floor(recordingDuration / 60)}:${String(recordingDuration % 60).padStart(2, '0')}` : '...'}
+                Recording{recordingDuration != null ? ` · ${Math.floor(recordingDuration / 60)}:${String(recordingDuration % 60).padStart(2, '0')}` : '...'}
               </span>
               {onCancelRecording && (
                 <button type="button" onClick={onCancelRecording} className="text-3xs text-white/30 hover:text-white/50 ml-1 transition-colors">
@@ -305,7 +380,7 @@ const ChatInput = ({
           {voiceState === 'transcribing' && (
             <div className="flex items-center gap-2 pl-3 pb-1">
               <Loader2 className="h-2.5 w-2.5 text-amber-500 animate-spin" />
-              <span className="text-3xs font-semibold text-amber-500 tracking-wide">Processing speech...</span>
+              <span className="text-3xs font-semibold text-amber-500 tracking-wide">Transcribing…</span>
             </div>
           )}
         </div>

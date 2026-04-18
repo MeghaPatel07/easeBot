@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { sendEmailNotification, buildNoteInviteEmail } from './emailService'
+import { parseMarkdownBlocks } from '../utils/noteContent'
 
 // ---------------------------------------------------------------------------
 // Collection helpers
@@ -83,6 +84,146 @@ export async function getNote(noteId: string): Promise<any> {
 
 export async function updateNote(noteId: string, updates: any): Promise<void> {
   await updateDoc(noteRef(noteId), { ...updates, updatedAt: serverTimestamp() })
+}
+
+// Normalize for fuzzy note-title matching — lowercase, collapse whitespace.
+function normNoteTitle(s: string): string {
+  return (s || '').toLowerCase().trim().replace(/\s+/g, ' ')
+}
+
+/**
+ * Resolve a note the user owns (or collaborates on) by id OR by title.
+ * Mirrors resolveChecklist: exact id → exact title → startsWith → contains →
+ * fallback to the most recently updated note. Throws on ambiguity so the LLM
+ * can self-correct.
+ */
+export async function resolveNote(
+  userId: string,
+  idOrTitle: string | null | undefined,
+): Promise<{ id: string; data: any } | null> {
+  const q = (idOrTitle || '').trim()
+  if (q) {
+    // Fast path — exact id lookup.
+    const byId = await getDoc(noteRef(q))
+    if (byId.exists()) {
+      const d = byId.data() as any
+      if (!d.isDeleted && d.ownerId === userId) return { id: byId.id, data: d }
+    }
+  }
+
+  // Use an indexless lookup here (no orderBy) — we sort in-memory below
+  // anyway. Avoids depending on the (ownerId ASC, updatedAt DESC) composite
+  // index that the GET /api/notes list endpoint needs, so the tool works
+  // even if the index is still building.
+  const ownedSnap = await getDocs(query(notesCol(), where('ownerId', '==', userId)))
+  const notes = ownedSnap.docs.map((d) => d.data())
+  const live = notes.filter((n: any) => !n.isDeleted)
+  if (live.length === 0) return null
+
+  if (q) {
+    const normQ = normNoteTitle(q)
+    let exact: { id: string; data: any } | null = null
+    const startsWith: { id: string; data: any }[] = []
+    const contains: { id: string; data: any }[] = []
+    for (const n of live) {
+      const t = normNoteTitle(n.title || '')
+      if (t === normQ) { exact = { id: n.id, data: n }; break }
+      if (t.startsWith(normQ)) startsWith.push({ id: n.id, data: n })
+      if (t.includes(normQ)) contains.push({ id: n.id, data: n })
+    }
+    if (exact) return exact
+    if (startsWith.length === 1) return startsWith[0]
+    if (startsWith.length > 1) {
+      throw new Error(`Ambiguous note: multiple notes match '${q}'. Please specify by full title or id.`)
+    }
+    if (contains.length === 1) return contains[0]
+    if (contains.length > 1) {
+      throw new Error(`Ambiguous note: multiple notes match '${q}'. Please specify by full title or id.`)
+    }
+  }
+
+  // Fallback — most recently updated note. Firestore serverTimestamps may be
+  // absent on just-created docs, so compare defensively.
+  let latest: { id: string; data: any; at: number } | null = null
+  for (const n of live) {
+    const ts = n.updatedAt?.toMillis?.() ?? n.createdAt?.toMillis?.() ?? 0
+    if (!latest || ts > latest.at) latest = { id: n.id, data: n, at: ts }
+  }
+  return latest ? { id: latest.id, data: latest.data } : null
+}
+
+/**
+ * Append prose and/or images to an existing note's Tiptap content. Parses
+ * the stored content JSON, merges in new nodes, writes back via updateDoc.
+ * Falls back to a fresh doc if the existing content isn't a parseable Tiptap
+ * doc (should be rare — all create/update paths write the canonical shape).
+ */
+export async function appendToNote(
+  userId: string,
+  idOrTitle: string,
+  append: { body?: string | null; imageUrls?: string[] | null },
+): Promise<{ id: string; title: string; appendedImages: number }> {
+  const resolved = await resolveNote(userId, idOrTitle)
+  if (!resolved) throw new Error(`Note not found: "${idOrTitle}"`)
+
+  const images = (append.imageUrls ?? []).filter(
+    (u): u is string => typeof u === 'string' && u.length > 0,
+  )
+  const bodyText = (append.body ?? '').toString()
+  if (!bodyText.trim() && images.length === 0) {
+    throw new Error('Nothing to append — provide body text or image_urls.')
+  }
+
+  let doc: { type: string; content: any[] } = { type: 'doc', content: [] }
+  try {
+    const parsed = JSON.parse(resolved.data.content || '{}')
+    if (parsed && parsed.type === 'doc' && Array.isArray(parsed.content)) {
+      doc = parsed
+    }
+  } catch {
+    // Fall through — doc stays as blank { type: 'doc', content: [] }; we'll
+    // still prepend the existing raw content as plain text so nothing is lost.
+    const rawLegacy = (resolved.data.content ?? '').toString()
+    if (rawLegacy.trim()) {
+      doc.content.push({ type: 'paragraph', content: [{ type: 'text', text: rawLegacy }] })
+    }
+  }
+
+  // Append blocks derived from the new body — markdown-aware so headings,
+  // bold/italic, lists, etc. render as real Tiptap nodes rather than raw text.
+  const trimmed = bodyText.trim()
+  if (trimmed) {
+    const blocks = parseMarkdownBlocks(bodyText)
+    for (const b of blocks) doc.content.push(b)
+  }
+
+  for (const src of images) {
+    doc.content.push({ type: 'image', attrs: { src } })
+  }
+
+  const serialized = JSON.stringify(doc)
+  console.log('[notesService.appendToNote] writing', {
+    noteId: resolved.id,
+    title: resolved.data.title,
+    nodesBefore: Array.isArray(JSON.parse(resolved.data.content || '{"content":[]}')?.content)
+      ? JSON.parse(resolved.data.content).content.length
+      : null,
+    nodesAfter: doc.content.length,
+    appendedImages: images.length,
+    contentLen: serialized.length,
+  })
+  try {
+    await updateDoc(noteRef(resolved.id), {
+      content: serialized,
+      updatedAt: serverTimestamp(),
+      lastEditedBy: resolved.data.ownerEmail || null,
+    })
+  } catch (err) {
+    console.error('[notesService.appendToNote] Firestore updateDoc FAILED', err)
+    throw err
+  }
+
+  return { id: resolved.id, title: resolved.data.title || 'Note', appendedImages: images.length }
 }
 
 export async function softDeleteNote(noteId: string): Promise<void> {

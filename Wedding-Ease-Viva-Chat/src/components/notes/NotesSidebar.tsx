@@ -32,6 +32,7 @@ export interface NotesSidebarProps {
   onSelectNote: (noteId: string) => void;
   onCreateNote: (folderId?: string) => void;
   onDeleteNote: (noteId: string) => void;
+  onRenameNote?: (noteId: string, title: string) => void;
   onRestoreNote?: (noteId: string) => void;
   onDuplicateNote?: (noteId: string) => void;
   onCreateFolder: (name: string) => void;
@@ -91,7 +92,7 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 const NotesSidebar: React.FC<NotesSidebarProps> = ({
   notes, sharedNotes, folders, activeNoteId, searchQuery,
   onSearchChange, onSelectNote, onCreateNote, onDeleteNote,
-  onRestoreNote, onDuplicateNote,
+  onRenameNote, onRestoreNote, onDuplicateNote,
   onCreateFolder, onDeleteFolder, onRenameFolder, onMoveNote,
   onToggleFavorite, onBack, trashedCount,
 }) => {
@@ -101,6 +102,8 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   const [newFolderName, setNewFolderName] = useState('');
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [renameFolderValue, setRenameFolderValue] = useState('');
+  const [renamingNoteId, setRenamingNoteId] = useState<string | null>(null);
+  const [renameNoteValue, setRenameNoteValue] = useState('');
 
   const toggleFolderCollapse = (folderId: string) => {
     setCollapsedFolders(prev => {
@@ -121,6 +124,18 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
     const trimmed = renameFolderValue.trim();
     if (trimmed) onRenameFolder(folderId, trimmed);
     setRenamingFolderId(null);
+  };
+
+  const submitRenameNote = (noteId: string) => {
+    const trimmed = renameNoteValue.trim();
+    if (trimmed && onRenameNote) onRenameNote(noteId, trimmed);
+    setRenamingNoteId(null);
+    setRenameNoteValue('');
+  };
+
+  const beginRenameNote = (note: Note) => {
+    setRenamingNoteId(note.id);
+    setRenameNoteValue(note.title || '');
   };
 
   // ── Filtered notes ──────────────────────────────────────────────────────────
@@ -167,25 +182,47 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   const renderNoteItem = (note: Note) => (
     <div
       key={note.id}
-      className={`group relative flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all duration-200 ${
+      className={`group relative rounded-xl sm:rounded-lg transition-all duration-200 ${
         activeNoteId === note.id
-          ? 'bg-primary/15 border-l-2 border-primary'
-          : 'hover:bg-white/[0.06] border-l-2 border-transparent'
+          ? 'bg-primary/15 sm:border-l-2 sm:border-primary'
+          : 'hover:bg-white/[0.06] active:bg-white/[0.08] sm:border-l-2 sm:border-transparent'
       }`}
-      onClick={() => onSelectNote(note.id)}
     >
-      <span className="text-sm mt-0.5 flex-shrink-0">{note.icon || '📝'}</span>
+      {renamingNoteId === note.id ? (
+        <div className="flex items-center gap-2.5 sm:gap-2 px-3 sm:px-2 py-2.5 sm:py-1.5">
+          <span className="text-base sm:text-sm flex-shrink-0">{note.icon || '📝'}</span>
+          <input
+            autoFocus
+            onFocus={e => e.currentTarget.select()}
+            value={renameNoteValue}
+            onChange={e => setRenameNoteValue(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') submitRenameNote(note.id);
+              if (e.key === 'Escape') { setRenamingNoteId(null); setRenameNoteValue(''); }
+            }}
+            onBlur={() => submitRenameNote(note.id)}
+            className="flex-1 min-w-0 text-sm sm:text-xs px-2 py-1 rounded-lg bg-white/[0.08] border border-primary/40 outline-none focus:ring-1 focus:ring-primary/30 text-white/90"
+          />
+        </div>
+      ) : (
+      <>
+      <button
+        type="button"
+        onClick={() => onSelectNote(note.id)}
+        className="w-full text-left flex items-start gap-2.5 sm:gap-2 pl-3 sm:pl-2 pr-10 sm:pr-2 py-2.5 sm:py-1.5 rounded-xl sm:rounded-lg cursor-pointer"
+      >
+      <span className="text-base sm:text-sm mt-0.5 flex-shrink-0">{note.icon || '📝'}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-white/80 truncate font-medium">
+        <p className="text-sm sm:text-xs text-white/90 sm:text-white/80 truncate font-medium">
           {searchQuery
             ? highlightMatch(note.title || 'Untitled', searchQuery)
             : (note.title || 'Untitled')}
         </p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <Badge className={`text-[8px] px-1 py-0 h-3.5 border-0 ${CATEGORY_COLORS[note.category] || CATEGORY_COLORS.general}`}>
-            {note.category.replace('_', ' ')}
+        <div className="flex items-center gap-1.5 mt-1 sm:mt-0.5">
+          <Badge className={`text-[9px] sm:text-[8px] px-1.5 sm:px-1 py-0 h-4 sm:h-3.5 border-0 ${CATEGORY_COLORS[note.category || 'general'] || CATEGORY_COLORS.general}`}>
+            {(note.category || 'general').replace('_', ' ')}
           </Badge>
-          <span className="text-[9px] text-white/30">{timeAgo(note.updatedAt)}</span>
+          <span className="text-[10px] sm:text-[9px] text-white/40 sm:text-white/30">{timeAgo(note.updatedAt)}</span>
         </div>
 
         {/* Sharing info for "Shared with Me" view */}
@@ -204,13 +241,15 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
         )}
       </div>
       {note.favorited && !isSharedView && <Star className="h-3 w-3 text-primary/60 flex-shrink-0 mt-1 fill-primary/60" />}
+      </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-opacity text-white/50 z-10"
+            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 sm:p-1 rounded-lg sm:rounded hover:bg-white/10 active:bg-white/15 transition-opacity text-white/60 sm:text-white/50 z-10"
             onClick={e => e.stopPropagation()}
+            aria-label="Note actions"
           >
-            <MoreHorizontal className="h-3 w-3" />
+            <MoreHorizontal className="h-4 w-4 sm:h-3 sm:w-3" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-44 bg-[#1a1a1a]/95 backdrop-blur-sm border-white/10 text-white/80" align="end">
@@ -245,6 +284,14 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
             </DropdownMenuItem>
           )}
 
+          {/* Rename (not in trash) */}
+          {!isTrashView && onRenameNote && (
+            <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => beginRenameNote(note)}>
+              <Pencil className="mr-2 h-3.5 w-3.5" />
+              Rename
+            </DropdownMenuItem>
+          )}
+
           {/* Duplicate (not in trash) */}
           {!isTrashView && onDuplicateNote && (
             <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => onDuplicateNote(note.id)}>
@@ -268,6 +315,8 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </>
+      )}
     </div>
   );
 
@@ -276,39 +325,66 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   const favoritesCount = notes.filter(n => n.favorited && !n.isDeleted).length;
   const trashCount = trashedCount ?? notes.filter(n => n.isDeleted).length;
 
-  const filterButtons: { key: SidebarFilter; icon: React.ElementType; label: string; count: number }[] = [
-    { key: 'all', icon: FileText, label: 'All Notes', count: allNotesCount },
-    { key: 'favorites', icon: Star, label: 'Favorites', count: favoritesCount },
-    { key: 'shared', icon: Users, label: 'Shared with Me', count: sharedNotes.length },
+  const filterButtons: { key: SidebarFilter; icon: React.ElementType; label: string; mobileLabel: string; count: number }[] = [
+    { key: 'all', icon: FileText, label: 'All Notes', mobileLabel: 'All', count: allNotesCount },
+    { key: 'favorites', icon: Star, label: 'Favorites', mobileLabel: 'Favorites', count: favoritesCount },
+    { key: 'shared', icon: Users, label: 'Shared with Me', mobileLabel: 'Shared', count: sharedNotes.length },
     // { key: 'trash', icon: Trash2, label: 'Trash', count: trashCount },
   ];
 
   return (
     <div className="w-full sm:w-64 flex-shrink-0 bg-black/40 backdrop-blur-md sm:border-r border-white/10 flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-1 flex-shrink-0">
-        <Button onClick={onBack} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/70" title="Back">
+      <div className="flex items-center justify-between px-3 pt-3 pb-1 sm:pb-1 flex-shrink-0 gap-2">
+        <Button onClick={onBack} variant="ghost" className="h-9 w-9 sm:h-8 sm:w-8 rounded-full hover:bg-white/10 text-white/70 flex-shrink-0" title="Back">
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <Button onClick={() => onCreateNote()} variant="ghost" className="h-8 gap-1.5 rounded-lg hover:bg-white/10 text-white/60 text-xs px-2.5" title="New note">
-          <Plus className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">New Note</span>
+        <h2 className="sm:hidden flex-1 text-base font-headline text-white/90 text-center truncate">Notes</h2>
+        <Button onClick={() => onCreateNote()} variant="ghost" className="h-9 sm:h-8 gap-1.5 rounded-lg hover:bg-white/10 text-white/70 sm:text-white/60 text-xs px-2.5 flex-shrink-0" title="New note">
+          <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+          <span>New</span>
         </Button>
       </div>
 
       {/* Search */}
-      <div className="relative px-3 pb-2">
-        <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
+      <div className="relative px-3 pb-2 pt-1 sm:pt-0">
+        <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-3.5 w-3.5 sm:h-3 sm:w-3 text-white/40" />
         <Input
           placeholder="Search notes..."
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
-          className="pl-9 bg-white/[0.06] border-white/10 rounded-xl text-sm text-white/90 placeholder-white/35 h-8"
+          className="pl-9 bg-white/[0.06] border-white/10 rounded-xl text-sm text-white/90 placeholder-white/35 h-10 sm:h-8"
         />
       </div>
 
-      {/* Filters */}
-      <div className="px-3 pb-2 space-y-0.5 flex-shrink-0">
+      {/* Filters — mobile: horizontal scrollable pills (top slider). Desktop: vertical stack. */}
+      <div className="sm:hidden px-3 pb-2 flex-shrink-0 overflow-hidden">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-1 snap-x">
+          {filterButtons.map(({ key, icon: Icon, mobileLabel, count }) => {
+            const isActive = activeFilter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveFilter(key)}
+                className={`snap-start flex items-center gap-1 flex-shrink-0 px-2.5 py-1.5 rounded-full border text-xs transition-all duration-200 ${
+                  isActive
+                    ? 'bg-primary/15 border-primary/40 text-[#C6944A] font-medium'
+                    : 'bg-white/[0.04] border-white/[0.08] text-white/55 active:bg-white/[0.08]'
+                }`}
+              >
+                <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? 'text-[#C6944A]' : 'text-white/45'}`} />
+                <span className="whitespace-nowrap">{mobileLabel}</span>
+                {count > 0 && (
+                  <span className={`text-[10px] rounded-full px-1.5 py-0.5 font-medium ${
+                    isActive ? 'bg-primary/25 text-white' : 'bg-white/[0.08] text-white/45'
+                  }`}>{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="hidden sm:block px-3 pb-2 space-y-0.5 flex-shrink-0">
         {filterButtons.map(({ key, icon: Icon, label, count }) => {
           const isActive = activeFilter === key;
           return (

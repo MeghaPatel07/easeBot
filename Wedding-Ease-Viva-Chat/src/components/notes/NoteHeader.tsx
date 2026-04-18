@@ -2,8 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Star, Share2, MoreHorizontal, Trash2, Heart, Download,
   Loader2, Check, Eye, Save, Undo2, Redo2, Copy, Scissors, ClipboardPaste,
-  MessageSquare, Keyboard, ArrowLeft,
+  MessageSquare, Keyboard, ArrowLeft, MessageSquarePlus,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useChatAttachments } from '@/contexts/ChatAttachmentsContext';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -105,6 +108,48 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
   const [titleValue, setTitleValue] = useState(note?.title || '');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const { addAttachment } = useChatAttachments();
+
+  // ── "Attach to chat" ─────────────────────────────────────────────────────
+  // Stages this note in the ChatAttachmentsContext tray so the user can
+  // reference it from their next chat message. ChatInput.tsx (Wave 2, DEV-E)
+  // will render a chip above the textarea and serialize the payload into
+  // the chat request so the backend can inject the note content into the
+  // LLM prompt. Navigating to `/` gets the user to chat immediately.
+  const handleAttachToChat = () => {
+    if (!note) return;
+    // Build a short plain-text preview from the Tiptap JSON (falls back to
+    // raw string if parse fails). Keep it short — chips only need a hint.
+    let preview = '';
+    try {
+      const doc = JSON.parse(note.content);
+      const extractText = (n: Record<string, unknown>): string => {
+        if (n.text) return n.text as string;
+        if (Array.isArray(n.content)) {
+          return (n.content as Record<string, unknown>[])
+            .map(extractText)
+            .join(' ');
+        }
+        return '';
+      };
+      preview = extractText(doc).trim().slice(0, 200);
+    } catch {
+      preview = (note.content || '').slice(0, 200);
+    }
+
+    addAttachment({
+      kind: 'note',
+      id: note.id,
+      title: note.title || 'Untitled',
+      preview,
+      payload: { noteId: note.id, content: note.content },
+    });
+    toast.success('Note attached — ask Viva about it in chat');
+    // Fire-and-forget nav to chat. Using replace:false so the user can
+    // hit Back to return to the note if they change their mind.
+    navigate('/');
+  };
 
   useEffect(() => {
     setTitleValue(note?.title || '');
@@ -394,6 +439,26 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
             </TooltipContent>
           </Tooltip>
         )}
+
+        {/* Attach to chat — stages the note in ChatAttachmentsContext so
+            the user can ask Viva about it. Available to everyone with a
+            note loaded (incl. view-only / Free tier — reading a note into
+            chat doesn't require edit rights). */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={handleAttachToChat}
+              variant="outline"
+              className="h-10 sm:h-8 gap-1.5 rounded-lg border-primary/30 text-primary hover:bg-primary/10 text-xs px-3"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Attach to chat</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="bg-black/90 border-white/10 text-xs text-white">
+            Send this note to chat so Viva can read and reference it
+          </TooltipContent>
+        </Tooltip>
 
         {/* Share button */}
         {!readOnly && (

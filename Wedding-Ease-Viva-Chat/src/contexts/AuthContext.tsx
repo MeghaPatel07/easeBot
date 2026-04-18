@@ -19,11 +19,15 @@ import {
   sendPhoneOtp,
   verifyPhoneOtp,
   sendForgotPasswordEmail,
+  sendForgotPasswordOtp,
+  verifyForgotPasswordOtp,
+  updatePasswordByEmail,
   resendVerificationEmail,
   signUpWithPhoneCredential,
   completePhoneSignupAfterOtp,
   signInWithPhoneCredential,
   rotatePhoneCredentialAfterOtp,
+  markEmailUserVerifiedAfterPhoneOtp,
 } from '@/services/authService'
 import {
   sendWhatsAppOtp,
@@ -43,6 +47,9 @@ interface AuthContextValue {
   sendOtp: (phone: string, verifier: RecaptchaVerifier) => Promise<ConfirmationResult>
   verifyOtp: (result: ConfirmationResult, otp: string) => Promise<UserProfile>
   forgotPassword: (email: string) => Promise<void>
+  sendForgotPasswordOtp: (email: string) => Promise<void>
+  verifyForgotPasswordOtp: (email: string, otp: string) => Promise<{ resetToken: string }>
+  updatePasswordByEmail: (email: string, resetToken: string, newPassword: string) => Promise<void>
   resendVerification: (email: string, password: string) => Promise<void>
   // WhatsApp-OTP phone auth
   sendPhoneOtpWhatsApp: (e164: string, purpose: OtpPurpose) => Promise<void>
@@ -51,6 +58,7 @@ interface AuthContextValue {
   confirmPhoneSignup: (e164: string) => Promise<void>
   signInPhone: (e164: string) => Promise<User>
   rotatePhonePassword: (e164: string) => Promise<User>
+  markEmailUserVerifiedAfterPhoneOtp: (email: string, password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -250,6 +258,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sendOtp: handleSendOtp,
         verifyOtp: handleVerifyOtp,
         forgotPassword: sendForgotPasswordEmail,
+        sendForgotPasswordOtp,
+        verifyForgotPasswordOtp,
+        updatePasswordByEmail,
         resendVerification: resendVerificationEmail,
         sendPhoneOtpWhatsApp: handleSendPhoneOtpWhatsApp,
         verifyPhoneOtpWhatsApp: handleVerifyPhoneOtpWhatsApp,
@@ -257,6 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         confirmPhoneSignup: handleConfirmPhoneSignup,
         signInPhone: handleSignInPhone,
         rotatePhonePassword: handleRotatePhonePassword,
+        markEmailUserVerifiedAfterPhoneOtp,
       }}
     >
       {children}

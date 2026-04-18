@@ -227,7 +227,7 @@ EaseBot is a vertical AI wedding planning chatbot with a rich feature set: multi
 | **Title tag is static** | MEDIUM | All pages show "EaseBot AI - Your Personal Wedding Planning Assistant". No per-page titles for Pricing, Terms, Privacy, etc. |
 | **No hreflang tags** | LOW | Multi-language support exists but no hreflang for search engines. |
 | **robots.txt has no sitemap reference** | MEDIUM | `robots.txt` exists but doesn't include `Sitemap:` directive. |
-| **No favicon variants** | LOW | Only `favicon.ico`. No apple-touch-icon, no 192/512 PNG for PWA. |
+| **No favicon variants** | LOW | Only `images/logo.png`. No apple-touch-icon, no 192/512 PNG for PWA. |
 
 ### 5.2 AEO (Answer Engine Optimization) Issues
 

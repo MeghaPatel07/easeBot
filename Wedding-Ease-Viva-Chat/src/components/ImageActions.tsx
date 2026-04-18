@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Download, Share2, Bookmark, Check, Loader2, Copy, Link, X, Trash2 } from 'lucide-react'
+import { Download, Share2, Bookmark, Check, Loader2, Copy, Link, X, Trash2, MessageSquarePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -9,6 +9,10 @@ interface ImageActionsProps {
   onSaveToGallery?: () => void
   isSaved?: boolean
   onDelete?: () => void
+  /** Stage this image as a chat attachment so the user can reference it
+   *  in their next message to Viva. When provided, renders a
+   *  MessageSquarePlus action button alongside the other actions. */
+  onAttachToChat?: () => void
   /** 'overlay' (default): absolute positioned, hover-reveal on desktop.
    *  'preview': inline flex, always visible, larger buttons — for fullscreen lightbox. */
   variant?: 'overlay' | 'preview'
@@ -60,7 +64,7 @@ const SHARE_PLATFORMS = [
   },
 ]
 
-export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, variant = 'overlay', isGuest }: ImageActionsProps) {
+export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onAttachToChat, variant = 'overlay', isGuest }: ImageActionsProps) {
   const [downloading, setDownloading] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -182,6 +186,22 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, var
           </TooltipTrigger>
           <TooltipContent side="top"><p>{imageCopied ? 'Copied!' : 'Copy image'}</p></TooltipContent>
         </Tooltip>
+
+        {/* Attach to chat — stages image as a reference for the next chat message */}
+        {onAttachToChat && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onAttachToChat() }}
+                className={variant === 'preview'
+                  ? 'h-9 w-9 p-0 rounded-full hover:bg-[#A17A63]/40 text-white'
+                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-[#A17A63]/70 text-white rounded-lg backdrop-blur-sm'
+                }>
+                <MessageSquarePlus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Attach to chat</p></TooltipContent>
+          </Tooltip>
+        )}
 
         {/* Share — hidden for guests */}
         {!isGuest && (

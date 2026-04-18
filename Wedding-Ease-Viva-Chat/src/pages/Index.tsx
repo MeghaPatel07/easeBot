@@ -4,7 +4,7 @@ import {
   Lock, ArrowLeft, CheckSquare,
   Bookmark, Image, ShoppingCart, DollarSign, ThumbsUp,
   Keyboard, BarChart3, Clock, Bell, Users, FileText,
-  X, Copy, Check, Link, Share2,
+  X, Copy, Check, Link, Share2, MessageSquareHeart, RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import SignUpModal from '@/components/auth/SignUpModal';
 import SignInModal from '@/components/auth/SignInModal';
 import { useChat, type Message } from '@/hooks/useChat';
+import { useKnownArtifactIds } from '@/hooks/useKnownArtifactIds';
+import { useChatAttachments, type ChatAttachment } from '@/contexts/ChatAttachmentsContext';
 import { useVoice } from '@/hooks/useVoice';
 import { updatePreferredLanguage } from '@/services/authService';
 import { searchAllMessages, createSharedChat, type SearchResult } from '@/services/chatService';
@@ -28,6 +30,7 @@ import NotesView from '@/components/notes/NotesView';
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
 import InvitePartner from '@/components/InvitePartner';
+import FeedbackDialog from '@/components/FeedbackDialog';
 // Legacy SettingsModal is no longer rendered (Sprint 4, Hana — Marcus QA M-8).
 // SettingsShell is the canonical surface. The file is intentionally not deleted
 // because other codepaths / translations may still reference its exports.
@@ -41,6 +44,7 @@ import { getVoicePreset } from '@/services/voicePresets';
 import { getLocalVoiceId } from '@/services/settingsService';
 import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
 import chatbotBg from '@/assets/images/chatbot background.avif';
+import logoImg from '@/assets/images/logo.png';
 
 // ── Extracted components ────────────────────────────────────────────────────
 import ChatSidebar, { type SidebarView } from '@/components/chat/ChatSidebar';
@@ -139,6 +143,8 @@ const Index = () => {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [preferredLang, setPreferredLang] = useState<string>('auto');
   const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
+  // Homepage-accessible feedback entry (DEV-B's FeedbackDialog). Guests allowed.
+  const [homeFeedbackOpen, setHomeFeedbackOpen] = useState(false);
 
   // ── Sidebar view from URL ─────────────────────────────────────────────────
   const VALID_VIEWS = new Set<SidebarView>(['gallery', 'images', 'planner', 'liked', 'reminders', 'budget', 'shopping', 'saved-items', 'timeline', 'progress', 'notifications', 'collaborate', 'moodboard', 'notes']);
@@ -189,6 +195,13 @@ const Index = () => {
     if (!user) { setTimelineEvents([]); return; }
     return subscribeToTimelineEvents(user.uid, setTimelineEvents);
   }, [user?.uid]);
+
+  // Live id-sets of the user's artifacts (notes / checklists / timeline /
+  // gallery images). ChatMessages uses these to decide whether a message's
+  // attached-artifact chip is still clickable or should render as "Deleted
+  // artifact". Guest users get empty sets — their messages never have
+  // attachments anyway.
+  const knownArtifactIds = useKnownArtifactIds(user?.uid ?? null);
 
   // ── Scroll to + highlight a specific message ─────────────────────────────
   useEffect(() => {
@@ -303,8 +316,19 @@ const Index = () => {
   // True when the guest has exhausted their 3 image generations.
   const guestImageLimitReached = !user && guestImageCountRef.current >= GUEST_IMAGE_LIMIT;
 
-  const handleSendMessage = () => {
-    const text = inputText.trim();
+  // Attachments tray — owned by ChatAttachmentsContext, staged from Notes /
+  // Checklists / Timeline surfaces via "Attach to chat". We clear the tray
+  // only AFTER sendMessage resolves so a failed network call preserves the
+  // user's selected attachments for retry. Note: attachments are request-
+  // scoped (not thread-scoped) — regenerate / retry / continue do NOT
+  // auto-re-attach; users must explicitly re-stage if desired.
+  const { attachments: stagedAttachments, clearAttachments } = useChatAttachments();
+
+  const handleSendMessage = (incomingText?: string, incomingAttachments?: ChatAttachment[]) => {
+    // ChatInput passes (text, attachments); older call sites (if any) can
+    // call with no args and we fall back to the inputText state + staged tray.
+    const rawText = incomingText !== undefined ? incomingText : inputText;
+    const text = rawText.trim();
     if (!text && !attachedImage) return;
     if (!checkAndBumpGuestCount()) return;
     setInputText('');
@@ -314,13 +338,22 @@ const Index = () => {
     const imgBase64 = attachedImage?.base64;
     const imgMime = attachedImage?.mimeType;
     setAttachedImage(null);
-    sendMessage(text || 'Describe this image', {
+    const attachments = incomingAttachments ?? stagedAttachments;
+    const sendPromise = sendMessage(text || 'Describe this image', {
       mode,
       language: lang,
       imageBase64: imgBase64,
       imageMimeType: imgMime,
+      ...(attachments.length > 0 ? { attachments } : {}),
       ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
     });
+    // Clear the tray only on success — if the send throws, the user should
+    // be able to retry with the same staged artifacts.
+    if (attachments.length > 0) {
+      Promise.resolve(sendPromise)
+        .then(() => clearAttachments())
+        .catch(() => { /* keep attachments staged so the user can retry */ });
+    }
   };
 
   const handleMicClick = async () => {
@@ -700,7 +733,7 @@ const Index = () => {
   }, [user]);
 
   const occasions = [
-    'Engagement', 'Haldi', 'Mhendi', 'Sangeet', 'Cocktail', 'Wedding',
+    'Engagement', 'Haldi', 'Mehendi', 'Sangeet', 'Cocktail', 'Wedding',
     'Reception', 'Baraat', 'Vidaai', 'Roka', 'Sagai', 'Ganesh Puja',
     'Bachelor Party', 'Bridal Shower', 'Destination', 'Festive',
   ];
@@ -726,11 +759,11 @@ const Index = () => {
       { icon: Lightbulb, text: 'Get inspiration', action: 'Give me haldi decoration and theme ideas' },
       { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom haldi ceremony' },
     ],
-    Mhendi: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my mehndi ceremony timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect mehndi outfit and style' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me mehndi decoration and design ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom mehndi ceremony' },
+    Mehendi: [
+      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my mehendi ceremony timeline' },
+      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect mehendi outfit and style' },
+      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me mehendi decoration and design ideas' },
+      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom mehendi ceremony' },
     ],
     Cocktail: [
       { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my cocktail party timeline' },
@@ -941,6 +974,10 @@ const Index = () => {
     <>
       <SignInModal open={showSignInModal} onOpenChange={setShowSignInModal} onSwitchToSignUp={(email) => { setSignUpPrefillEmail(email); setShowSignUpModal(true); }} />
       <SignUpModal open={showSignUpModal} onOpenChange={setShowSignUpModal} onSwitchToSignIn={() => setShowSignInModal(true)} initialEmail={signUpPrefillEmail} />
+      {/* Homepage feedback dialog — opened from the landing-page "Send feedback"
+          entry. Sidebar has its own FeedbackDialog instance; keeping them
+          independent avoids a shared-state refactor across owned-files. */}
+      <FeedbackDialog open={homeFeedbackOpen} onOpenChange={setHomeFeedbackOpen} />
     </>
   );
 
@@ -1247,6 +1284,7 @@ const Index = () => {
             profile={profile}
             activeThreadId={activeThreadId}
             activeUserId={activeUserId}
+            knownArtifactIds={knownArtifactIds}
             highlightedMessageId={highlightedMessageId}
             hasMoreMessages={hasMoreMessages}
             loadingMoreMessages={loadingMoreMessages}
@@ -1346,12 +1384,12 @@ const Index = () => {
             Mobile: top-aligned, tight spacing — everything must fit on a
             375×667 iPhone SE without scrolling. Desktop keeps the airy
             center-aligned hero. */}
-        <div className="flex-1 flex flex-col items-center justify-center px-3 pt-3 pb-2 sm:p-6 noise-overlay relative floral-overlay overflow-y-auto">
+        <div className="flex-1 flex flex-col items-center justify-center px-3 pt-3 pb-2 sm:p-6 noise-overlay relative floral-overlay overflow-y-auto overflow-x-hidden">
           <div className="text-center max-w-3xl mx-auto w-full relative z-10 flex flex-col items-center">
             <div className="relative z-10 w-full">
               {/* Bot logo */}
               <div className="mx-auto mb-2 sm:mb-4">
-                <img src="/images/logo.png" alt="TheWeddingBot" className="h-14 sm:h-20 object-contain mx-auto" />
+                <img src={logoImg} alt="TheWeddingBot" className="h-20 sm:h-30 object-contain mx-auto" />
               </div>
               {/* <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#A17A63]/60 font-label mb-6 text-center">Your Wedding Concierge</p> */}
 
@@ -1388,7 +1426,22 @@ const Index = () => {
 
               {/* "Not sure what you need?" banner — desktop only (mobile users have
                   the prompt cards above which already cover this) */}
-            
+
+              {/* Homepage feedback entry — visible to guests and signed-in users.
+                  Opens DEV-B's FeedbackDialog. Placed in the empty-state so
+                  users can flag bugs/ideas without hunting through the sidebar. */}
+              <div className="flex items-center justify-center gap-1.5 text-2xs sm:text-xs text-white/50 mb-2">
+                <MessageSquareHeart className="h-3.5 w-3.5 text-primary/70" />
+                <span>Have feedback?</span>
+                <button
+                  type="button"
+                  onClick={() => setHomeFeedbackOpen(true)}
+                  className="font-semibold text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+                >
+                  Send it here
+                </button>
+              </div>
+
               <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
             </div>
           </div>
@@ -1398,9 +1451,32 @@ const Index = () => {
             and chat pages share one input position (no floating input in middle). */}
         <div className="flex-shrink-0 px-3 sm:px-6 pb-3 sm:pb-4 pt-2 relative z-10">
           <div className="max-w-3xl mx-auto w-full">
-            {/* Occasion chips — horizontal scroll */}
+            {/* Occasion chips — horizontal scroll. Leading reset button clears
+                the current occasion + mode selection back to the default state. */}
             <div className="overflow-x-scroll scrollbar-hide mb-2 min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="flex flex-nowrap gap-1.5 sm:gap-2 px-1 pb-1 w-max">
+              <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 px-1 pb-1 w-max">
+                {(() => {
+                  const hasSelection = selectedOccasion !== null || selectedMode !== 'auto';
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedOccasion(null);
+                        setSelectedMode('auto');
+                      }}
+                      disabled={!hasSelection}
+                      title={hasSelection ? 'Reset occasion and mode' : 'Nothing to reset'}
+                      aria-label="Reset occasion and mode"
+                      className={`rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 transition-all duration-200 border whitespace-nowrap flex-shrink-0 flex items-center justify-center gap-1 ${hasSelection
+                        ? 'bg-white/10 border-white/20 text-white/90 hover:bg-white/15 cursor-pointer'
+                        : 'bg-white/[0.03] border-white/[0.08] text-white/30 cursor-not-allowed'
+                        }`}
+                    >
+                      <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      <span className="sr-only sm:not-sr-only text-[11px] sm:text-xs font-medium">Reset</span>
+                    </button>
+                  );
+                })()}
                 {occasions.map((occ) => (
                   <button
                     key={occ}

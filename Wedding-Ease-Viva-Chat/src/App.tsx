@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ChatAttachmentsProvider } from "@/contexts/ChatAttachmentsContext";
 import LoadingScreen from "@/components/ui/loading-screen";
 import { CapHitBanner } from "@/components/pricing/CapHitBanner";
 import { useCanonical } from "@/hooks/useCanonical";
@@ -35,6 +36,7 @@ const App = () => (
 
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ChatAttachmentsProvider>
       <ThemeProvider>
       <TooltipProvider>
         <Toaster />
@@ -84,6 +86,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
       </ThemeProvider>
+      </ChatAttachmentsProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { X, ChevronLeft, ChevronRight, Sparkles, Image, Loader2, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Sparkles, Image, Loader2, Trash2, ZoomIn, ZoomOut, MessageSquarePlus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 import { ImageActions } from '@/components/ImageActions'
 import { getUserImages, deleteUserImage, type UserImage } from '@/services/galleryService'
+import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
 import type { GalleryFilter } from '@/types'
 
 interface GalleryViewProps {
@@ -15,9 +18,29 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
   const [loading, setLoading] = useState(true)
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
   const [scale, setScale] = useState(1)
+  const navigate = useNavigate()
+  const { addAttachment } = useChatAttachments()
+
+  // Stage the image as a reference in the chat attachment tray so the user
+  // can ask Viva about it from their next message. Closes the preview (if
+  // open) and routes to '/' so the ChatInput chip is immediately visible.
+  const handleAttachToChat = useCallback((img: UserImage, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    addAttachment({
+      kind: 'image',
+      id: img.id,
+      title: img.prompt?.slice(0, 60) || 'AI-generated image',
+      preview: img.prompt?.slice(0, 200),
+      payload: { imageId: img.id, url: img.url, prompt: img.prompt, mode: img.mode },
+    })
+    toast.success('Image attached — ask Viva about it in chat')
+    setSelectedIndex(null)
+    setScale(1)
+    navigate('/')
+  }, [addAttachment, navigate])
 
   // Fetch images from Firestore
-  useEffect(() => {
+  const refetchImages = useCallback(() => {
     let cancelled = false
     setLoading(true)
     getUserImages(userId, { filter, vibeId }).then(imgs => {
@@ -28,6 +51,16 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
     })
     return () => { cancelled = true }
   }, [userId, filter, vibeId])
+
+  useEffect(() => {
+    return refetchImages()
+  }, [refetchImages])
+
+  useEffect(() => {
+    const handler = () => { refetchImages() }
+    window.addEventListener('easebot:gallery-refresh', handler)
+    return () => window.removeEventListener('easebot:gallery-refresh', handler)
+  }, [refetchImages])
 
   // Keyboard navigation for preview
   const handleKeyDown = useCallback(
@@ -127,13 +160,23 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
                 {img.createdAt?.toDate?.().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) ?? ''}
               </p>
             </div>
-            {/* Delete button on hover */}
-            <button
-              onClick={(e) => handleDelete(img, e)}
-              className="absolute top-1.5 right-1.5 h-7 w-7 rounded-full bg-black/50 hover:bg-red-500/80 text-white/70 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            {/* Action buttons on hover (top-right): Attach to chat + Delete */}
+            <div className="absolute top-1.5 right-1.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
+              <button
+                onClick={(e) => handleAttachToChat(img, e)}
+                aria-label="Attach image to chat"
+                className="h-10 w-10 sm:h-7 sm:w-7 rounded-full bg-black/50 hover:bg-[#A17A63]/80 text-white/80 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <MessageSquarePlus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </button>
+              <button
+                onClick={(e) => handleDelete(img, e)}
+                aria-label="Delete image"
+                className="h-10 w-10 sm:h-7 sm:w-7 rounded-full bg-black/50 hover:bg-red-500/80 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </button>
+            </div>
           </button>
         ))}
       </div>
@@ -199,6 +242,7 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
             <ImageActions
               imageUrl={currentImage.url}
               onDelete={() => handleDelete(currentImage)}
+              onAttachToChat={() => handleAttachToChat(currentImage)}
               variant="preview"
             />
             {currentImage.prompt && (

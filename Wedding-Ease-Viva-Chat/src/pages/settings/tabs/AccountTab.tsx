@@ -382,6 +382,21 @@ export function AccountTab() {
   }
 
   // ── Connected accounts ────────────────────────────────────────────────────
+  // Primary sign-in provider (read-only), per feedback round 2: show a single
+  // clear "Signed in with X" line instead of contradictory "Not linked" rows.
+  const primaryProviderId = auth.currentUser?.providerData[0]?.providerId ?? null
+  const primaryProviderLabel = (() => {
+    switch (primaryProviderId) {
+      case 'google.com':
+        return 'Signed in with Google'
+      case 'password':
+        return 'Signed in with Email'
+      case 'phone':
+        return 'Signed in with Phone'
+      default:
+        return 'Signed in'
+    }
+  })()
   const [linkingGoogle, setLinkingGoogle] = useState(false)
   const handleLinkGoogle = async () => {
     if (linkingGoogle) return
@@ -687,36 +702,26 @@ export function AccountTab() {
           </div>
 
           <div className="flex flex-col gap-2">
+            {/* Primary provider — single clear line, no contradictory rows. */}
             <div className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-white/[0.04] border-0 px-3">
               <div className="flex items-center gap-2 text-sm text-white/90">
-                <span>Email &amp; password</span>
-                {hasPasswordProvider && (
-                  <Badge
-                    variant="secondary"
-                    className="bg-white/[0.06] text-white/90 border-0"
-                  >
-                    Linked
-                  </Badge>
-                )}
+                <span>{primaryProviderLabel}</span>
+                <Badge
+                  variant="secondary"
+                  className="bg-white/[0.06] text-white/90 border-0"
+                >
+                  <ShieldCheck aria-hidden="true" className="mr-1 h-3 w-3" />
+                  Active
+                </Badge>
               </div>
-              {!hasPasswordProvider && (
-                <span className="text-xs text-white/90">Not linked</span>
-              )}
             </div>
 
-            <div className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-white/[0.04] border-0 px-3">
-              <div className="flex items-center gap-2 text-sm text-white/90">
-                <span>Google</span>
-                {hasGoogleProvider && (
-                  <Badge
-                    variant="secondary"
-                    className="bg-white/[0.06] text-white/90 border-0"
-                  >
-                    Linked
-                  </Badge>
-                )}
-              </div>
-              {!hasGoogleProvider && (
+            {/* Only shown when actionable: a real Link-Google flow exists. */}
+            {!hasGoogleProvider && primaryProviderId !== 'google.com' && (
+              <div className="flex min-h-11 items-center justify-between gap-3 rounded-md bg-white/[0.04] border-0 px-3">
+                <div className="flex items-center gap-2 text-sm text-white/90">
+                  <span>Also sign in with Google</span>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -726,8 +731,8 @@ export function AccountTab() {
                 >
                   {linkingGoogle ? 'Linking…' : 'Link Google'}
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Sprint 4 (Kenji): Sign out of all devices. Non-destructive gray. */}

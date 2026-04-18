@@ -130,6 +130,7 @@ export default function NoteEditor({
   placeholder = "Start writing, or type '/' for commands...",
 }: NoteEditorProps) {
   const prevNoteIdRef = useRef(noteId);
+  const lastSyncedContentRef = useRef<string>(content);
   const onImageUploadRef = useRef(onImageUpload);
   onImageUploadRef.current = onImageUpload;
   const editor = useEditor({
@@ -199,14 +200,27 @@ export default function NoteEditor({
     },
   });
 
-  // Sync editor content when switching notes
+  // Sync editor content when switching notes, or when the content prop
+  // changes externally (e.g. a backend tool call appends to the open note via
+  // Firestore onSnapshot). We avoid stomping unsaved local edits by only
+  // re-syncing when the editor's current JSON matches the last content we
+  // synced from — i.e. no local divergence.
   useEffect(() => {
     if (!editor) return;
     if (prevNoteIdRef.current !== noteId) {
       prevNoteIdRef.current = noteId;
+      lastSyncedContentRef.current = content;
       const parsed = parseContent(content);
       editor.commands.setContent(parsed ?? { type: 'doc', content: [{ type: 'paragraph' }] });
+      return;
     }
+    if (content === lastSyncedContentRef.current) return;
+    const editorJson = JSON.stringify(editor.getJSON());
+    if (editorJson === lastSyncedContentRef.current) {
+      const parsed = parseContent(content);
+      if (parsed) editor.commands.setContent(parsed, false);
+    }
+    lastSyncedContentRef.current = content;
   }, [editor, noteId, content]);
 
   useEffect(() => {
