@@ -439,6 +439,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       if (typeof src === 'string' && BAD_HOSTS.some(h => src.includes(h))) {
                         return null;
                       }
+                      // Dedupe: if the URL is already rendered by the carousel below, skip inline.
+                      const carouselUrls = message.imageUrls ?? (message.imageUrl ? [message.imageUrl] : []);
+                      if (typeof src === 'string' && carouselUrls.includes(src)) {
+                        return null;
+                      }
                       return (
                         <img
                           src={src}

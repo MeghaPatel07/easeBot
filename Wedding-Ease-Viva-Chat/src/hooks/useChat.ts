@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { collection, query, where, getDocs, getDoc, doc, DocumentSnapshot } from 'firebase/firestore'
+import { toast } from 'sonner'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -470,6 +471,32 @@ export function useChat(): UseChatResult {
           }
         } else if (event.t === 'e') {
           throw new Error(event.msg)
+        } else {
+          // Defensive handling for tool-error signals Agent-A may emit on the SSE channel.
+          // Two shapes are tolerated:
+          //   1) top-level { t: 'tool_error', tool, errorCode, userFacing, message }
+          //   2) { t: 'tool_result', ok: false, tool, errorCode, userFacing, message }
+          const ev = event as unknown as {
+            t?: string
+            ok?: boolean
+            tool?: string
+            toolName?: string
+            errorCode?: string
+            userFacing?: string
+            message?: string
+          }
+          const isToolError =
+            ev.t === 'tool_error' || (ev.t === 'tool_result' && ev.ok === false)
+          if (isToolError) {
+            const tool = ev.tool ?? ev.toolName ?? ''
+            const description =
+              ev.userFacing || ev.message || 'Please try again in a moment.'
+            const isReminder = tool === 'save_reminder' || tool === 'create_reminder'
+            const title = isReminder
+              ? "Couldn't create reminder"
+              : `Couldn't complete ${tool || 'action'}`
+            toast.error(title, { description })
+          }
         }
       }
 

@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError, linkPendingGoogleCredential } from '@/services/authService'
 import type { AuthCredential } from 'firebase/auth'
 import PhoneInput, { toE164, type PhoneInputValue } from './PhoneInput'
+import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH, type PasswordIssue } from '@/utils/passwordPolicy'
 
 type Tab = 'email' | 'phone'
 type ForgotStep = 'email' | 'otp' | 'newpass' | 'success'
@@ -344,7 +345,8 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   async function handleFpResetPassword() {
     if (!fpNewPassword) { setError('Enter a new password'); return }
-    if (fpNewPassword.length < 6) { setError('Password must be at least 6 characters'); return }
+    const pw = validatePassword(fpNewPassword)
+    if (!pw.ok) { setError(pw.issues.map(describeIssue).join(' · ')); return }
     if (fpNewPassword !== fpConfirmPassword) { setError('Passwords do not match'); return }
     setError('')
     setLoading(true)
@@ -473,7 +475,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           value={digit}
                           onChange={e => handleFpOtpChange(i, e.target.value)}
                           onKeyDown={e => handleFpOtpKeyDown(i, e)}
-                          className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/90 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+                          className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-white/20 bg-white/[0.06] text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-white/[0.1] transition-all caret-primary"
                         />
                       ))}
                     </div>
@@ -529,7 +531,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           type={fpShowNewPass ? 'text' : 'password'}
                           value={fpNewPassword}
                           onChange={e => setFpNewPassword(e.target.value)}
-                          placeholder="Enter new password"
+                          placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
                           className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
                         />
                         <button
@@ -541,6 +543,50 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           {fpShowNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
+                      {fpNewPassword && (() => {
+                        const { score, issues } = validatePassword(fpNewPassword)
+                        const colors = ['bg-red-500', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500']
+                        const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong']
+                        const requirements: { key: PasswordIssue; label: string }[] = [
+                          { key: 'tooShort', label: `At least ${PASSWORD_MIN_LENGTH} characters` },
+                          { key: 'missingUpper', label: 'One uppercase letter' },
+                          { key: 'missingLower', label: 'One lowercase letter' },
+                          { key: 'missingDigit', label: 'One number' },
+                          { key: 'missingSymbol', label: 'One special character' },
+                        ]
+                        return (
+                          <div className="space-y-2 mt-1">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 flex gap-1">
+                                {[0, 1, 2, 3].map((i) => (
+                                  <div
+                                    key={i}
+                                    className={`h-1 flex-1 rounded-full transition-colors ${
+                                      i < score ? colors[score] : 'bg-white/10'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[10px] font-label uppercase tracking-widest text-white/40 w-16 text-right">
+                                {labels[score]}
+                              </span>
+                            </div>
+                            <ul className="space-y-1">
+                              {requirements.map(({ key, label }) => {
+                                const met = !issues.includes(key)
+                                return (
+                                  <li key={key} className={`text-[11px] flex items-center gap-1.5 transition-colors ${met ? 'text-green-400' : 'text-white/30'}`}>
+                                    <span className={`inline-block w-3 h-3 rounded-full border text-center leading-3 text-[8px] ${met ? 'border-green-400 bg-green-400/20' : 'border-white/20'}`}>
+                                      {met ? '✓' : ''}
+                                    </span>
+                                    {label}
+                                  </li>
+                                )
+                              })}
+                            </ul>
+                          </div>
+                        )
+                      })()}
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs text-white/50 ml-1">Confirm password</label>

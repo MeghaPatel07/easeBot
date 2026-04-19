@@ -43,7 +43,6 @@ import { addSavedItem } from '@/services/savedItemsService';
 import { getVoicePreset } from '@/services/voicePresets';
 import { getLocalVoiceId } from '@/services/settingsService';
 import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
-import chatbotBg from '@/assets/images/chatbot background.avif';
 import logoImg from '@/assets/images/logo.png';
 
 // ── Extracted components ────────────────────────────────────────────────────
@@ -81,7 +80,6 @@ const Index = () => {
   }, [lastToolActions]);
 
   const isExpanded = messages.length > 0;
-  const bgStyle = { '--bg-image': `url(${chatbotBg})` } as React.CSSProperties;
 
   const galleryImageCount = messages.reduce((count, msg) => {
     if (msg.imageUrls?.length) return count + msg.imageUrls.length;
@@ -162,7 +160,7 @@ const Index = () => {
     if (profile?.preferredLanguage) setPreferredLang(profile.preferredLanguage);
   }, [profile?.preferredLanguage]);
 
-  const { voiceState, isRecording, interimText, recordingDuration, error: voiceError, startRecording, stopRecording, cancelRecording, clearError: clearVoiceError } = useVoice();
+  const { voiceState, isRecording, interimText, recordingDuration, error: voiceError, amplitudes, startRecording, stopRecording, cancelRecording, clearError: clearVoiceError } = useVoice();
   const [voiceLanguage, setVoiceLanguage] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -613,7 +611,9 @@ const Index = () => {
       // responseLanguage stored on the message by the backend.
       const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en');
       console.log(`[TTS] Playing message ${message.id} in language: ${activeLang} (message.language=${message.language}, preferredLang=${preferredLang})`);
-      const audioUrl = await requestTTS({ text: message.text, voiceName, language: activeLang });
+      // Defense-in-depth: strip image markdown + bare URLs before handing text to TTS so the voice never reads out file paths.
+      const cleanText = message.text.replace(/!\[[^\]]*\]\([^)]+\)/g, '').replace(/https?:\/\/\S+/g, '').trim();
+      const audioUrl = await requestTTS({ text: cleanText, voiceName, language: activeLang });
       setTtsAudioUrls(prev => ({ ...prev, [message.id]: audioUrl }));
       setTtsActiveId(message.id);
     } catch (err) {
@@ -738,107 +738,56 @@ const Index = () => {
     'Bachelor Party', 'Bridal Shower', 'Destination', 'Festive',
   ];
 
-  // Quick prompts change based on selected occasion
-  const defaultActionButtons = [
-    { icon: Calendar, text: 'Plan my timeline', action: 'Help me create a wedding planning timeline' },
-    { icon: Heart, text: 'Find my style', action: 'Help me discover my wedding style' },
-    { icon: Lightbulb, text: 'Get inspiration', action: 'Give me trending wedding ideas' },
-    { icon: Sparkles, text: 'Create custom', action: 'Help me create a custom wedding plan' },
-  ];
+  // Locked 4-button quick-prompt set, covering the four intents the product
+  // is built around:
+  //   • What should I get → shopping + selection (outfits, jewellery,
+  //     accessories, gifts, favors, stationery). Works across all occasions.
+  //   • Help me plan      → timelines, events, logistics, coordination.
+  //   • Show me ideas     → inspiration, trends, styling, themes (discovery).
+  //   • Ask anything      → rituals, traditions, cultural knowledge, doubts.
+  //
+  // All four auto-scope to the currently selected occasion (Haldi, Mehendi,
+  // Sangeet, Reception, Baraat, etc.) — when none is selected, prompts
+  // default to the umbrella "wedding". Both guest and signed-in users see
+  // the same set; the LLM + guest-limitation suffix handle save-gating.
+  type ActionButton = { icon: typeof Calendar; text: string; action: string };
 
-  const occasionActionButtons: Record<string, { icon: typeof Calendar; text: string; action: string }[]> = {
-    Engagement: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my engagement ceremony timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect outfit for my engagement' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me engagement decoration and theme ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom engagement ceremony' },
-    ],
-    Haldi: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my haldi ceremony timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect haldi outfit and look' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me haldi decoration and theme ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom haldi ceremony' },
-    ],
-    Mehendi: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my mehendi ceremony timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect mehendi outfit and style' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me mehendi decoration and design ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom mehendi ceremony' },
-    ],
-    Cocktail: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my cocktail party timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect cocktail party outfit' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me cocktail party theme and decor ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom cocktail party' },
-    ],
-    Wedding: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my wedding day timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect wedding outfit and style' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me wedding decoration and theme ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan my custom dream wedding' },
-    ],
-    Sangeet: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my sangeet night timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect sangeet outfit and dance look' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me sangeet performance and decor ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom sangeet night' },
-    ],
-    Reception: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my wedding reception timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect reception outfit' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me reception decoration and theme ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a custom wedding reception' },
-    ],
-    Baraat: [
-      { icon: Calendar, text: 'Plan my timeline', action: 'Help me plan my baraat procession timeline' },
-      { icon: Heart, text: 'Find my style', action: 'Help me find the perfect baraat outfit for the groom' },
-      { icon: Lightbulb, text: 'Get inspiration', action: 'Give me baraat entry and decoration ideas' },
-      { icon: Sparkles, text: 'Create custom', action: 'Help me plan a grand baraat procession' },
-    ],
-  };
-
-  // Dynamic fallback for occasions not explicitly listed
-  const getOccasionButtons = (occasion: string) => {
-    if (occasionActionButtons[occasion]) return occasionActionButtons[occasion];
+  const buildActionButtons = (occasion?: string | null): ActionButton[] => {
+    const scope = occasion ? `my ${occasion}` : 'my wedding';
+    const topic = occasion ?? 'wedding';
     return [
-      { icon: Calendar, text: 'Plan my timeline', action: `Help me plan my ${occasion} ceremony timeline` },
-      { icon: Heart, text: 'Find my style', action: `Help me find the perfect outfit for my ${occasion}` },
-      { icon: Lightbulb, text: 'Get inspiration', action: `Give me ${occasion} decoration and theme ideas` },
-      { icon: Sparkles, text: 'Create custom', action: `Help me plan a custom ${occasion} celebration` },
+      {
+        icon: ShoppingCart,
+        text: 'What should I get',
+        action: `Help me figure out what to get for ${scope} — outfits, jewellery, accessories, gifts, favors, and stationery.`,
+      },
+      {
+        icon: Calendar,
+        text: 'Help me plan',
+        action: `Help me plan ${scope} — timeline, events, logistics, and coordination.`,
+      },
+      {
+        icon: Lightbulb,
+        text: 'Show me ideas',
+        action: `Show me ${topic} inspiration, trends, styling, and themes.`,
+      },
+      {
+        icon: MessageSquare,
+        text: 'Ask anything',
+        action: `I have questions about ${topic} rituals, traditions, and cultural practices — ask me anything.`,
+      },
     ];
   };
 
-  // Guest-specific quick actions — lighter, exploratory prompts
-  const guestActionButtons = [
-    { icon: Heart, text: 'Explore styles', action: 'What are popular wedding styles and trends?' },
-    { icon: Sparkles, text: 'Get ideas', action: 'Give me creative wedding inspiration ideas' },
-    { icon: Calendar, text: 'Quick plan', action: 'Help me outline a basic wedding plan' },
-    { icon: Lightbulb, text: 'Ask anything', action: 'What should I know about planning a wedding?' },
-  ];
+  const actionButtons = buildActionButtons(selectedOccasion);
 
-  // Guest-specific occasion buttons (dynamic based on selected occasion)
-  const getGuestOccasionButtons = (occasion: string) => [
-    { icon: Heart, text: `${occasion} styles`, action: `What are popular ${occasion} styles and trends?` },
-    { icon: Sparkles, text: `${occasion} ideas`, action: `Give me creative ${occasion} inspiration ideas` },
-    { icon: Calendar, text: `${occasion} plan`, action: `Help me outline a ${occasion} plan` },
-    { icon: Lightbulb, text: 'Ask anything', action: `What should I know about planning a ${occasion}?` },
-  ];
-
-  const actionButtons = !user
-    ? (selectedOccasion ? getGuestOccasionButtons(selectedOccasion) : guestActionButtons)
-    : selectedOccasion
-      ? getOccasionButtons(selectedOccasion)
-      : defaultActionButtons;
-
+  // The action string is built by buildActionButtons() with the selected
+  // occasion already baked in (e.g. "Help me plan my Mehendi — …"), so this
+  // handler just forwards the prompt into the composer verbatim. Previously
+  // it re-appended "for my {occasion} ceremony", which double-stamped the
+  // occasion when the per-occasion buttons already contained it.
   const handleQuickPrompt = (action: string) => {
-    const occasion = selectedOccasion;
-    if (occasion) {
-      // Combine quick prompt with occasion context
-      const combinedPrompt = `${action} for my ${occasion} ceremony`;
-      setInputText(combinedPrompt);
-    } else {
-      setInputText(action);
-    }
+    setInputText(action);
   };
 
   // ── Shortcuts overlay ─────────────────────────────────────────────────────
@@ -1030,7 +979,7 @@ const Index = () => {
   // show a gate instead of an empty chat.
   if (urlThreadId && !authLoading && (!user || chatLoadError)) {
     return (
-      <div className="gradient-bg min-h-screen flex flex-col items-center justify-center px-6 text-center" style={bgStyle}>
+      <div className="gradient-bg min-h-screen flex flex-col items-center justify-center px-6 text-center">
         {authModalsJSX}
         <div className="max-w-sm mx-auto">
           <Lock className="h-12 w-12 text-[#A17A63]/60 mx-auto mb-4" />
@@ -1059,7 +1008,7 @@ const Index = () => {
   // ── Planner detail view ───────────────────────────────────────────────────
   if (sidebarView === 'planner' && selectedChecklistId && user) {
     return (
-      <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
+      <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ height: '100dvh' }}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
@@ -1088,7 +1037,7 @@ const Index = () => {
 
   // ── Helper: main-area shell ───────────────────────────────────────────────
   const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
-    <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
+    <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ height: '100dvh' }}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}
@@ -1199,12 +1148,13 @@ const Index = () => {
     onModeChange: setSelectedMode,
     recordingDuration,
     onCancelRecording: cancelRecording,
+    amplitudes,
   };
 
   // ── Expanded chat view ────────────────────────────────────────────────────
   if (isExpanded) {
     return (
-      <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
+      <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ height: '100dvh' }}>
         {shortcutsOverlayJSX}
         {shareModalJSX}
         {settingsModalJSX}
@@ -1349,7 +1299,7 @@ const Index = () => {
 
   // ── Landing page ──────────────────────────────────────────────────────────
   return (
-    <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ ...bgStyle, height: '100dvh' }}>
+    <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ height: '100dvh' }}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
       {settingsModalJSX}

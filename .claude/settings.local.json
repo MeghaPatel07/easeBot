@@ -161,7 +161,9 @@
       "Bash(echo \"---BACKEND EXIT $?---\")",
       "Bash(echo \"---FRONTEND EXIT $?---\")",
       "Bash(echo \"---EXIT $?---\")",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(grep -E '\\\\.\\(tsx|ts\\)$')",
+      "Bash(xargs grep *)"
     ]
   }
 }

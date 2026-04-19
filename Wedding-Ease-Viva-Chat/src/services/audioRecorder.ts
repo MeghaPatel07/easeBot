@@ -10,6 +10,10 @@ export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null
   private chunks: Blob[] = []
   private stream: MediaStream | null = null
+  private audioContext: AudioContext | null = null
+  private analyser: AnalyserNode | null = null
+  private source: MediaStreamAudioSourceNode | null = null
+  private timeDomainBuffer: Uint8Array | null = null
 
   get isRecording(): boolean {
     return this.mediaRecorder?.state === 'recording'
@@ -30,6 +34,40 @@ export class AudioRecorder {
       if (e.data.size > 0) this.chunks.push(e.data)
     }
     this.mediaRecorder.start()
+
+    try {
+      const Ctx: typeof AudioContext =
+        (window as any).AudioContext ?? (window as any).webkitAudioContext
+      if (Ctx) {
+        this.audioContext = new Ctx()
+        this.source = this.audioContext.createMediaStreamSource(this.stream)
+        this.analyser = this.audioContext.createAnalyser()
+        this.analyser.fftSize = 1024
+        this.analyser.smoothingTimeConstant = 0
+        this.source.connect(this.analyser)
+        // Intentionally do NOT connect analyser.connect(destination) — would feedback mic into speakers.
+        this.timeDomainBuffer = new Uint8Array(this.analyser.fftSize)
+      }
+    } catch {
+      this.audioContext = null
+      this.analyser = null
+      this.source = null
+      this.timeDomainBuffer = null
+    }
+  }
+
+  // Peak absolute deviation from the silence mid-point (128) in the current
+  // time-domain sample window. Returns 0–255. Used to build a rolling
+  // waveform history in the UI (ChatGPT-style thin bars over time).
+  getAmplitudeLevel(): number {
+    if (!this.analyser || !this.timeDomainBuffer) return 0
+    this.analyser.getByteTimeDomainData(this.timeDomainBuffer)
+    let peak = 0
+    for (let i = 0; i < this.timeDomainBuffer.length; i++) {
+      const d = Math.abs(this.timeDomainBuffer[i] - 128)
+      if (d > peak) peak = d
+    }
+    return Math.min(255, peak * 2)
   }
 
   stop(): Promise<RecordingResult> {
@@ -72,6 +110,15 @@ export class AudioRecorder {
   }
 
   private cleanup(): void {
+    try { this.source?.disconnect() } catch { /* noop */ }
+    try { this.analyser?.disconnect() } catch { /* noop */ }
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      this.audioContext.close().catch(() => { /* noop */ })
+    }
+    this.source = null
+    this.analyser = null
+    this.audioContext = null
+    this.timeDomainBuffer = null
     this.stream?.getTracks().forEach((t) => t.stop())
     this.stream = null
     this.mediaRecorder = null

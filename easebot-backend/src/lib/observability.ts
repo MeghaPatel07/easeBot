@@ -36,6 +36,9 @@ export type ObservabilityEvent =
   | 'subscription.scheduler.tick'
   | 'invoice.render_failed'
   | 'invoice.authz_denied'
+  | 'stt.pref_cache'
+  | 'stt.timing'
+  | 'stt.error'
 
 export function emit(
   event: ObservabilityEvent,

@@ -4,7 +4,7 @@ import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@
 import { QUOTA_EVENT, type QuotaExceededPayload } from '@/services/accountService'
 // CalendarEvent kept here transitionally — used in StreamDoneEvent below until backend drops the field.
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 export interface ChatQuotaError extends Error {
   code: 'quota_exceeded'
@@ -75,9 +75,11 @@ export async function chatViaBackend(
 }
 
 export async function transcribeViaBackend(
-  audioBase64: string
+  audioBase64: string,
+  signal?: AbortSignal,
+  language?: string
 ): Promise<{ text: string; detectedLanguage: string }> {
-  return post('/api/transcribe', { audioBase64 })
+  return post('/api/transcribe', { audioBase64, language }, signal)
 }
 
 // ── Firebase httpsCallable (available, not currently active) ──────────────────
@@ -93,7 +95,8 @@ export async function chatViaFunctions(
 }
 
 export async function transcribeViaFunctions(
-  audioBase64: string
+  audioBase64: string,
+  _signal?: AbortSignal
 ): Promise<{ text: string; detectedLanguage: string }> {
   const fn = httpsCallable<{ audioBase64: string }, { text: string; detectedLanguage: string }>(
     functions,

@@ -32,6 +32,8 @@ export async function handleTTS(req: Request, res: Response): Promise<void> {
 
   // Strip markdown for cleaner speech
   const plainText = text
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    .replace(/https?:\/\/\S+/g, '')
     .replace(/```[\s\S]*?```/g, ' code block ')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/#{1,6}\s*/g, '')
