@@ -84,6 +84,13 @@ export interface StyleMemory {
   lastGeneratedImageUrl: string | null
 }
 
+export interface ToolErrorInfo {
+  tool: string
+  errorCode: string
+  message: string
+  userFacing?: string
+}
+
 export interface ChatResponse {
   text: string
   audioUrl: string | null
@@ -96,6 +103,7 @@ export interface ChatResponse {
   responseLanguage: string
   imageQuota?: ImageQuotaStatus
   styleMemory?: StyleMemory
+  toolErrors?: ToolErrorInfo[]
 }
 
 export interface HistoryMessage {

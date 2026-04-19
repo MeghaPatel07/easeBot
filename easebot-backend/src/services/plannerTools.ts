@@ -172,6 +172,10 @@ export const CREATE_TIMELINE_EVENT_TOOL: ChatCompletionTool = {
 export interface ToolCallOutcome {
   result: string
   action: ToolAction
+  ok?: boolean
+  errorCode?: string
+  errorMessage?: string
+  userFacing?: string
 }
 
 export interface ToolCallContext {
@@ -287,9 +291,20 @@ export async function executeToolCall(
         }
       } catch (err: any) {
         const msg = err?.message ?? 'unknown error'
+        const errorCode = err?.code ?? 'REMINDER_CREATE_FAILED'
+        const userFacing =
+          errorCode === 'INVALID_DATE_FORMAT'
+            ? "I couldn't read that date. Please use the format YYYY-MM-DD (e.g. 2026-05-10)."
+            : errorCode === 'USER_PROFILE_NOT_FOUND'
+              ? "I can't find your account details to send the reminder. Please sign in again."
+              : `Sorry, I couldn't save that reminder: ${msg}`
         return {
           result: `Could not create reminder: ${msg}`,
           action: { tool: 'create_reminder' },
+          ok: false,
+          errorCode,
+          errorMessage: msg,
+          userFacing,
         }
       }
     }

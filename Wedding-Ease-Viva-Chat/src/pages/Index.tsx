@@ -162,7 +162,7 @@ const Index = () => {
     if (profile?.preferredLanguage) setPreferredLang(profile.preferredLanguage);
   }, [profile?.preferredLanguage]);
 
-  const { voiceState, isRecording, interimText, recordingDuration, error: voiceError, startRecording, stopRecording, cancelRecording, clearError: clearVoiceError } = useVoice();
+  const { voiceState, isRecording, interimText, recordingDuration, error: voiceError, amplitudes, startRecording, stopRecording, cancelRecording, clearError: clearVoiceError } = useVoice();
   const [voiceLanguage, setVoiceLanguage] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -613,7 +613,9 @@ const Index = () => {
       // responseLanguage stored on the message by the backend.
       const activeLang = (preferredLang && preferredLang !== 'auto') ? preferredLang : (message.language || 'en');
       console.log(`[TTS] Playing message ${message.id} in language: ${activeLang} (message.language=${message.language}, preferredLang=${preferredLang})`);
-      const audioUrl = await requestTTS({ text: message.text, voiceName, language: activeLang });
+      // Defense-in-depth: strip image markdown + bare URLs before handing text to TTS so the voice never reads out file paths.
+      const cleanText = message.text.replace(/!\[[^\]]*\]\([^)]+\)/g, '').replace(/https?:\/\/\S+/g, '').trim();
+      const audioUrl = await requestTTS({ text: cleanText, voiceName, language: activeLang });
       setTtsAudioUrls(prev => ({ ...prev, [message.id]: audioUrl }));
       setTtsActiveId(message.id);
     } catch (err) {
@@ -1199,6 +1201,7 @@ const Index = () => {
     onModeChange: setSelectedMode,
     recordingDuration,
     onCancelRecording: cancelRecording,
+    amplitudes,
   };
 
   // ── Expanded chat view ────────────────────────────────────────────────────

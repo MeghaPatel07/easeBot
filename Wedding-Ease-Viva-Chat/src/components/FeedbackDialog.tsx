@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { auth } from '@/lib/firebase'
 
 // Backend base URL mirrors the rest of the service layer.
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 export type FeedbackType = 'bug' | 'suggestion' | 'praise' | 'other'
 

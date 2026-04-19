@@ -6,7 +6,14 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec \"ts-node --transpile-only src/server.ts\"",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test:phase1:cache": "ts-node --transpile-only src/lib/__tests__/userPrefsCache.test.ts",
+    "test:phase1:controller": "ts-node --transpile-only src/controllers/__tests__/transcribeController.test.ts",
+    "test:phase1": "npm run test:phase1:cache && npm run test:phase1:controller",
+    "test:phase2:phrases": "ts-node --transpile-only src/services/__tests__/sttPhraseList.test.ts",
+    "test:phase2": "npm run test:phase2:phrases",
+    "test:langfix": "ts-node --transpile-only src/pipeline/__tests__/inbound.test.ts",
+    "test:all": "npm run test:phase1 && npm run test:phase2 && npm run test:langfix"
   },
   "dependencies": {
     "@types/ffmpeg-static": "^3.0.3",
@@ -21,6 +28,7 @@
     "firebase-admin": "^12.7.0",
     "fluent-ffmpeg": "^2.1.3",
     "helmet": "^8.1.0",
+    "lru-cache": "^10.4.3",
     "microsoft-cognitiveservices-speech-sdk": "^1.38.0",
     "nodemailer": "^8.0.5",
     "openai": "^4.47.1",

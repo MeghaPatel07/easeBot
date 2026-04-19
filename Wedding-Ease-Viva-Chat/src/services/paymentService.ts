@@ -9,7 +9,7 @@
 
 import { auth } from '@/lib/firebase'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser

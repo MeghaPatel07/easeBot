@@ -35,6 +35,22 @@ import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction, UserPersonalization } from '../types'
 import { buildPersonalizationSuffix } from '../utils/toneInjector'
 import { determineTargetLanguage, buildLanguageInstruction } from '../pipeline/languageInstruction'
+import { getCachedUserLanguage } from '../lib/userPrefsCache'
+
+// Resolve the effective language for a chat request.
+// Priority (same as the STT controller to keep behavior consistent):
+//   1. explicit body.language (caller intent / voice-detected language)
+//   2. user's saved preference in Firestore (via in-process cache)
+//   3. undefined → downstream detectedLanguage takes over
+async function resolveRequestLanguage(
+  bodyLanguage: string | undefined,
+  uid: string | null,
+): Promise<string | undefined> {
+  const body = bodyLanguage && bodyLanguage !== 'auto' ? bodyLanguage : undefined
+  if (body) return body
+  if (!uid) return undefined
+  return getCachedUserLanguage(uid)
+}
 import {
   ChatAttachmentSchema,
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -596,7 +612,10 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
   let chargedConsumedFrom: 'monthly' | 'extras' | 'both' | null = null
 
   try {
-    const { englishText, detectedLanguage } = await processInbound(message, audioBase64, language)
+    // Resolve language BEFORE processInbound so the pref hints translation +
+    // TTS language even when the client forgot to send `language` in the body.
+    const resolvedLanguage = await resolveRequestLanguage(language, uid)
+    const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
     const history = await getChatHistory(threadId, providedHistory)
 
@@ -618,7 +637,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       }
     }
 
-    const targetLanguage = determineTargetLanguage(language, detectedLanguage)
+    const targetLanguage = determineTargetLanguage(resolvedLanguage, detectedLanguage)
     const { prompt: baseSystemPrompt, algoliaQueried } = await buildSystemPrompt(
       mode,
       englishText,
@@ -641,7 +660,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
         const olderMessages = history.slice(0, history.length - 5)
         const recentMessages = history.slice(history.length - 5)
         const { getClient } = await import('../services/azureAI')
-        const summary = await summarizeConversation(olderMessages, getClient())
+        const summary = await summarizeConversation(olderMessages, getClient(), targetLanguage)
         effectiveHistory = [
           { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
           ...recentMessages,
@@ -815,6 +834,8 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // Execute tool calls if any. Loop so the LLM can chain dependent calls
     // (e.g. generate_image → append_to_note with the resulting URL). See the
     // streaming handler for the equivalent multi-round loop and rationale.
+    const collectedToolErrors: { tool: string; errorCode: string; message: string; userFacing?: string }[] = []
+
     if (aiResult.toolCalls.length > 0) {
       const MAX_TOOL_ROUNDS = 3
       const priorRounds: { toolCalls: typeof aiResult.toolCalls; toolResults: { id: string; result: string }[] }[] = []
@@ -862,6 +883,15 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
           const outcome = await executeToolCall(uid, tc.name, tc.args, isPremium, undefined, { turnImageUrls })
           toolActions.push(outcome.action)
 
+          if (outcome.ok === false && outcome.errorCode) {
+            collectedToolErrors.push({
+              tool: tc.name,
+              errorCode: outcome.errorCode,
+              message: outcome.errorMessage ?? outcome.result,
+              userFacing: outcome.userFacing,
+            })
+          }
+
           if (outcome.result === 'STORAGE_LIMIT_REACHED') {
             const { text: limitText, audioUrl } = await processOutbound(
               "You've reached your free limit of 5 saved checklists. Upgrade to Premium to unlock unlimited storage and Notion-style planning!",
@@ -906,15 +936,30 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       }
     }
 
-    const { text: finalText, audioUrl } = await processOutbound(finalAiText, detectedLanguage)
-
     // responseLanguage = the language the AI actually responded in.
     // When targetLanguage is non-English the LLM was instructed to respond in
     // that language, so we trust it. Falls back to detectedLanguage (input lang).
     const responseLanguage = targetLanguage !== 'en' ? targetLanguage : detectedLanguage
+    // TTS must use the language the AI wrote in, NOT the input-detection
+    // result — otherwise a Gujarati response to English-detected input would
+    // synthesize as English audio and sound wrong.
+    const { text: finalText, audioUrl } = await processOutbound(finalAiText, responseLanguage)
+
+    // Avoid double-rendering: if the LLM echoed an image URL as markdown AND
+    // the same URL is in imageUrls, strip the markdown so the client only
+    // renders it once (from imageUrls).
+    let textForClient = finalText
+    if (imageUrls.length > 0 && textForClient) {
+      for (const u of imageUrls) {
+        if (!u) continue
+        const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
+      }
+      textForClient = textForClient.replace(/\n{3,}/g, '\n\n').trim()
+    }
 
     const response: ChatResponse = {
-      text: finalText,
+      text: textForClient,
       audioUrl,
       imageUrl: imageUrls[0] ?? null,
       imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
@@ -923,6 +968,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       detectedLanguage,
       responseLanguage,
       styleMemory: imageToolStyleMemory,
+      toolErrors: collectedToolErrors.length > 0 ? collectedToolErrors : undefined,
     }
     res.status(200).json(response)
   } catch (err: any) {
@@ -990,7 +1036,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     const isLoggedIn = uid !== null
     logAttachmentsReceived('chat:stream', attachments, uid, threadId)
 
-    const { englishText, detectedLanguage } = await processInbound(message, audioBase64, language)
+    // Same language-resolution priority as the non-stream handler.
+    const resolvedLanguage = await resolveRequestLanguage(language, uid)
+    const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
     const history = await getChatHistory(threadId, providedHistory)
 
@@ -1011,7 +1059,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    const targetLanguage = determineTargetLanguage(language, detectedLanguage)
+    const targetLanguage = determineTargetLanguage(resolvedLanguage, detectedLanguage)
     const { prompt: baseSystemPrompt, algoliaQueried } = await buildSystemPrompt(
       mode,
       englishText,
@@ -1034,7 +1082,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
         const olderMessages = history.slice(0, history.length - 5)
         const recentMessages = history.slice(history.length - 5)
         const { getClient } = await import('../services/azureAI')
-        const summary = await summarizeConversation(olderMessages, getClient())
+        const summary = await summarizeConversation(olderMessages, getClient(), targetLanguage)
         effectiveHistory = [
           { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
           ...recentMessages,
@@ -1338,6 +1386,10 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
             break
           }
 
+          if (outcome.ok === false && outcome.errorCode) {
+            sse({ t: 'tool_error', toolName: tc.name, errorCode: outcome.errorCode, message: outcome.userFacing ?? outcome.errorMessage ?? outcome.result })
+          }
+
           toolResults.push({ id: tc.id, result: outcome.result })
         }
 
@@ -1381,13 +1433,25 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
 
-    // TTS after full text is ready
-    const { audioUrl } = await processOutbound(fullText, detectedLanguage)
-
     // responseLanguage = the language the AI actually responded in.
     const responseLanguage = targetLanguage !== 'en' ? targetLanguage : detectedLanguage
+    // TTS after full text is ready — keyed on responseLanguage so the audio
+    // matches the AI's output language (not the input-detection result).
+    const { audioUrl } = await processOutbound(fullText, responseLanguage)
 
-    sse({ t: 'd', text: fullText, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
+    // Strip ![](url) echoes for urls already returned in imageUrls so the
+    // client doesn't render them twice.
+    let textForClient = fullText
+    if (imageUrls && imageUrls.length > 0 && textForClient) {
+      for (const u of imageUrls) {
+        if (!u) continue
+        const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
+      }
+      textForClient = textForClient.replace(/\n{3,}/g, '\n\n').trim()
+    }
+
+    sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
     res.end()
   } catch (err: any) {
     // Client disconnected — nothing to write, just clean up silently

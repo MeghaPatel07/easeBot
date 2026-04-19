@@ -15,7 +15,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError } from '@/services/authService'
 import PhoneInput, { toE164, isValidPhone, type PhoneInputValue } from './PhoneInput'
-import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH } from '@/utils/passwordPolicy'
+import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH, type PasswordIssue } from '@/utils/passwordPolicy'
 
 type Tab = 'email' | 'phone'
 type EmailStep = 'form' | 'choice' | 'verifying' | 'success'
@@ -58,24 +58,46 @@ const OTP_RESEND_COOLDOWN = 30
 const OTP_EXPIRY_SECONDS = 5 * 60
 
 function PasswordStrengthMeter({ password }: { password: string }) {
-  const { score } = validatePassword(password)
+  const { score, issues } = validatePassword(password)
   const colors = ['bg-red-500', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500']
   const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong']
+  const requirements: { key: PasswordIssue; label: string }[] = [
+    { key: 'tooShort', label: `At least ${PASSWORD_MIN_LENGTH} characters` },
+    { key: 'missingUpper', label: 'One uppercase letter' },
+    { key: 'missingLower', label: 'One lowercase letter' },
+    { key: 'missingDigit', label: 'One number' },
+    { key: 'missingSymbol', label: 'One special character' },
+  ]
   return (
-    <div className="flex items-center gap-2 mt-1">
-      <div className="flex-1 flex gap-1">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className={`h-1 flex-1 rounded-full transition-colors ${
-              i < score ? colors[score] : 'bg-white/10'
-            }`}
-          />
-        ))}
+    <div className="space-y-2 mt-1">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 flex gap-1">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className={`h-1 flex-1 rounded-full transition-colors ${
+                i < score ? colors[score] : 'bg-white/10'
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-[10px] font-label uppercase tracking-widest text-white/40 w-16 text-right">
+          {labels[score]}
+        </span>
       </div>
-      <span className="text-[10px] font-label uppercase tracking-widest text-white/40 w-16 text-right">
-        {labels[score]}
-      </span>
+      <ul className="space-y-1">
+        {requirements.map(({ key, label }) => {
+          const met = !issues.includes(key)
+          return (
+            <li key={key} className={`text-[11px] flex items-center gap-1.5 transition-colors ${met ? 'text-green-400' : 'text-white/30'}`}>
+              <span className={`inline-block w-3 h-3 rounded-full border text-center leading-3 text-[8px] ${met ? 'border-green-400 bg-green-400/20' : 'border-white/20'}`}>
+                {met ? '✓' : ''}
+              </span>
+              {label}
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }
@@ -635,7 +657,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       value={digit}
                       onChange={e => handleVerifyOtpChange(i, e.target.value)}
                       onKeyDown={e => handleVerifyOtpKeyDown(i, e)}
-                      className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/90 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+                      className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-white/20 bg-white/[0.06] text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-white/[0.1] transition-all caret-primary"
                     />
                   ))}
                 </div>

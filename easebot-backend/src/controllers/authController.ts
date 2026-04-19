@@ -8,6 +8,20 @@ const OTP_TTL_MS = 10 * 60 * 1000           // 10 minutes
 const RESET_TOKEN_TTL_MS = 5 * 60 * 1000    // 5 minutes
 const MAX_ATTEMPTS = 5
 
+const PASSWORD_MIN_LENGTH = 10
+const PASSWORD_MAX_LENGTH = 128
+const SYMBOL_RE = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~`]/
+
+function validatePasswordStrength(pw: string): string | null {
+  if (pw.length < PASSWORD_MIN_LENGTH) return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`
+  if (pw.length > PASSWORD_MAX_LENGTH) return `Password must be at most ${PASSWORD_MAX_LENGTH} characters`
+  if (!/[a-z]/.test(pw)) return 'Password must contain at least one lowercase letter'
+  if (!/[A-Z]/.test(pw)) return 'Password must contain at least one uppercase letter'
+  if (!/[0-9]/.test(pw)) return 'Password must contain at least one number'
+  if (!SYMBOL_RE.test(pw)) return 'Password must contain at least one special character'
+  return null
+}
+
 function generateOtp(): string {
   return crypto.randomInt(100000, 999999).toString()
 }
@@ -137,8 +151,9 @@ export async function handleResetPassword(req: Request, res: Response): Promise<
     res.status(400).json({ error: 'Email, reset token, and new password are required' })
     return
   }
-  if (newPassword.length < 6) {
-    res.status(400).json({ error: 'Password must be at least 6 characters' })
+  const pwError = validatePasswordStrength(newPassword)
+  if (pwError) {
+    res.status(400).json({ error: pwError })
     return
   }
   const normalized = email.trim().toLowerCase()

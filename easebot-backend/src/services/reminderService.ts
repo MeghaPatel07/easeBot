@@ -73,6 +73,16 @@ interface UserProfileLite {
   phoneNumber?: string | null
   name?: string | null
   displayName?: string | null
+  timezone?: string | null
+}
+
+export class ReminderError extends Error {
+  code: string
+  constructor(code: string, message: string) {
+    super(message)
+    this.name = 'ReminderError'
+    this.code = code
+  }
 }
 
 async function fetchUserProfile(uid: string): Promise<UserProfileLite | null> {
@@ -95,11 +105,20 @@ function resolveChannel(profile: UserProfileLite): {
 export async function createReminderDoc(
   input: ReminderInput,
 ): Promise<{ id: string; channel: ReminderChannel; notifyAt: Date }> {
+  // Validate date format (YYYY-MM-DD) up front so the failure mode is clear
+  // to both the LLM (via plannerTools) and the user.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.eventDateStr ?? '')) {
+    throw new ReminderError(
+      'INVALID_DATE_FORMAT',
+      `Invalid date "${input.eventDateStr}". Expected YYYY-MM-DD (e.g. 2026-05-10).`,
+    )
+  }
+
   const profile = await fetchUserProfile(input.userId)
-  if (!profile) throw new Error('user profile not found')
+  if (!profile) throw new ReminderError('USER_PROFILE_NOT_FOUND', 'user profile not found')
   const { channel } = resolveChannel(profile)
 
-  const timezone = input.timezone || DEFAULT_TIMEZONE
+  const timezone = input.timezone || profile.timezone || DEFAULT_TIMEZONE
   const leadTimeMinutes = input.leadTimeMinutes ?? DEFAULT_LEAD_MINUTES
 
   const eventAtDate = computeEventInstant(

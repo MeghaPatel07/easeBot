@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Send, Image as ImageIcon, StopCircle, Mic, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
-  Paperclip, FileText, ListChecks, Calendar, File as FileIcon,
+  Paperclip, FileText, ListChecks, Calendar, File as FileIcon, ArrowUp,
 } from 'lucide-react';
 import { MODE_CONFIG, modeConfig, type ModeOrAuto } from './constants';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -34,6 +34,8 @@ export interface ChatInputProps {
   onModeChange?: (mode: ModeOrAuto) => void;
   recordingDuration?: number;
   onCancelRecording?: () => void;
+  /** Live mic amplitudes (0-255) for the recording waveform. */
+  amplitudes?: number[];
 }
 
 // Auto-grow caps — the textarea grows freely up to these limits, then shows
@@ -57,7 +59,7 @@ const truncate = (s: string, n = 30) => (s.length > n ? s.slice(0, n - 1) + '…
 const ChatInput = ({
   inputText, onInputChange, onSend, onStop, isTyping, placeholder,
   isRecording, voiceState, onMicClick, attachedImage, onAttachImage, onRemoveImage,
-  selectedMode, onModeChange, recordingDuration, onCancelRecording,
+  selectedMode, onModeChange, recordingDuration, onCancelRecording, amplitudes,
 }: ChatInputProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
@@ -115,6 +117,22 @@ const ChatInput = ({
   }, [showModeDropdown]);
 
   const hasContent = inputText.trim().length > 0 || !!attachedImage;
+  const isVoiceActive = voiceState === 'recording' || voiceState === 'requesting' || voiceState === 'transcribing';
+  const isTranscribing = voiceState === 'transcribing';
+  // Render a stable 64-bar lane regardless of actual amplitude sample count.
+  // We RIGHT-align the incoming waveform history (newest on the right) and
+  // pad the left with zero-height placeholder bars so the lane width is
+  // constant — matching ChatGPT's dense "bars scrolling leftward" feel.
+  const WAVEFORM_BARS = 64;
+  const displayBars: number[] = (() => {
+    const src = amplitudes ?? [];
+    if (src.length >= WAVEFORM_BARS) return src.slice(src.length - WAVEFORM_BARS);
+    return new Array(WAVEFORM_BARS - src.length).fill(0).concat(src);
+  })();
+  const formatDuration = (s?: number): string => {
+    if (s == null) return '0:00';
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
 
   // Forward the current text + staged attachments to the parent. The parent
   // owns threading `attachments` into sendMessage() and clearing the tray on
@@ -226,6 +244,106 @@ const ChatInput = ({
         {/* ── Input pill ───────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 bg-white/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-white/[0.12] input-glow transition-shadow duration-300">
 
+          {/* ── ChatGPT-style voice recording panel — replaces the composer
+               while recording / requesting mic / transcribing. ─────────── */}
+          {isVoiceActive ? (
+            <div
+              className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 animate-in fade-in duration-150"
+              role="group"
+              aria-label={isTranscribing ? 'Transcribing voice message' : 'Recording voice message'}
+            >
+              {/* Cancel (discard recording) — left, ghost outline */}
+              <button
+                type="button"
+                onClick={onCancelRecording}
+                disabled={!onCancelRecording}
+                aria-label="Cancel recording"
+                title="Cancel"
+                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/25 active:scale-95 transition-all flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <X className="h-4 w-4 sm:h-[15px] sm:w-[15px]" />
+              </button>
+
+              {/* Waveform lane — ChatGPT-style:
+                    • 64 thin bars, uniform white/75 (no color accent on peaks)
+                    • GPU-friendly `transform: scaleY()` on fixed-height bars
+                      — silence collapses each bar to a ~6 % sliver, reading as
+                      a dot-line just like ChatGPT's recording UI.
+                    • transform-origin: center → bars grow symmetrically up/down
+                      around the midline. Full-amplitude speech = solid band.
+                    • `will-change: transform` hints the compositor to promote
+                      these to their own layer so the 60 Hz update from
+                      useVoice doesn't cause paint churn.
+                    • Transcribing state dims the whole lane to ~40 %.         */}
+              <div
+                aria-hidden
+                className={`flex items-center gap-[1px] sm:gap-[1px] h-8 sm:h-7 flex-1 min-w-0 overflow-hidden transition-opacity duration-200 ${
+                  isTranscribing ? 'opacity-40' : 'opacity-100'
+                }`}
+              >
+                {displayBars.map((amp, i) => {
+                  // Normalize to [0, 1]. A power curve (exp 0.7) slightly
+                  // boosts quiet signals so the lane feels "alive" at
+                  // conversational volume without clipping loud peaks.
+                  const norm = Math.min(255, Math.max(0, amp)) / 255;
+                  const shaped = Math.pow(norm, 0.7);
+                  // Clamp to [0.06, 1.2]: 0.06 keeps silence visible as a
+                  // thin dot; 1.2 lets confident peaks slightly overshoot the
+                  // lane height for that punchy ChatGPT "spike" look.
+                  const scale = Math.max(0.06, Math.min(1.2, shaped * 1.2));
+                  return (
+                    <div
+                      key={i}
+                      className="flex-1 min-w-[1.5px] h-full rounded-full bg-white/75"
+                      style={{
+                        transform: `scaleY(${scale})`,
+                        transformOrigin: 'center',
+                        willChange: 'transform',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Status / timer — swaps to "Transcribing…" during transcribing */}
+              <div className="flex items-center gap-1.5 flex-shrink-0 min-w-[3rem] justify-end">
+                {isTranscribing ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 text-[#A17A63] animate-spin" />
+                    <span className="text-[11px] font-medium text-[#A17A63] tracking-wide">
+                      Transcribing…
+                    </span>
+                  </>
+                ) : (
+                  <span
+                    className="text-xs font-semibold text-white/80 tabular-nums"
+                    aria-live="polite"
+                  >
+                    {formatDuration(recordingDuration)}
+                  </span>
+                )}
+              </div>
+
+              {/* Send voice — primary filled, up-arrow (matches ChatGPT submit
+                  style). During transcribing it's disabled; during recording
+                  it triggers onMicClick which stops + kicks off transcription. */}
+              <button
+                type="button"
+                onClick={onMicClick}
+                disabled={isTranscribing}
+                aria-label="Send voice message"
+                title="Send voice"
+                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full bg-[#A17A63] text-white shadow-md hover:bg-[#B58A73] active:scale-95 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#A17A63]"
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="h-5 w-5 sm:h-[18px] sm:w-[18px]" strokeWidth={2.4} />
+                )}
+              </button>
+            </div>
+          ) : (
+          <>
           {/* Image preview */}
           {attachedImage && (
             <div className="relative inline-block mx-3 mt-2 mb-1">
@@ -361,27 +479,7 @@ const ChatInput = ({
               )}
             </div>
           </div>
-          {voiceState === 'recording' && (
-            <div className="flex items-center gap-2 pl-3 pb-1">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-              </span>
-              <span className="text-3xs font-semibold text-red-400 tracking-wide">
-                Recording{recordingDuration != null ? ` · ${Math.floor(recordingDuration / 60)}:${String(recordingDuration % 60).padStart(2, '0')}` : '...'}
-              </span>
-              {onCancelRecording && (
-                <button type="button" onClick={onCancelRecording} className="text-3xs text-white/30 hover:text-white/50 ml-1 transition-colors">
-                  Cancel
-                </button>
-              )}
-            </div>
-          )}
-          {voiceState === 'transcribing' && (
-            <div className="flex items-center gap-2 pl-3 pb-1">
-              <Loader2 className="h-2.5 w-2.5 text-amber-500 animate-spin" />
-              <span className="text-3xs font-semibold text-amber-500 tracking-wide">Transcribing…</span>
-            </div>
+          </>
           )}
         </div>
       </div>

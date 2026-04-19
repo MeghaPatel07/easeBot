@@ -17,7 +17,8 @@ const SUMMARIZER_SYSTEM_PROMPT =
  */
 export async function summarizeConversation(
   messages: Array<{ role: string; content: string }>,
-  client: AzureOpenAI
+  client: AzureOpenAI,
+  targetLanguage?: string,
 ): Promise<string> {
   if (messages.length === 0) {
     return ''
@@ -28,10 +29,17 @@ export async function summarizeConversation(
     .map(m => `${m.role}: ${m.content}`)
     .join('\n')
 
+  // Preserve the thread's language in the summary so downstream turns don't
+  // regress to English when the summary replaces trimmed history.
+  let systemPrompt = SUMMARIZER_SYSTEM_PROMPT
+  if (targetLanguage && targetLanguage !== 'en') {
+    systemPrompt += ` Respond to this summarization task in ${targetLanguage} (BCP-47). Preserve all proper nouns and numbers exactly.`
+  }
+
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages: [
-      { role: 'system', content: SUMMARIZER_SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: conversationText },
     ],
     max_tokens: 300,

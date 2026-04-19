@@ -305,7 +305,8 @@
 .gradient-bg-expanded {
   position: relative;
   /* background-color: #090807; */
-      background-color: #1a140e;
+      /* background-color: #1a140e; */
+      background-color: #0c0907;
   isolation: isolate;
   /* Prevent mobile overscroll bounce */
   overscroll-behavior: none;
