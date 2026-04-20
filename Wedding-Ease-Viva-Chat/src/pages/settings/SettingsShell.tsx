@@ -14,8 +14,8 @@
 // (Radix), Esc closes (Radix), Arrow keys move nav, all interactive elements
 // ≥44×44px, focus rings via Tailwind tokens.
 //
-// Dark-mode aware: uses bg-background / text-white/90 / /
-// bg-muted / text-white/90 / accent tokens — no hard-coded colours.
+// Dark-mode aware: uses bg-background / text-foreground/90 / /
+// bg-muted / text-foreground/90 / accent tokens — no hard-coded colours.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -237,8 +237,8 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
         className={cn(
           'w-[100vw] h-[100dvh] max-w-none translate-x-0 translate-y-0 left-0 top-0 rounded-none p-0 border-0',
           'sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2',
-          'sm:w-[95vw] sm:max-w-[960px] sm:h-[85dvh] sm:rounded-2xl sm:border sm:border-white/[0.08]',
-          'bg-[#0F0D0C]/90 backdrop-blur-2xl text-white/90 flex flex-col overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]',
+          'sm:w-[95vw] sm:max-w-[960px] sm:h-[85dvh] sm:rounded-2xl sm:border sm:border-foreground/[0.08]',
+          'bg-card-elevated/90 backdrop-blur-2xl text-foreground/90 flex flex-col overflow-hidden shadow-modal',
           '[&>button.absolute]:hidden',
         )}
         aria-labelledby="settings-shell-title"
@@ -348,18 +348,18 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
   function DesktopSideNav({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
       <aside
-        className="w-[220px] shrink-0 m-3 flex flex-col rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-body"
+        className="w-[220px] shrink-0 m-3 flex flex-col rounded-2xl backdrop-blur-2xl bg-foreground/[0.04] overflow-hidden font-body"
         aria-label="Settings sections"
       >
         <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
-          <h1 className="text-sm font-medium tracking-tight text-white/70 px-2">
+          <h1 className="text-sm font-medium tracking-tight text-foreground/70 px-2">
             Settings
           </h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-foreground/10 text-foreground/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -385,13 +385,13 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
                 onClick={() => onSelect(id)}
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs text-left',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                   active
-                    ? 'bg-white/[0.1] text-[#A17A63] font-medium'
-                    : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]',
+                    ? 'bg-foreground/[0.1] text-primary font-medium'
+                    : 'text-foreground/45 hover:text-foreground/70 hover:bg-foreground/[0.04]',
                 )}
               >
-                <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
+                <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-primary' : 'text-foreground/35')} aria-hidden="true" />
                 <span className="truncate">{label}</span>
               </button>
             )
@@ -399,12 +399,12 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
         </nav>
 
         {/* Auth footer */}
-        <div className="px-3 pb-3 pt-1 border-t border-white/[0.06]">
+        <div className="px-3 pb-3 pt-1 border-t border-foreground/[0.06]">
           {user ? (
             <button
               type="button"
               onClick={() => { onSignOut(); onClose() }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs text-destructive/80 hover:text-destructive hover:bg-destructive/[0.08] transition-all"
             >
               <LogOut className="h-4 w-4 flex-shrink-0" />
               <span>Log out</span>
@@ -419,11 +419,11 @@ const DesktopSideNav = React.forwardRef<HTMLDivElement, DesktopSideNavProps>(
                 <LogIn className="h-4 w-4 flex-shrink-0" />
                 <span>Sign in</span>
               </button>
-              <span className="text-white/20 text-xs">|</span>
+              <span className="text-foreground/20 text-xs">|</span>
               <button
                 type="button"
                 onClick={() => { onClose(); onShowSignUp?.() }}
-                className="flex-1 flex items-center justify-center px-3 py-2 rounded-xl text-xs text-white/45 hover:text-white/70 hover:bg-white/[0.04] transition-all"
+                className="flex-1 flex items-center justify-center px-3 py-2 rounded-xl text-xs text-foreground/45 hover:text-foreground/70 hover:bg-foreground/[0.04] transition-all"
               >
                 <span>Sign up</span>
               </button>
@@ -452,9 +452,9 @@ interface TopTabBarProps {
 const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
   function TopTabBar({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
-      <div className="flex flex-col m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-body">
+      <div className="flex flex-col m-3 rounded-2xl backdrop-blur-2xl bg-foreground/[0.04] overflow-hidden font-body">
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <h1 className="text-sm font-medium tracking-tight text-white/70">
+          <h1 className="text-sm font-medium tracking-tight text-foreground/70">
             Settings
           </h1>
           <div className="flex items-center gap-2">
@@ -462,7 +462,7 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
               <button
                 type="button"
                 onClick={() => { onSignOut(); onClose() }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-destructive/80 hover:text-destructive hover:bg-destructive/[0.08] transition-all"
               >
                 <LogOut className="h-3.5 w-3.5" /> Log out
               </button>
@@ -488,7 +488,7 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
               type="button"
               onClick={onClose}
               aria-label="Close settings"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-foreground/10 text-foreground/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -515,13 +515,13 @@ const TopTabBar = React.forwardRef<HTMLDivElement, TopTabBarProps>(
                 onClick={() => onSelect(id)}
                 className={cn(
                   'shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs transition-all duration-200',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                   active
-                    ? 'bg-white/[0.1] text-[#A17A63] font-medium'
-                    : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]',
+                    ? 'bg-foreground/[0.1] text-primary font-medium'
+                    : 'text-foreground/45 hover:text-foreground/70 hover:bg-foreground/[0.04]',
                 )}
               >
-                <Icon className={cn('h-4 w-4', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
+                <Icon className={cn('h-4 w-4', active ? 'text-primary' : 'text-foreground/35')} aria-hidden="true" />
                 <span>{label}</span>
               </button>
             )
@@ -549,16 +549,16 @@ interface MobileTabListProps {
 const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
   function MobileTabList({ tabs, activeTab, onSelect, onKeyDown, onClose, user, onShowSignIn, onShowSignUp, onSignOut }, ref) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 m-3 rounded-2xl backdrop-blur-2xl bg-white/[0.04] overflow-hidden font-body">
+      <div className="flex flex-col flex-1 min-h-0 m-3 rounded-2xl backdrop-blur-2xl bg-foreground/[0.04] overflow-hidden font-body">
         <div className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
-          <h1 className="text-sm font-medium tracking-tight text-white/70">
+          <h1 className="text-sm font-medium tracking-tight text-foreground/70">
             Settings
           </h1>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-white/10 text-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-foreground/10 text-foreground/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -584,15 +584,15 @@ const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
                   onClick={() => onSelect(id)}
                   className={cn(
                     'w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs text-left',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A17A63]/40',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                     active
-                      ? 'bg-white/[0.1] text-[#A17A63] font-medium'
-                      : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]',
+                      ? 'bg-foreground/[0.1] text-primary font-medium'
+                      : 'text-foreground/45 hover:text-foreground/70 hover:bg-foreground/[0.04]',
                   )}
                 >
-                  <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-[#A17A63]' : 'text-white/35')} aria-hidden="true" />
+                  <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'text-primary' : 'text-foreground/35')} aria-hidden="true" />
                   <span className="flex-1 truncate">{label}</span>
-                  <span aria-hidden="true" className="text-white/30">›</span>
+                  <span aria-hidden="true" className="text-foreground/30">›</span>
                 </button>
               </li>
             )
@@ -600,12 +600,12 @@ const MobileTabList = React.forwardRef<HTMLUListElement, MobileTabListProps>(
         </ul>
 
         {/* Auth footer */}
-        <div className="px-3 pb-3 pt-1 border-t border-white/[0.06]">
+        <div className="px-3 pb-3 pt-1 border-t border-foreground/[0.06]">
           {user ? (
             <button
               type="button"
               onClick={() => { onSignOut(); onClose() }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/[0.08] transition-all"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-destructive/80 hover:text-destructive hover:bg-destructive/[0.08] transition-all"
             >
               <LogOut className="h-4 w-4 flex-shrink-0" />
               <span>Log out</span>
@@ -649,18 +649,18 @@ function MobileContentHeader({
         type="button"
         onClick={onBack}
         aria-label="Back to settings list"
-        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-white/90 hover:text-white/90 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-foreground/90 hover:text-foreground/90 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ArrowLeft className="h-4 w-4" />
       </button>
-      <h2 className="flex-1 text-base font-semibold text-white/90 truncate">
+      <h2 className="flex-1 text-base font-semibold text-foreground/90 truncate">
         {title}
       </h2>
       <button
         type="button"
         onClick={onClose}
         aria-label="Close settings"
-        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-white/90 hover:text-white/90 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-11 w-11 inline-flex items-center justify-center rounded-md text-foreground/90 hover:text-foreground/90 hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <X className="h-4 w-4" />
       </button>

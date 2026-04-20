@@ -122,10 +122,10 @@ export function VibeComposer({ vibeTitle, onSubmit, isSubmitting }: VibeComposer
     : 'Describe an image — e.g. Royal mandap with marigold florals'
 
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-3 shadow-lg shadow-black/10 backdrop-blur-xl supports-[backdrop-filter]:bg-white/[0.06] sm:p-4">
+    <div className="rounded-2xl border border-foreground/15 bg-foreground/[0.06] p-3 shadow-lg shadow-black/10 backdrop-blur-xl supports-[backdrop-filter]:bg-foreground/[0.06] sm:p-4">
       {vibeTitle && (
-        <div className="mb-2 text-xs text-white/60">
-          Styled with: <b className="text-white">{vibeTitle}</b> vibe
+        <div className="mb-2 text-xs text-foreground/60">
+          Styled with: <b className="text-foreground">{vibeTitle}</b> vibe
         </div>
       )}
 
@@ -137,17 +137,17 @@ export function VibeComposer({ vibeTitle, onSubmit, isSubmitting }: VibeComposer
         placeholder={placeholder}
         aria-label="Image prompt"
         rows={1}
-        className="min-h-[44px] resize-none border-0 bg-transparent p-2 text-sm text-white placeholder:text-white/40 shadow-none focus-visible:ring-0"
+        className="min-h-[44px] resize-none border-0 bg-transparent p-2 text-sm text-foreground placeholder:text-foreground/40 shadow-none focus-visible:ring-0"
       />
 
       {previewUrl && (
-        <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.08] p-1.5 backdrop-blur-md">
+        <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-foreground/15 bg-foreground/[0.08] p-1.5 backdrop-blur-md">
           <img
             src={previewUrl}
             alt="Reference preview"
             className="h-12 w-12 rounded object-cover"
           />
-          <span className="max-w-[140px] truncate text-xs text-white/90">
+          <span className="max-w-[140px] truncate text-xs text-foreground/90">
             {referenceImage?.name}
           </span>
           <button
@@ -164,7 +164,7 @@ export function VibeComposer({ vibeTitle, onSubmit, isSubmitting }: VibeComposer
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
           <SelectTrigger
-            className="h-9 w-auto min-w-[120px] border-white/15 bg-white/[0.06] text-xs text-white backdrop-blur-md hover:bg-white/[0.1]"
+            className="h-9 w-auto min-w-[120px] border-foreground/15 bg-foreground/[0.06] text-xs text-foreground backdrop-blur-md hover:bg-foreground/[0.1]"
             aria-label="Aspect ratio"
           >
             <SelectValue />
@@ -191,7 +191,7 @@ export function VibeComposer({ vibeTitle, onSubmit, isSubmitting }: VibeComposer
           type="button"
           variant="outline"
           size="sm"
-          className="h-9 gap-1.5 border-white/15 bg-white/[0.06] text-white backdrop-blur-md hover:bg-white/[0.1] hover:text-white"
+          className="h-9 gap-1.5 border-foreground/15 bg-foreground/[0.06] text-foreground backdrop-blur-md hover:bg-foreground/[0.1] hover:text-foreground"
           onClick={() => fileInputRef.current?.click()}
           aria-label="Attach reference image"
         >

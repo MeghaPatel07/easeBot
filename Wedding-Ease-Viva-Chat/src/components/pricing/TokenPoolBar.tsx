@@ -14,8 +14,8 @@ export function TokenPoolBar({ className }: { className?: string }) {
 
   const barColor =
     level === 'exceeded' || cappedReason ? 'bg-destructive'
-      : level === 'critical' ? 'bg-amber-500'
-        : level === 'warning' ? 'bg-amber-400'
+      : level === 'critical' ? 'bg-warning'
+        : level === 'warning' ? 'bg-warning'
           : 'bg-primary'
 
   const dailyCapped = cappedReason === 'daily_cap_exceeded'
@@ -24,11 +24,11 @@ export function TokenPoolBar({ className }: { className?: string }) {
     <div className={cn('space-y-2', className)}>
       {/* Monthly pool */}
       <div>
-        <div className="flex items-center justify-between text-2xs text-white/60 mb-1">
+        <div className="flex items-center justify-between text-2xs text-foreground/60 mb-1">
           <span>Monthly tokens</span>
           <span className={cn(
             level === 'exceeded' && 'text-destructive font-medium',
-            level === 'critical' && 'text-amber-500 font-medium',
+            level === 'critical' && 'text-warning font-medium',
           )}>
             {monthlyLabel}
           </span>
@@ -39,7 +39,7 @@ export function TokenPoolBar({ className }: { className?: string }) {
           aria-valuenow={monthlyPct}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="h-1.5 w-full rounded-full bg-white/[0.08] overflow-hidden"
+          className="h-1.5 w-full rounded-full bg-foreground/[0.08] overflow-hidden"
         >
           <div
             className={cn('h-full rounded-full transition-all duration-500', barColor)}
@@ -50,7 +50,7 @@ export function TokenPoolBar({ className }: { className?: string }) {
 
       {/* Daily cap */}
       <div>
-        <div className="flex items-center justify-between text-2xs text-white/60 mb-1">
+        <div className="flex items-center justify-between text-2xs text-foreground/60 mb-1">
           <span>Today</span>
           <span className={cn(dailyCapped && 'text-destructive font-medium')}>
             {dailyLabel}
@@ -62,10 +62,10 @@ export function TokenPoolBar({ className }: { className?: string }) {
           aria-valuenow={dailyPct}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="h-1 w-full rounded-full bg-white/[0.08] overflow-hidden"
+          className="h-1 w-full rounded-full bg-foreground/[0.08] overflow-hidden"
         >
           <div
-            className={cn('h-full rounded-full transition-all duration-500', dailyCapped ? 'bg-destructive' : 'bg-white/30')}
+            className={cn('h-full rounded-full transition-all duration-500', dailyCapped ? 'bg-destructive' : 'bg-foreground/30')}
             style={{ width: `${dailyPct}%` }}
           />
         </div>
@@ -78,15 +78,15 @@ export function TokenPoolBar({ className }: { className?: string }) {
 
       {/* Warning / upgrade prompt */}
       {level === 'warning' && (
-        <p className="text-2xs text-amber-400">
+        <p className="text-2xs text-warning">
           You've used 75%+ of your monthly tokens.{' '}
-          <Link to="/pricing" className="underline hover:text-amber-300">View usage</Link>
+          <Link to="/pricing" className="underline hover:text-warning-subtle">View usage</Link>
         </p>
       )}
       {level === 'critical' && (
-        <p className="text-2xs text-amber-500 font-medium">
+        <p className="text-2xs text-warning font-medium">
           90%+ of your monthly pool used. Expensive actions (images, voice) will use remaining tokens quickly.{' '}
-          <Link to="/pricing" className="underline hover:text-amber-400">Upgrade or top up</Link>
+          <Link to="/pricing" className="underline hover:text-warning-subtle">Upgrade or top up</Link>
         </p>
       )}
       {level === 'exceeded' && (

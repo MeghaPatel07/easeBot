@@ -184,27 +184,27 @@ export default function PlannerView({
       {checklists.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-2 flex-shrink-0">
           {stats.overdue > 0 && (
-            <div className="flex-1 min-w-0 rounded-xl bg-red-500/10 border border-red-200 px-2 py-1.5 text-center">
-              <p className="text-base font-bold text-red-600">{stats.overdue}</p>
-              <p className="text-3xs text-red-500 font-medium"><span aria-label="Warning">⚠</span> Overdue</p>
+            <div className="flex-1 min-w-0 rounded-xl bg-destructive/10 border border-destructive/20 px-2 py-1.5 text-center">
+              <p className="text-base font-bold text-destructive">{stats.overdue}</p>
+              <p className="text-3xs text-destructive font-medium"><span aria-label="Warning">⚠</span> Overdue</p>
             </div>
           )}
-          <div className="flex-1 min-w-0 rounded-xl bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 text-center">
-            <p className="text-base font-bold text-amber-600">{stats.todo}</p>
-            <p className="text-3xs text-amber-500 font-medium">📋 To-Do</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-cat-budget/10 border border-cat-budget/20 px-2 py-1.5 text-center">
+            <p className="text-base font-bold text-cat-budget-deep">{stats.todo}</p>
+            <p className="text-3xs text-cat-budget font-medium">📋 To-Do</p>
           </div>
-          <div className="flex-1 min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 text-center">
-            <p className="text-base font-bold text-emerald-600">{stats.completed}</p>
-            <p className="text-3xs text-emerald-500 font-medium">✅ Done</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-success/10 border border-success/20 px-2 py-1.5 text-center">
+            <p className="text-base font-bold text-success">{stats.completed}</p>
+            <p className="text-3xs text-success font-medium">✅ Done</p>
           </div>
         </div>
       )}
 
       {/* Free tier limit */}
       {atLimit && (
-        <div className="mb-3 flex-shrink-0 rounded-xl bg-amber-500/10 border border-amber-500/25 px-3 py-2 flex items-start gap-2">
-          <Lock className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="text-2xs text-amber-700 leading-snug">
+        <div className="mb-3 flex-shrink-0 rounded-xl bg-cat-budget/10 border border-cat-budget/25 px-3 py-2 flex items-start gap-2">
+          <Lock className="h-3 w-3 text-cat-budget flex-shrink-0 mt-0.5" />
+          <p className="text-2xs text-cat-budget-darker leading-snug">
             Limit: 5 checklists. Upgrade for unlimited.
           </p>
         </div>
@@ -213,7 +213,7 @@ export default function PlannerView({
       {/* Checklist list */}
       <div className="flex-1 overflow-y-auto space-y-1" style={{ touchAction: 'pan-y' }}>
         {checklists.length === 0 ? (
-          <p className="text-xs text-white/40 text-center py-6 px-2">
+          <p className="text-xs text-foreground/40 text-center py-6 px-2">
             No checklists yet.<br />
             Tap <span className="font-semibold text-primary">+ New Checklist</span> above, or ask TheWeddingBot in <span className="font-semibold text-primary">Planner mode</span> to save a list.
           </p>
@@ -241,16 +241,16 @@ export default function PlannerView({
                 className={`group flex items-center gap-2 rounded-xl px-3 py-2.5 min-h-[44px] cursor-pointer transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
                   isSelected
                     ? 'bg-primary/10 border border-primary/20'
-                    : 'hover:bg-white/10 border border-transparent hover:border-border'
+                    : 'hover:bg-foreground/10 border border-transparent hover:border-border'
                 }`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <CheckSquare className={`h-3.5 w-3.5 flex-shrink-0 ${isSelected ? 'text-primary' : 'text-white/40'}`} />
+                <CheckSquare className={`h-3.5 w-3.5 flex-shrink-0 ${isSelected ? 'text-primary' : 'text-foreground/40'}`} />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium truncate ${isSelected ? 'text-primary' : 'text-white/70'}`}>
+                  <p className={`text-xs font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground/70'}`}>
                     {cl.title}
                   </p>
-                  <p className="text-2xs text-white/40">{done}/{total} done</p>
+                  <p className="text-2xs text-foreground/40">{done}/{total} done</p>
                 </div>
                 <div
                   className="relative flex-shrink-0"
@@ -266,7 +266,7 @@ export default function PlannerView({
                       e.stopPropagation()
                       setOpenMenuId(menuOpen ? null : cl.id)
                     }}
-                    className="inline-flex items-center justify-center h-9 w-9 sm:h-7 sm:w-7 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/10 active:bg-white/15 sm:opacity-60 sm:group-hover:opacity-100 transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    className="inline-flex items-center justify-center h-9 w-9 sm:h-7 sm:w-7 rounded-lg text-foreground/40 hover:text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 sm:opacity-60 sm:group-hover:opacity-100 transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     <MoreVertical className="h-4 w-4 sm:h-3 sm:w-3" />
@@ -274,7 +274,7 @@ export default function PlannerView({
                   {menuOpen && (
                     <div
                       role="menu"
-                      className="absolute right-0 top-full mt-1 z-50 bg-black/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl py-1 min-w-[160px]"
+                      className="absolute right-0 top-full mt-1 z-50 bg-overlay-scrim/95 backdrop-blur-md border border-foreground/10 rounded-lg shadow-xl py-1 min-w-[160px]"
                     >
                       <button
                         type="button"
@@ -294,7 +294,7 @@ export default function PlannerView({
                           e.stopPropagation()
                           handleCopy(cl)
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 hover:text-white transition-colors min-h-[40px] touch-manipulation"
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 hover:text-foreground transition-colors min-h-[40px] touch-manipulation"
                       >
                         <Copy className="h-3.5 w-3.5" /> Copy
                       </button>
@@ -305,7 +305,7 @@ export default function PlannerView({
                           e.stopPropagation()
                           handleDelete(cl)
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors min-h-[40px] touch-manipulation"
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/10 active:bg-destructive/20 transition-colors min-h-[40px] touch-manipulation"
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </button>
@@ -325,19 +325,19 @@ export default function PlannerView({
           if (!o) resetForm()
         }}
       >
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-foreground/[0.08] shadow-modal bg-card-elevated/90 backdrop-blur-2xl flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="font-headline text-lg text-white/90">
+            <DialogTitle className="font-headline text-lg text-foreground/90">
               New Checklist
             </DialogTitle>
-            <DialogDescription className="text-white/40 text-xs">
+            <DialogDescription className="text-foreground/40 text-xs">
               Give your checklist a name and optionally add starting items, one per line.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="checklist-title" className="text-xs font-medium text-white/70">
+              <label htmlFor="checklist-title" className="text-xs font-medium text-foreground/70">
                 Title
               </label>
               <Input
@@ -350,8 +350,8 @@ export default function PlannerView({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="checklist-items" className="text-xs font-medium text-white/70">
-                Starting items <span className="text-white/30">(optional)</span>
+              <label htmlFor="checklist-items" className="text-xs font-medium text-foreground/70">
+                Starting items <span className="text-foreground/30">(optional)</span>
               </label>
               <Textarea
                 id="checklist-items"

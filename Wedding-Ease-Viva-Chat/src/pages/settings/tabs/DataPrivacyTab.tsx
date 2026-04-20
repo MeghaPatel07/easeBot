@@ -121,7 +121,7 @@ export function DataPrivacyTab() {
       {/* <Card className="p-6">
         <div className="mb-2">
           <h3 className="text-base font-semibold">Improve the model for everyone</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             By default, anonymized snippets of your chats may be used to make TheWeddingBot
             better. Opt out at any time.
           </p>
@@ -129,7 +129,7 @@ export function DataPrivacyTab() {
         <div className="flex h-10 rounded-full items-center justify-between gap-4 py-3">
           <Label
             htmlFor="data-training-opt-out"
-            className="text-sm font-medium text-white/90"
+            className="text-sm font-medium text-foreground/90"
           >
             Don&rsquo;t use my chats for training
           </Label>
@@ -147,7 +147,7 @@ export function DataPrivacyTab() {
       {/* <Card className="p-6">
         <div className="mb-3">
           <h3 className="text-base font-semibold">Export your data</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             Download a copy of your profile, chats, notes, and reminders in JSON.
           </p>
         </div>
@@ -157,7 +157,7 @@ export function DataPrivacyTab() {
           onClick={onExport}
           disabled={exporting}
           aria-label="Download all my data"
-          className="h-10 rounded-full min-w-11 bg-white/[0.04] text-white/90 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="h-10 rounded-full min-w-11 bg-foreground/[0.04] text-foreground/90 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <Download aria-hidden="true" className="mr-2 h-4 w-4" />
           {exporting ? 'Preparing…' : 'Download all my data'}
@@ -168,7 +168,7 @@ export function DataPrivacyTab() {
       <Card className="p-6">
         <div className="mb-3">
           <h3 className="text-base font-semibold">Clear chat history</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             Permanently delete every chat thread on this account. This cannot be undone.
           </p>
         </div>
@@ -185,10 +185,10 @@ export function DataPrivacyTab() {
               {clearing ? 'Clearing…' : 'Clear chat history'}
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent className="bg-[#0F0D0C]/90 text-white/90 border border-white/[0.08] backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]">
+          <AlertDialogContent className="bg-card-elevated/90 text-foreground/90 border border-foreground/[0.08] backdrop-blur-2xl shadow-modal">
             <AlertDialogHeader>
               <AlertDialogTitle>Clear all chat history?</AlertDialogTitle>
-              <AlertDialogDescription className="text-white/90">
+              <AlertDialogDescription className="text-foreground/90">
                 Every chat thread, message, and AI response on this account will be
                 permanently deleted. This action cannot be undone.
               </AlertDialogDescription>
@@ -209,10 +209,10 @@ export function DataPrivacyTab() {
       {/* Cookie preferences */}
       <Card className="p-6">
         <div className="mb-2 flex items-start gap-3">
-          <Cookie aria-hidden="true" className="mt-0.5 h-4 w-4 text-white/90" />
+          <Cookie aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground/90" />
           <div>
             <h3 className="text-base font-semibold">Cookie preferences</h3>
-            <p className="mt-1 text-xs text-white/90">
+            <p className="mt-1 text-xs text-foreground/90">
               TheWeddingBot only uses essential cookies for authentication and session
               continuity. Tracking and analytics cookies are managed in your browser
               settings.
@@ -224,10 +224,10 @@ export function DataPrivacyTab() {
       {/* Your rights */}
       <Card className="p-6">
         <div className="mb-2 flex items-start gap-3">
-          <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 text-white/90" />
+          <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground/90" />
           <div>
             <h3 className="text-base font-semibold">Your rights</h3>
-            <p className="mt-1 text-xs text-white/90">
+            <p className="mt-1 text-xs text-foreground/90">
               Under the EU GDPR and India&rsquo;s DPDP Act you may request access,
               correction, or deletion of your personal data at any time. We respond
               within 30 days.

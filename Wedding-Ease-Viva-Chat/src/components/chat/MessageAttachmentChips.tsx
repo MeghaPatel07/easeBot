@@ -101,9 +101,9 @@ export default function MessageAttachmentChips({
             <div
               key={`${att.kind}:${att.id}`}
               title="This artifact has been deleted"
-              className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-white/35 line-through decoration-white/30"
+              className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-foreground/[0.04] border border-foreground/[0.06] text-xs text-foreground/35 line-through decoration-white/30"
             >
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500/60 flex-shrink-0" />
+              <AlertTriangle className="h-3.5 w-3.5 text-cat-budget/60 flex-shrink-0" />
               <span>Deleted {att.kind}</span>
             </div>
           )
@@ -117,7 +117,7 @@ export default function MessageAttachmentChips({
               if (href) navigate(href)
             }}
             title={att.preview ?? att.title}
-            className="flex items-center gap-1.5 h-7 pl-2 pr-2.5 rounded-full bg-[#A17A63]/[0.12] border border-[#A17A63]/25 text-xs text-[#E8C8A6] hover:bg-[#A17A63]/20 hover:border-[#A17A63]/40 transition-colors max-w-[220px]"
+            className="flex items-center gap-1.5 h-7 pl-2 pr-2.5 rounded-full bg-primary/[0.12] border border-primary/25 text-xs text-primary-bright [.light_&]:bg-primary/[0.18] [.light_&]:border-primary/40 [.light_&]:text-primary hover:bg-primary/20 hover:border-primary/40 transition-colors max-w-[220px]"
           >
             {att.kind === 'image' && isSafeHttpUrl(att.url) ? (
               <img
@@ -127,7 +127,7 @@ export default function MessageAttachmentChips({
                 loading="lazy"
               />
             ) : (
-              <Icon className="h-3.5 w-3.5 text-[#A17A63] flex-shrink-0" />
+              <Icon className="h-3.5 w-3.5 text-primary flex-shrink-0" />
             )}
             <span className="truncate">{truncate(att.title)}</span>
           </button>

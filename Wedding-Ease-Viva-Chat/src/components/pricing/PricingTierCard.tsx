@@ -141,7 +141,7 @@ export function PricingTierCard({
         'relative flex flex-col rounded-2xl border-0 p-6 backdrop-blur-sm transition-colors',
         isRecommended
           ? 'bg-primary/[0.06] shadow-[0_0_32px_rgba(198,148,74,0.15),0_12px_40px_-16px_rgba(198,148,74,0.2)]'
-          : 'bg-white/[0.03]',
+          : 'bg-foreground/[0.03]',
       )}
     >
       {/* Recommended ribbon — DOM slot preserved on all cards for height parity */}
@@ -164,23 +164,23 @@ export function PricingTierCard({
 
       <h2
         id={`tier-${tier}-name`}
-        className="font-headline text-2xl text-white/90"
+        className="font-headline text-2xl text-foreground/90"
       >
         {meta.name}
       </h2>
-      <p className="mt-1 text-xs text-white/90">{meta.tagline}</p>
+      <p className="mt-1 text-xs text-foreground/90">{meta.tagline}</p>
 
       <div
         className="mt-5 flex items-baseline gap-1"
         aria-live="polite"
       >
-        <span className="font-headline text-4xl text-white/90">
+        <span className="font-headline text-4xl text-foreground/90">
           {displayPrice}
         </span>
-        <span className="text-xs text-white/90">/ month</span>
+        <span className="text-xs text-foreground/90">/ month</span>
       </div>
       {currency !== 'USD' && (
-        <p className="mt-1 text-3xs text-white/90">
+        <p className="mt-1 text-3xs text-foreground/90">
           Billed in {currency}. ~${priceUsd} USD.
         </p>
       )}
@@ -189,7 +189,7 @@ export function PricingTierCard({
         {meta.features.map((feature) => (
           <li
             key={feature}
-            className="flex items-start gap-2 text-sm text-white/90"
+            className="flex items-start gap-2 text-sm text-foreground/90"
           >
             <Check
               aria-hidden="true"
@@ -207,17 +207,17 @@ export function PricingTierCard({
         aria-disabled={cta.disabled}
         aria-label={`${cta.label} — ${meta.name}`}
         className={cn(
-          'mt-6 inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/10',
+          'mt-6 inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/10',
           cta.disabled && 'cursor-not-allowed opacity-60',
           !cta.disabled && cta.variant === 'filled'
             ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-            : 'bg-white/[0.06] text-white/90 hover:bg-white/[0.1]',
+            : 'bg-foreground/[0.06] text-foreground/90 hover:bg-foreground/[0.1]',
         )}
       >
         {cta.label}
       </button>
 
-      <p className="mt-3 text-3xs text-white/90">
+      <p className="mt-3 text-3xs text-foreground/90">
         No refunds. Cancel anytime to stop renewal.
       </p>
     </article>

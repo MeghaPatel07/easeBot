@@ -78,12 +78,12 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
       </div>
 
       {vibe.subtitle && (
-        <p className="mt-1 text-sm text-white/90">{vibe.subtitle}</p>
+        <p className="mt-1 text-sm text-foreground/90">{vibe.subtitle}</p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {vibe.descriptors.length === 0 && !adding && (
-          <span className="text-sm text-white/90">
+          <span className="text-sm text-foreground/90">
             Add descriptors to shape your vibe
           </span>
         )}
@@ -91,7 +91,7 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
         {vibe.descriptors.map((d) => (
           <span
             key={d}
-            className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-white/90 sm:text-sm"
+            className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground/90 sm:text-sm"
           >
             {d}
             <button
@@ -134,7 +134,7 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
             onClick={() => setAdding(true)}
             disabled={busy}
             aria-label="Add descriptor"
-            className="inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1 text-xs font-medium text-white/90 hover:bg-muted hover:text-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:text-sm"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1 text-xs font-medium text-foreground/90 hover:bg-muted hover:text-foreground/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:text-sm"
           >
             <Plus className="h-3 w-3" aria-hidden="true" />
             Add

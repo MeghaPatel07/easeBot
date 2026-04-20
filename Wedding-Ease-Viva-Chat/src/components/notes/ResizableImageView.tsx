@@ -117,7 +117,7 @@ export default function ResizableImageView({
       <div
         ref={containerRef}
         className={`relative group inline-block ${
-          selected ? "ring-2 ring-[#A17A63] ring-offset-1 ring-offset-transparent rounded-lg" : ""
+          selected ? "ring-2 ring-primary ring-offset-1 ring-offset-transparent rounded-lg" : ""
         }`}
         style={widthStyle}
         onMouseEnter={() => setShowToolbar(true)}
@@ -144,7 +144,7 @@ export default function ResizableImageView({
               style={{ touchAction: "none" }}
               onPointerDown={(e) => onPointerDown(e, "left")}
             >
-              <div className="w-1 h-10 max-h-[40%] rounded-full bg-white/70 shadow-md" />
+              <div className="w-1 h-10 max-h-[40%] rounded-full bg-foreground/70 shadow-md" />
             </div>
             {/* Right handle */}
             <div
@@ -152,14 +152,14 @@ export default function ResizableImageView({
               style={{ touchAction: "none" }}
               onPointerDown={(e) => onPointerDown(e, "right")}
             >
-              <div className="w-1 h-10 max-h-[40%] rounded-full bg-white/70 shadow-md" />
+              <div className="w-1 h-10 max-h-[40%] rounded-full bg-foreground/70 shadow-md" />
             </div>
           </>
         )}
 
         {/* Toolbar — overlay inside the image at top */}
         {toolbarVisible && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-black/80 backdrop-blur-sm border border-white/10 rounded-lg px-1 py-0.5 shadow-xl z-50">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-overlay-scrim/80 backdrop-blur-sm border border-foreground/10 rounded-lg px-1 py-0.5 shadow-xl z-50">
             <ToolbarButton
               active={alignment === "left"}
               onClick={() => setAlignment("left")}
@@ -182,7 +182,7 @@ export default function ResizableImageView({
               <AlignRight className="h-3.5 w-3.5" />
             </ToolbarButton>
 
-            <div className="w-px h-4 bg-white/20 mx-0.5" />
+            <div className="w-px h-4 bg-foreground/20 mx-0.5" />
 
             <ToolbarButton onClick={toggleFullWidth} title="Full width">
               <Maximize2 className="h-3.5 w-3.5" />
@@ -193,7 +193,7 @@ export default function ResizableImageView({
             <ToolbarButton
               onClick={deleteNode}
               title="Delete"
-              className="hover:!bg-red-500/30 hover:!text-red-300"
+              className="hover:!bg-destructive/30 hover:!text-destructive"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </ToolbarButton>
@@ -230,8 +230,8 @@ function ToolbarButton({
       title={title}
       className={`p-1.5 rounded-md transition-colors ${
         active
-          ? "bg-[#A17A63]/30 text-[#A17A63]"
-          : "text-white/60 hover:bg-white/10 hover:text-white"
+          ? "bg-primary/30 text-primary"
+          : "text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
       } ${className}`}
     >
       {children}

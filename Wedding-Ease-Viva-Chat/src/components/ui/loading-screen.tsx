@@ -11,14 +11,14 @@ const LoadingScreen: React.FC = () => {
         <div
           className="absolute inset-0 rounded-full border-4 border-transparent animate-spin"
           style={{
-            borderTopColor: '#A17A63',
-            borderRightColor: '#A17A63',
+            borderTopColor: 'hsl(var(--primary))',
+            borderRightColor: 'hsl(var(--primary))',
           }}
         />
         <div
           className="absolute inset-2 rounded-full border-4 border-transparent animate-spin"
           style={{
-            borderBottomColor: '#A17A63',
+            borderBottomColor: 'hsl(var(--primary))',
             animationDirection: 'reverse',
             animationDuration: '0.8s',
           }}
@@ -26,7 +26,7 @@ const LoadingScreen: React.FC = () => {
       </div>
       <p
         className="text-sm font-medium tracking-wide"
-        style={{ color: '#A17A63' }}
+        style={{ color: 'hsl(var(--primary))' }}
       >
         Loading TheWeddingBot...
       </p>

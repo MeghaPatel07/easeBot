@@ -108,7 +108,7 @@ export default function Checkout() {
   if (!authReady) {
     return (
       <div className="gradient-bg min-h-screen text-soft flex items-center justify-center p-6">
-        <p className="text-sm text-white/60">Loading checkout…</p>
+        <p className="text-sm text-foreground/60">Loading checkout…</p>
       </div>
     )
   }
@@ -179,7 +179,7 @@ export default function Checkout() {
   }
 
   const inputCls =
-    'min-h-11 w-full rounded-xl border-0 bg-white/[0.04] px-3 text-sm text-soft placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/10 focus:bg-white/[0.06] transition-colors'
+    'min-h-11 w-full rounded-xl border-0 bg-[hsl(22.5deg_25.6%_50.98%/5%)] px-3 text-sm text-soft placeholder-foreground/30 focus:outline-none focus:ring-1 focus:ring-foreground/10 focus:bg-foreground/[0.06] transition-colors'
 
   return (
     <div className="gradient-bg min-h-screen text-soft">
@@ -187,48 +187,49 @@ export default function Checkout() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition mb-8"
+          className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground/90 transition mb-8"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
 
         <header className="mb-8">
-          <p className="font-label uppercase tracking-[0.2em] text-2xs text-white/40 mb-3">
+          <p className="font-label uppercase tracking-[0.2em] text-2xs text-foreground/40 mb-3">
             Checkout
           </p>
-          <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-white mb-2">
+          <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
             Billing information
           </h1>
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-foreground/60">
             Enter your billing address to generate a tax-compliant invoice. GSTIN
             is optional and only used for Indian businesses.
           </p>
         </header>
 
-        {/* Order summary */}
-        <div className="mb-6 rounded-2xl bg-white/[0.03] backdrop-blur-sm p-5">
-          <p className="text-2xs uppercase tracking-wide text-white/40">Order summary</p>
-          <div className="mt-2 flex items-baseline justify-between gap-3">
-            <p className="text-lg text-white">{state.label}</p>
-            <p className="font-headline text-2xl text-white">{priceDisplay}</p>
+        <div className="rounded-2xl bg-card/90 border border-border/50 shadow-card backdrop-blur-2xl p-6 md:p-8">
+          {/* Order summary */}
+          <div className="mb-6 rounded-2xl bg-foreground/[0.03] backdrop-blur-sm p-5">
+            <p className="text-2xs uppercase tracking-wide text-foreground/40">Order summary</p>
+            <div className="mt-2 flex items-baseline justify-between gap-3">
+              <p className="text-lg text-foreground">{state.label}</p>
+              <p className="font-headline text-2xl text-foreground">{priceDisplay}</p>
+            </div>
+            <p className="mt-1 text-2xs text-foreground/40">
+              Billed in {state.currency} · locked at checkout · no refunds per terms §6.5
+            </p>
           </div>
-          <p className="mt-1 text-2xs text-white/40">
-            Billed in {state.currency} · locked at checkout · no refunds per terms §6.5
-          </p>
-        </div>
 
-        {formError && (
-          <div
-            role="alert"
-            className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
-          >
-            {formError}
-          </div>
-        )}
+          {formError && (
+            <div
+              role="alert"
+              className="mb-4 rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {formError}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-xs text-white/60">
+            <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               Full name
               <input
                 type="text"
@@ -239,7 +240,7 @@ export default function Checkout() {
                 placeholder="Priya Sharma"
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-xs text-white/60">
+            <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               Email
               <input
                 type="email"
@@ -252,7 +253,7 @@ export default function Checkout() {
             </label>
           </div>
 
-          <label className="flex flex-col gap-1.5 text-xs text-white/60">
+          <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
             Address line
             <input
               type="text"
@@ -265,7 +266,7 @@ export default function Checkout() {
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-xs text-white/60">
+            <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               Country
               <select
                 value={country}
@@ -280,7 +281,7 @@ export default function Checkout() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1.5 text-xs text-white/60">
+            <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               State / Region
               {country === 'IN' ? (
                 <select
@@ -307,7 +308,7 @@ export default function Checkout() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-xs text-white/60">
+            <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               City
               <input
                 type="text"
@@ -318,7 +319,7 @@ export default function Checkout() {
                 placeholder="Mumbai"
               />
             </label>
-            <label className="flex flex-col gap-1.5 text-xs text-white/60">
+            <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               Postal code
               <input
                 type="text"
@@ -331,7 +332,7 @@ export default function Checkout() {
             </label>
           </div>
 
-          <label className="flex flex-col gap-1.5 text-xs text-white/60">
+          <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
             GSTIN (optional — Indian businesses only)
             <input
               type="text"
@@ -341,7 +342,7 @@ export default function Checkout() {
               placeholder="22AAAAA0000A1Z5"
               maxLength={15}
             />
-            <span className="text-2xs text-white/40">
+            <span className="text-2xs text-foreground/40">
               15 characters. We&apos;ll add this to your tax invoice for input credit.
             </span>
           </label>
@@ -354,13 +355,14 @@ export default function Checkout() {
             >
               {submitting ? 'Redirecting to PayU…' : `Pay ${priceDisplay}`}
             </button>
-            <p className="mt-3 text-2xs text-white/40">
+            <p className="mt-3 text-2xs text-foreground/40">
               You&apos;ll be redirected to PayU&apos;s secure sandbox. By continuing
               you agree to the <Link to="/terms" className="underline">Terms</Link>{' '}
               and <Link to="/privacy" className="underline">Privacy Policy</Link>.
             </p>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   )

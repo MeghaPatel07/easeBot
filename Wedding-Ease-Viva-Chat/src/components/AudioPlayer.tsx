@@ -214,7 +214,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-1 bg-white/[0.08] border border-white/[0.12] rounded-xl px-2 sm:px-3 py-2 sm:py-2.5 w-full max-w-sm shadow-lg backdrop-blur-sm">
+    <div className="flex flex-col gap-1 bg-foreground/[0.08] border border-foreground/[0.12] rounded-xl px-2 sm:px-3 py-2 sm:py-2.5 w-full max-w-sm shadow-lg backdrop-blur-sm">
       {/* Hidden audio element */}
       <audio
         ref={audioRef}
@@ -228,11 +228,11 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
       {/* ── Error state ──────────────────────────────────────────────── */}
       {isError && (
         <div className="flex items-center gap-2 py-1">
-          <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
-          <span className="text-xs text-red-300 flex-1 truncate">{errorMsg}</span>
+          <AlertCircle size={14} className="text-destructive flex-shrink-0" />
+          <span className="text-xs text-destructive-subtle flex-1 truncate">{errorMsg}</span>
           <button
             onClick={handleRetry}
-            className="flex items-center gap-1 text-xs text-[#A17A63] hover:text-[#B89382] transition-colors"
+            className="flex items-center gap-1 text-xs text-primary hover:text-primary-subtle transition-colors"
           >
             <RotateCcw size={12} />
             Retry
@@ -240,7 +240,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
           {onClose && (
             <button
               onClick={onClose}
-              className="h-5 w-5 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors"
+              className="h-5 w-5 flex items-center justify-center text-foreground/40 hover:text-foreground/70 transition-colors"
             >
               <X size={12} />
             </button>
@@ -257,7 +257,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
             <button
               onClick={togglePlay}
               disabled={isLoading}
-              className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-[#A17A63] text-white flex items-center justify-center flex-shrink-0 hover:bg-[#B89382] active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#A17A63]/30"
+              className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 hover:bg-primary-subtle active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-primary/30"
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isLoading ? (
@@ -290,8 +290,8 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
                     key={i}
                     className={`w-[2px] rounded-full flex-shrink-0 transition-all duration-150 ${
                       filled
-                        ? 'bg-[#A17A63]'
-                        : 'bg-white/[0.12]'
+                        ? 'bg-primary'
+                        : 'bg-foreground/[0.12]'
                     } ${isActive ? 'scale-y-125' : ''}`}
                     style={{
                       height: `${h * 2.5}px`,
@@ -311,7 +311,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
             <button
               onClick={cycleSpeed}
               disabled={isLoading}
-              className="h-10 sm:h-auto px-1.5 sm:px-0 text-[11px] sm:text-[10px] font-bold text-white/65 sm:text-white/50 hover:text-[#A17A63] w-10 sm:w-9 text-center flex-shrink-0 transition-colors tabular-nums disabled:cursor-not-allowed rounded"
+              className="h-10 sm:h-auto px-1.5 sm:px-0 text-[11px] sm:text-[10px] font-bold text-foreground/65 sm:text-foreground/50 hover:text-primary w-10 sm:w-9 text-center flex-shrink-0 transition-colors tabular-nums disabled:cursor-not-allowed rounded"
               aria-label={`Playback speed ${speed}x`}
             >
               {speed}x
@@ -319,12 +319,12 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
 
             {/* Stop button — bumped to 36×36 (mobile) / 24×24 (desktop) and
                 brighter (white/70 vs white/30) so it's actually visible during
-                playback on a phone. Previously h-6 w-6 with text-white/30 +
+                playback on a phone. Previously h-6 w-6 with text-foreground/30 +
                 10px icon was effectively invisible on the burgundy theme. */}
             <button
               onClick={handleStop}
               disabled={!canInteract}
-              className="h-9 w-9 sm:h-6 sm:w-6 rounded-full sm:rounded flex items-center justify-center text-white/70 sm:text-white/40 hover:text-white hover:bg-white/10 flex-shrink-0 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="h-9 w-9 sm:h-6 sm:w-6 rounded-full sm:rounded flex items-center justify-center text-foreground/70 sm:text-foreground/40 hover:text-foreground hover:bg-foreground/10 flex-shrink-0 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               aria-label="Stop"
             >
               <Square size={14} className="sm:!w-2.5 sm:!h-2.5" fill="currentColor" />
@@ -334,7 +334,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
             {onClose && (
               <button
                 onClick={onClose}
-                className="h-9 w-9 sm:h-6 sm:w-6 rounded-full sm:rounded flex items-center justify-center text-white/60 sm:text-white/30 hover:text-white hover:bg-white/10 flex-shrink-0 transition-colors"
+                className="h-9 w-9 sm:h-6 sm:w-6 rounded-full sm:rounded flex items-center justify-center text-foreground/60 sm:text-foreground/30 hover:text-foreground hover:bg-foreground/10 flex-shrink-0 transition-colors"
                 aria-label="Close player"
               >
                 <X size={16} className="sm:!w-3 sm:!h-3" />
@@ -343,7 +343,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
           </div>
 
           {/* Bottom row: time display */}
-          <div className="flex justify-between text-[10px] text-white/40 px-3 sm:px-10 select-none">
+          <div className="flex justify-between text-[10px] text-foreground/40 px-3 sm:px-10 select-none">
             <span className="tabular-nums">{fmt(currentTime)}</span>
             <span className="tabular-nums">{isLoading ? '--:--' : fmt(duration)}</span>
           </div>

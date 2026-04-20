@@ -130,12 +130,12 @@ export function UpgradeFlow({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-headline text-xl text-white">
+          <DialogTitle className="font-headline text-xl text-foreground">
             {step === 'success'
               ? 'Upgrade complete'
               : `Upgrade to ${tierLabel(targetTier)}`}
           </DialogTitle>
-          <DialogDescription className="text-white/50">
+          <DialogDescription className="text-foreground/50">
             {step === 'success'
               ? `You're now on ${tierLabel(targetTier)}.`
               : `You're currently on ${tierLabel(currentTier)}.`}
@@ -144,7 +144,7 @@ export function UpgradeFlow({
 
         {/* Step indicator */}
         {step !== 'success' && step !== 'error' && (
-          <div className="flex items-center gap-2 text-2xs uppercase tracking-wide text-white/40">
+          <div className="flex items-center gap-2 text-2xs uppercase tracking-wide text-foreground/40">
             {(['confirm', 'preview'] as const).map((s, i) => (
               <span key={s} className="flex items-center gap-1.5">
                 <span
@@ -152,13 +152,13 @@ export function UpgradeFlow({
                     'flex h-5 w-5 items-center justify-center rounded-full border text-3xs',
                     (step === s || (step === 'loading' && s === 'confirm'))
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-white/20 text-white/40',
+                      : 'border-foreground/20 text-foreground/40',
                   )}
                 >
                   {i + 1}
                 </span>
                 <span>{s}</span>
-                {i < 1 && <ArrowRight className="h-3 w-3 text-white/20" />}
+                {i < 1 && <ArrowRight className="h-3 w-3 text-foreground/20" />}
               </span>
             ))}
           </div>
@@ -167,19 +167,19 @@ export function UpgradeFlow({
         {/* Step 1: Confirm */}
         {step === 'confirm' && (
           <div className="flex flex-col gap-4 pt-2">
-            <div className="rounded-xl bg-white/[0.04] p-4">
+            <div className="rounded-xl bg-foreground/[0.04] p-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-white/60">{tierLabel(currentTier)}</span>
+                <span className="text-foreground/60">{tierLabel(currentTier)}</span>
                 <ArrowRight className="h-4 w-4 text-primary" />
-                <span className="text-white font-medium">{tierLabel(targetTier)}</span>
+                <span className="text-foreground font-medium">{tierLabel(targetTier)}</span>
               </div>
               <div className="mt-3 flex items-baseline gap-1">
-                <span className="font-headline text-2xl text-white">{displayPrice}</span>
-                <span className="text-xs text-white/50">/ {cycle === 'annual' ? 'year' : 'month'}</span>
+                <span className="font-headline text-2xl text-foreground">{displayPrice}</span>
+                <span className="text-xs text-foreground/50">/ {cycle === 'annual' ? 'year' : 'month'}</span>
               </div>
             </div>
 
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-foreground/50">
               Any unused time on your current plan will be prorated as credit
               toward your new plan. Upgrade takes effect immediately.
             </p>
@@ -195,7 +195,7 @@ export function UpgradeFlow({
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-foreground/[0.04] border border-foreground/[0.08] px-5 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.08] transition-colors"
               >
                 Cancel
               </button>
@@ -207,33 +207,33 @@ export function UpgradeFlow({
         {step === 'loading' && (
           <div className="flex flex-col items-center gap-4 py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p className="text-sm text-white/60">Calculating your prorated credit…</p>
+            <p className="text-sm text-foreground/60">Calculating your prorated credit…</p>
           </div>
         )}
 
         {/* Step 2: Preview (requires payment) */}
         {step === 'preview' && result && (
           <div className="flex flex-col gap-4 pt-2">
-            <div className="rounded-xl bg-white/[0.04] p-4 space-y-3">
+            <div className="rounded-xl bg-foreground/[0.04] p-4 space-y-3">
               {result.credit && (
                 <>
                   <div className="flex justify-between text-sm">
-                    <span className="text-white/60">Pro credit (prorated)</span>
-                    <span className="text-green-400">
+                    <span className="text-foreground/60">Pro credit (prorated)</span>
+                    <span className="text-success">
                       -{formatCurrency(result.credit.proCreditUsd, currency, rate)}
                     </span>
                   </div>
                   {result.credit.newForwardCreditUsd > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-white/60">Forward credit</span>
-                      <span className="text-green-400">
+                      <span className="text-foreground/60">Forward credit</span>
+                      <span className="text-success">
                         {formatCurrency(result.credit.newForwardCreditUsd, currency, rate)}
                       </span>
                     </div>
                   )}
-                  <div className="border-t border-white/10 pt-3 flex justify-between text-sm font-medium">
-                    <span className="text-white">Amount due now</span>
-                    <span className="text-white font-headline text-lg">
+                  <div className="border-t border-foreground/10 pt-3 flex justify-between text-sm font-medium">
+                    <span className="text-foreground">Amount due now</span>
+                    <span className="text-foreground font-headline text-lg">
                       {formatCurrency(result.credit.chargeNowUsd, currency, rate)}
                     </span>
                   </div>
@@ -241,7 +241,7 @@ export function UpgradeFlow({
               )}
             </div>
 
-            <p className="text-xs text-white/50">
+            <p className="text-xs text-foreground/50">
               You'll be redirected to PayU to complete the payment.
               Billed in {currency}.
             </p>
@@ -257,7 +257,7 @@ export function UpgradeFlow({
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-foreground/[0.04] border border-foreground/[0.08] px-5 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.08] transition-colors"
               >
                 Cancel
               </button>
@@ -268,18 +268,18 @@ export function UpgradeFlow({
         {/* Success (free upgrade) */}
         {step === 'success' && (
           <div className="flex flex-col items-center gap-4 py-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-              <Check className="h-6 w-6 text-green-400" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+              <Check className="h-6 w-6 text-success" />
             </div>
             <div className="text-center">
-              <p className="text-sm text-white/90">
+              <p className="text-sm text-foreground/90">
                 Your prorated credit covered the full upgrade.
               </p>
-              <p className="mt-1 text-xs text-white/50">
+              <p className="mt-1 text-xs text-foreground/50">
                 You now have access to all {tierLabel(targetTier)} features.
               </p>
               {result?.credit && result.credit.newForwardCreditUsd > 0 && (
-                <p className="mt-2 text-xs text-green-400">
+                <p className="mt-2 text-xs text-success">
                   {formatCurrency(result.credit.newForwardCreditUsd, currency, rate)} credit carried forward.
                 </p>
               )}
@@ -304,14 +304,14 @@ export function UpgradeFlow({
               <button
                 type="button"
                 onClick={() => setStep('confirm')}
-                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-foreground/[0.04] border border-foreground/[0.08] px-5 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.08] transition-colors"
               >
                 Try again
               </button>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-foreground/[0.04] border border-foreground/[0.08] px-5 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.08] transition-colors"
               >
                 Close
               </button>

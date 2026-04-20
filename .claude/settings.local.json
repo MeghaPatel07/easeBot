@@ -163,7 +163,10 @@
       "Bash(echo \"---EXIT $?---\")",
       "Bash(wait)",
       "Bash(grep -E '\\\\.\\(tsx|ts\\)$')",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(git -C /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat diff --no-color HEAD -- src/components/PlannerView.tsx src/components/ShoppingListView.tsx src/components/SavedItemsView.tsx)",
+      "Bash(git -C /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat diff --no-color HEAD -- src/components/chat/ChatInput.tsx src/components/chat/AttachmentPicker.tsx src/components/chat/MessageAttachmentChips.tsx)",
+      "Bash(git checkout *)"
     ]
   }
 }

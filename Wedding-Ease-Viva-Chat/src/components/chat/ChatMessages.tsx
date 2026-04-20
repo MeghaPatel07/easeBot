@@ -228,7 +228,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           <button
             onClick={handleLoadMore}
             disabled={loadingMoreMessages}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-label font-medium text-primary bg-white/10 border border-primary/20 rounded-full hover:bg-white/15 transition-colors shadow-sm disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-1.5 text-label font-medium text-primary bg-foreground/10 border border-primary/20 rounded-full hover:bg-foreground/15 transition-colors shadow-sm disabled:opacity-50"
           >
             {loadingMoreMessages ? <Loader2 className="h-3 w-3 animate-spin" /> : <ChevronUp className="h-3 w-3" />}
             Load earlier messages
@@ -247,23 +247,23 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
               {inlineEditId === message.id ? (
                 <div className="w-full max-w-2xl flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
                   {/* Edit mode container */}
-                  <div className="rounded-2xl border border-primary/30 bg-white/[0.06] backdrop-blur-md shadow-xl overflow-hidden">
+                  <div className="rounded-2xl border border-primary/30 bg-foreground/[0.06] backdrop-blur-md shadow-xl overflow-hidden">
                     {/* Attached image preview with remove/replace */}
                     {inlineEditImage && (
                       <div className="px-4 pt-4 flex items-start gap-3">
                         <div className="relative group/img">
-                          <img src={inlineEditImage} alt="Attached" className="rounded-xl w-[100px] h-[100px] object-cover border border-white/10" />
+                          <img src={inlineEditImage} alt="Attached" className="rounded-xl w-[100px] h-[100px] object-cover border border-foreground/10" />
                           <button
                             onClick={onInlineEditImageRemove}
-                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500/90 hover:bg-red-500 text-white flex items-center justify-center shadow-md transition-all opacity-0 group-hover/img:opacity-100"
+                            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive/90 hover:bg-destructive text-destructive-foreground flex items-center justify-center shadow-md transition-all opacity-0 group-hover/img:opacity-100"
                             title="Remove image"
                           >
                             <X className="h-3 w-3" />
                           </button>
                         </div>
-                        <label className="flex flex-col items-center justify-center w-[100px] h-[100px] rounded-xl border-2 border-dashed border-white/15 hover:border-primary/40 cursor-pointer transition-colors group/upload">
-                          <ImagePlus className="h-5 w-5 text-white/30 group-hover/upload:text-primary/60 transition-colors" />
-                          <span className="text-3xs text-white/30 group-hover/upload:text-primary/60 mt-1 transition-colors">Replace</span>
+                        <label className="flex flex-col items-center justify-center w-[100px] h-[100px] rounded-xl border-2 border-dashed border-foreground/15 hover:border-primary/40 cursor-pointer transition-colors group/upload">
+                          <ImagePlus className="h-5 w-5 text-foreground/30 group-hover/upload:text-primary/60 transition-colors" />
+                          <span className="text-3xs text-foreground/30 group-hover/upload:text-primary/60 mt-1 transition-colors">Replace</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -287,7 +287,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                     {/* Add image button when no image */}
                     {!inlineEditImage && (
                       <div className="px-4 pt-3">
-                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-white/15 hover:border-primary/40 cursor-pointer transition-colors text-white/40 hover:text-primary/70 text-xs">
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-foreground/15 hover:border-primary/40 cursor-pointer transition-colors text-foreground/40 hover:text-primary/70 text-xs">
                           <ImagePlus className="h-3.5 w-3.5" />
                           <span>Attach image</span>
                           <input
@@ -320,17 +320,17 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         if (e.key === 'Escape') onCancelInlineEdit();
                       }}
                       rows={Math.max(3, Math.min(12, inlineEditText.split('\n').length + 1))}
-                      className="w-full px-4 py-4 bg-transparent text-white/90 text-sm leading-relaxed resize-none outline-none placeholder:text-white/30"
+                      className="w-full px-4 py-4 bg-transparent text-foreground/90 text-sm leading-relaxed resize-none outline-none placeholder:text-foreground/30"
                       placeholder="Edit your message..."
                     />
                     {/* Action bar */}
-                    <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06] bg-white/[0.02]">
-                      <span className="text-3xs text-white/30">Press Enter to send, Esc to cancel</span>
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-foreground/[0.06] bg-foreground/[0.02]">
+                      <span className="text-3xs text-foreground/30">Press Enter to send, Esc to cancel</span>
                       <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={onCancelInlineEdit} className="h-8 px-4 text-xs text-white/60 hover:text-white/90 hover:bg-white/10 rounded-xl font-medium">
+                        <Button variant="ghost" size="sm" onClick={onCancelInlineEdit} className="h-8 px-4 text-xs text-foreground/60 hover:text-foreground/90 hover:bg-foreground/10 rounded-xl font-medium">
                           Cancel
                         </Button>
-                        <Button size="sm" onClick={() => onSubmitInlineEdit(message)} disabled={!inlineEditText.trim()} className="h-8 px-4 text-xs bg-primary hover:bg-primary/90 text-white rounded-xl font-medium shadow-sm gap-1.5">
+                        <Button size="sm" onClick={() => onSubmitInlineEdit(message)} disabled={!inlineEditText.trim()} className="h-8 px-4 text-xs bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium shadow-sm gap-1.5">
                           <Send className="h-3 w-3" />Send
                         </Button>
                       </div>
@@ -339,7 +339,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 </div>
               ) : (
                 <div className="group flex flex-col items-end">
-                  <div className="max-w-[calc(100%-2rem)] sm:max-w-sm md:max-w-lg lg:max-w-xl px-4 py-3 rounded-2xl rounded-tr-sm bg-white/[0.08] backdrop-blur-sm text-white/90 shadow-sm border border-white/[0.08] msg-enter">
+                  <div className="chat-msg-text max-w-[calc(100%-2rem)] sm:max-w-sm md:max-w-lg lg:max-w-xl px-4 py-3 rounded-2xl rounded-tr-sm bg-foreground/[0.08] backdrop-blur-sm text-foreground/90 shadow-sm border border-foreground/[0.08] msg-enter">
                     {message.attachedImage && (
                       <img src={message.attachedImage} alt="Attached" className="mb-2 rounded-lg max-w-[200px] max-h-[200px] object-cover" />
                     )}
@@ -353,7 +353,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                     <p className="text-[13px] leading-relaxed">{message.text}</p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 mr-1">
-                    <span className="text-3xs text-white/40 uppercase tracking-wider">
+                    <span className="text-3xs text-foreground/40 uppercase tracking-wider">
                       {message.timestamp.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                     </span>
                     {/* Branch navigation */}
@@ -365,17 +365,17 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                           <button
                             onClick={() => onSwitchBranch(info.anchorId, info.current - 1)}
                             disabled={info.current <= 0}
-                            className="h-4 w-4 flex items-center justify-center rounded text-white/40 hover:text-primary disabled:opacity-30 transition-colors"
+                            className="h-4 w-4 flex items-center justify-center rounded text-foreground/40 hover:text-primary disabled:opacity-30 transition-colors"
                           >
                             <ChevronLeft className="h-3 w-3" />
                           </button>
-                          <span className="text-3xs text-white/50 font-medium tabular-nums">
+                          <span className="text-3xs text-foreground/50 font-medium tabular-nums">
                             {info.current + 1}/{info.total}
                           </span>
                           <button
                             onClick={() => onSwitchBranch(info.anchorId, info.current + 1)}
                             disabled={info.current >= info.total - 1}
-                            className="h-4 w-4 flex items-center justify-center rounded text-white/40 hover:text-primary disabled:opacity-30 transition-colors"
+                            className="h-4 w-4 flex items-center justify-center rounded text-foreground/40 hover:text-primary disabled:opacity-30 transition-colors"
                           >
                             <ChevronRight className="h-3 w-3" />
                           </button>
@@ -386,7 +386,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-1">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => onStartInlineEdit(message)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 text-white/40 hover:text-primary hover:bg-primary/10 rounded-lg">
+                        <Button variant="ghost" size="sm" onClick={() => onStartInlineEdit(message)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 text-foreground/40 hover:text-primary hover:bg-primary/10 rounded-lg">
                           <Edit3 className="h-3 w-3" />
                         </Button>
                       </TooltipTrigger>
@@ -402,7 +402,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
             <div className="max-w-[calc(100%-2rem)] sm:max-w-sm md:max-w-lg lg:max-w-xl group msg-enter">
               {message.mode && (
                 <div className="mb-1.5 flex items-center gap-1.5">
-                  <div className="w-[31px] h-[31px] rounded-full bg-transparent border border-white/15 flex items-center justify-center overflow-hidden bot-avatar">
+                  <div className="w-[31px] h-[31px] rounded-full bg-transparent border border-foreground/15 flex items-center justify-center overflow-hidden bot-avatar">
                     <img src={easebotAvatar} alt="" className="w-full h-full object-cover -scale-x-100" />
                   </div>
                   {(() => {
@@ -417,7 +417,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-white/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-[0_8px_32px_rgba(0,0,0,0.37)] border border-white/10 text-[#cfcecc] prose-headings:text-[#cfcecc] prose-strong:text-[#cfcecc] prose-em:text-[#cfcecc] prose-li:text-[#cfcecc] prose-p:text-[#cfcecc] prose-blockquote:text-[#cfcecc] prose-code:text-[#cfcecc]">
+              <div className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground">
                 <TypewriterMarkdown
                   text={message.text}
                   isStreaming={message.id === streamingMsgId}
@@ -500,12 +500,12 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                         return (
                           <li className="list-none mb-3 not-prose">
-                            <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.37)] hover:bg-white/[0.06] hover:border-[#A17A63]/40 transition-all duration-200">
+                            <div className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-foreground/10 bg-foreground/[0.04] backdrop-blur-md shadow-glass hover:bg-foreground/[0.06] hover:border-primary/40 transition-all duration-200">
                               <a href={href} target="_blank" rel="noopener noreferrer" className="block no-underline flex-1 flex flex-row gap-3 items-center">
                                 <img src={imageUrl} alt={typeof title === 'string' ? title : ''} className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0" />
                                 <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                                  <span className="text-sm font-semibold text-[#A17A63] leading-snug line-clamp-1">{title}</span>
-                                  {description && <span className="text-xs text-[#8A7E72] leading-relaxed line-clamp-2">{description}</span>}
+                                  <span className="text-sm font-semibold text-primary leading-snug line-clamp-1">{title}</span>
+                                  {description && <span className="text-xs text-mode-auto-active leading-relaxed line-clamp-2">{description}</span>}
                                 </div>
                               </a>
                               {user && (
@@ -514,7 +514,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                                   disabled={isSaved}
                                   className={`flex-shrink-0 p-2 rounded-lg transition-all ${isSaved
                                     ? 'bg-primary/20 text-primary cursor-default'
-                                    : 'text-white/40 hover:text-primary hover:bg-primary/10'
+                                    : 'text-foreground/40 hover:text-primary hover:bg-primary/10'
                                     }`}
                                   title={isSaved ? 'Already saved' : 'Save to saved items'}
                                 >
@@ -526,7 +526,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                                 onKeyDown={onShareKeyDown('product', typeof title === 'string' ? title : undefined)}
                                 aria-label="Share this artifact"
                                 tabIndex={0}
-                                className="flex-shrink-0 h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg transition-all text-white/40 hover:text-primary hover:bg-primary/10"
+                                className="flex-shrink-0 h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg transition-all text-foreground/40 hover:text-primary hover:bg-primary/10"
                               >
                                 <Share2 className="h-4 w-4" />
                               </button>
@@ -554,7 +554,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
               {/* Image generation skeleton */}
               {message.imageGenerating && !message.imageUrl && !message.imageUrls?.length && (
                 <div className="mt-3 mb-2 max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full animate-in fade-in duration-300">
-                  <div className="relative aspect-square rounded-xl overflow-hidden bg-white/[0.04] border border-white/[0.08]">
+                  <div className="relative aspect-square rounded-xl overflow-hidden bg-foreground/[0.04] border border-foreground/[0.08]">
                     {(message as any).partialImageUrl ? (
                       <>
                         <img
@@ -562,10 +562,10 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                           alt="Generating..."
                           className="absolute inset-0 w-full h-full object-cover blur-sm transition-all duration-700"
                         />
-                        <div className="absolute inset-0 bg-black/20 flex items-end justify-center pb-4">
-                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-sm">
-                            <Sparkles className="h-3.5 w-3.5 text-[#A17A63] animate-pulse" />
-                            <p className="text-xs text-white/80 font-medium">refining image...</p>
+                        <div className="absolute inset-0 bg-overlay-scrim/20 flex items-end justify-center pb-4">
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-overlay-scrim/40 backdrop-blur-sm">
+                            <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+                            <p className="text-xs text-foreground/80 font-medium">refining image...</p>
                           </div>
                         </div>
                       </>
@@ -573,15 +573,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       <>
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
-                            <Sparkles className="h-5 w-5 text-[#A17A63]/50 animate-pulse" />
+                          <div className="w-10 h-10 rounded-full bg-foreground/[0.06] flex items-center justify-center">
+                            <Sparkles className="h-5 w-5 text-primary/50 animate-pulse" />
                           </div>
                           <div className="space-y-1.5 text-center">
-                            <p className="text-xs text-white/40 font-medium">generating image...</p>
-                            <p className="text-3xs text-white/25">this may take a few seconds</p>
+                            <p className="text-xs text-foreground/40 font-medium">generating image...</p>
+                            <p className="text-3xs text-foreground/25">this may take a few seconds</p>
                           </div>
-                          <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                            <div className="h-full bg-[#A17A63]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                          <div className="w-32 h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+                            <div className="h-full bg-primary/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
                           </div>
                         </div>
                       </>
@@ -597,30 +597,30 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 />
               )}
               {message.imageDeleted && !message.imageUrls?.length && !message.imageUrl && (
-                <div className="mt-2 mb-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] max-w-xs">
-                  <ImageOff className="h-4 w-4 text-white/30 flex-shrink-0" />
-                  <span className="text-xs text-white/40 italic">Image was deleted</span>
+                <div className="mt-2 mb-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-foreground/[0.04] border border-foreground/[0.06] max-w-xs">
+                  <ImageOff className="h-4 w-4 text-foreground/30 flex-shrink-0" />
+                  <span className="text-xs text-foreground/40 italic">Image was deleted</span>
                 </div>
               )}
               {message.checklistData && (
-                <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border overflow-hidden max-w-xs w-full">
+                <div className="mt-2 mb-1 bg-foreground/[0.08] backdrop-blur-sm rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border overflow-hidden max-w-xs w-full">
                   <div className="px-4 py-2.5 bg-primary/5 border-b border-primary/10 flex items-center gap-2">
                     <CheckSquare className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="font-headline text-sm font-semibold text-white/85 truncate">{message.checklistData.title}</span>
-                    <span className="ml-auto text-3xs text-white/40 font-medium">{message.checklistData.items.length} items</span>
+                    <span className="font-headline text-sm font-semibold text-foreground/85 truncate">{message.checklistData.title}</span>
+                    <span className="ml-auto text-3xs text-foreground/40 font-medium">{message.checklistData.items.length} items</span>
                   </div>
                   <ul className="px-4 py-2 space-y-1.5">
                     {message.checklistData.items.slice(0, 8).map((item, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-white/60">
-                        <span className="mt-0.5 h-3.5 w-3.5 rounded border border-white/20 flex-shrink-0" />
+                      <li key={idx} className="flex items-start gap-2 text-xs text-foreground/60">
+                        <span className="mt-0.5 h-3.5 w-3.5 rounded border border-foreground/20 flex-shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
                     {message.checklistData.items.length > 8 && (
-                      <li className="text-3xs text-white/40 pl-5">+{message.checklistData.items.length - 8} more items</li>
+                      <li className="text-3xs text-foreground/40 pl-5">+{message.checklistData.items.length - 8} more items</li>
                     )}
                   </ul>
-                  <div className="px-4 py-2 border-t border-white/[0.06] flex items-center gap-3">
+                  <div className="px-4 py-2 border-t border-foreground/[0.06] flex items-center gap-3">
                     {user && (
                       <button
                         className="text-xs text-primary font-semibold hover:underline"
@@ -636,7 +636,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                           onKeyDown={onShareKeyDown('checklist', message.checklistData?.title)}
                           aria-label="Share this artifact"
                           tabIndex={0}
-                          className="ml-auto inline-flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-md text-white/50 hover:text-primary hover:bg-primary/10 transition-colors"
+                          className="ml-auto inline-flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-md text-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"
                         >
                           <Share2 className="h-3.5 w-3.5" />
                         </button>
@@ -650,7 +650,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 <div className="mt-2 mb-1 flex items-center gap-1.5 text-label px-3 py-2 rounded-xl w-fit bg-primary/5 text-primary border border-primary/10">
                   <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
                   <span className="font-semibold">Added to Google Calendar</span>
-                  <span className="font-medium text-white/50">. {message.calendarEvent.date}</span>
+                  <span className="font-medium text-foreground/50">. {message.calendarEvent.date}</span>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
@@ -668,13 +668,13 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 </div>
               )}
               {message.calendarEvent && !message.calendarAdded && !user && (
-                <div className="mt-2 mb-1 bg-white/[0.08] backdrop-blur-sm p-4 rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border relative overflow-hidden">
+                <div className="mt-2 mb-1 bg-foreground/[0.08] backdrop-blur-sm p-4 rounded-2xl rounded-tl-sm shadow-md shadow-black/20 border relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12"></div>
                   <div className="relative z-10">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-3xs text-primary font-bold uppercase tracking-widest mb-0.5">Upcoming Event</p>
-                        <h4 className="font-headline text-base text-white/85">{message.calendarEvent.title}</h4>
+                        <h4 className="font-headline text-base text-foreground/85">{message.calendarEvent.title}</h4>
                       </div>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -683,7 +683,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             onKeyDown={onShareKeyDown('calendar', message.calendarEvent?.title)}
                             aria-label="Share this artifact"
                             tabIndex={0}
-                            className="inline-flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-md text-white/50 hover:text-primary hover:bg-primary/10 transition-colors flex-shrink-0"
+                            className="inline-flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-md text-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors flex-shrink-0"
                           >
                             <Share2 className="h-3.5 w-3.5" />
                           </button>
@@ -691,12 +691,12 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         <TooltipContent side="top"><p>Share event</p></TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className="flex items-center gap-3 mt-2 text-white/50 text-xs">
+                    <div className="flex items-center gap-3 mt-2 text-foreground/50 text-xs">
                       <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {message.calendarEvent.date}</span>
                       {message.calendarEvent.time && <span className="flex items-center gap-1">{message.calendarEvent.time}</span>}
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <Button size="sm" className="bg-secondary text-white rounded-lg text-label font-semibold hover:bg-secondary/90 shadow-sm gap-1.5 h-7" onClick={onShowSignIn}>
+                      <Button size="sm" className="bg-secondary text-secondary-foreground rounded-lg text-label font-semibold hover:bg-secondary/90 shadow-sm gap-1.5 h-7" onClick={onShowSignIn}>
                         <Calendar className="h-3 w-3" /> Sign in to add to Calendar
                       </Button>
                     </div>
@@ -708,7 +708,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="mt-2 mb-1 h-7 text-xs gap-1.5 border-white/15 text-[#D6C1C7] hover:bg-white/[0.06]"
+                  className="mt-2 mb-1 h-7 text-xs gap-1.5 border-foreground/15 text-secondary hover:bg-foreground/[0.06]"
                   onClick={() => onConvertToTable(message)}
                 >
                   <CheckSquare className="h-3 w-3" />
@@ -718,8 +718,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
               <div className="flex items-center flex-wrap opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
-                      {copiedMsgId === message.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-white/50" />}
+                    <Button variant="ghost" size="sm" onClick={() => copyMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-foreground/15 rounded-md">
+                      {copiedMsgId === message.id ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3 text-foreground/50" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -729,8 +729,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
-                      <Download className="h-3 w-3 text-white/50" />
+                    <Button variant="ghost" size="sm" onClick={() => downloadMessage(message.text, message.id, message.imageUrl, message.imageUrls)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-foreground/15 rounded-md">
+                      <Download className="h-3 w-3 text-foreground/50" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -740,8 +740,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => onToggleLike(message.id)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
-                      <ThumbsUp className={`h-3.5 w-3.5 sm:h-3 sm:w-3 ${message.liked ? 'text-primary fill-current' : 'text-white/50'}`} />
+                    <Button variant="ghost" size="sm" onClick={() => onToggleLike(message.id)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-foreground/15 rounded-md">
+                      <ThumbsUp className={`h-3.5 w-3.5 sm:h-3 sm:w-3 ${message.liked ? 'text-primary fill-current' : 'text-foreground/50'}`} />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -751,8 +751,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => onRegenerateMessage(message)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md">
-                      <RefreshCw className="h-3 w-3 text-white/50" />
+                    <Button variant="ghost" size="sm" onClick={() => onRegenerateMessage(message)} className="h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-foreground/15 rounded-md">
+                      <RefreshCw className="h-3 w-3 text-foreground/50" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -767,11 +767,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       variant="ghost" size="sm"
                       onClick={() => onTtsPlay(message)}
                       disabled={ttsLoadingId === message.id}
-                      className={`h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md ${ttsActiveId === message.id ? 'text-primary' : ''}`}
+                      className={`h-9 w-9 sm:h-6 sm:w-6 p-0 hover:bg-foreground/15 rounded-md ${ttsActiveId === message.id ? 'text-primary' : ''}`}
                     >
                       {ttsLoadingId === message.id
                         ? <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                        : <Volume2 className="h-3 w-3 text-white/50" />}
+                        : <Volume2 className="h-3 w-3 text-foreground/50" />}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -792,9 +792,9 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       )}
                       aria-label="Share this artifact"
                       tabIndex={0}
-                      className="h-10 w-10 sm:h-6 sm:w-6 p-0 hover:bg-white/15 rounded-md"
+                      className="h-10 w-10 sm:h-6 sm:w-6 p-0 hover:bg-foreground/15 rounded-md"
                     >
-                      <Share2 className="h-3 w-3 text-white/50" />
+                      <Share2 className="h-3 w-3 text-foreground/50" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -837,7 +837,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                     <button
                       key={label}
                       onClick={() => onToneModifier(label.toLowerCase())}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-white/20 text-2xs text-white/50 hover:border-primary/40 hover:text-primary hover:bg-primary/10 transition-all"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-foreground/20 text-2xs text-foreground/50 hover:border-primary/40 hover:text-primary hover:bg-primary/10 transition-all"
                     >
                       <Icon className="h-2.5 w-2.5" />
                       {label}
@@ -859,24 +859,24 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           <div className="flex justify-start">
             {isGeneratingImage ? (
               <div className="max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full msg-enter">
-                <div className="relative aspect-square rounded-xl overflow-hidden bg-white/[0.04] border border-white/[0.08]">
+                <div className="relative aspect-square rounded-xl overflow-hidden bg-foreground/[0.04] border border-foreground/[0.08]">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/[0.06] flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-[#A17A63]/50 animate-pulse" />
+                    <div className="w-10 h-10 rounded-full bg-foreground/[0.06] flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-primary/50 animate-pulse" />
                     </div>
                     <div className="space-y-1.5 text-center">
-                      <p className="text-xs text-white/40 font-medium">generating...</p>
-                      <p className="text-3xs text-white/25">creating your image</p>
+                      <p className="text-xs text-foreground/40 font-medium">generating...</p>
+                      <p className="text-3xs text-foreground/25">creating your image</p>
                     </div>
-                    <div className="w-32 h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                      <div className="h-full bg-[#A17A63]/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                    <div className="w-32 h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
+                      <div className="h-full bg-primary/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className={`${cfg.pill} bg-white/[0.03] backdrop-blur-md rounded-2xl rounded-tl-sm px-5 py-3 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.37)] text-white/90 msg-enter`}>
+              <div className={`${cfg.pill} bg-foreground/[0.03] backdrop-blur-md rounded-2xl rounded-tl-sm px-5 py-3 border border-foreground/10 shadow-glass text-foreground/90 msg-enter`}>
                 <div className={`flex items-center gap-2 `}>
                   <span className="text-caption italic">thinking</span>
                   {[0, 0.15, 0.3].map((d, i) => <div key={i} className="w-1.5 h-1.5 bg-current rounded-full animate-bounce opacity-60" style={{ animationDelay: `${d}s` }} />)}

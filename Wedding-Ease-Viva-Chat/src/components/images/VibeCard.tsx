@@ -27,14 +27,14 @@ export function VibeCard({ preset, onSelect }: VibeCardProps) {
     >
       <span
         aria-hidden="true"
-        className="h-9 w-9 shrink-0 rounded-full ring-1 ring-black/5"
+        className="h-9 w-9 shrink-0 rounded-full ring-1 ring-foreground/5"
         style={{ background: swatch }}
       />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-white/90">
+        <span className="block truncate text-sm font-medium text-foreground/90">
           {preset.title}
         </span>
-        <span className="block truncate text-xs text-white/90">
+        <span className="block truncate text-xs text-foreground/90">
           {preset.subtitle}
         </span>
       </span>

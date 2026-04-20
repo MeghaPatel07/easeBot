@@ -118,18 +118,18 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onOpenChange }) =
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[520px] max-h-[90dvh] overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="font-headline text-xl text-white/90 flex items-center gap-2">
+          <DialogTitle className="font-headline text-xl text-foreground/90 flex items-center gap-2">
             <MessageSquareHeart className="h-5 w-5 text-primary" />
             Send Feedback
           </DialogTitle>
-          <DialogDescription className="text-white/55">
+          <DialogDescription className="text-foreground/55">
             Tell us what's working, what's broken, or what you'd love to see next.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <label htmlFor="feedback-message" className="text-xs font-medium text-white/70">
+            <label htmlFor="feedback-message" className="text-xs font-medium text-foreground/70">
               Your feedback <span className="text-primary">*</span>
             </label>
             <Textarea
@@ -140,14 +140,14 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onOpenChange }) =
               placeholder="What's on your mind? (min 10 characters)"
               value={feedback}
               onChange={e => setFeedback(e.target.value)}
-              className="min-h-[120px] rounded-xl border-0 bg-white/[0.04] text-sm text-white/90 placeholder-white/30 focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
+              className="min-h-[120px] rounded-xl border-0 bg-foreground/[0.04] text-sm text-foreground/90 placeholder-foreground/30 focus-visible:ring-1 focus-visible:ring-foreground/10 focus-visible:ring-offset-0"
               disabled={submitting}
             />
-            <p className="text-2xs text-white/35">{feedback.trim().length} / 5000</p>
+            <p className="text-2xs text-foreground/35">{feedback.trim().length} / 5000</p>
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="feedback-type" className="text-xs font-medium text-white/70">
+            <label htmlFor="feedback-type" className="text-xs font-medium text-foreground/70">
               Type of feedback (optional)
             </label>
             <Select value={type} onValueChange={(v) => setType(v as FeedbackType)} disabled={submitting}>
@@ -164,7 +164,7 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onOpenChange }) =
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="feedback-email" className="text-xs font-medium text-white/70">
+            <label htmlFor="feedback-email" className="text-xs font-medium text-foreground/70">
               Your email (optional — only if you want a reply)
             </label>
             <Input
@@ -175,25 +175,25 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onOpenChange }) =
               placeholder="you@example.com"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="rounded-xl border-0 bg-white/[0.04] text-sm text-white/90 placeholder-white/30 focus-visible:ring-1 focus-visible:ring-white/10 focus-visible:ring-offset-0"
+              className="rounded-xl border-0 bg-foreground/[0.04] text-sm text-foreground/90 placeholder-foreground/30 focus-visible:ring-1 focus-visible:ring-foreground/10 focus-visible:ring-offset-0"
               disabled={submitting}
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-foreground/10">
             <Button
               type="button"
               variant="ghost"
               onClick={() => handleClose(false)}
               disabled={submitting}
-              className="px-5 text-white/60 hover:text-white/90"
+              className="px-5 text-foreground/60 hover:text-foreground/90"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={submitting}
-              className="px-5 bg-primary hover:bg-primary/90 text-white"
+              className="px-5 bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {submitting ? (
                 <>

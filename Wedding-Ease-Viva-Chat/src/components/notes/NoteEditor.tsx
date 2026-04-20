@@ -164,7 +164,7 @@ export default function NoteEditor({
     },
     editorProps: {
       attributes: {
-        class: "prose-editor-content outline-none min-h-[500px] text-white/90",
+        class: "prose-editor-content outline-none min-h-[500px] text-foreground/90",
       },
       handlePaste: (view, event) => {
         const items = event.clipboardData?.items;
@@ -231,8 +231,8 @@ export default function NoteEditor({
     return (
       <div className="relative min-h-[500px] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-6 w-6 border-2 border-white/20 border-t-[#A17A63] rounded-full animate-spin" />
-          <span className="text-sm text-white/30">Loading editor...</span>
+          <div className="h-6 w-6 border-2 border-foreground/20 border-t-primary rounded-full animate-spin" />
+          <span className="text-sm text-foreground/30">Loading editor...</span>
         </div>
       </div>
     );
@@ -301,7 +301,7 @@ const editorStyles = `
   margin: 0;
 }
 .ProseMirror blockquote {
-  border-left: 3px solid #A17A63;
+  border-left: 3px solid hsl(var(--primary));
   padding-left: 1em;
   margin: 0.5em 0;
   opacity: 0.85;
@@ -357,19 +357,19 @@ const editorStyles = `
   gap: 8px;
 }
 .ProseMirror ul[data-type="taskList"] li label input[type="checkbox"] {
-  accent-color: #A17A63;
+  accent-color: hsl(var(--primary));
   margin-top: 4px;
 }
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: rgba(255, 255, 255, 0.3);
+  color: hsl(var(--foreground) / 0.45);
   pointer-events: none;
   float: left;
   height: 0;
 }
 .ProseMirror .is-empty::before {
   content: attr(data-placeholder);
-  color: rgba(255, 255, 255, 0.3);
+  color: hsl(var(--foreground) / 0.45);
   pointer-events: none;
   float: left;
   height: 0;
@@ -379,7 +379,7 @@ const editorStyles = `
   padding: 1px 2px;
 }
 .ProseMirror a {
-  color: #A17A63;
+  color: hsl(var(--primary));
   text-decoration: underline;
   cursor: pointer;
 }
@@ -388,7 +388,7 @@ const editorStyles = `
 }
 .ProseMirror .callout-block {
   background: rgba(198, 148, 74, 0.08);
-  border-left: 4px solid #A17A63;
+  border-left: 4px solid hsl(var(--primary));
   border-radius: 6px;
   padding: 12px 16px;
   margin: 0.5em 0;

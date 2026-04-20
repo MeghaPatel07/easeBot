@@ -14,6 +14,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { patchAccountPreferences } from '@/services/accountService'
 
 export type Theme = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
@@ -49,24 +50,28 @@ function writeStoredTheme(theme: Theme): void {
 }
 
 function getSystemTheme(): ResolvedTheme {
-  if (typeof window === 'undefined' || !window.matchMedia) return 'dark'
+  if (typeof window === 'undefined' || !window.matchMedia) return 'light'
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function applyDarkClass(resolved: ResolvedTheme) {
+function applyThemeClass(resolved: ResolvedTheme) {
   if (typeof document === 'undefined') return
-  document.documentElement.classList.toggle('dark', resolved === 'dark')
+  const root = document.documentElement
+  root.classList.toggle('dark', resolved === 'dark')
+  root.classList.toggle('light', resolved === 'light')
+  // Keep native color-scheme in sync so form controls / scrollbars track.
+  root.style.colorScheme = resolved
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
 
   // Initial theme: localStorage first (synchronous, set by inline boot script),
-  // then profile preference, then 'system'.
+  // then profile preference, then 'light' (default per spec).
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = readStoredTheme()
     if (stored) return stored
-    return (profile?.preferences?.theme as Theme | undefined) ?? 'system'
+    return (profile?.preferences?.theme as Theme | undefined) ?? 'light'
   })
 
   // Sync from profile when it loads/changes (profile wins on mismatch).
@@ -80,14 +85,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [profile?.preferences?.theme])
 
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
-    const initial = readStoredTheme() ?? (profile?.preferences?.theme as Theme | undefined) ?? 'system'
+    const initial = readStoredTheme() ?? (profile?.preferences?.theme as Theme | undefined) ?? 'light'
     return initial === 'system' ? getSystemTheme() : initial
   })
 
   // Apply class + recompute resolved theme whenever theme or system pref changes.
   useEffect(() => {
     if (theme !== 'system') {
-      applyDarkClass(theme)
+      applyThemeClass(theme)
       setResolvedTheme(theme)
       return
     }
@@ -95,7 +100,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const update = () => {
       const r: ResolvedTheme = mql.matches ? 'dark' : 'light'
       setResolvedTheme(r)
-      applyDarkClass(r)
+      applyThemeClass(r)
     }
     update()
     mql.addEventListener('change', update)
@@ -105,7 +110,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next)
     writeStoredTheme(next)
-  }, [])
+    // Signed-in → persist to backend so the choice syncs across devices.
+    // Fire-and-forget: UI has already updated optimistically via local state.
+    // Silently swallow errors (unauthenticated / network / not_implemented).
+    if (user) {
+      const merged = { ...(profile?.preferences ?? {}), theme: next }
+      patchAccountPreferences(merged).catch(() => { /* noop */ })
+    }
+  }, [user, profile?.preferences])
+
+  // Guest → signed-in reconciliation: on first auth-state flip, if profile has
+  // no theme saved but localStorage does, push the guest choice into profile.
+  useEffect(() => {
+    if (!user) return
+    const stored = readStoredTheme()
+    const profileTheme = profile?.preferences?.theme as Theme | undefined
+    if (stored && !profileTheme) {
+      const merged = { ...(profile?.preferences ?? {}), theme: stored }
+      patchAccountPreferences(merged).catch(() => { /* noop */ })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid])
 
   const value = useMemo<ThemeContextValue>(
     () => ({ theme, resolvedTheme, setTheme }),
@@ -120,8 +145,8 @@ export function useTheme(): ThemeContextValue {
   if (!ctx) {
     // Soft-fail so consumers (Settings tabs) never crash if mounted outside.
     return {
-      theme: 'system',
-      resolvedTheme: 'dark',
+      theme: 'light',
+      resolvedTheme: 'light',
       setTheme: () => {},
     }
   }

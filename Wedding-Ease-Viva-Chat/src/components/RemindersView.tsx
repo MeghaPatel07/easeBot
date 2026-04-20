@@ -200,29 +200,29 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
       : r.status === 'cancelled' ? 'Cancelled'
       : 'Pending'
     const statusClass =
-      r.status === 'sent' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-      : r.status === 'failed' ? 'text-red-400 bg-red-500/10 border-red-500/20'
-      : r.status === 'cancelled' ? 'text-white/40 bg-white/5 border-white/10'
-      : 'text-[#A17A63] bg-[#A17A63]/10 border-[#A17A63]/20'
+      r.status === 'sent' ? 'text-success bg-success/10 border-success/20'
+      : r.status === 'failed' ? 'text-destructive bg-destructive/10 border-destructive/20'
+      : r.status === 'cancelled' ? 'text-foreground/40 bg-foreground/5 border-foreground/10'
+      : 'text-primary bg-primary/10 border-primary/20'
 
     return (
       <div
         key={r.id}
         className={`relative rounded-2xl border px-4 py-3.5 space-y-2 transition-all duration-150 ${
           faded
-            ? 'bg-white/5 border-white/10 opacity-60'
-            : 'bg-white/10 border-primary/30 hover:bg-white/15 hover:border-primary/40 hover:shadow-sm'
+            ? 'bg-foreground/5 border-foreground/10 opacity-60'
+            : 'bg-foreground/10 border-primary/30 hover:bg-foreground/15 hover:border-primary/40 hover:shadow-sm'
         }`}
       >
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-semibold text-white/80 flex-1 min-w-0 break-words">{r.title}</p>
+          <p className="text-sm font-semibold text-foreground/80 flex-1 min-w-0 break-words">{r.title}</p>
           <div className="flex items-center gap-0.5 flex-shrink-0">
             {r.status === 'pending' && (
               <button
                 type="button"
                 aria-label="Edit reminder"
                 onClick={() => handleOpenEdit(r)}
-                className="h-7 w-7 rounded-lg flex items-center justify-center text-white/40 hover:text-primary hover:bg-primary/10 transition-colors"
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-foreground/40 hover:text-primary hover:bg-primary/10 transition-colors"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>
@@ -232,7 +232,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
               aria-label="Delete reminder"
               onClick={() => setConfirmDeleteReminder(r)}
               disabled={deletingId === r.id}
-              className="h-7 w-7 rounded-lg flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+              className="h-7 w-7 rounded-lg flex items-center justify-center text-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
             >
               {deletingId === r.id ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -246,14 +246,14 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
         <p className="text-xs text-primary font-medium">{formatEventDate(r)}</p>
 
         {r.description && (
-          <p className="text-xs text-white/40 line-clamp-2 break-words">{r.description}</p>
+          <p className="text-xs text-foreground/40 line-clamp-2 break-words">{r.description}</p>
         )}
 
         <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="inline-flex items-center gap-1 text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none bg-white/[0.06] text-white/60 border border-white/10">
+          <span className="inline-flex items-center gap-1 text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none bg-foreground/[0.06] text-foreground/60 border border-foreground/10">
             {formatLeadTime(r.leadTimeMinutes)}
           </span>
-          <span className="inline-flex items-center gap-1 text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none bg-white/[0.06] text-white/60 border border-white/10">
+          <span className="inline-flex items-center gap-1 text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none bg-foreground/[0.06] text-foreground/60 border border-foreground/10">
             <ChannelIcon className="h-2.5 w-2.5" />
             {channelLabel}
           </span>
@@ -289,7 +289,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
                 New Reminder
               </Button>
               {maxR !== null && (
-                <span className={`text-2xs ${atLimit ? 'text-destructive font-medium' : 'text-white/40'}`}>
+                <span className={`text-2xs ${atLimit ? 'text-destructive font-medium' : 'text-foreground/40'}`}>
                   {pendingCount}/{maxR} active
                 </span>
               )}
@@ -305,7 +305,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
 
       {/* Empty state */}
       {reminders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-white/40">
+        <div className="flex flex-col items-center justify-center py-16 text-foreground/40">
           <Bell className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm">No reminders yet.</p>
           <p className="text-xs mt-1">
@@ -316,7 +316,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
         <>
           {upcoming.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-2xs uppercase tracking-wider font-semibold text-white/40">Upcoming</h3>
+              <h3 className="text-2xs uppercase tracking-wider font-semibold text-foreground/40">Upcoming</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {upcoming.map(r => renderCard(r))}
               </div>
@@ -324,7 +324,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
           )}
           {past.length > 0 && (
             <div className="space-y-2 mt-2">
-              <h3 className="text-2xs uppercase tracking-wider font-semibold text-white/40">Past reminders</h3>
+              <h3 className="text-2xs uppercase tracking-wider font-semibold text-foreground/40">Past reminders</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {past.map(r => renderCard(r, true))}
               </div>
@@ -340,17 +340,17 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
           if (!o) resetForm()
         }}
       >
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-foreground/[0.08] shadow-modal bg-card-elevated/90 backdrop-blur-2xl flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="font-headline text-lg text-white/90">{editingReminder ? 'Edit Reminder' : 'New Reminder'}</DialogTitle>
-            <DialogDescription className="text-white/40 text-xs">
+            <DialogTitle className="font-headline text-lg text-foreground/90">{editingReminder ? 'Edit Reminder' : 'New Reminder'}</DialogTitle>
+            <DialogDescription className="text-foreground/40 text-xs">
               We'll notify you via {profile?.phone && !isDerivedPhoneEmail(profile?.email) ? 'email or WhatsApp' : profile?.phone ? 'WhatsApp' : 'email'} before the event.
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="reminder-title" className="text-xs font-medium text-white/70">Title</label>
+              <label htmlFor="reminder-title" className="text-xs font-medium text-foreground/70">Title</label>
               <Input
                 id="reminder-title"
                 autoFocus
@@ -363,19 +363,19 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
 
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex flex-col gap-1.5 flex-1">
-                <label htmlFor="reminder-date" className="text-xs font-medium text-white/70">Date</label>
+                <label htmlFor="reminder-date" className="text-xs font-medium text-foreground/70">Date</label>
                 <input
                   id="reminder-date"
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   disabled={submitting}
-                  className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-md border border-foreground/[0.1] bg-foreground/[0.04] px-3 py-1 text-sm text-foreground/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
               <div className="flex flex-col gap-1.5 flex-1">
-                <label htmlFor="reminder-time" className="text-xs font-medium text-white/70">
-                  Time <span className="text-white/30">(optional)</span>
+                <label htmlFor="reminder-time" className="text-xs font-medium text-foreground/70">
+                  Time <span className="text-foreground/30">(optional)</span>
                 </label>
                 <input
                   id="reminder-time"
@@ -383,14 +383,14 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
                   disabled={submitting}
-                  className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-md border border-foreground/[0.1] bg-foreground/[0.04] px-3 py-1 text-sm text-foreground/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="reminder-description" className="text-xs font-medium text-white/70">
-                Description <span className="text-white/30">(optional)</span>
+              <label htmlFor="reminder-description" className="text-xs font-medium text-foreground/70">
+                Description <span className="text-foreground/30">(optional)</span>
               </label>
               <Textarea
                 id="reminder-description"
@@ -403,7 +403,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-white/70">Notify me</label>
+              <label className="text-xs font-medium text-foreground/70">Notify me</label>
               <div className="flex flex-wrap gap-1.5">
                 {LEAD_TIME_PRESETS.map(p => {
                   const active = !customLead.trim() && leadMinutes === p.minutes
@@ -416,7 +416,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
                       className={`text-2xs font-medium px-2 py-1 rounded-full border transition-colors ${
                         active
                           ? 'bg-primary/20 text-primary border-primary/40'
-                          : 'bg-white/[0.04] text-white/60 border-white/10 hover:bg-white/[0.08]'
+                          : 'bg-foreground/[0.04] text-foreground/60 border-foreground/10 hover:bg-foreground/[0.08]'
                       }`}
                     >
                       {p.label}
@@ -425,7 +425,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
                 })}
               </div>
               <div className="flex items-center gap-2 mt-1">
-                <label htmlFor="reminder-custom-lead" className="text-2xs text-white/40">Custom (minutes)</label>
+                <label htmlFor="reminder-custom-lead" className="text-2xs text-foreground/40">Custom (minutes)</label>
                 <input
                   id="reminder-custom-lead"
                   type="number"
@@ -434,9 +434,9 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
                   onChange={(e) => setCustomLead(e.target.value)}
                   placeholder="e.g. 90"
                   disabled={submitting}
-                  className="flex h-7 w-24 rounded-md border border-white/[0.1] bg-white/[0.04] px-2 text-xs text-white/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-7 w-24 rounded-md border border-foreground/[0.1] bg-foreground/[0.04] px-2 text-xs text-foreground/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 />
-                <span className="text-2xs text-white/30">{formatLeadTime(effectiveLead)}</span>
+                <span className="text-2xs text-foreground/30">{formatLeadTime(effectiveLead)}</span>
               </div>
             </div>
           </div>
@@ -464,10 +464,10 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
 
       {/* Delete confirmation dialog */}
       <Dialog open={!!confirmDeleteReminder} onOpenChange={(o) => { if (!o) setConfirmDeleteReminder(null) }}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-sm glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-sm glass-panel rounded-2xl p-6 border border-foreground/[0.08] shadow-modal bg-card-elevated/90 backdrop-blur-2xl flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle className="font-headline text-lg text-white/90">Delete Reminder</DialogTitle>
-            <DialogDescription className="text-white/40 text-xs">
+            <DialogTitle className="font-headline text-lg text-foreground/90">Delete Reminder</DialogTitle>
+            <DialogDescription className="text-foreground/40 text-xs">
               This will permanently delete "{confirmDeleteReminder?.title}" and cancel any scheduled notification. This cannot be undone.
             </DialogDescription>
           </DialogHeader>

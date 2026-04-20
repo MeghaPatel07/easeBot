@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError } from '@/services/authService'
 import PhoneInput, { toE164, isValidPhone, type PhoneInputValue } from './PhoneInput'
@@ -59,7 +60,7 @@ const OTP_EXPIRY_SECONDS = 5 * 60
 
 function PasswordStrengthMeter({ password }: { password: string }) {
   const { score, issues } = validatePassword(password)
-  const colors = ['bg-red-500', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500']
+  const colors = ['bg-destructive', 'bg-destructive', 'bg-warning', 'bg-warning', 'bg-success']
   const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong']
   const requirements: { key: PasswordIssue; label: string }[] = [
     { key: 'tooShort', label: `At least ${PASSWORD_MIN_LENGTH} characters` },
@@ -76,12 +77,12 @@ function PasswordStrengthMeter({ password }: { password: string }) {
             <div
               key={i}
               className={`h-1 flex-1 rounded-full transition-colors ${
-                i < score ? colors[score] : 'bg-white/10'
+                i < score ? colors[score] : 'bg-foreground/10'
               }`}
             />
           ))}
         </div>
-        <span className="text-[10px] font-label uppercase tracking-widest text-white/40 w-16 text-right">
+        <span className="text-[10px] font-label uppercase tracking-widest text-foreground/40 w-16 text-right">
           {labels[score]}
         </span>
       </div>
@@ -89,8 +90,8 @@ function PasswordStrengthMeter({ password }: { password: string }) {
         {requirements.map(({ key, label }) => {
           const met = !issues.includes(key)
           return (
-            <li key={key} className={`text-[11px] flex items-center gap-1.5 transition-colors ${met ? 'text-green-400' : 'text-white/30'}`}>
-              <span className={`inline-block w-3 h-3 rounded-full border text-center leading-3 text-[8px] ${met ? 'border-green-400 bg-green-400/20' : 'border-white/20'}`}>
+            <li key={key} className={`text-[11px] flex items-center gap-1.5 transition-colors ${met ? 'text-success' : 'text-foreground/30'}`}>
+              <span className={`inline-block w-3 h-3 rounded-full border text-center leading-3 text-[8px] ${met ? 'border-success bg-success/20' : 'border-foreground/20'}`}>
                 {met ? '✓' : ''}
               </span>
               {label}
@@ -193,15 +194,27 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   function validateEmailForm(): boolean {
     const e: Record<string, string> = {}
-    if (!emailForm.name.trim()) e.name = 'Full name is required'
-    if (!emailForm.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailForm.email)) e.email = 'Valid email is required'
+    const name = emailForm.name.trim()
+    const email = emailForm.email.trim()
+    if (!name) e.name = 'Full name is required'
+    else if (name.length < 2) e.name = 'Name must be at least 2 characters'
+    if (!email) e.email = 'Email is required'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) e.email = 'Enter a valid email address'
     if (emailForm.phone.national && !isValidPhone(emailForm.phone)) e.phone = 'Enter a valid phone number'
-    const pw = validatePassword(emailForm.password)
-    if (!pw.ok) e.password = pw.issues.map(describeIssue).join(' · ')
-    if (emailForm.password !== emailForm.confirmPassword) e.confirmPassword = 'Passwords do not match'
+    if (!emailForm.password) e.password = 'Password is required'
+    else {
+      const pw = validatePassword(emailForm.password)
+      if (!pw.ok) e.password = pw.issues.map(describeIssue).join(' · ')
+    }
+    if (!emailForm.confirmPassword) e.confirmPassword = 'Please confirm your password'
+    else if (emailForm.password !== emailForm.confirmPassword) e.confirmPassword = 'Passwords do not match'
     if (!emailForm.terms) e.terms = 'You must accept the terms'
     setEmailErrors(e)
-    return Object.keys(e).length === 0
+    if (Object.keys(e).length > 0) {
+      toast.error('Please fix the errors in the form')
+      return false
+    }
+    return true
   }
 
   async function handleEmailSubmit() {
@@ -234,14 +247,46 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       }
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      if (e.code === 'auth/email-already-in-use') {
-        reset()
-        onOpenChange(false)
-        onSwitchToSignIn()
-      } else if (e.code === 'EMAIL_OWNED_BY_GOOGLE') {
-        setEmailAuthError('This email is already registered with Google. Use the Google tab above.')
+      const code = e.code ?? e.message ?? 'auth/unknown'
+      if (code === 'auth/email-already-in-use') {
+        const msg = 'An account with this email already exists. Please sign in instead.'
+        setEmailErrors(prev => ({ ...prev, email: msg }))
+        setEmailAuthError(msg)
+        toast.error('Account already exists', {
+          description: 'Use a different email or sign in with the existing one.',
+        })
+      } else if (code === 'EMAIL_OWNED_BY_GOOGLE') {
+        const msg = 'This email is already registered with Google. Use the Google button below.'
+        setEmailErrors(prev => ({ ...prev, email: msg }))
+        setEmailAuthError(msg)
+        toast.error('Email linked to Google', {
+          description: 'Continue with Google instead.',
+        })
+      } else if (code === 'PHONE_DUPLICATE') {
+        const msg = 'An account with this phone number already exists.'
+        setEmailErrors(prev => ({ ...prev, phone: msg }))
+        setEmailAuthError(msg)
+        toast.error('Phone already registered', {
+          description: 'Try a different number or sign in with the existing account.',
+        })
+      } else if (code === 'WEAK_PASSWORD_POLICY' || code === 'auth/weak-password') {
+        const msg = mapAuthError(code)
+        setEmailErrors(prev => ({ ...prev, password: msg }))
+        setEmailAuthError(msg)
+        toast.error('Weak password', { description: msg })
+      } else if (code === 'auth/invalid-email') {
+        const msg = 'Please enter a valid email address.'
+        setEmailErrors(prev => ({ ...prev, email: msg }))
+        setEmailAuthError(msg)
+        toast.error(msg)
+      } else if (code === 'auth/network-request-failed' || code === 'NETWORK_ERROR') {
+        const msg = 'Network error. Please check your connection and try again.'
+        setEmailAuthError(msg)
+        toast.error('Network error', { description: msg })
       } else {
-        setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+        const msg = mapAuthError(code)
+        setEmailAuthError(msg)
+        toast.error('Sign up failed', { description: msg })
       }
     } finally {
       setLoading(false)
@@ -268,10 +313,13 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       setVerifyResendTimer(OTP_RESEND_COOLDOWN)
       setVerifyExpiryTimer(OTP_EXPIRY_SECONDS)
       setEmailStep('verifying')
+      toast.success('Code sent', { description: `Sent to ${signupUser.phone} via WhatsApp.` })
       setTimeout(() => verifyOtpInputsRef.current[0]?.focus(), 100)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      setEmailAuthError(msg)
+      toast.error('Could not send code', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -283,9 +331,12 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     setLoading(true)
     try {
       await resendVerification(signupUser.email, signupUser.password)
+      toast.success('Verification email sent', { description: `Check ${signupUser.email}.` })
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      setEmailAuthError(msg)
+      toast.error('Could not resend email', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -300,9 +351,12 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       setVerifyResendTimer(OTP_RESEND_COOLDOWN)
       setVerifyExpiryTimer(OTP_EXPIRY_SECONDS)
       setVerifyOtp(['', '', '', '', '', ''])
+      toast.success('Code resent', { description: `Sent to ${signupUser.phone} via WhatsApp.` })
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      setEmailAuthError(msg)
+      toast.error('Could not resend code', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -347,16 +401,21 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     try {
       const ok = await verifyPhoneOtpWhatsApp(signupUser.phone, code, 'signup')
       if (!ok) {
-        setEmailAuthError('Incorrect or expired code')
+        const msg = 'Incorrect or expired code'
+        setEmailAuthError(msg)
+        toast.error('Invalid code', { description: 'The OTP is incorrect or has expired.' })
         return
       }
       // Flip Firestore verification flag — briefly signs in then signs out.
       await markEmailUserVerifiedAfterPhoneOtp(signupUser.email, signupUser.password)
       setEmailStep('success')
+      toast.success('Account verified', { description: 'Welcome to TheWeddingBot!' })
       setTimeout(() => { onOpenChange(false); reset() }, 1500)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setEmailAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      setEmailAuthError(msg)
+      toast.error('Verification failed', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -369,12 +428,21 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   function validatePhoneForm(): boolean {
     const e: Record<string, string> = {}
-    if (!phoneForm.name.trim()) e.name = 'Full name is required'
-    if (!phoneForm.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneForm.email)) e.email = 'Valid email is required for recovery'
-    if (!phoneForm.phone.national || !isValidPhone(phoneForm.phone)) e.phone = 'Enter a valid phone number'
+    const name = phoneForm.name.trim()
+    const email = phoneForm.email.trim()
+    if (!name) e.name = 'Full name is required'
+    else if (name.length < 2) e.name = 'Name must be at least 2 characters'
+    if (!email) e.email = 'Email is required for recovery'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) e.email = 'Enter a valid email address'
+    if (!phoneForm.phone.national) e.phone = 'Phone number is required'
+    else if (!isValidPhone(phoneForm.phone)) e.phone = 'Enter a valid phone number'
     if (!phoneForm.terms) e.terms = 'You must accept the terms'
     setPhoneErrors(e)
-    return Object.keys(e).length === 0
+    if (Object.keys(e).length > 0) {
+      toast.error('Please fix the errors in the form')
+      return false
+    }
+    return true
   }
 
   async function handlePhoneSubmit() {
@@ -400,10 +468,27 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       setPhoneStep('otp')
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      if (e.code === 'auth/email-already-in-use') {
-        setPhoneAuthError('A phone account already exists for this number. Try signing in.')
+      const code = e.code ?? e.message ?? 'auth/unknown'
+      if (code === 'auth/email-already-in-use' || code === 'PHONE_DUPLICATE') {
+        const msg = 'A phone account already exists for this number. Try signing in.'
+        setPhoneErrors(prev => ({ ...prev, phone: msg }))
+        setPhoneAuthError(msg)
+        toast.error('Phone already registered', {
+          description: 'Use a different number or sign in with the existing account.',
+        })
+      } else if (code === 'auth/invalid-phone-number') {
+        const msg = 'Please enter a valid phone number.'
+        setPhoneErrors(prev => ({ ...prev, phone: msg }))
+        setPhoneAuthError(msg)
+        toast.error(msg)
+      } else if (code === 'auth/network-request-failed' || code === 'NETWORK_ERROR') {
+        const msg = 'Network error. Please check your connection and try again.'
+        setPhoneAuthError(msg)
+        toast.error('Network error', { description: msg })
       } else {
-        setPhoneAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+        const msg = mapAuthError(code)
+        setPhoneAuthError(msg)
+        toast.error('Sign up failed', { description: msg })
       }
     } finally {
       setLoading(false)
@@ -418,9 +503,12 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       await sendPhoneOtpWhatsApp(phoneE164, 'signup')
       setPhoneResendTimer(OTP_RESEND_COOLDOWN)
       setPhoneExpiryTimer(OTP_EXPIRY_SECONDS)
+      toast.success('Code resent', { description: `Sent to ${phoneE164} via WhatsApp.` })
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setPhoneAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      setPhoneAuthError(msg)
+      toast.error('Could not resend code', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -428,21 +516,31 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   async function handlePhoneVerify() {
     if (!phoneE164) return
-    if (phoneOtp.length < 6) { setPhoneAuthError('Enter the 6-digit code'); return }
+    if (phoneOtp.length < 6) {
+      const msg = 'Enter the 6-digit code'
+      setPhoneAuthError(msg)
+      toast.error(msg)
+      return
+    }
     setPhoneAuthError('')
     setLoading(true)
     try {
       const ok = await verifyPhoneOtpWhatsApp(phoneE164, phoneOtp, 'signup')
       if (!ok) {
-        setPhoneAuthError('Incorrect or expired code')
+        const msg = 'Incorrect or expired code'
+        setPhoneAuthError(msg)
+        toast.error('Invalid code', { description: 'The OTP is incorrect or has expired.' })
         return
       }
       await confirmPhoneSignup(phoneE164)
       setPhoneStep('success')
+      toast.success('Account created', { description: 'Welcome to TheWeddingBot!' })
       setTimeout(() => { onOpenChange(false); reset() }, 1500)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setPhoneAuthError(mapAuthError(e.code ?? e.message ?? 'auth/unknown'))
+      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
+      setPhoneAuthError(msg)
+      toast.error('Verification failed', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -456,11 +554,17 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     try {
       await signInWithGoogle(true)
       setGoogleSuccess(true)
+      toast.success('Welcome!', { description: 'Signed in with Google.' })
       setTimeout(() => { onOpenChange(false); reset() }, 1500)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
-      if (msg) setEmailAuthError(msg)
+      const code = e.code ?? e.message ?? 'auth/unknown'
+      if (code === 'auth/popup-closed-by-user') return
+      const msg = mapAuthError(code)
+      if (msg) {
+        setEmailAuthError(msg)
+        toast.error('Google sign-in failed', { description: msg })
+      }
     } finally {
       setLoading(false)
     }
@@ -510,7 +614,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] sm:max-w-[440px] glass-panel rounded-2xl p-0 border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[440px] glass-panel rounded-2xl p-0 border border-foreground/[0.08] bg-card-elevated/90 backdrop-blur-2xl shadow-modal overflow-hidden">
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
@@ -521,11 +625,11 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <div className="py-8 space-y-4 text-center">
               <DialogTitle className="sr-only">Sign up complete</DialogTitle>
               <div className="flex justify-center">
-                <CheckCircle className="h-16 w-16 text-green-500" />
+                <CheckCircle className="h-16 w-16 text-success" />
               </div>
               <div>
                 <p className="text-xl font-semibold elegant-heading">Welcome to TheWeddingBot!</p>
-                <p className="text-sm text-white/90 mt-1">Hello, {signedUpName || 'there'}</p>
+                <p className="text-sm text-foreground/90 mt-1">Hello, {signedUpName || 'there'}</p>
               </div>
             </div>
           )}
@@ -535,10 +639,10 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <>
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Almost there</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Verify your <span className="text-primary">account</span>
                 </DialogTitle>
-                <DialogDescription className="text-sm text-white/40">
+                <DialogDescription className="text-sm text-foreground/40">
                   Choose how you'd like to verify.
                 </DialogDescription>
               </DialogHeader>
@@ -547,35 +651,35 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                   type="button"
                   onClick={() => handleSelectVerification('email')}
                   disabled={loading}
-                  className="w-full p-4 rounded-2xl bg-white/[0.04] border border-white/[0.12] hover:border-primary/40 hover:bg-white/[0.06] transition-all flex items-center gap-4 text-left disabled:opacity-50"
+                  className="w-full p-4 rounded-2xl bg-foreground/[0.04] border border-foreground/[0.12] hover:border-primary/40 hover:bg-foreground/[0.06] transition-all flex items-center gap-4 text-left disabled:opacity-50"
                 >
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Mail className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-white/90">Verify via Email</p>
-                    <p className="text-xs text-white/40 mt-0.5">{signupUser?.email}</p>
+                    <p className="text-sm font-medium text-foreground/90">Verify via Email</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">{signupUser?.email}</p>
                   </div>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSelectVerification('phone')}
                   disabled={loading || !signupUser?.phone}
-                  className="w-full p-4 rounded-2xl bg-white/[0.04] border border-white/[0.12] hover:border-primary/40 hover:bg-white/[0.06] transition-all flex items-center gap-4 text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full p-4 rounded-2xl bg-foreground/[0.04] border border-foreground/[0.12] hover:border-primary/40 hover:bg-foreground/[0.06] transition-all flex items-center gap-4 text-left disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Phone className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-white/90">Verify via Phone</p>
-                    <p className="text-xs text-white/40 mt-0.5">
+                    <p className="text-sm font-medium text-foreground/90">Verify via Phone</p>
+                    <p className="text-xs text-foreground/40 mt-0.5">
                       {signupUser?.phone ?? 'No phone number provided'}
                     </p>
                   </div>
                 </button>
-                {emailAuthError && <p className="text-sm text-red-400">{emailAuthError}</p>}
+                {emailAuthError && <p className="text-sm text-destructive">{emailAuthError}</p>}
                 {loading && (
-                  <p className="text-xs text-white/40 text-center flex items-center justify-center gap-2">
+                  <p className="text-xs text-foreground/40 text-center flex items-center justify-center gap-2">
                     <Loader2 className="h-3 w-3 animate-spin" /> Sending code…
                   </p>
                 )}
@@ -588,11 +692,11 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <>
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Check your <span className="text-primary">inbox</span>
                 </DialogTitle>
-                <DialogDescription className="text-sm text-white/40">
-                  We sent a verification link to <span className="text-white/70">{signedUpEmail}</span>. Click it to activate your account.
+                <DialogDescription className="text-sm text-foreground/40">
+                  We sent a verification link to <span className="text-foreground/70">{signedUpEmail}</span>. Click it to activate your account.
                 </DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-4 text-center">
@@ -601,7 +705,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                     <Mail className="h-8 w-8 text-primary" />
                   </div>
                 </div>
-                {emailAuthError && <p className="text-sm text-red-400">{emailAuthError}</p>}
+                {emailAuthError && <p className="text-sm text-destructive">{emailAuthError}</p>}
                 <Button
                   className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
                   onClick={handleResendVerifyEmail}
@@ -612,7 +716,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full h-12 rounded-full border-white/[0.12]"
+                  className="w-full h-12 rounded-full border-foreground/[0.12]"
                   onClick={switchToSignIn}
                 >
                   Go to Sign In
@@ -620,7 +724,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 {signupUser?.phone && (
                   <button
                     type="button"
-                    className="text-xs text-white/40 hover:text-white/70 transition-colors flex items-center justify-center gap-1 mx-auto"
+                    className="text-xs text-foreground/40 hover:text-foreground/70 transition-colors flex items-center justify-center gap-1 mx-auto"
                     onClick={() => { setEmailStep('choice'); setEmailAuthError('') }}
                   >
                     <ArrowLeft className="h-3 w-3" /> Use phone instead
@@ -635,15 +739,15 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <>
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Verify your <span className="text-primary">phone</span>
                 </DialogTitle>
-                <DialogDescription className="text-sm text-white/40">
+                <DialogDescription className="text-sm text-foreground/40">
                   Enter the 6-digit code we sent via WhatsApp to {signupUser?.phone}.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-5 mt-6">
-                <p className="text-xs text-white/40 text-center">
+                <p className="text-xs text-foreground/40 text-center">
                   Expires in {Math.floor(verifyExpiryTimer / 60)}:{(verifyExpiryTimer % 60).toString().padStart(2, '0')}
                 </p>
                 <div className="flex justify-center gap-2 sm:gap-3" onPaste={handleVerifyOtpPaste}>
@@ -657,11 +761,11 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       value={digit}
                       onChange={e => handleVerifyOtpChange(i, e.target.value)}
                       onKeyDown={e => handleVerifyOtpKeyDown(i, e)}
-                      className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-white/20 bg-white/[0.06] text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-white/[0.1] transition-all caret-primary"
+                      className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-foreground/20 bg-foreground/[0.06] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-foreground/[0.1] transition-all caret-primary"
                     />
                   ))}
                 </div>
-                {emailAuthError && <p className="text-sm text-red-400 text-center">{emailAuthError}</p>}
+                {emailAuthError && <p className="text-sm text-destructive text-center">{emailAuthError}</p>}
                 <Button
                   className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
                   onClick={() => handleVerifyPhoneOtpSubmit()}
@@ -670,7 +774,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Verify & Create Account
                 </Button>
-                <div className="flex justify-between items-center text-xs text-white/35">
+                <div className="flex justify-between items-center text-xs text-foreground/35">
                   <button
                     type="button"
                     onClick={handleResendVerifyPhoneOtp}
@@ -696,12 +800,12 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <div className="py-8 space-y-4 text-center">
               <DialogTitle className="sr-only">Sign up complete</DialogTitle>
               <div className="flex justify-center">
-                <CheckCircle className="h-16 w-16 text-green-500" />
+                <CheckCircle className="h-16 w-16 text-success" />
               </div>
               <div>
                 <p className="text-xl font-semibold elegant-heading">Welcome to TheWeddingBot!</p>
-                <p className="text-sm text-white/90 mt-1">Hello, {signedUpName || 'there'}</p>
-                <p className="text-xs text-white/50 mt-2">
+                <p className="text-sm text-foreground/90 mt-1">Hello, {signedUpName || 'there'}</p>
+                <p className="text-xs text-foreground/50 mt-2">
                   Your account is verified. Redirecting…
                 </p>
               </div>
@@ -713,11 +817,11 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <div className="py-8 space-y-4 text-center">
               <DialogTitle className="sr-only">Sign up complete</DialogTitle>
               <div className="flex justify-center">
-                <CheckCircle className="h-16 w-16 text-green-500" />
+                <CheckCircle className="h-16 w-16 text-success" />
               </div>
               <div>
                 <p className="text-xl font-semibold elegant-heading">Welcome to TheWeddingBot!</p>
-                <p className="text-sm text-white/90 mt-1">Hello, {signedUpName || 'there'}</p>
+                <p className="text-sm text-foreground/90 mt-1">Hello, {signedUpName || 'there'}</p>
               </div>
             </div>
           )}
@@ -728,14 +832,14 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
               {/* Header — left-aligned */}
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Begin your journey</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Start planning<br />your <span className="text-primary">story</span>
                 </DialogTitle>
                 <DialogDescription className="sr-only">Create your account</DialogDescription>
               </DialogHeader>
 
               {/* Tabs */}
-              <div className="flex bg-white/[0.03] border border-white/[0.06] p-1 rounded-full gap-1 mt-6 mb-6">
+              <div className="flex bg-foreground/[0.03] border border-foreground/[0.06] p-1 rounded-full gap-1 mt-6 mb-6">
                 {(['email', 'phone'] as Tab[]).map(t => (
                   <button
                     key={t}
@@ -744,7 +848,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       setEmailAuthError('')
                       setPhoneAuthError('')
                     }}
-                    className={`flex-1 py-2.5 text-sm font-medium rounded-full transition-all ${(t === 'email' && tab === 'email') || (t === 'phone' && tab === 'phone') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-white/40 hover:text-white/60'}`}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-full transition-all ${(t === 'email' && tab === 'email') || (t === 'phone' && tab === 'phone') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
                   >
                     {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1.5" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1.5" />Phone</>}
                   </button>
@@ -755,20 +859,20 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
               {tab === 'email' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Full name</label>
-                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
-                    {emailErrors.name && <p className="text-xs text-red-400">{emailErrors.name}</p>}
+                    <label className="text-xs text-foreground/50 ml-1">Full name</label>
+                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    {emailErrors.name && <p className="text-xs text-destructive">{emailErrors.name}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Email</label>
-                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
-                    {emailErrors.email && <p className="text-xs text-red-400">{emailErrors.email}</p>}
+                    <label className="text-xs text-foreground/50 ml-1">Email</label>
+                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    {emailErrors.email && <p className="text-xs text-destructive">{emailErrors.email}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">
-                      Phone <span className="text-white/30 font-normal">(optional)</span>
+                    <label className="text-xs text-foreground/50 ml-1">
+                      Phone <span className="text-foreground/30 font-normal">(optional)</span>
                     </label>
                     <PhoneInput
                       value={emailForm.phone}
@@ -779,32 +883,32 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Password</label>
+                    <label className="text-xs text-foreground/50 ml-1">Password</label>
                     <div className="relative">
                       <Input
                         type={showPassword ? 'text' : 'password'}
                         value={emailForm.password}
                         onChange={setEmailField('password')}
                         placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
-                        className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                        className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(s => !s)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/60"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/35 hover:text-foreground/60"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                     {emailForm.password && <PasswordStrengthMeter password={emailForm.password} />}
-                    {emailErrors.password && <p className="text-xs text-red-400">{emailErrors.password}</p>}
+                    {emailErrors.password && <p className="text-xs text-destructive">{emailErrors.password}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Confirm password</label>
-                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="Re-enter your password" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
-                    {emailErrors.confirmPassword && <p className="text-xs text-red-400">{emailErrors.confirmPassword}</p>}
+                    <label className="text-xs text-foreground/50 ml-1">Confirm password</label>
+                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="Re-enter your password" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    {emailErrors.confirmPassword && <p className="text-xs text-destructive">{emailErrors.confirmPassword}</p>}
                   </div>
 
                   <div className="flex items-start gap-2.5">
@@ -813,9 +917,9 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       id="email-terms"
                       checked={emailForm.terms}
                       onChange={setEmailField('terms')}
-                      className="mt-0.5 h-4 w-4 rounded border-white/[0.12] bg-transparent"
+                      className="mt-0.5 h-4 w-4 rounded border-foreground/[0.12] bg-transparent"
                     />
-                    <label htmlFor="email-terms" className="text-xs text-white/40">
+                    <label htmlFor="email-terms" className="text-xs text-foreground/40">
                       I agree to the{' '}
                       <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline">
                         Terms of Service
@@ -826,9 +930,9 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       </Link>
                     </label>
                   </div>
-                  {emailErrors.terms && <p className="text-xs text-red-400">{emailErrors.terms}</p>}
+                  {emailErrors.terms && <p className="text-xs text-destructive">{emailErrors.terms}</p>}
 
-                  {emailAuthError && <p className="text-sm text-red-400">{emailAuthError}</p>}
+                  {emailAuthError && <p className="text-sm text-destructive">{emailAuthError}</p>}
 
                   <Button
                     className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 mt-1"
@@ -845,19 +949,19 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
               {tab === 'phone' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Full name</label>
-                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
-                    {phoneErrors.name && <p className="text-xs text-red-400">{phoneErrors.name}</p>}
+                    <label className="text-xs text-foreground/50 ml-1">Full name</label>
+                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    {phoneErrors.name && <p className="text-xs text-destructive">{phoneErrors.name}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Email (for recovery)</label>
-                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90" />
-                    {phoneErrors.email && <p className="text-xs text-red-400">{phoneErrors.email}</p>}
+                    <label className="text-xs text-foreground/50 ml-1">Email (for recovery)</label>
+                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    {phoneErrors.email && <p className="text-xs text-destructive">{phoneErrors.email}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Phone number</label>
+                    <label className="text-xs text-foreground/50 ml-1">Phone number</label>
                     <PhoneInput
                       value={phoneForm.phone}
                       onChange={(v) => setPhoneForm(f => ({ ...f, phone: v }))}
@@ -872,9 +976,9 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       id="phone-terms"
                       checked={phoneForm.terms}
                       onChange={setPhoneField('terms')}
-                      className="mt-0.5 h-4 w-4 rounded border-white/[0.12] bg-transparent"
+                      className="mt-0.5 h-4 w-4 rounded border-foreground/[0.12] bg-transparent"
                     />
-                    <label htmlFor="phone-terms" className="text-xs text-white/40">
+                    <label htmlFor="phone-terms" className="text-xs text-foreground/40">
                       I agree to the{' '}
                       <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline">
                         Terms of Service
@@ -885,13 +989,13 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       </Link>
                     </label>
                   </div>
-                  {phoneErrors.terms && <p className="text-xs text-red-400">{phoneErrors.terms}</p>}
+                  {phoneErrors.terms && <p className="text-xs text-destructive">{phoneErrors.terms}</p>}
 
-                  <p className="text-xs text-white/30">
+                  <p className="text-xs text-foreground/30">
                     We'll send a 6-digit code to your WhatsApp. Phone sign-in will only work on this device.
                   </p>
 
-                  {phoneAuthError && <p className="text-sm text-red-400">{phoneAuthError}</p>}
+                  {phoneAuthError && <p className="text-sm text-destructive">{phoneAuthError}</p>}
 
                   <Button
                     className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 mt-1"
@@ -906,22 +1010,22 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
               {/* Divider */}
               <div className="flex items-center gap-4 mt-6 mb-4">
-                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
-                <span className="text-xs text-white/30">Or continue with</span>
-                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
+                <div className="h-[1px] flex-1 bg-foreground/[0.06]"></div>
+                <span className="text-xs text-foreground/30">Or continue with</span>
+                <div className="h-[1px] flex-1 bg-foreground/[0.06]"></div>
               </div>
 
               {/* Google — bottom */}
               <button
                 onClick={handleGoogle}
                 disabled={loading}
-                className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-3 text-white/70 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all disabled:opacity-50"
+                className="w-full h-12 rounded-full bg-transparent border border-foreground/[0.12] flex items-center justify-center gap-3 text-foreground/70 text-sm font-medium hover:bg-foreground/[0.04] hover:border-foreground/[0.18] transition-all disabled:opacity-50"
               >
                 <GoogleIcon /> Continue with Google
               </button>
 
               {/* Switch to sign in */}
-              <p className="text-center text-sm text-white/40 mt-5">
+              <p className="text-center text-sm text-foreground/40 mt-5">
                 Already have an account?{' '}
                 <button className="text-primary font-semibold hover:underline" onClick={switchToSignIn}>
                   Sign in
@@ -935,29 +1039,29 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
             <>
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Verify your <span className="text-primary">phone</span>
                 </DialogTitle>
-                <DialogDescription className="text-sm text-white/40">
+                <DialogDescription className="text-sm text-foreground/40">
                   Enter the 6-digit code we sent via WhatsApp to {phoneE164}.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-5 mt-6">
-                <p className="text-xs text-white/40">
+                <p className="text-xs text-foreground/40">
                   Expires in {Math.floor(phoneExpiryTimer / 60)}:{(phoneExpiryTimer % 60).toString().padStart(2, '0')}
                 </p>
                 <div className="space-y-2">
-                  <label className="text-xs text-white/50 ml-1">Verification code</label>
+                  <label className="text-xs text-foreground/50 ml-1">Verification code</label>
                   <Input
                     value={phoneOtp}
                     onChange={e => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="6-digit code"
                     maxLength={6}
-                    className="h-12 rounded-2xl bg-transparent border border-white/[0.12] text-center tracking-widest text-lg text-white/90"
+                    className="h-12 rounded-2xl bg-transparent border border-foreground/[0.12] text-center tracking-widest text-lg text-foreground/90"
                     onKeyDown={e => e.key === 'Enter' && handlePhoneVerify()}
                   />
                 </div>
-                {phoneAuthError && <p className="text-sm text-red-400">{phoneAuthError}</p>}
+                {phoneAuthError && <p className="text-sm text-destructive">{phoneAuthError}</p>}
                 <Button
                   className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90"
                   onClick={handlePhoneVerify}
@@ -966,7 +1070,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Verify & Create Account
                 </Button>
-                <div className="flex justify-between items-center text-xs text-white/35">
+                <div className="flex justify-between items-center text-xs text-foreground/35">
                   <button
                     type="button"
                     onClick={handlePhoneResend}

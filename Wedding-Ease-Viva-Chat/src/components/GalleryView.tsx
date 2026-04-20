@@ -106,8 +106,8 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-        <Loader2 className="h-6 w-6 text-[#A17A63] animate-spin" />
-        <p className="text-sm text-white/50">Loading gallery...</p>
+        <Loader2 className="h-6 w-6 text-primary animate-spin" />
+        <p className="text-sm text-foreground/50">Loading gallery...</p>
       </div>
     )
   }
@@ -117,9 +117,9 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Sparkles className="h-5 w-5 text-[#A17A63]" />
+          <Sparkles className="h-5 w-5 text-primary" />
         </div>
-        <p className="text-sm text-white/50 max-w-xs leading-relaxed">
+        <p className="text-sm text-foreground/50 max-w-xs leading-relaxed">
           No images yet. Ask TheWeddingBot to generate some visuals.
         </p>
       </div>
@@ -132,8 +132,8 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
     <>
       {/* Header: count */}
       <div className="flex items-center gap-2 mb-3">
-        <Image className="h-4 w-4 text-white/40" />
-        <span className="text-xs text-white/50">
+        <Image className="h-4 w-4 text-foreground/40" />
+        <span className="text-xs text-foreground/50">
           {images.length} image{images.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -144,7 +144,7 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
           <button
             key={img.id}
             onClick={() => { setSelectedIndex(idx); setScale(1) }}
-            className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer min-h-[44px] bg-white/[0.04] border border-white/[0.08]"
+            className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer min-h-[44px] bg-foreground/[0.04] border border-foreground/[0.08]"
           >
             <img
               src={img.url}
@@ -155,8 +155,8 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
             {/* Hover overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <p className="text-3xs text-white/80 truncate">{img.prompt}</p>
-              <p className="text-3xs text-white/50">
+              <p className="text-3xs text-foreground/80 truncate">{img.prompt}</p>
+              <p className="text-3xs text-foreground/50">
                 {img.createdAt?.toDate?.().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) ?? ''}
               </p>
             </div>
@@ -165,14 +165,14 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
               <button
                 onClick={(e) => handleAttachToChat(img, e)}
                 aria-label="Attach image to chat"
-                className="h-10 w-10 sm:h-7 sm:w-7 rounded-full bg-black/50 hover:bg-[#A17A63]/80 text-white/80 hover:text-white flex items-center justify-center transition-colors"
+                className="h-10 w-10 sm:h-7 sm:w-7 rounded-full bg-overlay-scrim/50 hover:bg-primary/80 text-overlay-text/80 hover:text-primary-foreground flex items-center justify-center transition-colors"
               >
                 <MessageSquarePlus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </button>
               <button
                 onClick={(e) => handleDelete(img, e)}
                 aria-label="Delete image"
-                className="h-10 w-10 sm:h-7 sm:w-7 rounded-full bg-black/50 hover:bg-red-500/80 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+                className="h-10 w-10 sm:h-7 sm:w-7 rounded-full bg-overlay-scrim/50 hover:bg-destructive/80 text-overlay-text/70 hover:text-destructive-foreground flex items-center justify-center transition-colors"
               >
                 <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </button>
@@ -184,24 +184,24 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
       {/* Full-screen preview */}
       {currentImage && selectedIndex !== null && (
         <div
-          className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200"
+          className="fixed inset-0 z-[9999] bg-overlay-scrim/90 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200"
           onClick={() => { setSelectedIndex(null); setScale(1) }}
         >
           {/* Close */}
           <button
             onClick={(e) => { e.stopPropagation(); setSelectedIndex(null); setScale(1) }}
-            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors z-10"
+            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors z-10"
           >
             <X className="h-5 w-5" />
           </button>
 
           {/* Zoom controls */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/10 rounded-full px-3 py-1.5 backdrop-blur-sm">
-            <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.5)) }} className="h-7 w-7 rounded-full hover:bg-white/20 text-white flex items-center justify-center transition-colors">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-overlay-surface/10 rounded-full px-3 py-1.5 backdrop-blur-sm">
+            <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.5)) }} className="h-7 w-7 rounded-full hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors">
               <ZoomOut className="h-4 w-4" />
             </button>
-            <span className="text-white/70 text-xs min-w-[3rem] text-center">{Math.round(scale * 100)}%</span>
-            <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 3)) }} className="h-7 w-7 rounded-full hover:bg-white/20 text-white flex items-center justify-center transition-colors">
+            <span className="text-overlay-text/70 text-xs min-w-[3rem] text-center">{Math.round(scale * 100)}%</span>
+            <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 3)) }} className="h-7 w-7 rounded-full hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors">
               <ZoomIn className="h-4 w-4" />
             </button>
           </div>
@@ -210,7 +210,7 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
           {selectedIndex > 0 && (
             <button
               onClick={(e) => { e.stopPropagation(); setSelectedIndex(i => (i !== null ? i - 1 : i)); setScale(1) }}
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
             >
               <ChevronLeft className="h-6 w-6" />
             </button>
@@ -220,7 +220,7 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
           {selectedIndex < images.length - 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); setSelectedIndex(i => (i !== null ? i + 1 : i)); setScale(1) }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
             >
               <ChevronRight className="h-6 w-6" />
             </button>
@@ -246,11 +246,11 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
               variant="preview"
             />
             {currentImage.prompt && (
-              <p className="text-center text-xs text-white/50 px-4 line-clamp-2">
+              <p className="text-center text-xs text-foreground/50 px-4 line-clamp-2">
                 {currentImage.prompt}
               </p>
             )}
-            <p className="text-center text-2xs text-white/30">
+            <p className="text-center text-2xs text-foreground/30">
               {selectedIndex + 1} of {images.length}
             </p>
           </div>

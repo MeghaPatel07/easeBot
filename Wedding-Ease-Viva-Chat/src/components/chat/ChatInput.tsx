@@ -147,22 +147,22 @@ const ChatInput = ({
   // clipped (this was the root cause of the "Auto shows nothing on mobile"
   // bug — an ancestor `overflow-x-auto` was clipping the menu).
   const modeDropdownMenuJSX = showModeDropdown ? (
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mb-2 w-[min(18rem,calc(100vw-2rem))] max-h-[60dvh] overflow-y-auto custom-scrollbar rounded-xl bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/40 py-1.5 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-150">
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 mb-2 w-[min(18rem,calc(100vw-2rem))] max-h-[60dvh] overflow-y-auto custom-scrollbar rounded-xl bg-card-elevated/95 backdrop-blur-xl border border-foreground/[0.1] shadow-dropdown-sm py-1.5 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-150">
       {MODE_CONFIG.map(m => {
         const isActive = selectedMode === m.key;
         return (
           <button
             key={m.key}
             onClick={() => { onModeChange?.(m.key); setShowModeDropdown(false); }}
-            className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors ${isActive ? 'bg-white/[0.08]' : 'hover:bg-white/[0.05]'}`}
+            className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors ${isActive ? 'bg-foreground/[0.08]' : 'hover:bg-foreground/[0.05]'}`}
           >
-            <m.icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isActive ? 'text-[#A17A63]' : 'text-white/35'}`} />
+            <m.icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isActive ? 'text-primary' : 'text-foreground/35'}`} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className={`text-sm font-medium ${isActive ? 'text-[#A17A63]' : 'text-white/75'}`}>{m.label}</span>
-                {isActive && <Check className="h-3 w-3 text-[#A17A63]" />}
+                <span className={`text-sm font-medium ${isActive ? 'text-primary' : 'text-foreground/75'}`}>{m.label}</span>
+                {isActive && <Check className="h-3 w-3 text-primary" />}
               </div>
-              <p className="text-2xs text-white/35 leading-snug mt-0.5">{m.description}</p>
+              <p className="text-2xs text-foreground/35 leading-snug mt-0.5">{m.description}</p>
             </div>
           </button>
         );
@@ -182,11 +182,11 @@ const ChatInput = ({
             <button
               type="button"
               onClick={() => setShowModeDropdown(v => !v)}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-white/[0.06] border border-white/[0.1] text-xs font-medium text-white/75 hover:bg-white/[0.1] active:scale-95 transition-all"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-foreground/[0.06] border border-foreground/[0.1] text-xs font-medium text-foreground/75 hover:bg-foreground/[0.1] active:scale-95 transition-all"
             >
-              <currentMode.icon className="h-3.5 w-3.5 text-[#A17A63]/80" />
+              <currentMode.icon className="h-3.5 w-3.5 text-primary/80" />
               <span>{currentMode.label}</span>
-              <ChevronDown className={`h-3 w-3 text-white/50 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-3 w-3 text-foreground/50 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
             </button>
             {modeDropdownMenuJSX}
           </div>
@@ -204,16 +204,16 @@ const ChatInput = ({
               return (
                 <div
                   key={`${att.kind}:${att.id}`}
-                  className="flex items-center gap-1.5 h-7 pl-2 pr-1 rounded-full bg-white/[0.08] border border-white/[0.12] text-xs text-white/80 flex-shrink-0 max-w-[220px]"
+                  className="flex items-center gap-1.5 h-7 pl-2 pr-1 rounded-full bg-foreground/[0.08] border border-foreground/[0.12] text-xs text-foreground/80 flex-shrink-0 max-w-[220px]"
                   title={att.preview ?? att.title}
                 >
-                  <Icon className="h-3.5 w-3.5 text-[#A17A63]/80 flex-shrink-0" />
+                  <Icon className="h-3.5 w-3.5 text-primary/80 flex-shrink-0" />
                   <span className="truncate">{truncate(att.title)}</span>
                   <button
                     type="button"
                     onClick={() => removeAttachment(att.id, att.kind)}
                     aria-label={`Remove ${att.title}`}
-                    className="h-5 w-5 flex items-center justify-center rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.1] transition-colors flex-shrink-0"
+                    className="h-5 w-5 flex items-center justify-center rounded-full text-foreground/40 hover:text-foreground/80 hover:bg-foreground/[0.1] transition-colors flex-shrink-0"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -235,14 +235,14 @@ const ChatInput = ({
         <div className="sm:hidden flex-shrink-0">
           <AttachmentPicker
             onUploadImage={onAttachImage}
-            triggerClassName="h-11 w-11 flex items-center justify-center rounded-[22px] border border-white/[0.12] bg-white/[0.08] backdrop-blur-xl text-white/55 hover:text-[#A17A63] hover:bg-white/[0.12] active:scale-95 transition-all flex-shrink-0 shadow-lg shadow-black/20"
+            triggerClassName="h-11 w-11 flex items-center justify-center rounded-[22px] border border-foreground/[0.12] bg-foreground/[0.08] backdrop-blur-xl text-foreground/55 hover:text-primary hover:bg-foreground/[0.12] active:scale-95 transition-all flex-shrink-0 shadow-lg shadow-black/20"
             TriggerIcon={Plus}
             triggerIconClassName="h-5 w-5"
           />
         </div>
 
         {/* ── Input pill ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 bg-white/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-white/[0.12] input-glow transition-shadow duration-300">
+        <div className="flex-1 min-w-0 bg-foreground/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-foreground/[0.12] input-glow transition-shadow duration-300">
 
           {/* ── ChatGPT-style voice recording panel — replaces the composer
                while recording / requesting mic / transcribing. ─────────── */}
@@ -259,7 +259,7 @@ const ChatInput = ({
                 disabled={!onCancelRecording}
                 aria-label="Cancel recording"
                 title="Cancel"
-                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] hover:border-white/25 active:scale-95 transition-all flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full border border-foreground/15 bg-foreground/[0.04] text-foreground/70 hover:text-foreground hover:bg-foreground/[0.08] hover:border-foreground/25 active:scale-95 transition-all flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <X className="h-4 w-4 sm:h-[15px] sm:w-[15px]" />
               </button>
@@ -294,7 +294,7 @@ const ChatInput = ({
                   return (
                     <div
                       key={i}
-                      className="flex-1 min-w-[1.5px] h-full rounded-full bg-white/75"
+                      className="flex-1 min-w-[1.5px] h-full rounded-full bg-foreground/75"
                       style={{
                         transform: `scaleY(${scale})`,
                         transformOrigin: 'center',
@@ -309,14 +309,14 @@ const ChatInput = ({
               <div className="flex items-center gap-1.5 flex-shrink-0 min-w-[3rem] justify-end">
                 {isTranscribing ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 text-[#A17A63] animate-spin" />
-                    <span className="text-[11px] font-medium text-[#A17A63] tracking-wide">
+                    <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+                    <span className="text-[11px] font-medium text-primary tracking-wide">
                       Transcribing…
                     </span>
                   </>
                 ) : (
                   <span
-                    className="text-xs font-semibold text-white/80 tabular-nums"
+                    className="text-xs font-semibold text-foreground/80 tabular-nums"
                     aria-live="polite"
                   >
                     {formatDuration(recordingDuration)}
@@ -333,7 +333,7 @@ const ChatInput = ({
                 disabled={isTranscribing}
                 aria-label="Send voice message"
                 title="Send voice"
-                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full bg-[#A17A63] text-white shadow-md hover:bg-[#B58A73] active:scale-95 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#A17A63]"
+                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary-light active:scale-95 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
               >
                 {isTranscribing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -347,11 +347,11 @@ const ChatInput = ({
           {/* Image preview */}
           {attachedImage && (
             <div className="relative inline-block mx-3 mt-2 mb-1">
-              <img src={attachedImage.preview} alt="Attached" className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg object-cover border border-white/20" />
+              <img src={attachedImage.preview} alt="Attached" className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg object-cover border border-foreground/20" />
               <button
                 type="button"
                 onClick={onRemoveImage}
-                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
+                className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center hover:bg-destructive/90 transition-colors shadow-sm"
               >
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -366,7 +366,7 @@ const ChatInput = ({
                 onClick={() => setIsExpanded(v => !v)}
                 aria-label={isExpanded ? 'Collapse input' : 'Expand input'}
                 title={isExpanded ? 'Collapse input' : 'Expand input'}
-                className="h-6 w-6 inline-flex items-center justify-center rounded-full text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                className="h-6 w-6 inline-flex items-center justify-center rounded-full text-foreground/40 hover:text-foreground/70 hover:bg-foreground/[0.06] transition-colors"
               >
                 {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
               </button>
@@ -381,7 +381,7 @@ const ChatInput = ({
             <div className="hidden sm:flex flex-shrink-0">
               <AttachmentPicker
                 onUploadImage={onAttachImage}
-                triggerClassName="h-9 w-9 flex items-center justify-center text-white/55 hover:text-[#A17A63] hover:bg-white/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0"
+                triggerClassName="h-9 w-9 flex items-center justify-center text-foreground/55 hover:text-primary hover:bg-foreground/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0"
                 TriggerIcon={Paperclip}
                 triggerIconClassName="h-4 w-4"
               />
@@ -405,7 +405,7 @@ const ChatInput = ({
               }
               readOnly={voiceState === 'recording' || voiceState === 'transcribing'}
               rows={1}
-              className="flex-1 min-w-0 bg-transparent border-none text-white/90 py-2 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-white/40 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 min-h-[34px] sm:min-h-[36px]"
+              className="flex-1 min-w-0 bg-transparent border-none text-foreground/90 py-2 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-foreground/40 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 min-h-[34px] sm:min-h-[36px]"
               style={{ maxHeight: `${maxHeight}px` }}
             />
 
@@ -417,9 +417,9 @@ const ChatInput = ({
                   <button
                     type="button"
                     onClick={() => setShowModeDropdown(v => !v)}
-                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-white/55 hover:text-white/75 hover:bg-white/[0.06] transition-colors"
+                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-foreground/55 hover:text-foreground/75 hover:bg-foreground/[0.06] transition-colors"
                   >
-                    <currentMode.icon className="h-3.5 w-3.5 text-[#A17A63]/70" />
+                    <currentMode.icon className="h-3.5 w-3.5 text-primary/70" />
                     <span>{currentMode.label}</span>
                     <ChevronDown className={`h-3 w-3 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
                   </button>
@@ -440,15 +440,15 @@ const ChatInput = ({
                 }
                 className={`${(hasContent || isTyping) && voiceState === 'idle' ? 'hidden sm:flex' : 'flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center transition-all active:scale-95 rounded-full flex-shrink-0 ${
                   voiceState === 'recording' || voiceState === 'requesting'
-                    ? 'text-red-500 bg-red-500/15'
+                    ? 'text-destructive bg-destructive/15'
                     : voiceState === 'transcribing'
-                      ? 'text-amber-500 bg-amber-500/10'
-                      : 'text-white/55 hover:text-primary hover:bg-white/[0.08]'
+                      ? 'text-cat-budget bg-cat-budget/10'
+                      : 'text-foreground/55 hover:text-primary hover:bg-foreground/[0.08]'
                 }`}
               >
                 {voiceState === 'recording' || voiceState === 'requesting' ? (
                   <span className="relative flex items-center justify-center">
-                    <span className="absolute inline-flex h-8 w-8 sm:h-6 sm:w-6 rounded-full bg-red-500/50 opacity-60 animate-ping" />
+                    <span className="absolute inline-flex h-8 w-8 sm:h-6 sm:w-6 rounded-full bg-destructive/50 opacity-60 animate-ping" />
                     <StopCircle className="h-5 w-5 sm:h-4 sm:w-4 relative z-10" fill="currentColor" />
                   </span>
                 ) : voiceState === 'transcribing' ? (
@@ -463,7 +463,7 @@ const ChatInput = ({
                 <button
                   onClick={onStop}
                   title="Stop generating"
-                  className="h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center text-white/55 hover:text-white/80 rounded-full hover:bg-white/[0.08] active:scale-95 transition-all flex-shrink-0"
+                  className="h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center text-foreground/55 hover:text-foreground/80 rounded-full hover:bg-foreground/[0.08] active:scale-95 transition-all flex-shrink-0"
                 >
                   <StopCircle className="h-5 w-5 sm:h-4 sm:w-4" />
                 </button>
@@ -472,7 +472,7 @@ const ChatInput = ({
                   onClick={handleSend}
                   disabled={!hasContent || voiceState === 'recording' || voiceState === 'transcribing'}
                   title="Send"
-                  className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center text-white rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
+                  className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center text-foreground rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
                 >
                   <Send className="h-5 w-5 sm:h-4 sm:w-4" />
                 </button>

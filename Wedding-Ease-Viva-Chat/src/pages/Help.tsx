@@ -173,7 +173,7 @@ export default function Help() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="gradient-bg min-h-screen text-white/90/85 font-body">
+    <div className="gradient-bg min-h-screen text-foreground/90/85 font-body">
       {/* Background blurs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -185,36 +185,36 @@ export default function Help() {
         <Link
           to="/"
           aria-label="Back to TheWeddingBot home"
-          className="inline-flex items-center gap-2 text-sm text-white/90 hover:text-white/90/90 transition mb-8"
+          className="inline-flex items-center gap-2 text-sm text-foreground/90 hover:text-foreground/90/90 transition mb-8"
         >
           <ArrowLeft className="h-4 w-4" /> Back to TheWeddingBot
         </Link>
 
         {/* Header */}
         <header className="mb-10">
-          <p className="font-label uppercase tracking-[0.2em] text-2xs text-white/60 mb-3">
+          <p className="font-label uppercase tracking-[0.2em] text-2xs text-foreground/60 mb-3">
             Support
           </p>
-          <h1 className="font-headline text-4xl md:text-5xl tracking-tight text-white/90 mb-3">
+          <h1 className="font-headline text-4xl md:text-5xl tracking-tight text-foreground/90 mb-3">
             Help &amp; Feedback
           </h1>
-          <p className="text-sm text-white/90">
+          <p className="text-sm text-foreground/90">
             Find answers to common questions or send us a message.
           </p>
         </header>
 
         {/* Tabs */}
         <Tabs defaultValue="faq" className="w-full">
-          <TabsList className="w-full bg-muted/40 backdrop-blur-2xl border-0 rounded-xl h-12 p-1 mb-8">
+          <TabsList className="w-full bg-[hsl(22.5deg_25.6%_50.98%/5%)] backdrop-blur-2xl border-0 rounded-xl h-12 p-1 mb-8">
             <TabsTrigger
               value="faq"
-              className="flex-1 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-white/90 transition-all h-10"
+              className="flex-1 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-foreground/90 transition-all h-10"
             >
               FAQ / Help
             </TabsTrigger>
             <TabsTrigger
               value="support"
-              className="flex-1 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-white/90 transition-all h-10"
+              className="flex-1 rounded-lg data-[state=active]:bg-primary/20 data-[state=active]:text-primary text-foreground/90 transition-all h-10"
             >
               Support &amp; Feedback
             </TabsTrigger>
@@ -222,7 +222,7 @@ export default function Help() {
 
           {/* ── FAQ tab ──────────────────────────────────────────────────── */}
           <TabsContent value="faq">
-            <div className="rounded-2xl bg-muted/30 backdrop-blur-2xl p-6 md:p-8">
+            <div className="rounded-2xl bg-card/90 border border-border/50 shadow-card backdrop-blur-2xl p-6 md:p-8">
               <Accordion type="single" collapsible className="space-y-1">
                 {FAQ_ITEMS.map((item, i) => (
                   <AccordionItem
@@ -230,10 +230,10 @@ export default function Help() {
                     value={`faq-${i}`}
                     className="border-border/40"
                   >
-                    <AccordionTrigger className="text-left text-white/90/90 hover:text-primary hover:no-underline py-5 text-[15px]">
+                    <AccordionTrigger className="text-left text-foreground/90/90 hover:text-primary hover:no-underline py-5 text-[15px]">
                       {item.q}
                     </AccordionTrigger>
-                    <AccordionContent className="text-white/90 leading-relaxed text-sm">
+                    <AccordionContent className="text-foreground/90 leading-relaxed text-sm">
                       {item.a}
                     </AccordionContent>
                   </AccordionItem>
@@ -244,28 +244,28 @@ export default function Help() {
 
           {/* ── Support & Feedback tab ───────────────────────────────────── */}
           <TabsContent value="support">
-            <div className="rounded-2xl bg-muted/30 backdrop-blur-2xl p-6 md:p-8">
+            <div className="rounded-2xl bg-card/90 border border-border/50 shadow-card backdrop-blur-2xl p-6 md:p-8">
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Guest-only name + email */}
                 {!isLoggedIn && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-white/90 text-sm">Your name</Label>
+                      <Label className="text-foreground/90 text-sm">Your name</Label>
                       <Input
                         value={guestName}
                         onChange={(e) => setGuestName(e.target.value)}
                         placeholder="Jane Doe"
-                        className="bg-muted/40 border-0 text-white/90/90 placeholder:text-white/50"
+                        className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-white/90 text-sm">Email</Label>
+                      <Label className="text-foreground/90 text-sm">Email</Label>
                       <Input
                         type="email"
                         value={guestEmail}
                         onChange={(e) => setGuestEmail(e.target.value)}
                         placeholder="jane@example.com"
-                        className="bg-muted/40 border-0 text-white/90/90 placeholder:text-white/50"
+                        className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
                       />
                     </div>
                   </div>
@@ -273,12 +273,12 @@ export default function Help() {
 
                 {/* Category */}
                 <div className="space-y-2">
-                  <Label className="text-white/90 text-sm">Category</Label>
+                  <Label className="text-foreground/90 text-sm">Category</Label>
                   <Select
                     value={category}
                     onValueChange={(v) => setCategory(v as TicketCategory)}
                   >
-                    <SelectTrigger className="bg-muted/40 border-0 text-white/90/90">
+                    <SelectTrigger className="border-0 text-foreground/90/90">
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -293,26 +293,26 @@ export default function Help() {
 
                 {/* Subject */}
                 <div className="space-y-2">
-                  <Label className="text-white/90 text-sm">Subject</Label>
+                  <Label className="text-foreground/90 text-sm">Subject</Label>
                   <Input
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="Brief summary of your issue or idea"
-                    className="bg-muted/40 border-0 text-white/90/90 placeholder:text-white/50"
+                    className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
                   />
                 </div>
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label className="text-white/90 text-sm">Description</Label>
+                  <Label className="text-foreground/90 text-sm">Description</Label>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Tell us more (at least 20 characters)..."
                     rows={5}
-                    className="bg-muted/40 border-0 text-white/90/90 placeholder:text-white/50 resize-none"
+                    className="border-0 text-foreground/90/90 placeholder:text-foreground/50 resize-none"
                   />
-                  <p className="text-xs text-white/50">
+                  <p className="text-xs text-foreground/50">
                     {description.trim().length}/20 characters minimum
                   </p>
                 </div>
@@ -320,7 +320,7 @@ export default function Help() {
                 {/* Star rating — only for General Feedback */}
                 {category === 'feedback' && (
                   <div className="space-y-2">
-                    <Label className="text-white/90 text-sm">
+                    <Label className="text-foreground/90 text-sm">
                       How would you rate your experience?
                     </Label>
                     <div className="flex gap-1">
@@ -338,7 +338,7 @@ export default function Help() {
                             className={`h-7 w-7 transition-colors ${
                               star <= (hoverRating || rating)
                                 ? 'fill-primary text-primary'
-                                : 'text-white/30'
+                                : 'text-foreground/30'
                             }`}
                           />
                         </button>

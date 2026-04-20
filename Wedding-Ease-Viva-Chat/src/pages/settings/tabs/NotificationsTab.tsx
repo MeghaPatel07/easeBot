@@ -43,10 +43,10 @@ function SwitchRow({ id, label, description, checked, disabled, onCheckedChange 
   return (
     <div className="flex min-h-11 items-center justify-between gap-4 py-3">
       <div className="flex-1">
-        <Label htmlFor={id} className="text-sm font-medium text-white/90">
+        <Label htmlFor={id} className="text-sm font-medium text-foreground/90">
           {label}
         </Label>
-        <p className="mt-0.5 text-xs text-white/90">{description}</p>
+        <p className="mt-0.5 text-xs text-foreground/90">{description}</p>
       </div>
       <Switch
         id={id}
@@ -127,11 +127,11 @@ export function NotificationsTab() {
       <Card className="p-6">
         <div className="mb-2">
           <h3 className="text-base font-semibold">Email notifications</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             Sent to {profile?.email ?? 'your account email'}.
           </p>
         </div>
-        <div className="divide-y divide-white/[0.06]">
+        <div className="divide-y divide-foreground/[0.06]">
           <SwitchRow
             id="email-reminders"
             label="Wedding reminders"
@@ -160,14 +160,14 @@ export function NotificationsTab() {
       <Card className="p-6">
         <div className="mb-2">
           <h3 className="text-base font-semibold">WhatsApp notifications</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             Get the most urgent reminders pushed to your phone.
           </p>
         </div>
         {!hasWhatsAppNumber && (
           <div
             role="status"
-            className="mb-2 flex items-start gap-2 rounded-xl bg-white/[0.04] p-3 text-xs text-white/90"
+            className="mb-2 flex items-start gap-2 rounded-xl bg-foreground/[0.04] p-3 text-xs text-foreground/90"
           >
             <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
             <p>Add your WhatsApp number in Account to enable.</p>

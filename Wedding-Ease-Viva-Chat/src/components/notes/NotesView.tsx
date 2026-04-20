@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown } from 'lucide-react';
+import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown, ChevronDown } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useNotes } from '@/hooks/useNotes';
 import { useNoteEditor } from '@/hooks/useNoteEditor';
 import {
@@ -90,6 +91,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const [comments, setComments] = useState<NoteComment[]>([]);
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
   const [coverHovered, setCoverHovered] = useState(false);
+  const [notesPickerOpen, setNotesPickerOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const handleEditorReady = useCallback((editor: Editor) => setEditorInstance(editor), []);
 
@@ -259,10 +261,15 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const limits = getLimits(tier);
   const tierAllowsEdit = limits.notesAccess === 'full';
 
+  // Collaborators are stored with userId === email fallback (see notesSharingService),
+  // so match on both userId and email to be robust across older/newer records.
+  const normalizedEmail = (userEmail || '').trim().toLowerCase();
+  const matchesUser = (c: { userId?: string; email?: string }) =>
+    c.userId === userId || (c.email || '').trim().toLowerCase() === normalizedEmail;
+
   const isOwner = note?.ownerId === userId;
-  const isEditor = note?.collaborators?.some(
-    (c) => c.userId === userId && c.permission === 'editor'
-  );
+  const myCollaborator = note?.collaborators?.find(matchesUser);
+  const isEditor = myCollaborator?.permission === 'editor';
   const canEdit = tierAllowsEdit && (isOwner || isEditor);
   const readOnly = !canEdit;
   const blockedByTier = !tierAllowsEdit && (isOwner || isEditor);
@@ -277,49 +284,70 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const trashedCount = notes.filter(n => n.isDeleted).length;
 
   return (
-    <div className="flex h-[calc(100vh-7.5rem)] h-[calc(100dvh-7.5rem)] -m-3 sm:-m-5 rounded-xl overflow-hidden border border-white/[0.06]">
-      {/*
-        Responsive split-pane:
-        ── Desktop (≥640px): sidebar + editor side-by-side, both always visible.
-        ── Mobile  (<640px):  ONE pane visible at a time. When no note is
-            selected (activeNoteId == null), show the sidebar full-width. When
-            a note is selected, hide the sidebar and show the editor full-width.
-            The NoteHeader's mobile-only back button (onBack) clears
-            activeNoteId to return to the list.
-      */}
-
-      {/* Left sidebar — hidden on mobile when a note is open; full-width on mobile */}
-      <div className={`${activeNoteId ? 'hidden sm:flex' : 'flex w-full'} sm:w-auto sm:flex flex-shrink-0 h-full min-w-0`}>
-        <NotesSidebar
-          notes={notes}
-          sharedNotes={sharedNotes}
-          folders={folders}
-          activeNoteId={activeNoteId}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSelectNote={handleSelectNote}
-          onCreateNote={() => createNote()}
-          onDeleteNote={deleteNote}
-          onRenameNote={(noteId, title) => updateNote(noteId, { title })}
-          onRestoreNote={handleRestoreNote}
-          onDuplicateNote={handleDuplicateNote}
-          onCreateFolder={createFolder}
-          onDeleteFolder={deleteFolder}
-          onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
-          onMoveNote={moveNoteToFolder}
-          onToggleFavorite={handleToggleFavorite}
-          onBack={() => { if (activeNoteId) handleSelectNote(null); else navigate('/'); }}
-          trashedCount={trashedCount}
-        />
+    <div className="flex flex-col h-[calc(100vh-7.5rem)] h-[calc(100dvh-7.5rem)] -m-3 sm:-m-5 rounded-xl overflow-hidden border border-foreground/[0.06]">
+      {/* Centered editor-panel controls — replaces the old full-width topbar.
+          Prominent primary-colored buttons for "All notes" and "+ New". */}
+      <div className="flex items-center justify-center gap-2 px-3 py-2.5 bg-card/60 [.light_&]:bg-card/95 border-b border-border/40 flex-shrink-0">
+        <Popover open={notesPickerOpen} onOpenChange={setNotesPickerOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition-colors shadow-sm"
+              title="Switch notes"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>All notes</span>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="center"
+            sideOffset={6}
+            className="w-64 p-0 border-border bg-card shadow-dropdown [&>div]:!w-full"
+          >
+            <div className="h-[min(70vh,36rem)] flex flex-col">
+              <NotesSidebar
+                notes={notes}
+                sharedNotes={sharedNotes}
+                folders={folders}
+                activeNoteId={activeNoteId}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onSelectNote={(noteId) => { handleSelectNote(noteId); setNotesPickerOpen(false); }}
+                onCreateNote={(folderId) => { createNote(folderId ? { folderId } : undefined); setNotesPickerOpen(false); }}
+                onDeleteNote={deleteNote}
+                onRenameNote={(noteId, title) => updateNote(noteId, { title })}
+                onRestoreNote={handleRestoreNote}
+                onDuplicateNote={handleDuplicateNote}
+                onCreateFolder={createFolder}
+                onDeleteFolder={deleteFolder}
+                onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
+                onMoveNote={moveNoteToFolder}
+                onToggleFavorite={handleToggleFavorite}
+                onBack={() => setNotesPickerOpen(false)}
+                trashedCount={trashedCount}
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
+        <button
+          type="button"
+          onClick={() => createNote()}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary-hover transition-colors shadow-sm"
+          title="New note"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          <span>New note</span>
+        </button>
       </div>
 
-      {/* Main content area — hidden on mobile when no note is selected */}
-      <div className={`${activeNoteId ? 'flex' : 'hidden sm:flex'} flex-1 flex-col min-w-0 bg-white/[0.02]`}>
+      {/* Main content area */}
+      <div className="flex flex-1 flex-col min-w-0 bg-foreground/[0.02]">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-3">
               <Loader2 className="h-8 w-8 text-primary/40 mx-auto animate-spin" />
-              <p className="text-sm text-white/30">Loading notes...</p>
+              <p className="text-sm text-foreground/30">Loading notes...</p>
             </div>
           </div>
         ) : note ? (
@@ -346,26 +374,26 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {/* Shared note info banner */}
               {!isOwner && note.ownerEmail && (
-                <div className="max-w-3xl mx-auto px-3 sm:px-6 pt-3">
-                  <div className="flex flex-col gap-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3">
+                <div className="w-full px-3 sm:px-6 pt-3">
+                  <div className="flex flex-col gap-1.5 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Crown className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
-                      <p className="text-xs text-white/60">
-                        <span className="text-white/80 font-medium">Shared by</span>{' '}
+                      <p className="text-xs text-foreground/60">
+                        <span className="text-foreground/80 font-medium">Shared by</span>{' '}
                         {note.ownerEmail}
                       </p>
                     </div>
                     {note.collaborators?.length > 0 && (
                       <div className="flex items-start gap-2">
-                        <Users className="h-3.5 w-3.5 text-white/30 flex-shrink-0 mt-0.5" />
+                        <Users className="h-3.5 w-3.5 text-foreground/30 flex-shrink-0 mt-0.5" />
                         <div className="flex flex-wrap gap-1">
                           {note.collaborators.map((c) => (
                             <span
                               key={c.userId}
-                              className="inline-flex items-center gap-1 text-[10px] bg-white/[0.06] border border-white/[0.08] rounded-full px-2 py-0.5 text-white/50"
+                              className="inline-flex items-center gap-1 text-[10px] bg-foreground/[0.06] border border-foreground/[0.08] rounded-full px-2 py-0.5 text-foreground/50"
                             >
                               {c.name || c.email.split('@')[0]}
-                              <span className="text-white/25">
+                              <span className="text-foreground/25">
                                 {c.permission === 'editor' ? 'edit' : c.permission === 'commenter' ? 'comment' : 'view'}
                               </span>
                             </span>
@@ -379,7 +407,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
               {/* Cover image area */}
               <div
-                className="relative max-w-3xl mx-auto"
+                className="relative w-full px-3 sm:px-6"
                 onMouseEnter={() => setCoverHovered(true)}
                 onMouseLeave={() => setCoverHovered(false)}
               >
@@ -395,7 +423,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="h-7 text-[11px] bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                          className="h-7 text-[11px] bg-overlay-scrim/60 hover:bg-overlay-scrim/80 text-overlay-text border-0 backdrop-blur-sm"
                           onClick={() => coverInputRef.current?.click()}
                         >
                           Change cover
@@ -403,7 +431,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="h-7 w-7 p-0 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                          className="h-7 w-7 p-0 bg-overlay-scrim/60 hover:bg-overlay-scrim/80 text-overlay-text border-0 backdrop-blur-sm"
                           onClick={handleRemoveCover}
                         >
                           <X className="h-3.5 w-3.5" />
@@ -417,7 +445,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 text-[11px] text-white/30 hover:text-white/60 gap-1.5"
+                        className="h-7 text-[11px] text-foreground/30 hover:text-foreground/60 gap-1.5"
                         onClick={() => coverInputRef.current?.click()}
                       >
                         <ImagePlus className="h-3.5 w-3.5" />
@@ -434,27 +462,29 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                   onChange={handleCoverImageChange}
                 />
               </div>
-              <div className="mx-auto px-3 sm:px-6 py-3 sm:py-4">
+              <div className="w-full px-3 sm:px-6 py-4 sm:py-6">
                 {blockedByTier && (
-                  <div className="mb-3 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-white/80">
+                  <div className="mb-3 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-foreground/80">
                     Notes are <span className="font-semibold">view-only</span> on the Free plan.{' '}
                     <a href="/pricing" className="text-primary hover:underline font-medium">Upgrade to Pro</a>{' '}
                     to edit, collaborate, and create new notes.
                   </div>
                 )}
-                <NoteEditor
-                  noteId={note.id}
-                  content={note.content}
-                  onUpdate={updateContent}
-                  onEditorReady={handleEditorReady}
-                  onImageUpload={uploadImage}
-                  readOnly={readOnly}
-                  placeholder="Start writing, or type '/' for commands..."
-                />
+                <div className="w-full rounded-2xl bg-card border border-border/60 shadow-card px-5 py-5 sm:px-8 sm:py-7 min-h-[520px] focus-within:border-primary/40 focus-within:shadow-dropdown transition-all">
+                  <NoteEditor
+                    noteId={note.id}
+                    content={note.content}
+                    onUpdate={updateContent}
+                    onEditorReady={handleEditorReady}
+                    onImageUpload={uploadImage}
+                    readOnly={readOnly}
+                    placeholder="Start writing, or type '/' for commands..."
+                  />
+                </div>
               </div>
             </div>
             {!readOnly && editorInstance && (
-              <div className="flex-shrink-0 border-t border-white/[0.06]">
+              <div className="flex-shrink-0 border-t border-foreground/[0.06]">
                 <div className="">
                   <BlockWidgetBar editor={editorInstance} onImageUpload={uploadImage} />
                 </div>
@@ -464,8 +494,8 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-4">
-              <FileText className="h-16 w-16 text-white/10 mx-auto" />
-              <h3 className="text-lg font-headline text-white/40">
+              <FileText className="h-16 w-16 text-foreground/10 mx-auto" />
+              <h3 className="text-lg font-headline text-foreground/40">
                 Select a note or create a new one
               </h3>
               <div className="flex gap-2 justify-center">
@@ -479,7 +509,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                 <Button
                   onClick={() => setShowTemplateDialog(true)}
                   variant="ghost"
-                  className="text-white/60 hover:text-white"
+                  className="text-foreground/60 hover:text-foreground"
                 >
                   <Layout className="h-4 w-4 mr-2" /> From Template
                 </Button>
@@ -542,6 +572,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
           open={showShareDialog}
           onClose={() => setShowShareDialog(false)}
           note={note}
+          isOwner={isOwner}
           onAddCollaborator={handleAddCollaborator}
           onRemoveCollaborator={handleRemoveCollaborator}
           onUpdatePermission={handleUpdateCollaboratorPermission}
