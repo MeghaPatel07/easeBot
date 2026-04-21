@@ -1,10 +1,55 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
 import type { Note } from '@/types/notes'
 import {
   subscribeToNote,
   updateNote,
   uploadNoteImage,
 } from '@/services/notesService'
+
+// ── localStorage draft mirror ───────────────────────────────────────────────
+// Protects against data loss when a tab crashes / is closed mid-debounce
+// or when a network write fails. Cleared on every successful flush.
+const DRAFT_KEY_PREFIX = 'notes-draft:'
+const DRAFT_MAX_BYTES = 5 * 1024 * 1024
+
+type DraftPayload = { updates: Partial<Note>; savedAt: number }
+
+function draftKey(noteId: string) {
+  return DRAFT_KEY_PREFIX + noteId
+}
+
+function loadDraft(noteId: string): DraftPayload | null {
+  try {
+    const raw = localStorage.getItem(draftKey(noteId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as DraftPayload
+    if (!parsed || typeof parsed !== 'object' || !parsed.updates) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function saveDraft(noteId: string, updates: Partial<Note>) {
+  if (!updates || Object.keys(updates).length === 0) return
+  try {
+    const payload: DraftPayload = { updates, savedAt: Date.now() }
+    const serialized = JSON.stringify(payload)
+    if (serialized.length > DRAFT_MAX_BYTES) return
+    localStorage.setItem(draftKey(noteId), serialized)
+  } catch {
+    // quota exceeded or storage unavailable — fail silent
+  }
+}
+
+function clearDraft(noteId: string) {
+  try {
+    localStorage.removeItem(draftKey(noteId))
+  } catch {
+    // ignore
+  }
+}
 
 export function useNoteEditor(noteId: string | null, userId: string | null) {
   const [note, setNote] = useState<Note | null>(null)
@@ -42,9 +87,9 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     // Clear buffer immediately to prevent double-writes
     pendingUpdatesRef.current = {}
 
-    updateNote(nId, { ...updates, lastEditedBy: uId }).catch((err) =>
-      console.error('[useNoteEditor] flush failed', err)
-    )
+    updateNote(nId, { ...updates, lastEditedBy: uId })
+      .then(() => clearDraft(nId))
+      .catch((err) => console.error('[useNoteEditor] flush failed', err))
   }, [])
 
   // ── Real-time subscription to the active note ─────────────────────────────
@@ -93,9 +138,9 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
         const updates = { ...pendingUpdatesRef.current }
         if (Object.keys(updates).length > 0) {
           pendingUpdatesRef.current = {}
-          updateNote(currentNId, { ...updates, lastEditedBy: currentUId }).catch((err) =>
-            console.error('[useNoteEditor] unmount-save failed', err)
-          )
+          updateNote(currentNId, { ...updates, lastEditedBy: currentUId })
+            .then(() => clearDraft(currentNId))
+            .catch((err) => console.error('[useNoteEditor] unmount-save failed', err))
         }
       }
     }
@@ -122,6 +167,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
             setHasUnsavedChanges(false)
             setLastSavedAt(new Date())
           }
+          clearDraft(currentNoteId)
         })
         .catch((err) => {
           console.error('[useNoteEditor] debounce-save failed', err)
@@ -129,12 +175,28 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     }, 2000)
   }, [])
 
+  // ── Restore unsaved draft from localStorage after a crash / closed tab ────
+  // The draft was written on every keystroke and is only cleared on a
+  // successful Firestore flush. If it still exists when we open a note, the
+  // previous session's edits never reached the server — recover them.
+  useEffect(() => {
+    if (!noteId) return
+    const draft = loadDraft(noteId)
+    if (!draft?.updates || Object.keys(draft.updates).length === 0) return
+    pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...draft.updates }
+    setHasUnsavedChanges(true)
+    toast.success('Restored unsaved changes from your last session')
+    scheduleSave()
+  }, [noteId, scheduleSave])
+
   // ── Buffer content changes locally, then schedule auto-save ───────────────
   const updateContent = useCallback(
     (content: string, wordCount?: number) => {
       pendingUpdatesRef.current.content = content
       if (wordCount !== undefined) pendingUpdatesRef.current.wordCount = wordCount
       setHasUnsavedChanges(true)
+      const nId = noteIdRef.current
+      if (nId) saveDraft(nId, pendingUpdatesRef.current)
       scheduleSave()
     },
     [scheduleSave]
@@ -144,6 +206,8 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     (title: string) => {
       pendingUpdatesRef.current.title = title
       setHasUnsavedChanges(true)
+      const nId = noteIdRef.current
+      if (nId) saveDraft(nId, pendingUpdatesRef.current)
       scheduleSave()
     },
     [scheduleSave]
@@ -165,6 +229,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     if (Object.keys(updates).length === 0) {
       setHasUnsavedChanges(false)
       setLastSavedAt(new Date())
+      clearDraft(currentNoteId)
       return
     }
 
@@ -176,6 +241,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
         setHasUnsavedChanges(false)
         setLastSavedAt(new Date())
       }
+      clearDraft(currentNoteId)
     } catch (err) {
       console.error('[useNoteEditor] save failed', err)
       // Put updates back so they aren't lost

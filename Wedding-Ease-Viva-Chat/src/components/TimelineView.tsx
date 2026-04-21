@@ -40,6 +40,7 @@ import {
 } from '@/services/checklistService'
 import { deleteTimelineEvent } from '@/services/timelineEventsService'
 import type { ReminderDoc, TimelineEvent } from '@/types'
+import { track } from '@/lib/analytics'
 
 interface TimelineViewProps {
   userId: string
@@ -250,6 +251,7 @@ export default function TimelineView({
       if (firstItem) {
         await updateItemDueDate(userId, created.id, firstItem.id, taskDueDate)
       }
+      track('checklist_created', { checklist_id: created.id, item_count: 1, source: 'timeline' })
       toast.success('Task created')
       closeDialog()
       // Kick off reminders refresh but don't block UI updates, which come

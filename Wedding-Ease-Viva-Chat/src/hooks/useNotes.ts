@@ -14,6 +14,7 @@ import {
   deleteFolder as deleteFolderService,
   moveNoteToFolder as moveNoteToFolderService,
 } from '@/services/notesService'
+import { track } from '@/lib/analytics'
 
 export function useNotes(userId: string | null, userEmail: string | null) {
   const [notes, setNotes] = useState<Note[]>([])
@@ -128,6 +129,7 @@ export function useNotes(userId: string | null, userEmail: string | null) {
       try {
         const note = await createNoteService(userId, userEmail, data)
         setActiveNoteId(note.id)
+        track('note_created', { note_id: note.id, has_folder: !!data?.folderId })
         return note
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to create note'
@@ -142,6 +144,13 @@ export function useNotes(userId: string | null, userEmail: string | null) {
   const updateNote = useCallback(
     async (noteId: string, updates: Partial<Note>) => {
       await updateNoteService(noteId, updates)
+      const field = Object.keys(updates)[0]
+      if (field === 'favorited') {
+        track('note_favorited', { note_id: noteId, favorited: !!updates.favorited })
+      } else if (field && field !== 'content') {
+        // Skip content (autosaved on every keystroke — too chatty). Title/icon/category/etc are fine.
+        track('note_edited', { note_id: noteId, field })
+      }
     },
     []
   )
@@ -149,6 +158,7 @@ export function useNotes(userId: string | null, userEmail: string | null) {
   const deleteNote = useCallback(
     async (noteId: string) => {
       await deleteNoteService(noteId)
+      track('note_deleted', { note_id: noteId })
       if (activeNoteId === noteId) setActiveNoteId(null)
     },
     [activeNoteId]

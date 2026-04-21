@@ -24,6 +24,7 @@ import { applyTransition, readSubscription, InvalidTransitionError } from '../se
 import { queueInvoice } from '../services/invoiceService'
 import { generatePayuHash, verifyPayuResponseHash } from '../utils/payuHash'
 import { emit } from '../lib/observability'
+import { capture as phCapture } from '../lib/posthog'
 
 // --- Plan catalog (PRD §4) ---------------------------------------------------
 
@@ -199,6 +200,14 @@ export async function initiate(
     })
 
     emit('payment_initiate', { uid, txnid, plan: row.plan, cycle: row.cycle, currency: toCurrency, usd: row.usd })
+    phCapture(uid, 'payu_initiated', {
+      tier: row.plan,
+      cycle: row.cycle,
+      amount: row.usd,
+      currency: toCurrency,
+      txn_id: txnid,
+      is_upgrade: isUpgrade === true,
+    })
     res.status(200).json({
       txnid,
       formAction: `${sandboxBase()}/_payment`,
@@ -265,6 +274,12 @@ async function finalizePayment(
   if (status !== 'success') {
     await updateDoc(ref, { state: 'failed', payuStatus: status, updatedAt: serverTimestamp() })
     emit('payment_failure', { txnid, status, uid: String(stored.uid) })
+    phCapture(String(stored.uid), 'payment_failed', {
+      tier: String(stored.plan),
+      reason: status,
+      txn_id: txnid,
+      source,
+    })
     try {
       const failUid = String(stored.uid)
       const failPlan = String(stored.plan)
@@ -369,6 +384,14 @@ async function finalizePayment(
   )
   console.log('[paymentController] payment_success', { txnid, uid, plan, source })
   emit('payment_success', { txnid, uid, plan, source })
+  phCapture(uid, 'payment_succeeded', {
+    tier: plan,
+    amount: Number(stored.priceUsd ?? 0),
+    currency: String(stored.currency ?? 'USD'),
+    txn_id: txnid,
+    mihpayid: payload.mihpayid ?? null,
+    source, // 'return' first-win is de-duped because this fn is idempotent
+  })
   return { kind: 'paid' }
 }
 

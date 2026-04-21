@@ -13,6 +13,7 @@ import {
 import ExchangeRateService from '@/services/exchangeRateService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 
 interface CheckoutState {
   plan: Plan | 'topup_2m'
@@ -146,6 +147,12 @@ export default function Checkout() {
 
     try {
       setSubmitting(true)
+      track('checkout_started', {
+        tier: state.plan,
+        cycle: state.cycle,
+        amount: state.priceUsd,
+        currency: state.currency,
+      })
       const firstname = fullName.trim().split(' ')[0] || 'Customer'
       const init = await initiatePayment({
         plan: state.plan,
@@ -227,7 +234,7 @@ export default function Checkout() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" data-ph-mask>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               Full name

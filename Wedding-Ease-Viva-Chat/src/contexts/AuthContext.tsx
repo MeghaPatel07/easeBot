@@ -34,6 +34,7 @@ import {
   verifyWhatsAppOtp,
   type OtpPurpose,
 } from '@/services/whatsappOtpService'
+import { identify, reset, register, track, setUserProperties, startReplay } from '@/lib/analytics'
 
 interface AuthContextValue {
   user: User | null
@@ -115,6 +116,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             setUser(firebaseUser)
             setProfile(profileData)
+            // PostHog: identify + super props. Safe to call on every auth change;
+            // posthog dedupes on same distinct_id + property set.
+            const planTier = (profileData as { plan?: string }).plan ?? 'free'
+            identify(firebaseUser.uid, {
+              email: firebaseUser.email ?? undefined,
+              plan_tier: planTier,
+            })
+            register({
+              is_authenticated: true,
+              plan_tier: planTier,
+            })
+            startReplay({
+              isPaying: planTier !== 'free',
+              route: typeof window !== 'undefined' ? window.location.pathname : undefined,
+            })
           }
         }
       } else {
@@ -146,6 +162,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
       if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
       setUser(firebaseUser)
+      identify(firebaseUser.uid, { email: firebaseUser.email ?? undefined })
+      track('login_completed', { method: 'email' })
       return firebaseUser
     } finally {
       isHandlingAuth.current = false
@@ -162,6 +180,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(profileData)
       }
       setUser(firebaseUser)
+      identify(firebaseUser.uid, { email: firebaseUser.email ?? undefined })
+      // Firebase stamps creationTime === lastSignInTime for first login; use that
+      // to distinguish signup from login (within 5s tolerance).
+      const created = firebaseUser.metadata.creationTime
+      const last = firebaseUser.metadata.lastSignInTime
+      const isNewUser = created && last && Math.abs(new Date(created).getTime() - new Date(last).getTime()) < 5_000
+      if (isNewUser) {
+        setUserProperties({ signup_source: 'google', created_at: new Date().toISOString() })
+        track('signup_completed', { method: 'google', is_guest_conversion: false })
+      } else {
+        track('login_completed', { method: 'google' })
+      }
       return firebaseUser
     } finally {
       isHandlingAuth.current = false
@@ -169,9 +199,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const handleSignOut = async () => {
+    track('logout')
     await signOutUser(user?.uid)
     setUser(null)
     setProfile(null)
+    reset()
+    register({ is_authenticated: false })
   }
 
   const handleSendOtp = (phone: string, verifier: RecaptchaVerifier) =>

@@ -43,6 +43,7 @@ import { addSavedItem } from '@/services/savedItemsService';
 import { getVoicePreset } from '@/services/voicePresets';
 import { getLocalVoiceId } from '@/services/settingsService';
 import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
+import { track, register } from '@/lib/analytics';
 import logoImg from '@/assets/images/logo.png';
 
 // ── Extracted components ────────────────────────────────────────────────────
@@ -125,6 +126,15 @@ const Index = () => {
     }
   }, []);
   const [selectedMode, setSelectedMode] = useState<ModeOrAuto>('auto');
+  // PostHog: fire mode_selected when the user changes mode. Skip the initial
+  // 'auto' render; skipRef ensures we don't track the mount default.
+  const prevModeRef = useRef<ModeOrAuto>('auto');
+  useEffect(() => {
+    if (prevModeRef.current === selectedMode) return;
+    track('mode_selected', { mode: selectedMode, previous_mode: prevModeRef.current });
+    prevModeRef.current = selectedMode;
+    register({ active_mode: selectedMode });
+  }, [selectedMode]);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState('');
   const [inlineEditImage, setInlineEditImage] = useState<string | null>(null);
@@ -279,6 +289,7 @@ const Index = () => {
       const dataUri = reader.result as string;
       const base64 = dataUri.split(',')[1];
       setAttachedImage({ base64, mimeType: file.type, preview: dataUri });
+      track('image_uploaded', { size_kb: Math.round(file.size / 1024) });
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -337,6 +348,24 @@ const Index = () => {
     const imgMime = attachedImage?.mimeType;
     setAttachedImage(null);
     const attachments = incomingAttachments ?? stagedAttachments;
+    // PostHog: activation + message-sent tracking. first_message_sent fires
+    // once per browser (sessionStorage-gated) to measure time-to-activation.
+    try {
+      const firstAt = sessionStorage.getItem('ph_first_msg_at');
+      if (!firstAt) {
+        const start = Number(sessionStorage.getItem('ph_session_start') ?? Date.now());
+        sessionStorage.setItem('ph_first_msg_at', String(Date.now()));
+        track('first_message_sent', {
+          mode: mode ?? 'auto',
+          time_to_first_msg_ms: Date.now() - start,
+        });
+      }
+      track('message_sent', {
+        mode: mode ?? 'auto',
+        msg_len: text.length,
+        has_attachment: Boolean(imgBase64) || (attachments?.length ?? 0) > 0,
+      });
+    } catch {}
     const sendPromise = sendMessage(text || 'Describe this image', {
       mode,
       language: lang,
@@ -361,6 +390,7 @@ const Index = () => {
       if (result?.text) {
         setInputText(result.text);
         setVoiceLanguage(result.detectedLanguage);
+        track('voice_input_used', { duration_s: (result as { durationSeconds?: number }).durationSeconds ?? null });
       }
     } else if (voiceState === 'idle') {
       const err = await startRecording();
@@ -426,6 +456,7 @@ const Index = () => {
       }
     }
     sendMessage(text, undefined, mode, langHint, imgBase64, imgMime);
+    track('message_edited', { message_id: m.id, msg_len: text.length, has_image: !!imgBase64 });
     setInlineEditImage(null);
     setInlineEditImageMime(null);
   };

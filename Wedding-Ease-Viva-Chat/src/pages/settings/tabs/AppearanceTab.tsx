@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select'
 import { Monitor, Sun, Moon, Rows, Rows3 } from 'lucide-react'
 import TabShell from './_TabShell'
+import { track } from '@/lib/analytics'
 
 type Density = 'comfortable' | 'compact'
 
@@ -93,6 +94,7 @@ export function AppearanceTab() {
       setTheme(value)
       try {
         await updatePreferences(mergedPrefs({ theme: value }))
+        track('theme_toggled', { theme: value, previous_theme: previous })
       } catch (err) {
         setTheme(previous)
         toast({

@@ -350,7 +350,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         userId={activeUserId}
                       />
                     )}
-                    <p className="text-[13px] leading-relaxed">{message.text}</p>
+                    <p className="text-[13px] leading-relaxed" data-ph-mask>{message.text}</p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 mr-1">
                     <span className="text-3xs text-foreground/40 uppercase tracking-wider">
@@ -417,7 +417,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground">
+              <div className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground" data-ph-mask>
                 <TypewriterMarkdown
                   text={message.text}
                   isStreaming={message.id === streamingMsgId}

@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ChatAttachmentsProvider } from "@/contexts/ChatAttachmentsContext";
 import LoadingScreen from "@/components/ui/loading-screen";
 import { CapHitBanner } from "@/components/pricing/CapHitBanner";
+import AnalyticsConsent from "@/components/AnalyticsConsent";
 import { useCanonical } from "@/hooks/useCanonical";
 
 /** Runs route-level side-effects that need router context. */
@@ -44,6 +45,7 @@ const App = () => (
         <BrowserRouter>
           <RouteEffects />
           <CapHitBanner />
+          <AnalyticsConsent />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
               <Route path="/" element={<Index />} />

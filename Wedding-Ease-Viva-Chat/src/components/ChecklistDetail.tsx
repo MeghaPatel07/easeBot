@@ -17,6 +17,7 @@ import {
   reorderChecklistItems,
 } from '@/services/checklistService'
 import type { Checklist, ChecklistItem } from '@/types'
+import { track } from '@/lib/analytics'
 
 function renderItemText(text: string, favourites: string[]): React.ReactNode {
   const parts = text.split(/(\[\[Vendor:[^\]]+\]\])/g)
@@ -108,7 +109,10 @@ export default function ChecklistDetail({
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
 
   async function handleToggle(itemId: string) {
+    const item = checklist?.items.find(i => i.id === itemId)
+    const nextCompleted = !item?.completed
     await toggleItemDone(userId, checklist!.id, itemId)
+    track('checklist_item_toggled', { checklist_id: checklist!.id, item_id: itemId, completed: nextCompleted })
   }
 
   async function submitEdit(itemId: string) {
@@ -125,10 +129,12 @@ export default function ChecklistDetail({
     setNewItemText('')
     setShowAddInput(false)
     await addChecklistItem(userId, checklist!.id, text)
+    track('checklist_item_added', { checklist_id: checklist!.id, text_len: text.length })
   }
 
   async function handleDeleteItem(itemId: string) {
     await deleteChecklistItem(userId, checklist!.id, itemId)
+    track('checklist_item_deleted', { checklist_id: checklist!.id, item_id: itemId })
   }
 
   async function handleCopyItem(text: string) {

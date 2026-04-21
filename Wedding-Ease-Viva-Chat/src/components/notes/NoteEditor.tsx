@@ -18,6 +18,7 @@ import { Node, Extension } from "@tiptap/core";
 import FloatingToolbar from "./toolbar/FloatingToolbar";
 import SlashCommandMenu from "./toolbar/SlashCommandMenu";
 import ResizableImageView from "./ResizableImageView";
+import { BlockId } from "./extensions/BlockId";
 
 import type { Editor } from "@tiptap/react";
 
@@ -156,6 +157,7 @@ export default function NoteEditor({
       FontSize,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       CalloutExtension,
+      BlockId,
     ],
     content: parseContent(content),
     editable: !readOnly,

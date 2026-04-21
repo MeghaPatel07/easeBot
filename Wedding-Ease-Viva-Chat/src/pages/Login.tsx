@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Loader2, Sparkles, Heart, Calendar, MessageSquare, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError } from '@/services/authService'
+import { track } from '@/lib/analytics'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
@@ -66,6 +67,7 @@ export default function Login() {
   const handleGoogle = async () => {
     setError('')
     setGoogleLoading(true)
+    track('signup_started', { method: 'google' })
     try {
       await signInWithGoogle(true)
     } catch (err: any) {
@@ -123,6 +125,7 @@ export default function Login() {
     }
     setError('')
     setFpLoading(true)
+    track('password_reset_requested')
     try {
       const res = await fetch(`${API_BASE}/api/auth/forgot-password/send-otp`, {
         method: 'POST',

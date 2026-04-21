@@ -1003,7 +1003,9 @@
   overscroll-behavior: none;
 }
 
-/* Grid overlay — grid-stroke + grid-alpha swap per theme */
+/* Grid overlay — grid-stroke + grid-alpha swap per theme.
+   Mask confines the grid to the top-right + bottom-left corners with a
+   fadeout, matching the same layout across light and dark modes. */
 .gradient-bg::before,
 .gradient-bg-expanded::before {
   content: '';
@@ -1015,8 +1017,14 @@
     linear-gradient(to right, rgb(var(--grid-stroke) / var(--grid-alpha)) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(var(--grid-stroke) / var(--grid-alpha)) 1px, transparent 1px);
   background-size: 26px 26px;
-  mask-image: radial-gradient(ellipse 120% 100% at 50% 50%, #000 60%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 120% 100% at 50% 50%, #000 60%, transparent 100%);
+  mask-image:
+    radial-gradient(ellipse 85% 70% at 100% 0%, #000 10%, transparent 85%),
+    radial-gradient(ellipse 110% 90% at 0% 100%, #000 15%, transparent 90%);
+  -webkit-mask-image:
+    radial-gradient(ellipse 85% 70% at 100% 0%, #000 10%, transparent 85%),
+    radial-gradient(ellipse 110% 90% at 0% 100%, #000 15%, transparent 90%);
+  mask-composite: add;
+  -webkit-mask-composite: source-over;
 }
 
 /* Corner radial blooms — theme-swapped via --grad-bg-bloom
@@ -1030,6 +1038,14 @@
   z-index: 0;
   background: var(--grad-bg-bloom);
   filter: blur(120px);
+}
+
+/* Dark mode: custom bronze corner blooms — top-right + bottom-left */
+.dark .gradient-bg::after,
+.dark .gradient-bg-expanded::after {
+  background:
+    radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208 123 70 / 30%) 0%, rgb(var(--dark-sidebar-fill) / 0.22) 30%, rgb(10 10 10 / 0) 70%),
+    radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208 123 70 / 38%) 0%, rgb(var(--dark-sidebar-fill) / 0.22) 30%, rgb(10 10 10 / 0) 70%);
 }
 
 /* keep content above bg overlays — but skip fixed-position children

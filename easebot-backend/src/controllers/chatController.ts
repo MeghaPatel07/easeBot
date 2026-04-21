@@ -1,5 +1,6 @@
 import { collection, doc, getDocs, orderBy, query, limit, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { capture as phCapture } from '../lib/posthog'
 import { Request, Response } from 'express'
 import { processInbound } from '../pipeline/inbound'
 import { processOutbound } from '../pipeline/outbound'
@@ -1015,6 +1016,12 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   let chargedTokens = 0
   let chargedConsumedFrom: 'monthly' | 'extras' | 'both' | null = null
 
+  // PostHog: measure stream latency. distinctId from authenticated uid (if any)
+  // or the x-ph-distinct-id header set by posthogContext middleware.
+  const phStart = Date.now()
+  const phDistinctId = req.phDistinctId ?? req.user?.uid
+  let phStreamStartCaptured = false
+
   try {
     const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors } = req.body as ChatPayload
 
@@ -1090,6 +1097,11 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       } catch (err) {
         console.error('[chatController:stream] summarization failed, using full history:', err)
       }
+    }
+
+    if (phDistinctId && !phStreamStartCaptured) {
+      phCapture(phDistinctId, 'stream_started', { mode })
+      phStreamStartCaptured = true
     }
 
     // Resolve mode-specific temperature
@@ -1453,11 +1465,27 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
     res.end()
+
+    if (phDistinctId) {
+      phCapture(phDistinctId, 'stream_completed', {
+        mode,
+        latency_ms: Date.now() - phStart,
+        tokens_charged: chargedTokens,
+        had_tool_actions: Array.isArray(toolActions) && toolActions.length > 0,
+        had_image: imageUrls.length > 0,
+      })
+    }
   } catch (err: any) {
     // Client disconnected — nothing to write, just clean up silently
     if (err.name === 'AbortError' || streamAbort.signal.aborted) {
       console.info('[chatController:stream] Client disconnected, aborting in-progress work')
       if (!res.writableEnded) res.end()
+      if (phDistinctId) {
+        phCapture(phDistinctId, 'stream_errored', {
+          error_code: 'client_disconnect',
+          latency_ms: Date.now() - phStart,
+        })
+      }
       return
     }
 
@@ -1486,6 +1514,12 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     if (!res.writableEnded) {
       sse({ t: 'e', msg: err.message ?? 'Internal server error' })
       res.end()
+    }
+    if (phDistinctId) {
+      phCapture(phDistinctId, 'stream_errored', {
+        error_code: err?.code ?? err?.name ?? 'unknown',
+        latency_ms: Date.now() - phStart,
+      })
     }
   }
 }

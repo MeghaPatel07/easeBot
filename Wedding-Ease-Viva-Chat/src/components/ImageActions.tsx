@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Download, Share2, Bookmark, Check, Loader2, Copy, Link, X, Trash2, MessageSquarePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { track } from '@/lib/analytics'
 
 interface ImageActionsProps {
   imageUrl: string
@@ -96,6 +97,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      track('image_downloaded', { size_kb: Math.round(blob.size / 1024) })
     } catch (err) {
       console.error('Download failed:', err)
     } finally {
@@ -114,6 +116,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
       ])
       setImageCopied(true)
       setTimeout(() => setImageCopied(false), 2000)
+      track('image_copied', {})
     } catch {
       // Fallback: copy URL instead
       handleCopyLink()
@@ -133,6 +136,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
     }
     setLinkCopied(true)
     setTimeout(() => setLinkCopied(false), 2000)
+    track('image_link_copied', {})
   }
 
   const handleNativeShare = async () => {
@@ -300,7 +304,10 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
                   href={platform.getUrl(imageUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setShowShareModal(false)}
+                  onClick={() => {
+                    track('image_shared_to_social', { platform: platform.name })
+                    setShowShareModal(false)
+                  }}
                   className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-foreground/[0.06] transition-colors"
                 >
                   <div className={`${platform.color}`}>

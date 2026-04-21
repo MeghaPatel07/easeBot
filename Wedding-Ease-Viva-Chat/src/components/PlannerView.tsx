@@ -21,6 +21,7 @@ import {
 } from '@/services/checklistService'
 import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
 import type { Checklist } from '@/types'
+import { track } from '@/lib/analytics'
 
 interface PlannerViewProps {
   userId: string
@@ -95,6 +96,7 @@ export default function PlannerView({
     setCreating(true)
     try {
       const created = await createChecklist(userId, title, itemTexts)
+      track('checklist_created', { checklist_id: created.id, item_count: itemTexts.length, source: 'planner' })
       toast.success('Checklist created')
       setDialogOpen(false)
       resetForm()

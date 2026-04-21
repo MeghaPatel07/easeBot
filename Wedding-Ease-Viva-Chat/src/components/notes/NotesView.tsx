@@ -30,6 +30,7 @@ import NoteEditor from '@/components/notes/NoteEditor';
 import NoteShareDialog from '@/components/notes/NoteShareDialog';
 import NoteCommentsSidebar from '@/components/notes/NoteCommentsSidebar';
 import NoteTemplateDialog from '@/components/notes/NoteTemplateDialog';
+import PaywallModal from '@/components/notes/PaywallModal';
 import BlockWidgetBar from '@/components/notes/toolbar/BlockWidgetBar';
 import { toast } from 'sonner';
 import { useAccount } from '@/hooks/useAccount';
@@ -92,6 +93,30 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
   const [coverHovered, setCoverHovered] = useState(false);
   const [notesPickerOpen, setNotesPickerOpen] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallTrigger, setPaywallTrigger] = useState<'edit' | 'create' | 'template'>('edit');
+
+  // Tier computation — hoisted so handlers can gate on it.
+  const { profile: accountProfile } = useAccount();
+  const tier = resolveTier(accountProfile);
+  const limits = getLimits(tier);
+  const tierAllowsEdit = limits.notesAccess === 'full';
+
+  const openPaywall = useCallback((reason: 'edit' | 'create' | 'template') => {
+    setPaywallTrigger(reason);
+    setPaywallOpen(true);
+  }, []);
+
+  const guardedCreateNote = useCallback(
+    (folderId?: string) => {
+      if (!tierAllowsEdit) {
+        openPaywall('create');
+        return;
+      }
+      createNote(folderId ? { folderId } : undefined);
+    },
+    [tierAllowsEdit, createNote, openPaywall],
+  );
   const coverInputRef = useRef<HTMLInputElement>(null);
   const handleEditorReady = useCallback((editor: Editor) => setEditorInstance(editor), []);
 
@@ -109,6 +134,11 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
   // Template handler
   const handleSelectTemplate = async (template: NoteTemplate) => {
+    if (!tierAllowsEdit) {
+      setShowTemplateDialog(false);
+      openPaywall('template');
+      return;
+    }
     try {
       await createNote({
         title: template.title,
@@ -255,12 +285,6 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
     }
   };
 
-  // Determine permissions — tier-gated: Free users get view-only access
-  const { profile: accountProfile } = useAccount();
-  const tier = resolveTier(accountProfile);
-  const limits = getLimits(tier);
-  const tierAllowsEdit = limits.notesAccess === 'full';
-
   // Collaborators are stored with userId === email fallback (see notesSharingService),
   // so match on both userId and email to be robust across older/newer records.
   const normalizedEmail = (userEmail || '').trim().toLowerCase();
@@ -314,7 +338,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 onSelectNote={(noteId) => { handleSelectNote(noteId); setNotesPickerOpen(false); }}
-                onCreateNote={(folderId) => { createNote(folderId ? { folderId } : undefined); setNotesPickerOpen(false); }}
+                onCreateNote={(folderId) => { guardedCreateNote(folderId); setNotesPickerOpen(false); }}
                 onDeleteNote={deleteNote}
                 onRenameNote={(noteId, title) => updateNote(noteId, { title })}
                 onRestoreNote={handleRestoreNote}
@@ -332,7 +356,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         </Popover>
         <button
           type="button"
-          onClick={() => createNote()}
+          onClick={() => guardedCreateNote()}
           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary-hover transition-colors shadow-sm"
           title="New note"
         >
@@ -464,13 +488,32 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               </div>
               <div className="w-full px-3 sm:px-6 py-4 sm:py-6">
                 {blockedByTier && (
-                  <div className="mb-3 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-foreground/80">
-                    Notes are <span className="font-semibold">view-only</span> on the Free plan.{' '}
-                    <a href="/pricing" className="text-primary hover:underline font-medium">Upgrade to Pro</a>{' '}
-                    to edit, collaborate, and create new notes.
+                  <div className="mb-3 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/30 px-4 py-3.5 flex items-center gap-3 shadow-sm">
+                    <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                      <Crown className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground/90">Notes are view-only on Free</p>
+                      <p className="text-xs text-foreground/55 mt-0.5">Upgrade to Pro to edit, share, and collaborate.</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => openPaywall('edit')}
+                      className="flex-shrink-0 bg-primary hover:bg-primary-hover text-primary-foreground text-xs h-8 px-3"
+                    >
+                      Upgrade
+                    </Button>
                   </div>
                 )}
-                <div className="w-full rounded-2xl bg-card border border-border/60 shadow-card px-5 py-5 sm:px-8 sm:py-7 min-h-[520px] focus-within:border-primary/40 focus-within:shadow-dropdown transition-all">
+                <div
+                  className="relative w-full rounded-2xl bg-card border border-border/60 shadow-card px-5 py-5 sm:px-8 sm:py-7 min-h-[520px] focus-within:border-primary/40 focus-within:shadow-dropdown transition-all"
+                  onClickCapture={(e) => {
+                    if (blockedByTier) {
+                      e.stopPropagation();
+                      openPaywall('edit');
+                    }
+                  }}
+                >
                   <NoteEditor
                     noteId={note.id}
                     content={note.content}
@@ -500,14 +543,17 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               </h3>
               <div className="flex gap-2 justify-center">
                 <Button
-                  onClick={() => createNote()}
+                  onClick={() => guardedCreateNote()}
                   variant="outline"
                   className="border-primary/40 text-primary hover:bg-primary/10"
                 >
                   <Plus className="h-4 w-4 mr-2" /> New Note
                 </Button>
                 <Button
-                  onClick={() => setShowTemplateDialog(true)}
+                  onClick={() => {
+                    if (!tierAllowsEdit) { openPaywall('template'); return; }
+                    setShowTemplateDialog(true);
+                  }}
                   variant="ghost"
                   className="text-foreground/60 hover:text-foreground"
                 >
@@ -586,6 +632,13 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         open={showTemplateDialog}
         onClose={() => setShowTemplateDialog(false)}
         onSelectTemplate={handleSelectTemplate}
+      />
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        currentTier={tier}
+        trigger={paywallTrigger}
       />
     </div>
   );

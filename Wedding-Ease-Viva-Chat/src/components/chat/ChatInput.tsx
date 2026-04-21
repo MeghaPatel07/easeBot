@@ -390,6 +390,7 @@ const ChatInput = ({
             {/* Textarea — auto-grows with content */}
             <textarea
               ref={textareaRef}
+              data-ph-mask
               value={inputText}
               onChange={e => onInputChange(e.target.value)}
               onKeyDown={e => {
