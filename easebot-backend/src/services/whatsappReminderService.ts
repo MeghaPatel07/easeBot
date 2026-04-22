@@ -13,6 +13,8 @@
  * Dry-run mode: if WASENDER_API_KEY is unset, log and return without throwing.
  */
 
+import { capture as phCapture } from '../lib/posthog'
+
 interface SendWhatsAppArgs {
   phone: string
   title: string
@@ -66,17 +68,28 @@ export async function sendWhatsAppReminder(
 
   const text = buildReminderText(args)
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ to: `+${to}`, text }),
-  })
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ to: `+${to}`, text }),
+    })
+  } catch (err) {
+    phCapture('system', 'whatsapp_reminder_failed', {
+      error: err instanceof Error ? err.name : 'network_error',
+    })
+    throw err
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '')
+    phCapture('system', 'whatsapp_reminder_failed', {
+      error: `wasender_${res.status}`,
+    })
     throw new Error(`Wasender API error ${res.status}: ${body}`)
   }
 }

@@ -9,6 +9,7 @@ import { createTimelineEvent } from './timelineService'
 import { humanizeLeadTime } from '../utils/dateTime'
 import { plainTextToEditorContent } from '../utils/noteContent'
 import type { ToolAction } from '../types'
+import { capture as phCapture } from '../lib/posthog'
 
 // Hosts the LLM hallucinates when it doesn't have a real image URL (the
 // planner / assistant / stylist / knowledge prompts all explicitly forbid
@@ -190,6 +191,26 @@ export interface ToolCallContext {
 }
 
 export async function executeToolCall(
+  uid: string,
+  toolName: string,
+  args: Record<string, any>,
+  isPremium: boolean,
+  userEmail?: string | null,
+  context?: ToolCallContext,
+): Promise<ToolCallOutcome> {
+  const __phStart = Date.now()
+  const outcome = await __executeToolCallInner(uid, toolName, args, isPremium, userEmail, context)
+  if (uid) {
+    phCapture(uid, 'tool_invoked', {
+      tool_name: toolName,
+      success: outcome.ok !== false && !('blocked' in (outcome.action as unknown as Record<string, unknown>)),
+      duration_ms: Date.now() - __phStart,
+    })
+  }
+  return outcome
+}
+
+async function __executeToolCallInner(
   uid: string,
   toolName: string,
   args: Record<string, any>,

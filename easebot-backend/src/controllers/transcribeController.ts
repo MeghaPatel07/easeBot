@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { transcribeAudio as sttTranscribe } from '../services/stt'
 import { getCachedUserLanguage } from '../lib/userPrefsCache'
+import { capture as phCapture } from '../lib/posthog'
 
 // Resolve the authenticated user's saved language preference. Read-through
 // via in-process LRU (5-min TTL) backed by Firestore. Supports the new
@@ -47,6 +48,16 @@ export async function handleTranscribe(req: Request, res: Response): Promise<voi
   } catch (err: any) {
     if (qc) await qc.reconcile({ skip: true }).catch(() => {})
     console.error('[transcribeController]', err)
+    const phDistinctId = req.phDistinctId ?? req.user?.uid
+    if (phDistinctId) {
+      const durSec = Number.isFinite(durationSeconds) && (durationSeconds as number) > 0
+        ? Number(durationSeconds)
+        : undefined
+      phCapture(phDistinctId, 'transcription_failed', {
+        error_code: err?.code ?? err?.name ?? 'unknown',
+        duration_s: durSec,
+      })
+    }
     res.status(500).json({ error: err.message ?? 'Transcription failed' })
   }
 }

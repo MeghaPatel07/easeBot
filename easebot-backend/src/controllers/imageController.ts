@@ -43,10 +43,11 @@ export async function handleGenerateImage(req: Request, res: Response): Promise<
     }
   }
 
+  const phDistinctId = req.phDistinctId ?? req.user?.uid
   try {
     // Image-to-image: user sent an image + edit/generation intent
     if (imageBase64 && prompt?.trim() && (isImageRequest(prompt) || isImageEditRequest(prompt))) {
-      const imageUrl = await editImageGptImage1(imageBase64, prompt.trim())
+      const imageUrl = await editImageGptImage1(imageBase64, prompt.trim(), '1024x1024', { distinctId: phDistinctId })
       if (!imageUrl) {
         if (qc) await qc.reconcile({ skip: true })
         res.status(502).json({ error: 'Image editing failed or service unavailable' })
@@ -101,7 +102,7 @@ export async function handleGenerateImage(req: Request, res: Response): Promise<
       return
     }
 
-    const imageUrl = await generateImageGptImage1(prompt.trim())
+    const imageUrl = await generateImageGptImage1(prompt.trim(), '1024x1024', 1, { distinctId: phDistinctId })
     if (!imageUrl) {
       if (qc) await qc.reconcile({ skip: true })
       res.status(502).json({ error: 'Image generation failed or service unavailable' })

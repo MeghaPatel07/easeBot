@@ -25,6 +25,7 @@ import type {
   QuotaExceededResponse,
   Tier,
 } from '../types/billing'
+import { capture as phCapture } from '../lib/posthog'
 
 export type { QuotaExceededResponse }
 
@@ -221,6 +222,17 @@ function sendQuotaExceeded(
             extras: estimate.remainingExtras,
           },
         }
+
+  const __phKind: 'daily' | 'monthly' | 'guest' =
+    reason === 'daily_cap_exceeded'
+      ? 'daily'
+      : reason === 'monthly_cap_exceeded'
+        ? 'monthly'
+        : 'guest'
+  phCapture(principal.id, 'token_exhausted', {
+    kind: __phKind,
+    tier: principal.tier,
+  })
 
   res.status(402).json(body)
 }

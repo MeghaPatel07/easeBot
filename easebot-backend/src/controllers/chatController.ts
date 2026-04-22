@@ -427,6 +427,7 @@ async function handleImageToolCall(
     vibeTitle?: string
     vibeDescriptors?: string[]
     signal?: AbortSignal
+    distinctId?: string
   }
 ): Promise<ImageToolResult> {
   const imgPrompt = args.prompt as string
@@ -473,7 +474,7 @@ async function handleImageToolCall(
   if (opts.imageBase64) {
     const sourceSize = await detectImageAspectRatio(opts.imageBase64)
     console.log(`[chatController] User attached image → edit mode | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images, signal: opts.signal })
+    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images, signal: opts.signal, distinctId: opts.distinctId })
   } else if (imgAction === 'edit' && opts.lastGeneratedImageUrl) {
     try {
       console.log('[chatController] Iterative edit → fetching previous image from URL')
@@ -482,14 +483,14 @@ async function handleImageToolCall(
       const sourceBase64 = imgBuf.toString('base64')
       const sourceSize = await detectImageAspectRatio(sourceBase64)
       console.log(`[chatController] Iterative edit | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt, signal: opts.signal })
+      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt, signal: opts.signal, distinctId: opts.distinctId })
     } catch (fetchErr) {
       if ((fetchErr as Error).name === 'AbortError') throw fetchErr
       console.error('[chatController] Failed to fetch lastGeneratedImageUrl, falling back to generate:', fetchErr)
-      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal })
+      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })
     }
   } else {
-    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal })
+    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })
   }
 
   // Track which size was actually used for storage metadata
@@ -606,6 +607,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
   const uid = req.user?.uid ?? null
   const isLoggedIn = uid !== null
+  const phDistinctId = req.phDistinctId ?? req.user?.uid
   logAttachmentsReceived('chat', attachments, uid, threadId)
 
   // P0-1: hoisted refund tracking — see streaming handler for rationale.
@@ -866,6 +868,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
               preferredAspectRatio,
               vibeTitle,
               vibeDescriptors,
+              distinctId: phDistinctId,
             })
             toolActions.push(imgResult.action)
             imageUrls = imgResult.imageUrls
@@ -1358,6 +1361,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
               vibeTitle,
               vibeDescriptors,
               signal: streamAbort.signal,
+              distinctId: phDistinctId,
               onPartialImage: (partialB64: string) => {
                 if (!streamAbort.signal.aborted) {
                   sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })

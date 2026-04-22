@@ -22,6 +22,7 @@ import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import sharp from 'sharp'
 import type { HistoryMessage } from '../types'
 import { withRetry } from '../utils/retry'
+import { capture as phCapture } from '../lib/posthog'
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 
@@ -211,11 +212,15 @@ export async function generateImageGptImage1(
   prompt: string,
   size: ImageSize = '1024x1024',
   count: 1 | 2 | 3 = 1,
-  options?: { negativePrompt?: string; onPartialImage?: (b64: string) => void; signal?: AbortSignal }
+  options?: { negativePrompt?: string; onPartialImage?: (b64: string) => void; signal?: AbortSignal; distinctId?: string }
 ): Promise<string[]> {
   const config = getImageConfig()
+  const phStart = Date.now()
   if (!config.endpoint || !config.apiKey) {
     console.warn('[imageGeneration] No Azure credentials')
+    if (options?.distinctId) {
+      phCapture(options.distinctId, 'image_generation_failed', { error_code: 'no_credentials' })
+    }
     return []
   }
 
@@ -233,6 +238,13 @@ export async function generateImageGptImage1(
     )
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1.5 generated ${images.length} image(s)`)
+      if (options?.distinctId) {
+        phCapture(options.distinctId, 'image_generated', {
+          model: config.primaryDeployment,
+          size,
+          duration_ms: Date.now() - phStart,
+        })
+      }
       return images
     }
   } catch (err) {
@@ -248,12 +260,32 @@ export async function generateImageGptImage1(
     )
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1 fallback generated ${images.length} image(s)`)
+      if (options?.distinctId) {
+        phCapture(options.distinctId, 'image_generated', {
+          model: config.fallbackDeployment,
+          size,
+          duration_ms: Date.now() - phStart,
+        })
+      }
       return images
     }
   } catch (err) {
     console.error('[imageGeneration] GPT-Image-1 fallback also failed:', err)
+    if (options?.distinctId) {
+      phCapture(options.distinctId, 'image_generation_failed', {
+        error_code: (err as Error)?.name ?? 'unknown',
+        model: config.fallbackDeployment,
+      })
+    }
+    return []
   }
 
+  if (options?.distinctId) {
+    phCapture(options.distinctId, 'image_generation_failed', {
+      error_code: 'empty_result',
+      model: config.fallbackDeployment,
+    })
+  }
   return []
 }
 
@@ -320,11 +352,15 @@ export async function editImageGptImage1(
   imageBase64: string,
   prompt: string,
   size: ImageSize = '1024x1024',
-  options?: { negativePrompt?: string; referenceImages?: string[]; signal?: AbortSignal }
+  options?: { negativePrompt?: string; referenceImages?: string[]; signal?: AbortSignal; distinctId?: string }
 ): Promise<string[]> {
   const config = getImageConfig()
+  const phStart = Date.now()
   if (!config.endpoint || !config.apiKey) {
     console.warn('[imageGeneration] No Azure credentials')
+    if (options?.distinctId) {
+      phCapture(options.distinctId, 'image_generation_failed', { error_code: 'no_credentials' })
+    }
     return []
   }
 
@@ -341,6 +377,13 @@ export async function editImageGptImage1(
     )
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1.5 edited ${images.length} image(s)`)
+      if (options?.distinctId) {
+        phCapture(options.distinctId, 'image_generated', {
+          model: config.primaryDeployment,
+          size,
+          duration_ms: Date.now() - phStart,
+        })
+      }
       return images
     }
   } catch (err) {
@@ -356,10 +399,23 @@ export async function editImageGptImage1(
     )
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1 fallback edited ${images.length} image(s)`)
+      if (options?.distinctId) {
+        phCapture(options.distinctId, 'image_generated', {
+          model: config.fallbackDeployment,
+          size,
+          duration_ms: Date.now() - phStart,
+        })
+      }
       return images
     }
   } catch (err) {
     console.error('[imageGeneration] GPT-Image-1 edit fallback also failed:', err)
+    if (options?.distinctId) {
+      phCapture(options.distinctId, 'image_generation_failed', {
+        error_code: (err as Error)?.name ?? 'unknown',
+        model: config.fallbackDeployment,
+      })
+    }
   }
 
   // Last resort: analyze + regenerate

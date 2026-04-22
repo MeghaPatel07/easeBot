@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import type { Request, Response } from 'express'
 import { adminAuth, adminDb } from '../lib/firebaseAdmin'
 import { sendOtpEmail } from '../services/emailService'
+import { capture as phCapture } from '../lib/posthog'
 
 const OTP_COLLECTION = 'passwordResetOtps'
 const OTP_TTL_MS = 10 * 60 * 1000           // 10 minutes
@@ -132,6 +133,11 @@ export async function handleVerifyOtp(req: Request, res: Response): Promise<void
       resetTokenExpiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
       verified: true,
     })
+
+    const phDistinctId = req.phDistinctId ?? (doc.data() as { uid?: string } | undefined)?.uid
+    if (phDistinctId) {
+      phCapture(phDistinctId, 'otp_verified', { purpose: 'password_reset', channel: 'email' })
+    }
 
     res.status(200).json({ resetToken })
   } catch (err) {

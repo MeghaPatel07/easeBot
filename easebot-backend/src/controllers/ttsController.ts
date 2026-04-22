@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { generateSpeech } from '../services/azureTTS'
+import { capture as phCapture } from '../lib/posthog'
 
 // Detect non-Latin scripts and map to language codes.
 // This is the safety net: even if the frontend sends language='en' for Hindi text,
@@ -69,6 +70,13 @@ export async function handleTTS(req: Request, res: Response): Promise<void> {
     res.send(wavBuffer)
   } catch (err: any) {
     console.error('[ttsController]', err.message)
+    const phDistinctId = req.phDistinctId ?? req.user?.uid
+    if (phDistinctId) {
+      phCapture(phDistinctId, 'tts_failed', {
+        provider: 'azure',
+        error_code: err?.code ?? err?.name ?? 'unknown',
+      })
+    }
     res.status(500).json({ error: err.message ?? 'TTS generation failed' })
   }
 }

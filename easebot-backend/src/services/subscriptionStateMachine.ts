@@ -26,6 +26,7 @@ import {
 import { db } from '../lib/firebase'
 import { resetMonthly } from './tokenMeter'
 import { emit } from '../lib/observability'
+import { capture as phCapture } from '../lib/posthog'
 import { queueInvoice } from './invoiceService'
 import type {
   SubscriptionState,
@@ -463,6 +464,24 @@ export async function applyTransition(
       toTier: nextTier,
       txnid: payload.txnid,
     })
+
+    if (trigger === 'renew_success') {
+      phCapture(uid, 'subscription_renewed', {
+        uid,
+        tier: nextTier,
+        cycle: result.next.billingCycle === 'annual' ? 'annual' : 'monthly',
+      })
+    } else if (trigger === 'renew_fail') {
+      phCapture(uid, 'subscription_renewal_failed', {
+        uid,
+        reason: payload.reason ?? 'unknown',
+      })
+    } else if (trigger === 'period_end' && result.next.state === 'free') {
+      phCapture(uid, 'subscription_expired', {
+        uid,
+        from_tier: tierFromState(result.prev.state),
+      })
+    }
     try {
       const userRef = doc(db, 'users', uid)
       const userSnap = await getDoc(userRef)

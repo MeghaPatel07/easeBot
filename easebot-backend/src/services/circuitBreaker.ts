@@ -4,6 +4,8 @@
  * States: CLOSED (normal) -> OPEN (blocking) -> HALF_OPEN (testing)
  */
 
+import { capture as phCapture } from '../lib/posthog'
+
 export class CircuitBreakerError extends Error {
   constructor(breakerName: string) {
     super(`Circuit breaker "${breakerName}" is OPEN — requests are being rejected`)
@@ -94,6 +96,10 @@ export class CircuitBreaker {
       console.log(`[circuitBreaker:${this.name}] HALF_OPEN -> OPEN (test request failed)`)
       this.state = 'OPEN'
       this.openedAt = now
+      phCapture('system', 'circuit_breaker_opened', {
+        service: this.name,
+        reason: 'half_open_test_failed',
+      })
       return
     }
 
@@ -105,6 +111,10 @@ export class CircuitBreaker {
       )
       this.state = 'OPEN'
       this.openedAt = now
+      phCapture('system', 'circuit_breaker_opened', {
+        service: this.name,
+        reason: `threshold_exceeded_${recentCount}_in_${this.windowMs}ms`,
+      })
     }
   }
 
