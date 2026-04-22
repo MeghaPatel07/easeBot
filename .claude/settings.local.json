@@ -176,7 +176,8 @@
       "Bash(echo \"started fe, pid=$!\")",
       "Bash(ps *)",
       "Bash(kill 8145 8911)",
-      "Bash(echo \"started pid=$!\")"
+      "Bash(echo \"started pid=$!\")",
+      "Bash(git fetch *)"
     ]
   }
 }
