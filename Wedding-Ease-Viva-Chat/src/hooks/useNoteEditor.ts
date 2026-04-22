@@ -266,6 +266,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     const currentNoteId = noteIdRef.current
     const currentUserId = userIdRef.current
     if (!currentNoteId || !currentUserId) return
+    track('note_saved_explicit', { note_id: currentNoteId })
 
     const updates = { ...pendingUpdatesRef.current }
     if (Object.keys(updates).length === 0) {

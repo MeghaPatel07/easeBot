@@ -19,9 +19,25 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import FontSizeControl from "./FontSizeControl";
+import { track } from "@/lib/analytics";
+
+type WidgetSlug =
+  | "text"
+  | "heading_1"
+  | "heading_2"
+  | "heading_3"
+  | "bullet_list"
+  | "numbered_list"
+  | "todo"
+  | "quote"
+  | "divider"
+  | "code"
+  | "image"
+  | "callout";
 
 interface BlockWidget {
   name: string;
+  slug: WidgetSlug;
   shortcut: string;
   icon: React.ReactNode;
   action: (editor: Editor, onImageUpload?: (file: File) => Promise<string | null>) => void;
@@ -30,12 +46,14 @@ interface BlockWidget {
 const WIDGETS: BlockWidget[] = [
   {
     name: "Text",
+    slug: "text",
     shortcut: "/text",
     icon: <AlignLeft className="h-4 w-4" />,
     action: (editor) => editor.chain().focus().setParagraph().run(),
   },
   {
     name: "Heading 1",
+    slug: "heading_1",
     shortcut: "/h1",
     icon: <Heading1 className="h-4 w-4" />,
     action: (editor) =>
@@ -43,6 +61,7 @@ const WIDGETS: BlockWidget[] = [
   },
   {
     name: "Heading 2",
+    slug: "heading_2",
     shortcut: "/h2",
     icon: <Heading2 className="h-4 w-4" />,
     action: (editor) =>
@@ -50,6 +69,7 @@ const WIDGETS: BlockWidget[] = [
   },
   {
     name: "Heading 3",
+    slug: "heading_3",
     shortcut: "/h3",
     icon: <Heading3 className="h-4 w-4" />,
     action: (editor) =>
@@ -57,42 +77,49 @@ const WIDGETS: BlockWidget[] = [
   },
   {
     name: "Bullet List",
+    slug: "bullet_list",
     shortcut: "/bullet",
     icon: <List className="h-4 w-4" />,
     action: (editor) => editor.chain().focus().toggleBulletList().run(),
   },
   {
     name: "Numbered List",
+    slug: "numbered_list",
     shortcut: "/numbered",
     icon: <ListOrdered className="h-4 w-4" />,
     action: (editor) => editor.chain().focus().toggleOrderedList().run(),
   },
   {
     name: "To-do",
+    slug: "todo",
     shortcut: "/todo",
     icon: <CheckSquare className="h-4 w-4" />,
     action: (editor) => editor.chain().focus().toggleTaskList().run(),
   },
   {
     name: "Quote",
+    slug: "quote",
     shortcut: "/quote",
     icon: <Quote className="h-4 w-4" />,
     action: (editor) => editor.chain().focus().toggleBlockquote().run(),
   },
   {
     name: "Divider",
+    slug: "divider",
     shortcut: "/divider",
     icon: <Minus className="h-4 w-4" />,
     action: (editor) => editor.chain().focus().setHorizontalRule().run(),
   },
   {
     name: "Code",
+    slug: "code",
     shortcut: "/code",
     icon: <Code2 className="h-4 w-4" />,
     action: (editor) => editor.chain().focus().toggleCodeBlock().run(),
   },
   {
     name: "Image",
+    slug: "image",
     shortcut: "/image",
     icon: <ImageIcon className="h-4 w-4" />,
     action: (editor, onImageUpload) => {
@@ -124,6 +151,7 @@ const WIDGETS: BlockWidget[] = [
   },
   {
     name: "Callout",
+    slug: "callout",
     shortcut: "/callout",
     icon: <AlertCircle className="h-4 w-4" />,
     action: (editor) =>
@@ -158,7 +186,10 @@ export default function BlockWidgetBar({ editor, onImageUpload }: BlockWidgetBar
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={() => widget.action(editor, onImageUpload)}
+              onClick={() => {
+                widget.action(editor, onImageUpload);
+                track("note_block_widget_used", { widget: widget.slug });
+              }}
               className="group flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-foreground/[0.06] bg-foreground/[0.03] [.light_&]:bg-background [.light_&]:border-border hover:bg-primary/10 hover:border-primary/30 transition-all text-foreground/50 [.light_&]:text-foreground/75 hover:text-primary flex-shrink-0"
             >
               <span className="flex-shrink-0">{widget.icon}</span>

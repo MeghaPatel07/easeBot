@@ -4,9 +4,12 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { getSharedChat, type SharedChatData } from '@/services/chatService'
 import { Loader2, ArrowLeft, MessageSquare } from 'lucide-react'
+import { track } from '@/lib/analytics'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function SharedChat() {
   const { shareId } = useParams<{ shareId: string }>()
+  const { user } = useAuth()
   const [data, setData] = useState<SharedChatData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -16,10 +19,19 @@ export default function SharedChat() {
     getSharedChat(shareId)
       .then(result => {
         if (!result) setError('This shared conversation has expired or does not exist.')
-        else setData(result)
+        else {
+          setData(result)
+          // Fire once per successful load of a shared-thread page.
+          // `shareId` stands in for the thread identifier from the viewer's
+          // POV (the underlying thread_id is a private relation on the doc).
+          track('shared_thread_viewed', { thread_id: shareId, is_authenticated: !!user })
+        }
       })
       .catch(() => setError('Failed to load shared conversation.'))
       .finally(() => setLoading(false))
+    // Intentionally only depends on shareId — we want one fire per page load,
+    // not a re-fire when auth state resolves slightly later.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareId])
 
   if (loading) {

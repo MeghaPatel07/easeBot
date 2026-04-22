@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Lock } from 'lucide-react'
+import { track } from '@/lib/analytics'
 
 interface CustomVibeFormProps {
   onSubmit: (vibe: { title: string; descriptors: string[] }) => void
@@ -58,6 +59,8 @@ export function CustomVibeForm({ onSubmit }: CustomVibeFormProps) {
       }
     }
 
+    // No PII — we don't send the title or descriptor text.
+    track('custom_vibe_created', {})
     onSubmit({ title: trimmedTitle, descriptors })
   }
 

@@ -216,12 +216,17 @@ export default function TimelineView({
     }
     setSubmitting(true)
     try {
-      await createReminder(user, profile, {
+      const created = await createReminder(user, profile, {
         title: trimmedTitle,
         eventDateStr: evDate,
         eventTimeStr: evTime || null,
         description: evDescription.trim() || null,
         leadTimeMinutes: 1440,
+      })
+      track('reminder_created', {
+        reminder_id: created?.id ?? '',
+        source: 'manual',
+        has_whatsapp: created?.channel === 'whatsapp',
       })
       toast.success('Event created')
       closeDialog()
@@ -285,11 +290,14 @@ export default function TimelineView({
     try {
       if (entry.source === 'checklist' && entry.itemId) {
         await deleteChecklistItem(userId, entry.sourceId, entry.itemId)
+        track('checklist_item_deleted', { checklist_id: entry.sourceId })
       } else if (entry.source === 'reminder') {
         await deleteReminder(userId, entry.sourceId)
+        track('reminder_dismissed', { reminder_id: entry.sourceId })
         void onRefresh()
       } else if (entry.source === 'timelineEvent') {
         await deleteTimelineEvent(entry.sourceId)
+        track('timeline_event_deleted', { event_id: entry.sourceId })
       }
       toast.success('Deleted')
     } catch (err) {

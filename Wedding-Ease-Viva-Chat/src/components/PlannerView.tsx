@@ -53,6 +53,12 @@ export default function PlannerView({
     return unsub
   }, [userId])
 
+  // Fire planner_view_opened once per mount. Planner currently renders a
+  // single list view (no month/week/day toggle), so we report 'list'.
+  useEffect(() => {
+    track('planner_view_opened', { view: 'list' })
+  }, [])
+
   // Dismiss the more-menu on outside tap/click
   useEffect(() => {
     if (!openMenuId) return
@@ -150,6 +156,7 @@ export default function PlannerView({
       .join('\n')}`
     try {
       await navigator.clipboard.writeText(text)
+      track('checklist_shared', { checklist_id: cl.id, channel: 'copy' })
       toast.success('Copied to clipboard')
     } catch {
       toast.error('Failed to copy')
@@ -159,7 +166,9 @@ export default function PlannerView({
   const handleDelete = (cl: Checklist) => {
     setOpenMenuId(null)
     if (!window.confirm('Delete this checklist? This cannot be undone.')) return
-    deleteChecklist(userId, cl.id).catch(() => toast.error('Failed to delete'))
+    deleteChecklist(userId, cl.id)
+      .then(() => track('checklist_deleted', { checklist_id: cl.id }))
+      .catch(() => toast.error('Failed to delete'))
   }
 
   return (

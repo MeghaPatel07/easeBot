@@ -5,6 +5,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { NoteComment } from '@/types/notes';
+import { track } from '@/lib/analytics';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -21,6 +22,10 @@ export interface NoteCommentsSidebarProps {
   onEditComment: (commentId: string, content: string) => void;
   onReact: (commentId: string, emoji: string) => void;
   currentUserId: string;
+  /** Analytics context — passed through from NotesView so we can attribute
+   *  comment events to the active note. Optional so existing callers don't
+   *  break while Agent D/F threads it in. */
+  noteId?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +55,7 @@ function formatTimestamp(ts: any): string {
 const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
   comments, open, onClose, onAddComment, onReply,
   onResolve, onUnresolve, onDelete, onEditComment, onReact, currentUserId,
+  noteId,
 }) => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -83,6 +89,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
     const trimmed = replyText.trim();
     if (!trimmed) return;
     onReply(parentId, trimmed);
+    if (noteId) track('note_comment_added', { note_id: noteId });
     setReplyText('');
     setReplyingTo(null);
   };
@@ -91,6 +98,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
     const trimmed = newCommentText.trim();
     if (!trimmed) return;
     onAddComment('general', '', trimmed);
+    if (noteId) track('note_comment_added', { note_id: noteId });
     setNewCommentText('');
   };
 

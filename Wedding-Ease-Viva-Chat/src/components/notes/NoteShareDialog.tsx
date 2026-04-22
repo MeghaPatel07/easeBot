@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import type { Note, NotePermission } from '@/types/notes';
+import { track } from '@/lib/analytics';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -109,6 +110,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   const handleCopyLink = async () => {
     if (!note?.publicAccess?.shareId) return;
     const url = `${window.location.origin}/shared/note/${note.publicAccess.shareId}`;
+    track('note_shared', { note_id: note.id, channel: 'copy' });
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);

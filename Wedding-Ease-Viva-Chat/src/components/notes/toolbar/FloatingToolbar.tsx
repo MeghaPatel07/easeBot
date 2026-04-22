@@ -20,6 +20,22 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import FontSizeControl from "./FontSizeControl";
+import { track } from "@/lib/analytics";
+
+type FormatName =
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strike"
+  | "code"
+  | "link"
+  | "h1"
+  | "h2"
+  | "h3";
+
+function fireFormat(format: FormatName) {
+  track("note_formatting_applied", { format });
+}
 
 interface FloatingToolbarProps {
   editor: Editor;
@@ -94,6 +110,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
         .extendMarkRange("link")
         .setLink({ href: url })
         .run();
+      fireFormat("link");
     } else {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();
     }
@@ -110,7 +127,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       className="bg-overlay-scrim/80 backdrop-blur-md border border-overlay-border/10 rounded-lg shadow-xl p-1 flex items-center gap-0.5"
     >
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
+        onClick={() => {
+          editor.chain().focus().toggleBold().run();
+          fireFormat("bold");
+        }}
         isActive={editor.isActive("bold")}
         title="Bold"
       >
@@ -118,7 +138,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       </ToolbarButton>
 
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
+        onClick={() => {
+          editor.chain().focus().toggleItalic().run();
+          fireFormat("italic");
+        }}
         isActive={editor.isActive("italic")}
         title="Italic"
       >
@@ -126,7 +149,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       </ToolbarButton>
 
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        onClick={() => {
+          editor.chain().focus().toggleUnderline().run();
+          fireFormat("underline");
+        }}
         isActive={editor.isActive("underline")}
         title="Underline"
       >
@@ -134,7 +160,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       </ToolbarButton>
 
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleStrike().run()}
+        onClick={() => {
+          editor.chain().focus().toggleStrike().run();
+          fireFormat("strike");
+        }}
         isActive={editor.isActive("strike")}
         title="Strikethrough"
       >
@@ -142,7 +171,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       </ToolbarButton>
 
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleCode().run()}
+        onClick={() => {
+          editor.chain().focus().toggleCode().run();
+          fireFormat("code");
+        }}
         isActive={editor.isActive("code")}
         title="Code"
       >
@@ -320,9 +352,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
 
       {/* Headings */}
       <ToolbarButton
-        onClick={() =>
-          editor.chain().focus().toggleHeading({ level: 1 }).run()
-        }
+        onClick={() => {
+          editor.chain().focus().toggleHeading({ level: 1 }).run();
+          fireFormat("h1");
+        }}
         isActive={editor.isActive("heading", { level: 1 })}
         title="Heading 1"
       >
@@ -330,9 +363,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       </ToolbarButton>
 
       <ToolbarButton
-        onClick={() =>
-          editor.chain().focus().toggleHeading({ level: 2 }).run()
-        }
+        onClick={() => {
+          editor.chain().focus().toggleHeading({ level: 2 }).run();
+          fireFormat("h2");
+        }}
         isActive={editor.isActive("heading", { level: 2 })}
         title="Heading 2"
       >
@@ -340,9 +374,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       </ToolbarButton>
 
       <ToolbarButton
-        onClick={() =>
-          editor.chain().focus().toggleHeading({ level: 3 }).run()
-        }
+        onClick={() => {
+          editor.chain().focus().toggleHeading({ level: 3 }).run();
+          fireFormat("h3");
+        }}
         isActive={editor.isActive("heading", { level: 3 })}
         title="Heading 3"
       >

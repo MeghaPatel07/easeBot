@@ -1,5 +1,6 @@
 import React from 'react'
 import type { GalleryFilter } from '@/types'
+import { track } from '@/lib/analytics'
 
 interface GalleryFilterBarProps {
   filter: GalleryFilter
@@ -34,7 +35,10 @@ export function GalleryFilterBar({ filter, onChange }: GalleryFilterBarProps) {
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => onChange(pill.value)}
+              onClick={() => {
+                if (filter !== pill.value) track('gallery_filter_applied', { filter: pill.value })
+                onChange(pill.value)
+              }}
               className={`snap-start whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
                 active
                   ? 'bg-primary text-primary-foreground shadow-sm'

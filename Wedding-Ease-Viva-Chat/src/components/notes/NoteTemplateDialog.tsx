@@ -6,6 +6,7 @@ import {
 } from '@/components/ui/dialog';
 import { NOTE_TEMPLATES } from '@/services/noteTemplates';
 import type { NoteTemplate } from '@/types/notes';
+import { track } from '@/lib/analytics';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -35,11 +36,13 @@ const NoteTemplateDialog: React.FC<NoteTemplateDialogProps> = ({
   open, onClose, onSelectTemplate,
 }) => {
   const handleSelect = (template: NoteTemplate) => {
+    track('note_template_applied', { template: template.id });
     onSelectTemplate(template);
     onClose();
   };
 
   const handleBlank = () => {
+    track('note_template_applied', { template: BLANK_TEMPLATE.id });
     onSelectTemplate(BLANK_TEMPLATE);
     onClose();
   };

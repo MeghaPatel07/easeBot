@@ -633,11 +633,14 @@ export function useChat(): UseChatResult {
             if (a.noteId) track('ai_note_created', { note_id: a.noteId })
             break
           case 'create_timeline_event':
-            if (a.timelineEventId) track('ai_timeline_event_created', { timeline_event_id: a.timelineEventId })
+            if (a.timelineEventId) track('ai_timeline_event_created', { event_id: a.timelineEventId })
             break
           case 'create_reminder':
           case 'save_reminder':
-            if (a.reminderId) track('ai_reminder_created', { reminder_id: a.reminderId })
+            // ToolAction doesn't surface the reminder channel; backend picks
+            // email vs whatsapp from the user's profile. Default to false and
+            // enrich server-side later if needed.
+            if (a.reminderId) track('ai_reminder_created', { reminder_id: a.reminderId, has_whatsapp: false })
             break
           case 'append_to_note':
             if (a.noteId) track('ai_note_appended', { note_id: a.noteId })
@@ -919,6 +922,8 @@ export function useChat(): UseChatResult {
   // ── Rename thread ──────────────────────────────────────────────────────────
   const renameThread = useCallback(async (threadId: string, title: string) => {
     await updateThreadTitle(threadId, title)
+    // Do NOT include the title string — PII safety.
+    track('thread_renamed', { thread_id: threadId })
   }, [])
 
   // ── Pin / unpin thread ────────────────────────────────────────────────────
@@ -936,6 +941,8 @@ export function useChat(): UseChatResult {
   // ── Update thread tags ─────────────────────────────────────────────────
   const updateThreadTags = useCallback(async (threadId: string, tags: string[]) => {
     await updateThreadTagsDoc(threadId, tags)
+    // Only count (tag values are categorical but spec asks for tag_count).
+    track('thread_tags_updated', { thread_id: threadId, tag_count: tags.length })
   }, [])
 
   // ── Truncate messages (for edit / regenerate flows in UI) ─────────────────

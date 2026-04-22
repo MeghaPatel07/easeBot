@@ -643,6 +643,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
       {showComments && activeNoteId && (
         <NoteCommentsSidebar
           comments={comments}
+          noteId={activeNoteId}
           open={showComments}
           onClose={() => setShowComments(false)}
           onAddComment={(blockId, anchorText, content) =>

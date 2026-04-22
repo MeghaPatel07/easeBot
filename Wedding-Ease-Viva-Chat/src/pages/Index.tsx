@@ -525,6 +525,11 @@ const Index = () => {
   const [shareModalTitle, setShareModalTitle] = useState('');
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
+  // Track the threadId backing the currently-open share modal so share actions
+  // (copy / social / native) can report which thread they act on without
+  // exposing any title/content.
+  const [shareModalThreadId, setShareModalThreadId] = useState<string | null>(null);
+
   const handleShareThread = async (threadId: string) => {
     const thread = threads.find(t => t.id === threadId);
     if (!thread) return;
@@ -533,7 +538,9 @@ const Index = () => {
       const shareUrl = `${window.location.origin}/share/${shareId}`;
       setShareModalUrl(shareUrl);
       setShareModalTitle(thread.title);
+      setShareModalThreadId(threadId);
       setShareLinkCopied(false);
+      track('thread_shared_link_created', { thread_id: threadId });
     } catch (err) {
       console.error('[share] error:', err);
     }
@@ -629,6 +636,7 @@ const Index = () => {
         note: JSON.stringify({ type: 'product', url: productUrl, image: imageUrl }),
       });
       setSavedProductIds(prev => new Set([...prev, productId]));
+      track('product_saved', { product_id: productId });
     } catch (err) { console.error('Failed to save product:', err); }
   };
 
@@ -876,12 +884,16 @@ const Index = () => {
     catch { /* fallback */ const i = document.createElement('input'); i.value = shareModalUrl; document.body.appendChild(i); i.select(); document.execCommand('copy'); document.body.removeChild(i); }
     setShareLinkCopied(true);
     setTimeout(() => setShareLinkCopied(false), 2000);
+    if (shareModalThreadId) track('thread_shared_copied', { thread_id: shareModalThreadId });
   };
 
   const handleNativeShareChat = async () => {
     if (!shareModalUrl) return;
     if (navigator.share) {
-      try { await navigator.share({ url: shareModalUrl, title: `TheWeddingBot — ${shareModalTitle}`, text: 'Check out this conversation from TheWeddingBot!' }); } catch { /* cancelled */ }
+      try {
+        await navigator.share({ url: shareModalUrl, title: `TheWeddingBot — ${shareModalTitle}`, text: 'Check out this conversation from TheWeddingBot!' });
+        if (shareModalThreadId) track('thread_shared_native', { thread_id: shareModalThreadId });
+      } catch { /* cancelled */ }
     }
     setShareModalUrl(null);
   };
@@ -936,8 +948,17 @@ const Index = () => {
           {CHAT_SHARE_PLATFORMS.map(platform => {
             const url = platform.getUrl(shareModalUrl)
             const isMailto = url.startsWith('mailto:')
+            // Map platform label → short analytics channel slug.
+            const channel = platform.name === 'WhatsApp' ? 'whatsapp'
+              : platform.name === 'Twitter / X' ? 'twitter'
+              : platform.name === 'Email' ? 'email'
+              : platform.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
             return (
-            <a key={platform.name} href={url} target={isMailto ? '_self' : '_blank'} rel={isMailto ? undefined : 'noopener noreferrer'} onClick={() => setShareModalUrl(null)}
+            <a key={platform.name} href={url} target={isMailto ? '_self' : '_blank'} rel={isMailto ? undefined : 'noopener noreferrer'}
+              onClick={() => {
+                if (shareModalThreadId) track('thread_shared_social', { thread_id: shareModalThreadId, channel });
+                setShareModalUrl(null);
+              }}
               className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-foreground/[0.06] transition-colors">
               <div className={platform.color}><platform.icon /></div>
               <span className="text-3xs text-foreground/40">{platform.name}</span>

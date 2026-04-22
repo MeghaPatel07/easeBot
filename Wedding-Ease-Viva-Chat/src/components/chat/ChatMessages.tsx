@@ -202,16 +202,19 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
   // Share an artifact — reuses the thread-level share flow. The shared page
   // renders the whole conversation, so the artifact is visible in context.
-  const handleShareArtifact = (kind: ArtifactKind, titleHint?: string) => {
+  const handleShareArtifact = (kind: ArtifactKind, titleHint?: string, artifactId?: string) => {
+    if (kind === 'checklist' && artifactId) {
+      track('checklist_shared', { checklist_id: artifactId, channel: 'link' });
+    }
     void shareArtifact(activeThreadId, titleHint ?? 'Shared chat', kind);
   };
 
   // Keyboard activation (Enter / Space) for non-button share icons.
-  const onShareKeyDown = (kind: ArtifactKind, titleHint?: string) =>
+  const onShareKeyDown = (kind: ArtifactKind, titleHint?: string, artifactId?: string) =>
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        handleShareArtifact(kind, titleHint);
+        handleShareArtifact(kind, titleHint, artifactId);
       }
     };
 
@@ -636,8 +639,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={() => handleShareArtifact('checklist', message.checklistData?.title)}
-                          onKeyDown={onShareKeyDown('checklist', message.checklistData?.title)}
+                          onClick={() => handleShareArtifact('checklist', message.checklistData?.title, message.checklistData?.id)}
+                          onKeyDown={onShareKeyDown('checklist', message.checklistData?.title, message.checklistData?.id)}
                           aria-label="Share this artifact"
                           tabIndex={0}
                           className="ml-auto inline-flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-md text-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"

@@ -14,6 +14,21 @@ import {
   ImageIcon,
   AlertCircle,
 } from "lucide-react";
+import { track } from "@/lib/analytics";
+
+type SlashSlug =
+  | "text"
+  | "heading_1"
+  | "heading_2"
+  | "heading_3"
+  | "bullet_list"
+  | "numbered_list"
+  | "todo"
+  | "quote"
+  | "divider"
+  | "code"
+  | "image"
+  | "callout";
 
 interface SlashCommandMenuProps {
   editor: Editor;
@@ -22,6 +37,7 @@ interface SlashCommandMenuProps {
 
 interface CommandItem {
   name: string;
+  slug: SlashSlug;
   description: string;
   icon: React.ReactNode;
   action: (editor: Editor, onImageUpload?: (file: File) => Promise<string | null>) => void;
@@ -30,6 +46,7 @@ interface CommandItem {
 const COMMANDS: CommandItem[] = [
   {
     name: "Text",
+    slug: "text",
     description: "Plain text paragraph",
     icon: <AlignLeft className="h-4 w-4" />,
     action: (editor) =>
@@ -37,6 +54,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Heading 1",
+    slug: "heading_1",
     description: "Large heading",
     icon: <Heading1 className="h-4 w-4" />,
     action: (editor) =>
@@ -44,6 +62,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Heading 2",
+    slug: "heading_2",
     description: "Medium heading",
     icon: <Heading2 className="h-4 w-4" />,
     action: (editor) =>
@@ -51,6 +70,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Heading 3",
+    slug: "heading_3",
     description: "Small heading",
     icon: <Heading3 className="h-4 w-4" />,
     action: (editor) =>
@@ -58,6 +78,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Bullet List",
+    slug: "bullet_list",
     description: "Unordered list",
     icon: <List className="h-4 w-4" />,
     action: (editor) =>
@@ -65,6 +86,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Numbered List",
+    slug: "numbered_list",
     description: "Ordered list",
     icon: <ListOrdered className="h-4 w-4" />,
     action: (editor) =>
@@ -72,6 +94,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "To-do",
+    slug: "todo",
     description: "Checkbox task item",
     icon: <CheckSquare className="h-4 w-4" />,
     action: (editor) =>
@@ -79,6 +102,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Quote",
+    slug: "quote",
     description: "Block quote",
     icon: <Quote className="h-4 w-4" />,
     action: (editor) =>
@@ -86,6 +110,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Divider",
+    slug: "divider",
     description: "Horizontal rule",
     icon: <Minus className="h-4 w-4" />,
     action: (editor) =>
@@ -93,6 +118,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Code",
+    slug: "code",
     description: "Code block",
     icon: <Code2 className="h-4 w-4" />,
     action: (editor) =>
@@ -100,6 +126,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Image",
+    slug: "image",
     description: "Upload or embed an image",
     icon: <ImageIcon className="h-4 w-4" />,
     action: (editor, onImageUpload) => {
@@ -131,6 +158,7 @@ const COMMANDS: CommandItem[] = [
   },
   {
     name: "Callout",
+    slug: "callout",
     description: "Highlighted info box",
     icon: <AlertCircle className="h-4 w-4" />,
     action: (editor) =>
@@ -177,6 +205,7 @@ export default function SlashCommandMenu({ editor, onImageUpload }: SlashCommand
           .run();
       }
       cmd.action(editor, onImageUpload);
+      track("note_slash_command_used", { command: cmd.slug });
       closeMenu();
     },
     [editor, slashPos, closeMenu, onImageUpload]

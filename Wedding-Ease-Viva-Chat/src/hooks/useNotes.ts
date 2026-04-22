@@ -167,6 +167,7 @@ export function useNotes(userId: string | null, userEmail: string | null) {
   const restoreNote = useCallback(
     async (noteId: string) => {
       await restoreNoteService(noteId)
+      track('note_restored_from_trash', { note_id: noteId })
     },
     []
   )
@@ -192,6 +193,7 @@ export function useNotes(userId: string | null, userEmail: string | null) {
           color: source.color,
         })
         setActiveNoteId(copy.id)
+        track('note_duplicated', { note_id: copy.id })
         return copy
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to duplicate note'
@@ -206,7 +208,9 @@ export function useNotes(userId: string | null, userEmail: string | null) {
   const createFolder = useCallback(
     async (name: string, icon?: string) => {
       if (!userId) return null
-      return createFolderService(userId, name, icon)
+      const folder = await createFolderService(userId, name, icon)
+      if (folder?.id) track('folder_created', { folder_id: folder.id })
+      return folder
     },
     [userId]
   )
@@ -229,6 +233,9 @@ export function useNotes(userId: string | null, userEmail: string | null) {
   const moveNoteToFolder = useCallback(
     async (noteId: string, folderId: string | null) => {
       await moveNoteToFolderService(noteId, folderId)
+      if (folderId) {
+        track('note_moved_to_folder', { note_id: noteId, folder_id: folderId })
+      }
     },
     []
   )

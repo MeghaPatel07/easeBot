@@ -6,6 +6,7 @@ import { ImageActions } from '@/components/ImageActions'
 import { getUserImages, deleteUserImage, type UserImage } from '@/services/galleryService'
 import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
 import type { GalleryFilter } from '@/types'
+import { track } from '@/lib/analytics'
 
 interface GalleryViewProps {
   userId: string
@@ -143,7 +144,12 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
         {images.map((img, idx) => (
           <button
             key={img.id}
-            onClick={() => { setSelectedIndex(idx); setScale(1) }}
+            onClick={() => {
+              // Fire on click-to-expand into the lightbox (per spec — not on
+              // hover / scroll-into-view).
+              track('gallery_image_viewed', { image_id: img.id })
+              setSelectedIndex(idx); setScale(1)
+            }}
             className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer min-h-[44px] bg-foreground/[0.04] border border-foreground/[0.08]"
           >
             <img
@@ -241,6 +247,8 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 max-w-lg" onClick={(e) => e.stopPropagation()}>
             <ImageActions
               imageUrl={currentImage.url}
+              imageId={currentImage.id}
+              source="gallery"
               onDelete={() => handleDelete(currentImage)}
               onAttachToChat={() => handleAttachToChat(currentImage)}
               variant="preview"

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { SendMessageOptions } from '@/hooks/useChat'
+import { track } from '@/lib/analytics'
 
 const MAX_REFERENCE_BYTES = 8 * 1024 * 1024
 const ALLOWED_REFERENCE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
@@ -75,6 +76,13 @@ export function useImageHubSubmit(deps: UseImageHubSubmitDeps): {
         }
         attachedImageUrl = await readFileAsDataUrl(referenceImage)
       }
+
+      // Slugified vibe id (preset title → slug, or 'none' when the user
+      // didn't pick a preset). No free-text title is ever sent.
+      const vibeSlug = vibeTitle
+        ? vibeTitle.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        : 'none'
+      track('vibe_submitted', { vibe: vibeSlug })
 
       setIsSubmitting(true)
       try {

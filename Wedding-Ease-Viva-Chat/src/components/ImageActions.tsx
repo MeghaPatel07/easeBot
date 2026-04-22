@@ -19,6 +19,25 @@ interface ImageActionsProps {
   variant?: 'overlay' | 'preview'
   /** Hide share & save-to-gallery buttons for guest users */
   isGuest?: boolean
+  /** Stable id for analytics. Falls back to a URL-derived slug so events
+   *  always carry an identifier. */
+  imageId?: string
+  /** Where the user is interacting with this image — 'chat' bubble or
+   *  standalone 'gallery'. Used for image_downloaded source property. */
+  source?: 'chat' | 'gallery'
+}
+
+/** Derive a stable, non-PII analytics id from a URL when no explicit id is
+ *  provided. Uses the last segment of the path (trims query) so the same
+ *  image generates the same id across sessions. */
+function imageIdFromUrl(url: string): string {
+  try {
+    const u = new URL(url, window.location.origin)
+    const seg = u.pathname.split('/').filter(Boolean).pop() ?? ''
+    return seg.slice(-48) || 'unknown'
+  } catch {
+    return url.split('?')[0].split('/').pop()?.slice(-48) || 'unknown'
+  }
 }
 
 // Social/share platform configs
@@ -65,7 +84,8 @@ const SHARE_PLATFORMS = [
   },
 ]
 
-export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onAttachToChat, variant = 'overlay', isGuest }: ImageActionsProps) {
+export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onAttachToChat, variant = 'overlay', isGuest, imageId, source = 'chat' }: ImageActionsProps) {
+  const resolvedImageId = imageId ?? imageIdFromUrl(imageUrl)
   const [downloading, setDownloading] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -97,7 +117,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      track('image_downloaded', { size_kb: Math.round(blob.size / 1024) })
+      track('image_downloaded', { image_id: resolvedImageId, source })
     } catch (err) {
       console.error('Download failed:', err)
     } finally {
@@ -116,7 +136,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
       ])
       setImageCopied(true)
       setTimeout(() => setImageCopied(false), 2000)
-      track('image_copied', {})
+      track('image_copied', { image_id: resolvedImageId })
     } catch {
       // Fallback: copy URL instead
       handleCopyLink()
@@ -136,7 +156,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
     }
     setLinkCopied(true)
     setTimeout(() => setLinkCopied(false), 2000)
-    track('image_link_copied', {})
+    track('image_link_copied', { image_id: resolvedImageId })
   }
 
   const handleNativeShare = async () => {
@@ -146,10 +166,12 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
         const blob = await res.blob()
         const file = new File([blob], 'theweddingbot.jpg', { type: blob.type })
         await navigator.share({ files: [file], title: 'TheWeddingBot', text: 'Check out this wedding design!' })
+        track('image_shared_to_social', { image_id: resolvedImageId, channel: 'native' })
       } catch {
         // User cancelled or not supported with files — try URL only
         try {
           await navigator.share({ url: imageUrl, title: 'TheWeddingBot' })
+          track('image_shared_to_social', { image_id: resolvedImageId, channel: 'native' })
         } catch { /* user cancelled */ }
       }
     }
@@ -305,7 +327,12 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => {
-                    track('image_shared_to_social', { platform: platform.name })
+                    const channel = platform.name === 'WhatsApp' ? 'whatsapp'
+                      : platform.name === 'Twitter / X' ? 'twitter'
+                      : platform.name === 'Pinterest' ? 'pinterest'
+                      : platform.name === 'Email' ? 'email'
+                      : platform.name.toLowerCase().replace(/[^a-z0-9]+/g, '_')
+                    track('image_shared_to_social', { image_id: resolvedImageId, channel })
                     setShowShareModal(false)
                   }}
                   className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-foreground/[0.06] transition-colors"

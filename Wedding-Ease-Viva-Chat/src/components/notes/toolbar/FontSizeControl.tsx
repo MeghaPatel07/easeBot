@@ -6,6 +6,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import { track } from "@/lib/analytics";
 
 const FONT_SIZE_PRESETS: { label: string; value: number }[] = [
   { label: "Small", value: 12 },
@@ -66,6 +67,7 @@ export default function FontSizeControl({
         .focus()
         .setFontSize(`${clamped}px`)
         .run();
+      track("note_font_size_changed", { size: clamped });
     },
     [editor],
   );

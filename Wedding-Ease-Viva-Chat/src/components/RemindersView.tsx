@@ -17,6 +17,7 @@ import { createReminder, updateReminder, deleteReminder } from '@/services/remin
 import { isDerivedPhoneEmail } from '@/services/authService'
 import { resolveTier, getLimits } from '@/config/tierConfig'
 import type { ReminderDoc } from '@/types'
+import { track } from '@/lib/analytics'
 
 interface RemindersViewProps {
   reminders: ReminderDoc[]
@@ -144,9 +145,16 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
       }
       if (editingReminder) {
         await updateReminder(user.uid, editingReminder.id, input)
+        track('reminder_edited', { reminder_id: editingReminder.id })
         toast.success('Reminder updated')
       } else {
-        await createReminder(user, profile, input)
+        const created = await createReminder(user, profile, input)
+        const hasWhatsapp = created?.channel === 'whatsapp'
+        track('reminder_created', {
+          reminder_id: created?.id ?? '',
+          source: 'manual',
+          has_whatsapp: hasWhatsapp,
+        })
         toast.success(`Reminder set · ${formatLeadTime(effectiveLead)}`)
       }
       setDialogOpen(false)
@@ -167,6 +175,7 @@ export default function RemindersView({ reminders, onRefresh }: RemindersViewPro
     setDeletingId(r.id)
     try {
       await deleteReminder(user.uid, r.id)
+      track('reminder_dismissed', { reminder_id: r.id })
       toast.success('Reminder deleted')
       await onRefresh()
     } catch (err: unknown) {

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { track } from '@/lib/analytics';
 import {
   PanelLeft, Search, SquarePen, Pin, PinOff,
   MoreHorizontal, Pencil, Trash2, Share2, Archive, ArchiveRestore,
@@ -113,6 +114,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const [deleteConfirmThreadId, setDeleteConfirmThreadId] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
+  // Debounced thread_searched analytics — PII-safe: only length + count.
+  // Fires once per user "intent" (debounced 500ms after they stop typing).
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTrackedQueryRef = useRef<string>('');
+
   const submitRename = async (threadId: string) => {
     const trimmed = renameValue.trim();
     if (trimmed) await onRenameThread(threadId, trimmed);
@@ -135,6 +141,21 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
     .filter(t => !t.archived)
     .filter(t => !selectedTagFilter || (t.tags ?? []).includes(selectedTagFilter));
   const archivedThreads = threads.filter(t => t.archived && t.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  // Debounced thread_searched event — fires 500ms after user stops typing, only
+  // if the query changed since last fire and is non-empty. No query text sent.
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    const q = searchQuery;
+    if (!q.trim()) { lastTrackedQueryRef.current = ''; return; }
+    searchDebounceRef.current = setTimeout(() => {
+      if (lastTrackedQueryRef.current === q) return;
+      lastTrackedQueryRef.current = q;
+      const resultCount = filteredThreads.length + archivedThreads.length;
+      track('thread_searched', { query_length: q.length, result_count: resultCount });
+    }, 500);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [searchQuery, filteredThreads.length, archivedThreads.length]);
   const pinnedThreads = filteredThreads.filter(t => t.pinned);
   const unpinnedThreads = filteredThreads.filter(t => !t.pinned);
   const allUsedTags = Array.from(new Set(threads.flatMap(t => t.tags ?? [])));
