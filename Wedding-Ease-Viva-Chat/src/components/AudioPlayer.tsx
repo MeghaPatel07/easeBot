@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Play, Pause, Square, X, Loader2, AlertCircle, RotateCcw } from 'lucide-react'
+import { track } from '@/lib/analytics'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,6 +13,9 @@ interface Props {
   onEnded?: () => void
   onError?: () => void
   onClose?: () => void
+  messageId?: string
+  voiceId?: string
+  provider?: 'azure' | 'gemini'
 }
 
 // ---------------------------------------------------------------------------
@@ -63,10 +67,21 @@ function saveSpeedIndex(idx: number): void {
 // Component
 // ---------------------------------------------------------------------------
 
-export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
+export function AudioPlayer({ audioUrl, onEnded, onError, onClose, messageId, voiceId, provider }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const progressBarRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number>(0)
+  const playedFiredRef = useRef(false)
+
+  const firePlayedOnce = useCallback(() => {
+    if (playedFiredRef.current) return
+    playedFiredRef.current = true
+    track('tts_played', {
+      message_id: messageId ?? '',
+      ...(voiceId ? { voice_id: voiceId } : {}),
+      ...(provider ? { provider } : {}),
+    })
+  }, [messageId, voiceId, provider])
 
   const [state, setState] = useState<PlayerState>('idle')
   const [progress, setProgress] = useState(0)          // 0 – 1
@@ -110,6 +125,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
     setCurrentTime(0)
     setDuration(0)
     setErrorMsg('')
+    playedFiredRef.current = false
     audio.load()
   }, [audioUrl])
 
@@ -124,6 +140,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
     // fall back to 'paused' — user can tap the play button which IS a gesture.
     audio.play().then(() => {
       setState('playing')
+      firePlayedOnce()
     }).catch((err) => {
       console.warn('[AudioPlayer] Autoplay blocked, tap play to start:', err?.message)
       setState('paused')
@@ -163,6 +180,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose }: Props) {
     }
     audio.play().then(() => {
       setState('playing')
+      firePlayedOnce()
     }).catch(() => {
       setState('error')
       setErrorMsg('Playback failed')

@@ -9,8 +9,10 @@
 // `primary` / `warning` / `destructive` / `muted` tokens so the component
 // compiles today.
 
+import { useEffect, useRef } from 'react'
 import { AlertTriangle, Clock, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 
 export type UsageMeterState =
   | 'ok'
@@ -100,6 +102,19 @@ export function UsageMeter({
       : 0
   const dailyPct =
     capDaily > 0 ? Math.min(100, Math.round((usedDaily / capDaily) * 100)) : 0
+
+  const firedThresholds = useRef<Set<80 | 95>>(new Set())
+  useEffect(() => {
+    if (capMonthly <= 0) return
+    const remaining = Math.max(0, capMonthly - usedMonthly)
+    if (monthlyPct >= 95 && !firedThresholds.current.has(95)) {
+      firedThresholds.current.add(95)
+      track('token_meter_warning', { threshold: 95, remaining_tokens: remaining })
+    } else if (monthlyPct >= 80 && !firedThresholds.current.has(80)) {
+      firedThresholds.current.add(80)
+      track('token_meter_warning', { threshold: 80, remaining_tokens: remaining })
+    }
+  }, [monthlyPct, usedMonthly, capMonthly])
 
   const monthlyTone = barTone(state)
   const dailyTone =

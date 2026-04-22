@@ -15,6 +15,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { downgradeSubscription, getCurrentSubscription } from '@/services/paymentService'
+import { track } from '@/lib/analytics'
 import type { PricingTier } from './PricingTierCard'
 
 type Step = 'confirm' | 'loading' | 'success' | 'error'
@@ -46,6 +47,7 @@ export function DowngradeFlow({
       setStep('confirm')
       setError(null)
       setPeriodEnd(null)
+      track('downgrade_flow_opened', { from_tier: currentTier, to_tier: targetTier })
       void getCurrentSubscription()
         .then((sub) => {
           if (sub.currentPeriodEnd) {
@@ -68,6 +70,7 @@ export function DowngradeFlow({
     try {
       const clientRequestId = `downgrade_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
       await downgradeSubscription(clientRequestId)
+      track('downgrade_completed', { from_tier: currentTier, to_tier: targetTier })
       setStep('success')
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -80,7 +83,7 @@ export function DowngradeFlow({
       }
       setStep('error')
     }
-  }, [])
+  }, [currentTier, targetTier])
 
   const handleDone = useCallback(() => {
     onOpenChange(false)

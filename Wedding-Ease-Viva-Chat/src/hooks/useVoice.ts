@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { AudioRecorder } from '@/services/audioRecorder'
 import { PcmAudioRecorder } from '@/services/pcmAudioRecorder'
 import { transcribeAudio } from '@/services/functionsService'
+import { track } from '@/lib/analytics'
 
 // Common shape so useVoice can hold either implementation behind one ref.
 interface VoiceRecorder {
@@ -168,9 +169,15 @@ export function useVoice(): UseVoiceResult {
       const msg = err?.message ?? 'Microphone access denied'
       setError(msg)
       setVoiceState('idle')
-      // Drop the recorder on failure so the next attempt re-triggers the
-      // permission prompt / fresh context. The persistent-stream optimization
-      // only applies when the prior run succeeded.
+      const name: string = err?.name ?? ''
+      if (
+        name === 'NotAllowedError' ||
+        name === 'SecurityError' ||
+        name === 'PermissionDeniedError' ||
+        /permission|denied|not allowed/i.test(msg)
+      ) {
+        track('voice_permission_denied', { error: (name || msg).slice(0, 64) })
+      }
       try { recorderRef.current?.cancel() } catch { /* noop */ }
       recorderRef.current = null
       return msg
@@ -230,6 +237,15 @@ export function useVoice(): UseVoiceResult {
         return null
       }
       const msg = err?.message ?? 'Could not transcribe'
+      const errorCode: string | undefined =
+        (typeof err?.code === 'string' && err.code) ||
+        (typeof err?.name === 'string' && err.name) ||
+        (typeof err?.status === 'number' && String(err.status)) ||
+        undefined
+      track('transcription_failed', {
+        ...(errorCode ? { error_code: errorCode.slice(0, 64) } : {}),
+        duration_s: capturedDuration,
+      })
       setError(msg)
       setVoiceState('idle')
       setRecordingDuration(0)

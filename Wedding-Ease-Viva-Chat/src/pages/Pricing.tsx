@@ -12,6 +12,7 @@ import { formatCurrency } from '@/utils/currencyFormat'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
 import { auth } from '@/lib/firebase'
+import { track } from '@/lib/analytics'
 
 const SERVICE_NAME = 'TheWeddingBot'
 
@@ -248,6 +249,10 @@ export default function Pricing() {
           : 'guest'
   )
 
+  useEffect(() => {
+    track('plan_viewed', { source: returnReason })
+  }, [])
+
   // Detect user currency once on mount.
   useEffect(() => {
     let cancelled = false
@@ -296,6 +301,7 @@ export default function Pricing() {
 
   const handleTopup = () => {
     setCheckoutError(null)
+    track('topup_clicked', { pack_id: 'topup_2m' })
     const user = auth.currentUser
     if (!user) {
       navigate('/login?next=/pricing')
@@ -315,6 +321,7 @@ export default function Pricing() {
 
   const handleSelect = (tier: PricingTier) => {
     setCheckoutError(null)
+    track('plan_selected', { tier, billing_cycle: cycle, currency })
     if (tier === 'free') {
       navigate('/')
       return

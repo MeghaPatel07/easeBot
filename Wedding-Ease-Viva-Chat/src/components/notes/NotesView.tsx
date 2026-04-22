@@ -35,6 +35,7 @@ import BlockWidgetBar from '@/components/notes/toolbar/BlockWidgetBar';
 import { toast } from 'sonner';
 import { useAccount } from '@/hooks/useAccount';
 import { resolveTier, getLimits } from '@/config/tierConfig';
+import { track } from '@/lib/analytics';
 
 interface NotesViewProps {
   userId: string;
@@ -106,7 +107,8 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const openPaywall = useCallback((reason: 'edit' | 'create' | 'template') => {
     setPaywallTrigger(reason);
     setPaywallOpen(true);
-  }, []);
+    track('note_paywall_shown', { feature: 'notes', trigger: reason, current_tier: tier, required_tier: 'pro' });
+  }, [tier]);
 
   const guardedCreateNote = useCallback(
     (folderId?: string) => {
@@ -315,10 +317,20 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
     try {
       const json = JSON.parse(remote);
       editorInstance.commands.setContent(json);
+      if (activeNoteId) {
+        track('note_conflict_resolved', { note_id: activeNoteId, resolution: 'took_theirs' });
+      }
     } catch (err) {
       console.error('[NotesView] failed to apply remote content', err);
     }
-  }, [discardLocalEdits, editorInstance]);
+  }, [discardLocalEdits, editorInstance, activeNoteId]);
+
+  const handleKeepMine = useCallback(() => {
+    dismissConflict();
+    if (activeNoteId) {
+      track('note_conflict_resolved', { note_id: activeNoteId, resolution: 'kept_mine' });
+    }
+  }, [dismissConflict, activeNoteId]);
 
   // Word count -- content is Tiptap JSON, not HTML.
   // Memoized because extractText walks the entire document; on a long note
@@ -541,7 +553,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                       </Button>
                       <Button
                         size="sm"
-                        onClick={dismissConflict}
+                        onClick={handleKeepMine}
                         className="text-xs h-8 px-3 bg-primary hover:bg-primary-hover text-primary-foreground"
                       >
                         Keep mine

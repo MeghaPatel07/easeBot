@@ -18,6 +18,7 @@ import {
 import { upgradeSubscription } from '@/services/paymentService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 import type { PricingTier } from './PricingTierCard'
 
 type BillingCycle = 'monthly' | 'annual'
@@ -77,8 +78,9 @@ export function UpgradeFlow({
       setStep('confirm')
       setResult(null)
       setError(null)
+      track('upgrade_flow_opened', { from_tier: currentTier, to_tier: targetTier })
     }
-  }, [open])
+  }, [open, currentTier, targetTier])
 
   const handleConfirm = useCallback(async () => {
     setStep('loading')

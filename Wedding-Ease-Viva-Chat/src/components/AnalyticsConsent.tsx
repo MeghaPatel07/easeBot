@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { posthog } from '@/lib/analytics'
+import { track } from '@/lib/analytics'
 
 const STORAGE_KEY = 'ph_consent'
 
@@ -28,11 +29,13 @@ export default function AnalyticsConsent(): JSX.Element | null {
   const accept = (): void => {
     localStorage.setItem(STORAGE_KEY, 'accepted')
     posthog.opt_in_capturing?.()
+    track('analytics_consent_changed', { consent: 'accepted' })
     setNeedsChoice(false)
   }
   const decline = (): void => {
     localStorage.setItem(STORAGE_KEY, 'declined')
     posthog.opt_out_capturing?.()
+    track('analytics_consent_changed', { consent: 'declined' })
     setNeedsChoice(false)
   }
 

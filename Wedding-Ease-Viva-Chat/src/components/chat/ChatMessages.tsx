@@ -24,6 +24,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { modeConfig, markdownToHtml, type ModeOrAuto } from './constants';
 import easebotAvatar from '@/assets/images/easebot.png';
+import { track } from '@/lib/analytics';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -164,16 +165,19 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
 
   const copyMessage = async (text: string, msgId: string, imageUrl?: string | null, imageUrls?: string[]) => {
     const imgUrl = imageUrl || imageUrls?.[0];
+    const hasImage = Boolean(imgUrl);
     if (imgUrl) {
       try {
         const res = await fetch(imgUrl);
         const blob = await res.blob();
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([blob], { type: 'image/png' }) })]);
         onCopyMessage(text, msgId);
+        track('message_copied', { message_id: msgId, has_image: hasImage });
         return;
       } catch { /* fall through */ }
     }
     onCopyMessage(text, msgId);
+    track('message_copied', { message_id: msgId, has_image: hasImage });
   };
 
   const downloadMessage = async (text: string, id: string, imageUrl?: string | null, imageUrls?: string[]) => {
@@ -810,6 +814,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                     audioUrl={ttsAudioUrls[message.id]}
                     onEnded={() => onTtsClose(message.id)}
                     onClose={() => onTtsClose(message.id)}
+                    messageId={message.id}
                   />
                 </div>
               )}

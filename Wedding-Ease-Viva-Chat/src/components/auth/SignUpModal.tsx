@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError } from '@/services/authService'
 import PhoneInput, { toE164, isValidPhone, type PhoneInputValue } from './PhoneInput'
 import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH, type PasswordIssue } from '@/utils/passwordPolicy'
+import { track } from '@/lib/analytics'
 
 type Tab = 'email' | 'phone'
 type EmailStep = 'form' | 'choice' | 'verifying' | 'success'
@@ -309,6 +310,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     setLoading(true)
     try {
       await sendPhoneOtpWhatsApp(signupUser.phone, 'signup')
+      track('phone_otp_sent', { purpose: 'signup' })
       setVerifyOtp(['', '', '', '', '', ''])
       setVerifyResendTimer(OTP_RESEND_COOLDOWN)
       setVerifyExpiryTimer(OTP_EXPIRY_SECONDS)
@@ -348,6 +350,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     setLoading(true)
     try {
       await sendPhoneOtpWhatsApp(signupUser.phone, 'signup')
+      track('phone_otp_sent', { purpose: 'signup' })
       setVerifyResendTimer(OTP_RESEND_COOLDOWN)
       setVerifyExpiryTimer(OTP_EXPIRY_SECONDS)
       setVerifyOtp(['', '', '', '', '', ''])
@@ -406,6 +409,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
         toast.error('Invalid code', { description: 'The OTP is incorrect or has expired.' })
         return
       }
+      track('phone_otp_verified', { purpose: 'signup' })
       // Flip Firestore verification flag — briefly signs in then signs out.
       await markEmailUserVerifiedAfterPhoneOtp(signupUser.email, signupUser.password)
       setEmailStep('success')
@@ -462,6 +466,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
       setSignedUpName(result.name)
       // 2) Send OTP.
       await sendPhoneOtpWhatsApp(e164, 'signup')
+      track('phone_otp_sent', { purpose: 'signup' })
       setPhoneOtp('')
       setPhoneResendTimer(OTP_RESEND_COOLDOWN)
       setPhoneExpiryTimer(OTP_EXPIRY_SECONDS)
@@ -501,6 +506,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
     setLoading(true)
     try {
       await sendPhoneOtpWhatsApp(phoneE164, 'signup')
+      track('phone_otp_sent', { purpose: 'signup' })
       setPhoneResendTimer(OTP_RESEND_COOLDOWN)
       setPhoneExpiryTimer(OTP_EXPIRY_SECONDS)
       toast.success('Code resent', { description: `Sent to ${phoneE164} via WhatsApp.` })
@@ -532,6 +538,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
         toast.error('Invalid code', { description: 'The OTP is incorrect or has expired.' })
         return
       }
+      track('phone_otp_verified', { purpose: 'signup' })
       await confirmPhoneSignup(phoneE164)
       setPhoneStep('success')
       toast.success('Account created', { description: 'Welcome to TheWeddingBot!' })

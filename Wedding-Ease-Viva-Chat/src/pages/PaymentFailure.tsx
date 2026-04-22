@@ -1,10 +1,19 @@
+import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { XCircle } from 'lucide-react'
+import { track } from '@/lib/analytics'
 
 export default function PaymentFailure() {
   const [params] = useSearchParams()
   const reason = params.get('reason') ?? 'unknown'
   const txnid = params.get('txnid') ?? ''
+
+  useEffect(() => {
+    track('payment_failure_page_viewed', {
+      order_id: txnid || undefined,
+      reason,
+    })
+  }, [])
 
   return (
     <div className="gradient-bg min-h-screen text-soft flex items-center justify-center p-6">

@@ -6,6 +6,7 @@ import {
   updateNote,
   uploadNoteImage,
 } from '@/services/notesService'
+import { track } from '@/lib/analytics'
 
 // ── localStorage draft mirror ───────────────────────────────────────────────
 // Protects against data loss when a tab crashes / is closed mid-debounce
@@ -136,6 +137,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
 
         if (remoteChanged && byOther && hasLocalContentPending) {
           setConflict({ remoteEditedBy: n.lastEditedBy, remoteContent: n.content })
+          track('note_conflict_detected', { note_id: n.id })
         }
         prevRemoteContentRef.current = n.content
       }
@@ -225,6 +227,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...draft.updates }
     setHasUnsavedChanges(true)
     toast.success('Restored unsaved changes from your last session')
+    track('note_draft_restored', { note_id: noteId })
     scheduleSave()
   }, [noteId, scheduleSave])
 
@@ -354,7 +357,11 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     async (file: File): Promise<string | null> => {
       if (!noteId) return null
       try {
-        return await uploadNoteImage(noteId, file)
+        const url = await uploadNoteImage(noteId, file)
+        if (url) {
+          track('note_image_uploaded', { note_id: noteId, size_kb: Math.round(file.size / 1024) })
+        }
+        return url
       } catch (err) {
         console.error('[useNoteEditor] image upload failed', err)
         return null

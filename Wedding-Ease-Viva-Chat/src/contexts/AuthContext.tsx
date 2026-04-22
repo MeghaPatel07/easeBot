@@ -149,7 +149,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleSignUp = async (name: string, email: string, phone: string | null, password: string) => {
     isHandlingAuth.current = true
     try {
-      return await signUpWithEmail(name, email, phone, password)
+      const firebaseUser = await signUpWithEmail(name, email, phone, password)
+      identify(firebaseUser.uid, { email: firebaseUser.email ?? undefined })
+      setUserProperties({ signup_source: 'email', created_at: new Date().toISOString() })
+      track('signup_completed', { method: 'email', is_guest_conversion: false })
+      return firebaseUser
     } finally {
       isHandlingAuth.current = false
     }
@@ -246,6 +250,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
       if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
       setUser(firebaseUser)
+      identify(firebaseUser.uid, { email: firebaseUser.email ?? undefined })
+      track('signup_completed', { method: 'phone' })
     } finally {
       isHandlingAuth.current = false
     }
@@ -258,6 +264,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
       if (profileSnap.exists()) setProfile(profileSnap.data() as UserProfile)
       setUser(firebaseUser)
+      identify(firebaseUser.uid, { email: firebaseUser.email ?? undefined })
+      track('login_completed', { method: 'phone' })
       return firebaseUser
     } finally {
       isHandlingAuth.current = false

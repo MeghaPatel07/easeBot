@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
@@ -70,6 +70,7 @@ export default function Checkout() {
   const [rate, setRate] = useState(1)
   const [formError, setFormError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const didSubmitRef = useRef(false)
 
   // Wait for Firebase auth to hydrate before deciding whether to render or
   // bounce. Without this gate, direct navigation to /checkout from a new tab
@@ -95,6 +96,14 @@ export default function Checkout() {
     })
     return () => { cancelled = true }
   }, [state?.currency])
+
+  useEffect(() => {
+    return () => {
+      if (!didSubmitRef.current && state?.plan) {
+        track('payment_abandoned', { step: 'checkout_form', tier: String(state.plan) })
+      }
+    }
+  }, [state?.plan])
 
   const priceDisplay = useMemo(
     () => state ? formatCurrency(state.priceUsd, state.currency, rate) : '',
@@ -164,6 +173,13 @@ export default function Checkout() {
         gstin: gstin ? gstin.toUpperCase() : undefined,
         isUpgrade: state.isUpgrade,
       })
+      track('payu_redirect_started', {
+        order_id: init.txnid,
+        tier: state.plan,
+        amount: state.priceUsd,
+        currency: state.currency,
+      })
+      didSubmitRef.current = true
       autoSubmitToPayu(init)
     } catch (submitErr) {
       const msg = submitErr instanceof Error ? submitErr.message : String(submitErr)

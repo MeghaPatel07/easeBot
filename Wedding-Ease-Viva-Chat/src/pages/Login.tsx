@@ -225,6 +225,7 @@ export default function Login() {
         return
       }
       setResetToken(data.resetToken)
+      track('password_reset_otp_verified')
       setStep('fp-newpass')
     } catch {
       setError('Network error. Please try again.')
@@ -264,6 +265,7 @@ export default function Login() {
         setError(data.error || 'Failed to reset password')
         return
       }
+      track('password_reset_completed')
       setStep('fp-success')
     } catch {
       setError('Network error. Please try again.')

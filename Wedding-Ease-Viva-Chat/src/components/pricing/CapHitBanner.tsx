@@ -3,11 +3,18 @@ import { AlertTriangle, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { onQuotaExceeded, type QuotaExceededPayload } from '@/services/accountService'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 
 export function CapHitBanner({ className }: { className?: string }) {
   const [payload, setPayload] = useState<QuotaExceededPayload | null>(null)
 
   useEffect(() => onQuotaExceeded(setPayload), [])
+
+  useEffect(() => {
+    if (payload) {
+      track('cap_hit_banner_shown', { kind: payload.reason })
+    }
+  }, [payload])
 
   if (!payload) return null
 
@@ -32,6 +39,11 @@ export function CapHitBanner({ className }: { className?: string }) {
         </div>
         <Link
           to={payload.upgradeUrl.replace(/^\//, '/')}
+          onClick={() => {
+            if (payload.reason === 'guest_limit_exceeded') {
+              track('guest_upgrade_clicked', { trigger: 'cap_hit_banner' })
+            }
+          }}
           className="inline-flex min-h-9 items-center rounded-md border border-destructive/50 bg-destructive/10 px-3 text-xs font-medium text-destructive hover:bg-destructive/20"
         >
           {payload.reason === 'guest_limit_exceeded' ? 'Sign up' : 'Upgrade'}

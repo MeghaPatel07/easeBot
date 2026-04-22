@@ -1,8 +1,10 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Crown, Check, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { tierLabel, upgradeTier, type PlanTier } from '@/config/tierConfig'
+import { track } from '@/lib/analytics'
 
 interface PaywallModalProps {
   open: boolean
@@ -35,7 +37,18 @@ export default function PaywallModal({
   const navigate = useNavigate()
   const nextTier = upgradeTier(currentTier) ?? 'pro'
 
+  useEffect(() => {
+    if (open) {
+      track('paywall_shown', {
+        feature: trigger,
+        current_tier: currentTier,
+        required_tier: nextTier,
+      })
+    }
+  }, [open, trigger, currentTier, nextTier])
+
   const handleUpgrade = () => {
+    track('paywall_cta_clicked', { feature: trigger, target_tier: nextTier })
     onClose()
     navigate('/pricing')
   }

@@ -16,6 +16,7 @@ import { mapAuthError, linkPendingGoogleCredential } from '@/services/authServic
 import type { AuthCredential } from 'firebase/auth'
 import PhoneInput, { toE164, type PhoneInputValue } from './PhoneInput'
 import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH, type PasswordIssue } from '@/utils/passwordPolicy'
+import { track } from '@/lib/analytics'
 
 type Tab = 'email' | 'phone'
 type ForgotStep = 'email' | 'otp' | 'newpass' | 'success'
@@ -283,6 +284,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     setLoading(true)
     try {
       await sendPhoneOtpWhatsApp(e164, 'login')
+      track('phone_otp_sent', { purpose: 'login' })
       setOtpSent(true)
       setOtp('')
       setOtpResendTimer(OTP_RESEND_COOLDOWN)
@@ -331,6 +333,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
         toast.error('Invalid code', { description: 'The OTP is incorrect or has expired.' })
         return
       }
+      track('phone_otp_verified', { purpose: 'login' })
       await signInPhone(e164)
       toast.success('Welcome back!')
       onOpenChange(false)

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import { verifyPayment } from '@/services/paymentService'
+import { track } from '@/lib/analytics'
 
 interface VerifyResponse {
   txnid: string
@@ -21,6 +22,10 @@ export default function PaymentSuccess() {
   const [info, setInfo] = useState<VerifyResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    track('payment_success_page_viewed', { order_id: txnid || undefined })
+  }, [])
 
   useEffect(() => {
     let cancelled = false

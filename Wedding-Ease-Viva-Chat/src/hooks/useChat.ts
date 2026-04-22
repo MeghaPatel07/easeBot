@@ -497,6 +497,7 @@ export function useChat(): UseChatResult {
               ? "Couldn't create reminder"
               : `Couldn't complete ${tool || 'action'}`
             toast.error(title, { description })
+            track('tool_error_shown', { tool_name: tool, error_code: ev.errorCode })
           }
         }
       }
@@ -727,15 +728,20 @@ export function useChat(): UseChatResult {
       let errorText = 'Something went wrong. Please try again.'
       if (err?.code === 'quota_exceeded') {
         const reason = err?.details?.reason as string | undefined
+        let kind: 'daily' | 'monthly' | 'guest' | 'tokens' | 'unknown' = 'unknown'
         if (reason === 'daily_cap_exceeded') {
           errorText = "You've used today's token allowance. It refreshes at midnight UTC — feel free to come back then."
+          kind = 'daily'
         } else if (reason === 'monthly_cap_exceeded') {
           errorText = "You've used this month's token pool. [Upgrade or top up](/pricing) to keep planning."
+          kind = 'monthly'
         } else if (reason === 'guest_limit_exceeded') {
           errorText = "You've reached the guest limit. [Sign up](/signup) for a free account to keep chatting."
+          kind = 'guest'
         } else {
           errorText = err.message || 'Quota exceeded.'
         }
+        track('quota_exceeded', { kind })
       }
 
       setMessages((prev) => {

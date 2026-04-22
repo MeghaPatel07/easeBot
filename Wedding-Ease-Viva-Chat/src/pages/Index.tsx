@@ -315,7 +315,10 @@ const Index = () => {
   // Must be called by every path that sends a message when !user.
   const checkAndBumpGuestCount = (): boolean => {
     if (user) return true;
-    if (guestMessageCountRef.current >= GUEST_MESSAGE_LIMIT) return false;
+    if (guestMessageCountRef.current >= GUEST_MESSAGE_LIMIT) {
+      track('guest_prompt_hit', { limit_kind: 'message', count: guestMessageCountRef.current });
+      return false;
+    }
     guestMessageCountRef.current += 1;
     setGuestMessageCount(guestMessageCountRef.current);
     try { localStorage.setItem('easebot-guest-msg-count', String(guestMessageCountRef.current)) } catch {}
@@ -487,6 +490,10 @@ const Index = () => {
 
   const handleRegenerateMessage = (m: Message) => {
     if (!checkAndBumpGuestCount()) return;
+    track('regenerate_clicked', {
+      message_id: m.id,
+      mode: selectedMode === 'auto' ? undefined : selectedMode,
+    });
     const idx = messages.findIndex(msg => msg.id === m.id);
     let userMsgIdx = idx - 1;
     while (userMsgIdx >= 0 && messages[userMsgIdx].sender !== 'user') userMsgIdx--;
@@ -578,6 +585,15 @@ const Index = () => {
     el.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
     el.download = `message-${id}.txt`;
     document.body.appendChild(el); el.click(); document.body.removeChild(el);
+  };
+
+  const handleStopGeneration = () => {
+    const lastAi = [...messages].reverse().find(m => m.sender === 'ai');
+    const charsStreamed = lastAi?.text?.length ?? 0;
+    const threadId = activeThreadId ?? '';
+    track('stop_generation_clicked', { thread_id: threadId, chars_streamed: charsStreamed });
+    track('stream_aborted_client', { thread_id: threadId });
+    stopGeneration();
   };
 
   const handleContinueGenerating = () => {
@@ -819,6 +835,10 @@ const Index = () => {
   // occasion when the per-occasion buttons already contained it.
   const handleQuickPrompt = (action: string) => {
     setInputText(action);
+    track('quick_prompt_clicked', {
+      occasion: selectedOccasion ?? undefined,
+      mode: selectedMode,
+    });
   };
 
   // ── Shortcuts overlay ─────────────────────────────────────────────────────
@@ -1182,7 +1202,7 @@ const Index = () => {
     inputText: voiceState === 'recording' ? interimText : inputText,
     onInputChange: setInputText,
     onSend: handleSendMessage,
-    onStop: stopGeneration,
+    onStop: handleStopGeneration,
     isTyping,
     isRecording,
     voiceState,

@@ -1,12 +1,30 @@
 // TokenPoolBar — shows daily + monthly token usage as x/y progress bars.
 // PRICING_PRD §5: 75% soft banner, 90% amber + cost preview, 100% paused.
 
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useTokenPool } from '@/hooks/useTokenPool'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 
 export function TokenPoolBar({ className }: { className?: string }) {
   const { monthlyPct, dailyPct, monthlyLabel, dailyLabel, level, cappedReason, isLoading, snapshot } = useTokenPool()
+  const firedThresholds = useRef<Set<80 | 95>>(new Set())
+
+  useEffect(() => {
+    if (!snapshot) return
+    const monthlyUsed = snapshot.monthlyTokensUsed ?? 0
+    const monthlyPool = snapshot.monthlyPoolMax ?? 0
+    const remaining = Math.max(0, monthlyPool - monthlyUsed)
+    const tier = snapshot.tier
+    if (monthlyPct >= 95 && !firedThresholds.current.has(95)) {
+      firedThresholds.current.add(95)
+      track('token_meter_warning', { threshold: 95, remaining_tokens: remaining, tier })
+    } else if (monthlyPct >= 80 && !firedThresholds.current.has(80)) {
+      firedThresholds.current.add(80)
+      track('token_meter_warning', { threshold: 80, remaining_tokens: remaining, tier })
+    }
+  }, [monthlyPct, snapshot])
 
   // Don't render for guests or while loading the first time
   if (!snapshot && !isLoading) return null
