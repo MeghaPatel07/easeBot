@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select'
 import { Monitor, Sun, Moon, Rows, Rows3 } from 'lucide-react'
 import TabShell from './_TabShell'
+import { track } from '@/lib/analytics'
 
 type Density = 'comfortable' | 'compact'
 
@@ -93,6 +94,7 @@ export function AppearanceTab() {
       setTheme(value)
       try {
         await updatePreferences(mergedPrefs({ theme: value }))
+        track('theme_toggled', { theme: value, previous_theme: previous })
       } catch (err) {
         setTheme(previous)
         toast({
@@ -163,7 +165,7 @@ export function AppearanceTab() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Theme</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             Choose how TheWeddingBot looks. Your selection is applied instantly.
           </p>
         </div>
@@ -181,14 +183,14 @@ export function AppearanceTab() {
                 key={value}
                 htmlFor={id}
                 data-active={selected}
-                className="group flex min-h-11 cursor-pointer items-start gap-3 rounded-md border-0 bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.06] data-[active=true]:bg-primary/10 focus-within:ring-1 focus-within:ring-white/10"
+                className="group flex min-h-11 cursor-pointer items-start gap-3 rounded-md border-0 bg-foreground/[0.04] p-4 text-left transition-colors hover:bg-foreground/[0.06] data-[active=true]:bg-primary/10 focus-within:ring-1 focus-within:ring-foreground/10"
               >
                 <RadioGroupItem id={id} value={value} aria-label={label} className="mt-0.5" />
                 <div className="flex flex-1 items-start gap-3">
-                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-white/90" />
+                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground/90" />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-white/90">{label}</div>
-                    <p className="mt-0.5 text-xs text-white/90">{description}</p>
+                    <div className="text-sm font-medium text-foreground/90">{label}</div>
+                    <p className="mt-0.5 text-xs text-foreground/90">{description}</p>
                   </div>
                 </div>
               </Label>
@@ -201,7 +203,7 @@ export function AppearanceTab() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Density</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             Controls vertical rhythm across menus and lists.
           </p>
         </div>
@@ -219,14 +221,14 @@ export function AppearanceTab() {
                 key={value}
                 htmlFor={id}
                 data-active={selected}
-                className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border-0 bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.06] data-[active=true]:bg-primary/10 focus-within:ring-1 focus-within:ring-white/10"
+                className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border-0 bg-foreground/[0.04] p-4 text-left transition-colors hover:bg-foreground/[0.06] data-[active=true]:bg-primary/10 focus-within:ring-1 focus-within:ring-foreground/10"
               >
                 <RadioGroupItem id={id} value={value} aria-label={label} className="mt-0.5" />
                 <div className="flex flex-1 items-start gap-3">
-                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-white/90" />
+                  <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 text-foreground/90" />
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-white/90">{label}</div>
-                    <p className="mt-0.5 text-xs text-white/90">{description}</p>
+                    <div className="text-sm font-medium text-foreground/90">{label}</div>
+                    <p className="mt-0.5 text-xs text-foreground/90">{description}</p>
                   </div>
                 </div>
               </Label>
@@ -239,7 +241,7 @@ export function AppearanceTab() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-base font-semibold">Language</h3>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             TheWeddingBot will try to reply in this language. Auto-detect lets the AI mirror
             whatever language you write in.
           </p>
@@ -252,11 +254,11 @@ export function AppearanceTab() {
             <SelectTrigger
               id="language-select"
               aria-label="Preferred language"
-              className="min-h-11 w-full bg-white/[0.04] text-white/90 focus-visible:ring-ring sm:max-w-xs"
+              className="min-h-11 w-full bg-foreground/[0.04] text-foreground/90 focus-visible:ring-ring sm:max-w-xs"
             >
               <SelectValue placeholder="Select a language" />
             </SelectTrigger>
-            <SelectContent className="bg-popover text-white/90">
+            <SelectContent className="bg-popover text-foreground/90">
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <SelectItem
                   key={lang.code}

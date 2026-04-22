@@ -13,13 +13,13 @@ import {
   Heading2,
   Heading3,
   Palette,
-  Type,
 } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import FontSizeControl from "./FontSizeControl";
 
 interface FloatingToolbarProps {
   editor: Editor;
@@ -43,17 +43,6 @@ const TEXT_COLORS = [
   { name: "Yellow", color: "#eab308" },
 ];
 
-const FONT_SIZES = [
-  { label: "Small", value: "12px" },
-  { label: "Normal", value: "14px" },
-  { label: "Medium", value: "16px" },
-  { label: "Large", value: "18px" },
-  { label: "XL", value: "20px" },
-  { label: "2XL", value: "24px" },
-  { label: "3XL", value: "28px" },
-  { label: "4XL", value: "32px" },
-];
-
 function ToolbarButton({
   onClick,
   isActive,
@@ -72,8 +61,8 @@ function ToolbarButton({
       title={title}
       className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
         isActive
-          ? "bg-[#A17A63]/20 text-[#A17A63]"
-          : "text-white/70 hover:bg-white/10 hover:text-white"
+          ? "bg-primary/20 text-primary"
+          : "text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text"
       }`}
     >
       {children}
@@ -118,7 +107,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       options={{
         placement: "top",
       }}
-      className="bg-black/80 backdrop-blur-md border border-white/10 rounded-lg shadow-xl p-1 flex items-center gap-0.5"
+      className="bg-overlay-scrim/80 backdrop-blur-md border border-overlay-border/10 rounded-lg shadow-xl p-1 flex items-center gap-0.5"
     >
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleBold().run()}
@@ -160,7 +149,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
         <Code className="h-3.5 w-3.5" />
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-white/10 mx-0.5" />
+      <div className="w-px h-5 bg-overlay-surface/10 mx-0.5" />
 
       {/* Highlight color picker */}
       <Popover>
@@ -170,15 +159,15 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
             title="Highlight"
             className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
               editor.isActive("highlight")
-                ? "bg-[#A17A63]/20 text-[#A17A63]"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/20 text-primary"
+                : "text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text"
             }`}
           >
             <Highlighter className="h-3.5 w-3.5" />
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto bg-black/90 backdrop-blur-md border-white/10 p-2"
+          className="w-auto bg-overlay-scrim/90 backdrop-blur-md border-overlay-border/10 p-2"
           sideOffset={8}
         >
           <div className="flex gap-1">
@@ -194,7 +183,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
                     .toggleHighlight({ color: c.color })
                     .run()
                 }
-                className="h-6 w-6 rounded border border-white/10 hover:scale-110 transition-transform"
+                className="h-6 w-6 rounded border border-overlay-border/10 hover:scale-110 transition-transform"
                 style={{ backgroundColor: c.color }}
               />
             ))}
@@ -205,7 +194,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
                 onClick={() =>
                   editor.chain().focus().unsetHighlight().run()
                 }
-                className="h-6 px-2 rounded border border-white/10 text-white/60 text-xs hover:bg-white/10"
+                className="h-6 px-2 rounded border border-overlay-border/10 text-overlay-text/60 text-xs hover:bg-overlay-surface/10"
               >
                 &times;
               </button>
@@ -220,13 +209,13 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
           <button
             type="button"
             title="Text color"
-            className="h-7 w-7 rounded flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+            className="h-7 w-7 rounded flex items-center justify-center text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text transition-colors"
           >
             <Palette className="h-3.5 w-3.5" />
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-auto bg-black/90 backdrop-blur-md border-white/10 p-2"
+          className="w-auto bg-overlay-scrim/90 backdrop-blur-md border-overlay-border/10 p-2"
           sideOffset={8}
         >
           <div className="flex gap-1">
@@ -242,11 +231,11 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
                     editor.chain().focus().unsetColor().run();
                   }
                 }}
-                className="h-6 w-6 rounded border border-white/10 hover:scale-110 transition-transform flex items-center justify-center"
+                className="h-6 w-6 rounded border border-overlay-border/10 hover:scale-110 transition-transform flex items-center justify-center"
                 style={{ backgroundColor: c.color || "transparent" }}
               >
                 {!c.color && (
-                  <span className="text-white/60 text-xs">A</span>
+                  <span className="text-overlay-text/60 text-xs">A</span>
                 )}
               </button>
             ))}
@@ -254,44 +243,10 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
         </PopoverContent>
       </Popover>
 
-      {/* Font size picker */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            title="Font size"
-            className="h-7 w-7 rounded flex items-center justify-center text-white/70 hover:bg-white/10 hover:text-white transition-colors"
-          >
-            <Type className="h-3.5 w-3.5" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto bg-black/90 backdrop-blur-md border-white/10 p-2"
-          sideOffset={8}
-        >
-          <div className="flex flex-col gap-0.5 min-w-[100px]">
-            <button
-              type="button"
-              onClick={() => (editor as any).chain().focus().unsetFontSize().run()}
-              className="px-2 py-1 text-left text-xs rounded text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-            >
-              Default
-            </button>
-            {FONT_SIZES.map((fs) => (
-              <button
-                key={fs.value}
-                type="button"
-                onClick={() => (editor as any).chain().focus().setFontSize(fs.value).run()}
-                className="px-2 py-1 text-left text-xs rounded text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-              >
-                {fs.label} <span className="text-white/30 ml-1">{fs.value}</span>
-              </button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+      {/* Font size control — Google-Docs-style numeric stepper + preset dropdown */}
+      <FontSizeControl editor={editor} variant="overlay" />
 
-      <div className="w-px h-5 bg-white/10 mx-0.5" />
+      <div className="w-px h-5 bg-overlay-surface/10 mx-0.5" />
 
       {/* Link */}
       <Popover open={linkOpen} onOpenChange={setLinkOpen}>
@@ -306,15 +261,15 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
             }}
             className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
               editor.isActive("link")
-                ? "bg-[#A17A63]/20 text-[#A17A63]"
-                : "text-white/70 hover:bg-white/10 hover:text-white"
+                ? "bg-primary/20 text-primary"
+                : "text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text"
             }`}
           >
             <Link className="h-3.5 w-3.5" />
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-64 bg-black/90 backdrop-blur-md border-white/10 p-3"
+          className="w-64 bg-overlay-scrim/90 backdrop-blur-md border-overlay-border/10 p-3"
           sideOffset={8}
         >
           <div className="flex flex-col gap-2">
@@ -329,13 +284,13 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
                   applyLink();
                 }
               }}
-              className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#A17A63]/50"
+              className="w-full bg-overlay-surface/5 border border-overlay-border/10 rounded px-2 py-1.5 text-sm text-overlay-text placeholder:text-overlay-text/30 outline-none focus:border-primary/50"
             />
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={applyLink}
-                className="flex-1 bg-[#A17A63] text-white text-xs py-1 rounded hover:bg-[#A17A63]/90 transition-colors"
+                className="flex-1 bg-primary text-primary-foreground text-xs py-1 rounded hover:bg-primary/90 transition-colors"
               >
                 Apply
               </button>
@@ -351,7 +306,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
                       .run();
                     setLinkOpen(false);
                   }}
-                  className="px-3 border border-white/10 text-white/60 text-xs py-1 rounded hover:bg-white/10 transition-colors"
+                  className="px-3 border border-overlay-border/10 text-overlay-text/60 text-xs py-1 rounded hover:bg-overlay-surface/10 transition-colors"
                 >
                   Remove
                 </button>
@@ -361,7 +316,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
         </PopoverContent>
       </Popover>
 
-      <div className="w-px h-5 bg-white/10 mx-0.5" />
+      <div className="w-px h-5 bg-overlay-surface/10 mx-0.5" />
 
       {/* Headings */}
       <ToolbarButton

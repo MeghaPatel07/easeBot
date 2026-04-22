@@ -273,7 +273,7 @@ export default function AttachmentPicker({
         aria-expanded={open}
         className={
           triggerClassName ??
-          'h-9 w-9 flex items-center justify-center text-white/55 hover:text-[#A17A63] hover:bg-white/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0'
+          'h-9 w-9 flex items-center justify-center text-foreground/55 hover:text-primary hover:bg-foreground/[0.08] active:scale-95 transition-all rounded-full flex-shrink-0'
         }
       >
         <TriggerIcon className={triggerIconClassName} />
@@ -283,21 +283,21 @@ export default function AttachmentPicker({
         <div
           role="dialog"
           aria-label="Attach"
-          className="absolute bottom-full left-0 mb-2 w-[min(20rem,calc(100vw-2rem))] max-h-[70dvh] overflow-hidden rounded-2xl bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/[0.1] shadow-2xl shadow-black/40 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-150 flex flex-col"
+          className="absolute bottom-full left-0 mb-2 w-[min(20rem,calc(100vw-2rem))] max-h-[70dvh] overflow-hidden rounded-2xl bg-card-elevated/95 backdrop-blur-xl border border-foreground/[0.1] shadow-dropdown-sm z-[60] animate-in fade-in slide-in-from-bottom-2 duration-150 flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-foreground/[0.06] flex-shrink-0">
             {view !== 'root' && (
               <button
                 type="button"
                 onClick={() => { setView('root'); setQuery('') }}
                 aria-label="Back"
-                className="h-7 w-7 flex items-center justify-center rounded-md text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
+                className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/60 hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
               </button>
             )}
-            <span className="flex-1 text-sm font-medium text-white/80">
+            <span className="flex-1 text-sm font-medium text-foreground/80">
               {view === 'root' && 'Attach'}
               {view === 'note' && 'Notes'}
               {view === 'checklist' && 'Checklists'}
@@ -308,7 +308,7 @@ export default function AttachmentPicker({
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close"
-              className="h-7 w-7 flex items-center justify-center rounded-md text-white/50 hover:text-white hover:bg-white/[0.06] transition-colors"
+              className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -316,15 +316,15 @@ export default function AttachmentPicker({
 
           {/* Search (only when list is long) */}
           {showSearch && (
-            <div className="px-2.5 pt-2 pb-1 border-b border-white/[0.04] flex-shrink-0">
-              <div className="flex items-center gap-1.5 h-8 rounded-md bg-white/[0.04] border border-white/[0.06] px-2">
-                <Search className="h-3.5 w-3.5 text-white/35 flex-shrink-0" />
+            <div className="px-2.5 pt-2 pb-1 border-b border-foreground/[0.04] flex-shrink-0">
+              <div className="flex items-center gap-1.5 h-8 rounded-md bg-foreground/[0.04] border border-foreground/[0.06] px-2">
+                <Search className="h-3.5 w-3.5 text-foreground/35 flex-shrink-0" />
                 <input
                   ref={searchInputRef}
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Search"
-                  className="flex-1 bg-transparent text-xs text-white/80 placeholder-white/30 outline-none"
+                  className="flex-1 bg-transparent text-xs text-foreground/80 placeholder-foreground/30 outline-none"
                 />
               </div>
             </div>
@@ -343,29 +343,29 @@ export default function AttachmentPicker({
                       onClick={() => !disabled && setView(c.key)}
                       disabled={disabled}
                       className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors ${
-                        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/[0.05]'
+                        disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-foreground/[0.05]'
                       }`}
                     >
-                      <c.Icon className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#A17A63]/80" />
+                      <c.Icon className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary/80" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-white/80">{c.label}</div>
-                        <p className="text-2xs text-white/40 leading-snug mt-0.5">
+                        <div className="text-sm font-medium text-foreground/80">{c.label}</div>
+                        <p className="text-2xs text-foreground/40 leading-snug mt-0.5">
                           {disabled ? 'Sign in to attach your saved items' : c.description}
                         </p>
                       </div>
                     </button>
                   )
                 })}
-                <div className="my-1 border-t border-white/[0.06]" />
+                <div className="my-1 border-t border-foreground/[0.06]" />
                 <button
                   type="button"
                   onClick={pickUpload}
-                  className="w-full flex items-start gap-3 px-3.5 py-2.5 text-left hover:bg-white/[0.05] transition-colors"
+                  className="w-full flex items-start gap-3 px-3.5 py-2.5 text-left hover:bg-foreground/[0.05] transition-colors"
                 >
-                  <Upload className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#A17A63]/80" />
+                  <Upload className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary/80" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-white/80">Upload image</div>
-                    <p className="text-2xs text-white/40 leading-snug mt-0.5">Pick a photo from your device</p>
+                    <div className="text-sm font-medium text-foreground/80">Upload image</div>
+                    <p className="text-2xs text-foreground/40 leading-snug mt-0.5">Pick a photo from your device</p>
                   </div>
                 </button>
               </>
@@ -379,11 +379,11 @@ export default function AttachmentPicker({
                       key={n.id}
                       type="button"
                       onClick={() => attachNote(n)}
-                      className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-white/[0.05] transition-colors"
+                      className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-foreground/[0.05] transition-colors"
                     >
                       <span className="text-sm flex-shrink-0 mt-0.5">{n.icon || '📝'}</span>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-white/80 truncate">{n.title || 'Untitled'}</div>
+                        <div className="text-sm text-foreground/80 truncate">{n.title || 'Untitled'}</div>
                       </div>
                     </button>
                   ))
@@ -399,12 +399,12 @@ export default function AttachmentPicker({
                         key={cl.id}
                         type="button"
                         onClick={() => attachChecklist(cl)}
-                        className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-white/[0.05] transition-colors"
+                        className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-foreground/[0.05] transition-colors"
                       >
-                        <ListChecks className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#A17A63]/70" />
+                        <ListChecks className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary/70" />
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm text-white/80 truncate">{cl.title}</div>
-                          <div className="text-2xs text-white/40 mt-0.5">{cl.items.length} items · {done} done</div>
+                          <div className="text-sm text-foreground/80 truncate">{cl.title}</div>
+                          <div className="text-2xs text-foreground/40 mt-0.5">{cl.items.length} items · {done} done</div>
                         </div>
                       </button>
                     )
@@ -419,12 +419,12 @@ export default function AttachmentPicker({
                       key={e.id}
                       type="button"
                       onClick={() => attachTimeline(e)}
-                      className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-white/[0.05] transition-colors"
+                      className="w-full flex items-start gap-2.5 px-3.5 py-2 text-left hover:bg-foreground/[0.05] transition-colors"
                     >
-                      <Calendar className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#A17A63]/70" />
+                      <Calendar className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary/70" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-white/80 truncate">{e.title}</div>
-                        <div className="text-2xs text-white/40 mt-0.5 truncate">{e.date}</div>
+                        <div className="text-sm text-foreground/80 truncate">{e.title}</div>
+                        <div className="text-2xs text-foreground/40 mt-0.5 truncate">{e.date}</div>
                       </div>
                     </button>
                   ))
@@ -433,7 +433,7 @@ export default function AttachmentPicker({
             {view === 'image' && (
               imagesLoading
                 ? (
-                  <div className="flex items-center justify-center py-8 text-white/40">
+                  <div className="flex items-center justify-center py-8 text-foreground/40">
                     <Loader2 className="h-4 w-4 animate-spin" />
                   </div>
                 )
@@ -447,7 +447,7 @@ export default function AttachmentPicker({
                           type="button"
                           onClick={() => attachImage(img)}
                           title={img.prompt}
-                          className="relative aspect-square rounded-md overflow-hidden bg-white/[0.04] hover:ring-1 hover:ring-[#A17A63]/50 transition-all group"
+                          className="relative aspect-square rounded-md overflow-hidden bg-foreground/[0.04] hover:ring-1 hover:ring-primary/50 transition-all group"
                         >
                           <img
                             src={img.url}
@@ -468,5 +468,5 @@ export default function AttachmentPicker({
 }
 
 function EmptyState({ msg }: { msg: string }) {
-  return <div className="px-4 py-8 text-center text-xs text-white/40">{msg}</div>
+  return <div className="px-4 py-8 text-center text-xs text-foreground/40">{msg}</div>
 }

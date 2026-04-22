@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Wedding Bot — Light Mode</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* Light mode palette — warm ivory, terracotta, gold */
+    --bg-primary: #FAF6F0;
+    --bg-gradient-1: #F5EDE1;
+    --bg-gradient-2: #EFE3D0;
+    --sidebar-bg: #F8F2E8;
+    --sidebar-border: #E8DCC8;
+    --card-bg: #FFFFFF;
+    --card-bg-hover: #FFF9F0;
+    --card-border: #E8DCC8;
+    --text-primary: #3A2418;
+    --text-secondary: #8B6F5C;
+    --text-muted: #A89280;
+    --accent-terracotta: #C87A5A;
+    --accent-rust: #B85C3A;
+    --accent-gold: #C8A46A;
+    --accent-gold-soft: #D4B57F;
+    --shadow-soft: 0 2px 8px rgba(138, 95, 70, 0.06);
+    --shadow-card: 0 4px 16px rgba(138, 95, 70, 0.08);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Layer 1: Terracotta corner glow — top-right and bottom-left
+     Matches dark mode's .gradient-bg::after technique
+     Dark mode: rgb(208, 123, 70) at full opacity (dark bg absorbs it)
+     Light mode: same hue, lower opacity so ivory bg doesn't get muddy */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 55% 80% at 95% 0%,
+        rgba(208, 123, 70, 0.45) 0%,
+        rgba(208, 122, 70, 0.12) 30%,
+        rgba(250, 246, 240, 0) 70%),
+      radial-gradient(ellipse 75% 70% at 5% 100%,
+        rgba(208, 123, 70, 0.45) 0%,
+        rgba(208, 122, 70, 0.12) 30%,
+        rgba(250, 246, 240, 0) 70%);
+    filter: blur(120px);
+  }
+
+  /* Layer 2: Grid square pattern — matches dark mode's .gradient-bg::before
+     Dark mode: rgba(42, 42, 42, 0.35) — dark lines on dark bg
+     Light mode: warm brown lines on ivory bg */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image:
+      linear-gradient(to right, rgba(138, 95, 70, 0.10) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(138, 95, 70, 0.10) 1px, transparent 1px);
+    background-size: 26px 26px;
+    -webkit-mask-image: radial-gradient(ellipse 120% 100% at 50% 50%, #000 60%, transparent 100%);
+    mask-image: radial-gradient(ellipse 120% 100% at 50% 50%, #000 60%, transparent 100%);
+  }
+
+  .app {
+    display: flex;
+    height: 100vh;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ===== SIDEBAR (Glassmorphism) ===== */
+  .sidebar {
+    width: 240px;
+    background: rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border-right: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      inset 1px 0 0 rgba(255, 255, 255, 0.5),
+      4px 0 24px rgba(138, 95, 70, 0.04);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 12px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .sidebar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 8px 20px;
+  }
+
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .icon-btn:hover { background: rgba(200, 122, 90, 0.08); }
+
+  .nav-section { margin-top: 8px; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 2px;
+    transition: background 0.15s;
+  }
+  .nav-item:hover { background: rgba(200, 122, 90, 0.08); }
+
+  .nav-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .nav-item svg {
+    width: 18px;
+    height: 18px;
+    stroke: var(--text-secondary);
+  }
+
+  .badge {
+    background: var(--accent-terracotta);
+    color: #FFF;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    padding: 20px 12px 8px;
+    text-transform: uppercase;
+  }
+
+  .recent-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+    transition: background 0.15s;
+  }
+  .recent-item:hover { background: rgba(200, 122, 90, 0.06); color: var(--text-primary); }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  .feedback-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .feedback-item:hover { background: rgba(200, 122, 90, 0.06); }
+
+  .new-tag {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent-rust);
+    letter-spacing: 0.05em;
+  }
+
+  .profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    margin-top: 4px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+  .profile:hover { background: rgba(200, 122, 90, 0.06); }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-terracotta), var(--accent-gold));
+    color: #FFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .profile-info { display: flex; flex-direction: column; }
+  .profile-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .profile-tier { font-size: 10px; color: var(--accent-gold); letter-spacing: 0.1em; font-weight: 600; }
+
+  /* ===== MAIN AREA ===== */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--text-primary);
+  }
+  .logo-text span { display: block; }
+  .beta-tag {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--accent-rust);
+    border: 1px solid var(--accent-rust);
+    padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.08em;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+  .lang {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  /* ===== CENTER CONTENT ===== */
+  .center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    max-width: 780px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .brand-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 1;
+    color: var(--text-primary);
+    text-align: center;
+    margin-bottom: 28px;
+    letter-spacing: -0.01em;
+  }
+  .brand-logo span { display: block; }
+
+  .greeting {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+  }
+  .greeting .accent {
+    background: linear-gradient(90deg, var(--accent-terracotta), var(--accent-gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-style: italic;
+  }
+
+  .help-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 560px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .help-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sparkle-icon {
+    color: var(--accent-gold);
+    flex-shrink: 0;
+  }
+  .help-text .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .help-text .sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .help-btn {
+    background: var(--text-primary);
+    color: #FFF;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .action-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.18s;
+    box-shadow: var(--shadow-soft);
+  }
+  .action-card:hover {
+    background: var(--card-bg-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+    border-color: var(--accent-gold-soft);
+  }
+  .action-card svg {
+    color: var(--accent-terracotta);
+  }
+  .action-card .label {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .feedback-row {
+    margin-top: 18px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .feedback-row a {
+    color: var(--accent-rust);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ===== BOTTOM: pills + input ===== */
+  .bottom-section {
+    padding: 12px 24px 18px;
+  }
+
+  .pills {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .pills::-webkit-scrollbar { display: none; }
+
+  .pill {
+    padding: 7px 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .pill:hover {
+    border-color: var(--accent-terracotta);
+    background: var(--card-bg-hover);
+  }
+
+  .input-bar {
+    max-width: 620px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .input-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+  .input-bar input::placeholder { color: var(--text-muted); }
+
+  .input-icons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-secondary);
+  }
+  .input-icons .auto {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--card-border);
+  }
+  .send-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    color: #FFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="icon-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+      </div>
+      <div style="display:flex; gap:4px;">
+        <div class="icon-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </div>
+        <div class="icon-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-item">
+        <div class="nav-item-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>Planner</span>
+        </div>
+        <span class="badge">1</span>
+      </div>
+      <div class="nav-item">
+        <div class="nav-item-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7"/></svg>
+          <span>Liked</span>
+        </div>
+      </div>
+      <div class="nav-item">
+        <div class="nav-item-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span>Reminders</span>
+        </div>
+        <span class="badge">1</span>
+      </div>
+      <div class="nav-item">
+        <div class="nav-item-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Timeline</span>
+        </div>
+      </div>
+      <div class="nav-item">
+        <div class="nav-item-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          <span>Images</span>
+        </div>
+      </div>
+      <div class="nav-item">
+        <div class="nav-item-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span>Notes</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Recent</div>
+    <div class="recent-item">Help me create a wedding planni…</div>
+    <div class="recent-item">with coral theme Style (Haldi Invi…</div>
+    <div class="recent-item">zsd</div>
+    <div class="recent-item">Help me discover my wedding st…</div>
+
+    <div class="sidebar-bottom">
+      <div class="feedback-item">
+        <span>💬 Send Feedback</span>
+        <span class="new-tag">NEW</span>
+      </div>
+      <div class="profile">
+        <div class="avatar">MP</div>
+        <div class="profile-info">
+          <span class="profile-name">Megha Patel</span>
+          <span class="profile-tier">PRO</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="logo">
+        <div class="logo-text"><span>The</span><span>Wedding</span><span>Bot</span></div>
+        <span class="beta-tag">BETA</span>
+      </div>
+      <div class="topbar-right">
+        <div class="lang">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>
+          <span>English</span>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/></svg>
+      </div>
+    </div>
+
+    <div class="center">
+      <div class="brand-logo"><span>The</span><span>Wedding</span><span>Bot</span></div>
+      <div class="greeting">Hi! <span class="accent">I'm here to help…</span></div>
+
+      <div class="help-banner">
+        <div class="help-left">
+          <svg class="sparkle-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0l2.5 9.5L24 12l-9.5 2.5L12 24l-2.5-9.5L0 12l9.5-2.5z"/></svg>
+          <div class="help-text">
+            <div class="title">Not sure where to start?</div>
+            <div class="sub">Tell me what you are looking for your celebration</div>
+          </div>
+        </div>
+        <button class="help-btn">Help me decide ✨</button>
+      </div>
+
+      <div class="action-grid">
+        <div class="action-card">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span class="label">Plan my timeline</span>
+        </div>
+        <div class="action-card">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span class="label">Find my style</span>
+        </div>
+        <div class="action-card">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.5.4.8 1 .8 1.6V17h6.4v-.7c0-.6.3-1.2.8-1.6A7 7 0 0 0 12 2z"/></svg>
+          <span class="label">Get inspiration</span>
+        </div>
+        <div class="action-card">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l2 6h6l-5 4 2 7-7-5-7 5 2-7-5-4h6z"/></svg>
+          <span class="label">Create custom</span>
+        </div>
+      </div>
+
+      <div class="feedback-row">
+        💭 Have feedback? <a href="#">Send it here</a>
+      </div>
+    </div>
+
+    <div class="bottom-section">
+      <div class="pills">
+        <div class="pill">Engagement</div>
+        <div class="pill">Haldi</div>
+        <div class="pill">Mehendi</div>
+        <div class="pill">Sangeet</div>
+        <div class="pill">Cocktail</div>
+        <div class="pill">Wedding</div>
+        <div class="pill">Reception</div>
+        <div class="pill">Baraat</div>
+        <div class="pill">Vidaai</div>
+      </div>
+      <div class="input-bar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-secondary)"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+        <input type="text" placeholder="Ask me anything" />
+        <div class="input-icons">
+          <div class="auto">✨ Auto ▾</div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>
+          <div class="send-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

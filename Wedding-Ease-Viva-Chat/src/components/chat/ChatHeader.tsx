@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  PanelLeft, SquarePen, Languages, Bell,
+  PanelLeft, SquarePen, Globe, Bell,
   User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/popover';
 import type { UserProfile } from '@/types';
 import { MODE_CONFIG, SUPPORTED_LANGUAGES, type ModeOrAuto } from './constants';
+import ThemeToggle from '@/components/ui/theme-toggle';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -53,11 +54,11 @@ export const SidebarToggle: React.FC<{
   if (isSidebarOpen) return null;
   return (
     <div className="flex items-center gap-0.5 flex-shrink-0">
-      <Button onClick={onToggleSidebar} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-white/10 text-white/70" title="Open sidebar">
-        <PanelLeft className="h-4 w-4 text-white/60" />
+      <Button onClick={onToggleSidebar} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-foreground/10 text-foreground/70" title="Open sidebar">
+        <PanelLeft className="h-4 w-4 text-foreground/60" />
       </Button>
-      <Button onClick={onNewChat} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-white/10 text-white/70" title="New Chat">
-        <SquarePen className="h-4 w-4 text-white/60" />
+      <Button onClick={onNewChat} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-foreground/10 text-foreground/70" title="New Chat">
+        <SquarePen className="h-4 w-4 text-foreground/60" />
       </Button>
     </div>
   );
@@ -78,7 +79,7 @@ export const ProfileIcon: React.FC<{
   <div>
     <button
       onClick={onShowSettings}
-      className="h-8 w-8 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors"
+      className="h-8 w-8 rounded-full bg-foreground/[0.06] hover:bg-foreground/[0.1] flex items-center justify-center transition-colors"
       title="Settings"
     >
       <Avatar className="h-6 w-6">
@@ -117,7 +118,7 @@ export const BetaBadge: React.FC = () => {
       <PopoverContent
         side="bottom"
         align="start"
-        className="w-[260px] text-xs leading-relaxed bg-[#2a1419] border-primary/30 text-white/85"
+        className="w-[260px] text-xs leading-relaxed bg-surface-tooltip border-primary/30 text-foreground/85"
       >
         {BETA_TOOLTIP_TEXT}
       </PopoverContent>
@@ -137,15 +138,15 @@ const MobileLanguageSelector: React.FC<{
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-full text-white/60 hover:bg-white/10 transition-colors"
+          className="flex items-center justify-center h-10 w-10 sm:h-8 sm:w-8 rounded-full text-foreground/60 hover:bg-foreground/10 transition-colors"
           aria-label="Response language"
           title="Response language"
         >
-          <Languages className="h-4 w-4" />
+          <Globe className="h-4 w-4" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44 text-soft">
-        <DropdownMenuLabel className="text-3xs text-white/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-3xs text-foreground/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {SUPPORTED_LANGUAGES.map(({ code, label }) => (
           <DropdownMenuItem key={code} className="cursor-pointer text-label py-1" onClick={() => onLanguageChange(code)}>
@@ -176,7 +177,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <header className="flex items-center gap-1.5 w-full px-3 sm:px-5 h-14  z-10 flex-shrink-0">
       <SidebarToggle isSidebarOpen={isSidebarOpen} onToggleSidebar={onToggleSidebar} onNewChat={onNewChat} />
-      <img src="/images/typo.png" alt="TheWeddingBot" className="h-7 sm:h-8 object-contain" />
+      <img src="/images/typo.png" alt="TheWeddingBot" className="h-7 sm:h-8 object-contain [.light_&]:brightness-0" />
       <BetaBadge />
       <div className="flex-1" />
       <div className="flex items-center gap-1.5 flex-shrink-0 ml-auto">
@@ -185,15 +186,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="hidden sm:block">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 text-white/60 text-xs font-medium px-2 py-1 rounded-full hover:bg-white/10 transition-colors">
-                <Languages className="h-3.5 w-3.5" />
+              <button className="flex items-center gap-1 text-foreground/60 text-xs font-medium px-2 py-1 rounded-full hover:bg-foreground/10 transition-colors">
+                <Globe className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">
                   {SUPPORTED_LANGUAGES.find((l) => l.code === preferredLang)?.label ?? 'Lang'}
                 </span>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 text-soft">
-              <DropdownMenuLabel className="text-3xs text-white/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-3xs text-foreground/40 uppercase tracking-widest">Response Language</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {SUPPORTED_LANGUAGES.map(({ code, label }) => (
                 <DropdownMenuItem key={code} className="cursor-pointer text-label py-1" onClick={() => onLanguageChange(code)}>
@@ -204,8 +205,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        <ThemeToggle size="sm" />
         {user && (
-          <button className="inline-flex items-center justify-center h-10 w-10 sm:h-auto sm:w-auto sm:p-1.5 text-white/60 hover:text-primary transition-colors" onClick={onShowReminders}>
+          <button className="inline-flex items-center justify-center h-10 w-10 sm:h-auto sm:w-auto sm:p-1.5 text-foreground/60 hover:text-primary transition-colors" onClick={onShowReminders}>
             <Bell className="h-4 w-4" />
           </button>
         )}

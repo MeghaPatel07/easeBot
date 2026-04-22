@@ -12,10 +12,12 @@ import ttsRouter from './routes/tts'
 import paymentRouter from './routes/payment'
 import feedbackRouter from './routes/feedbackRoutes'
 import healthRouter from './routes/health'
+import ingestRouter from './routes/ingest'
 import { getSpeechToken } from './controllers/speechTokenController'
 import { apiRateLimiter, imageRateLimiter } from './middleware/rateLimiter'
 import { inputSanitizer } from './middleware/inputSanitizer'
 import { promptGuard } from './middleware/promptGuard'
+import { posthogContext } from './middleware/posthogContext'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -60,10 +62,18 @@ app.use(express.json({ limit: '20mb' }))
 // Without this parser those bodies arrive empty and handleReturn falls through to bad_payload.
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
 
+// --- PostHog ingestion reverse proxy (must be before rate limiter / sanitizer) ---
+// The browser SDK hits /ingest/* on this origin; we forward to PostHog.
+// Mounting before input sanitizer because event payloads are JSON we shouldn't mutate.
+app.use('/ingest', ingestRouter)
+
 // --- Input sanitization & prompt injection guard ---
 app.use(inputSanitizer)
 app.use('/api/chat', promptGuard())
 app.use('/api/v1/chat', promptGuard())
+
+// --- PostHog distinct_id context (reads x-ph-distinct-id header) ---
+app.use(posthogContext)
 
 // --- Health & readiness (no rate limit) ---
 app.use('/api', healthRouter)

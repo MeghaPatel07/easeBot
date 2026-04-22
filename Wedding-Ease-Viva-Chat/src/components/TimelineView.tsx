@@ -40,6 +40,7 @@ import {
 } from '@/services/checklistService'
 import { deleteTimelineEvent } from '@/services/timelineEventsService'
 import type { ReminderDoc, TimelineEvent } from '@/types'
+import { track } from '@/lib/analytics'
 
 interface TimelineViewProps {
   userId: string
@@ -111,24 +112,24 @@ function getStatus(dateStr: string, completed: boolean): EntryStatus {
 }
 
 const dotColor: Record<EntryStatus, string> = {
-  completed: 'bg-emerald-500',
-  upcoming: 'bg-[#A17A63]',
-  overdue: 'bg-red-400',
-  today: 'bg-amber-400',
+  completed: 'bg-success',
+  upcoming: 'bg-primary',
+  overdue: 'bg-destructive',
+  today: 'bg-cat-budget',
 }
 
 const statusLabel: Record<EntryStatus, { text: string; className: string }> = {
-  completed: { text: 'Completed', className: 'text-emerald-400' },
-  upcoming: { text: 'Upcoming', className: 'text-[#A17A63]' },
-  overdue: { text: 'Overdue', className: 'text-red-400' },
-  today: { text: 'Today', className: 'text-amber-400' },
+  completed: { text: 'Completed', className: 'text-success' },
+  upcoming: { text: 'Upcoming', className: 'text-primary' },
+  overdue: { text: 'Overdue', className: 'text-destructive' },
+  today: { text: 'Today', className: 'text-cat-budget-fg' },
 }
 
 const statusIcon: Record<EntryStatus, React.ReactNode> = {
-  completed: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />,
-  upcoming: <Clock className="h-3.5 w-3.5 text-[#A17A63]" />,
-  overdue: <AlertTriangle className="h-3.5 w-3.5 text-red-400" />,
-  today: <Flag className="h-3.5 w-3.5 text-amber-400" />,
+  completed: <CheckCircle2 className="h-3.5 w-3.5 text-success" />,
+  upcoming: <Clock className="h-3.5 w-3.5 text-primary" />,
+  overdue: <AlertTriangle className="h-3.5 w-3.5 text-destructive" />,
+  today: <Flag className="h-3.5 w-3.5 text-cat-budget-fg" />,
 }
 
 export default function TimelineView({
@@ -250,6 +251,7 @@ export default function TimelineView({
       if (firstItem) {
         await updateItemDueDate(userId, created.id, firstItem.id, taskDueDate)
       }
+      track('checklist_created', { checklist_id: created.id, item_count: 1, source: 'timeline' })
       toast.success('Task created')
       closeDialog()
       // Kick off reminders refresh but don't block UI updates, which come
@@ -543,14 +545,14 @@ export default function TimelineView({
         else setDialogOpen(o)
       }}
     >
-      <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl flex flex-col gap-4">
+      <DialogContent className="w-[calc(100%-2rem)] max-w-md glass-panel rounded-2xl p-6 border border-foreground/[0.08] shadow-modal bg-card-elevated/90 backdrop-blur-2xl flex flex-col gap-4">
         {chooserMode === 'chooser' && (
           <>
             <DialogHeader>
-              <DialogTitle className="font-headline text-lg text-white/90">
+              <DialogTitle className="font-headline text-lg text-foreground/90">
                 New Timeline Entry
               </DialogTitle>
-              <DialogDescription className="text-white/40 text-xs">
+              <DialogDescription className="text-foreground/40 text-xs">
                 What would you like to add to your timeline?
               </DialogDescription>
             </DialogHeader>
@@ -573,7 +575,7 @@ export default function TimelineView({
               </Button>
             </div>
             {!user && (
-              <p className="text-2xs text-white/40 text-center">
+              <p className="text-2xs text-foreground/40 text-center">
                 Sign in to create events.
               </p>
             )}
@@ -583,16 +585,16 @@ export default function TimelineView({
         {chooserMode === 'event' && (
           <>
             <DialogHeader>
-              <DialogTitle className="font-headline text-lg text-white/90">
+              <DialogTitle className="font-headline text-lg text-foreground/90">
                 New Event
               </DialogTitle>
-              <DialogDescription className="text-white/40 text-xs">
+              <DialogDescription className="text-foreground/40 text-xs">
                 Add an event with a 1-day-before notification.
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="tl-ev-title" className="text-xs font-medium text-white/70">Title</label>
+                <label htmlFor="tl-ev-title" className="text-xs font-medium text-foreground/70">Title</label>
                 <Input
                   id="tl-ev-title"
                   autoFocus
@@ -604,19 +606,19 @@ export default function TimelineView({
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex flex-col gap-1.5 flex-1">
-                  <label htmlFor="tl-ev-date" className="text-xs font-medium text-white/70">Date</label>
+                  <label htmlFor="tl-ev-date" className="text-xs font-medium text-foreground/70">Date</label>
                   <input
                     id="tl-ev-date"
                     type="date"
                     value={evDate}
                     onChange={(e) => setEvDate(e.target.value)}
                     disabled={submitting}
-                    className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-9 w-full rounded-md border border-foreground/[0.1] bg-foreground/[0.04] px-3 py-1 text-sm text-foreground/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5 flex-1">
-                  <label htmlFor="tl-ev-time" className="text-xs font-medium text-white/70">
-                    Time <span className="text-white/30">(optional)</span>
+                  <label htmlFor="tl-ev-time" className="text-xs font-medium text-foreground/70">
+                    Time <span className="text-foreground/30">(optional)</span>
                   </label>
                   <input
                     id="tl-ev-time"
@@ -624,13 +626,13 @@ export default function TimelineView({
                     value={evTime}
                     onChange={(e) => setEvTime(e.target.value)}
                     disabled={submitting}
-                    className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-9 w-full rounded-md border border-foreground/[0.1] bg-foreground/[0.04] px-3 py-1 text-sm text-foreground/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="tl-ev-desc" className="text-xs font-medium text-white/70">
-                  Description <span className="text-white/30">(optional)</span>
+                <label htmlFor="tl-ev-desc" className="text-xs font-medium text-foreground/70">
+                  Description <span className="text-foreground/30">(optional)</span>
                 </label>
                 <Textarea
                   id="tl-ev-desc"
@@ -665,16 +667,16 @@ export default function TimelineView({
         {chooserMode === 'task' && (
           <>
             <DialogHeader>
-              <DialogTitle className="font-headline text-lg text-white/90">
+              <DialogTitle className="font-headline text-lg text-foreground/90">
                 New Task
               </DialogTitle>
-              <DialogDescription className="text-white/40 text-xs">
+              <DialogDescription className="text-foreground/40 text-xs">
                 Create a task with a due date.
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="tl-task-text" className="text-xs font-medium text-white/70">Task</label>
+                <label htmlFor="tl-task-text" className="text-xs font-medium text-foreground/70">Task</label>
                 <Input
                   id="tl-task-text"
                   autoFocus
@@ -685,14 +687,14 @@ export default function TimelineView({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="tl-task-due" className="text-xs font-medium text-white/70">Due date</label>
+                <label htmlFor="tl-task-due" className="text-xs font-medium text-foreground/70">Due date</label>
                 <input
                   id="tl-task-due"
                   type="date"
                   value={taskDueDate}
                   onChange={(e) => setTaskDueDate(e.target.value)}
                   disabled={submitting}
-                  className="flex h-9 w-full rounded-md border border-white/[0.1] bg-white/[0.04] px-3 py-1 text-sm text-white/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-9 w-full rounded-md border border-foreground/[0.1] bg-foreground/[0.04] px-3 py-1 text-sm text-foreground/90 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
             </div>
@@ -726,11 +728,11 @@ export default function TimelineView({
       <div className="flex flex-col h-full">
         {toolbar}
         <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center">
-          <div className="h-14 w-14 rounded-full bg-white/[0.06] flex items-center justify-center mb-4">
-            <Calendar className="h-7 w-7 text-white/40" />
+          <div className="h-14 w-14 rounded-full bg-foreground/[0.06] flex items-center justify-center mb-4">
+            <Calendar className="h-7 w-7 text-foreground/40" />
           </div>
-          <h3 className="text-sm font-semibold text-white/70 mb-1">No timeline items yet</h3>
-          <p className="text-xs text-white/40 max-w-[260px] leading-relaxed">
+          <h3 className="text-sm font-semibold text-foreground/70 mb-1">No timeline items yet</h3>
+          <p className="text-xs text-foreground/40 max-w-[260px] leading-relaxed">
             Add due dates to your checklist items or create calendar events to see them on your timeline.
           </p>
         </div>
@@ -747,22 +749,22 @@ export default function TimelineView({
       {/* Stats bar */}
       <div className="flex-shrink-0 px-4 pt-3 pb-3">
         <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-          <div className="flex-1 min-w-0 rounded-xl bg-white/[0.06] border border-white/[0.08] px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-white/70">{stats.total}</p>
-            <p className="text-3xs text-white/40 font-medium">Total</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-foreground/[0.06] border border-foreground/[0.08] px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-foreground/70">{stats.total}</p>
+            <p className="text-3xs text-foreground/40 font-medium">Total</p>
           </div>
-          <div className="flex-1 min-w-0 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-emerald-400">{stats.completed}</p>
-            <p className="text-3xs text-emerald-400/70 font-medium">Completed</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-success/10 border border-success/20 px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-success">{stats.completed}</p>
+            <p className="text-3xs text-success/70 font-medium">Completed</p>
           </div>
-          <div className="flex-1 min-w-0 rounded-xl bg-[#A17A63]/10 border border-[#A17A63]/20 px-2.5 py-2 text-center">
-            <p className="text-base font-bold text-[#A17A63]">{stats.upcoming}</p>
-            <p className="text-3xs text-[#A17A63]/70 font-medium">Upcoming</p>
+          <div className="flex-1 min-w-0 rounded-xl bg-primary/10 border border-primary/20 px-2.5 py-2 text-center">
+            <p className="text-base font-bold text-primary">{stats.upcoming}</p>
+            <p className="text-3xs text-primary/70 font-medium">Upcoming</p>
           </div>
           {stats.overdue > 0 && (
-            <div className="flex-1 min-w-0 rounded-xl bg-red-500/10 border border-red-500/20 px-2.5 py-2 text-center">
-              <p className="text-base font-bold text-red-400">{stats.overdue}</p>
-              <p className="text-3xs text-red-400/70 font-medium">Overdue</p>
+            <div className="flex-1 min-w-0 rounded-xl bg-destructive/10 border border-destructive/20 px-2.5 py-2 text-center">
+              <p className="text-base font-bold text-destructive">{stats.overdue}</p>
+              <p className="text-3xs text-destructive/70 font-medium">Overdue</p>
             </div>
           )}
         </div>
@@ -773,8 +775,8 @@ export default function TimelineView({
         {Array.from(grouped.entries()).map(([monthKey, monthEntries]) => (
           <div key={monthKey} className="mb-6">
             {/* Month header */}
-            <div className="sticky top-0 z-10 bg-white/[0.04] backdrop-blur-sm rounded-lg py-1.5 px-2 mb-2">
-              <h4 className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+            <div className="sticky top-0 z-10 bg-foreground/[0.04] backdrop-blur-sm rounded-lg py-1.5 px-2 mb-2">
+              <h4 className="text-xs font-semibold text-foreground/50 uppercase tracking-wider">
                 {monthKey}
               </h4>
             </div>
@@ -787,7 +789,7 @@ export default function TimelineView({
             {/* Entries */}
             <div className="relative">
               {/* Vertical line */}
-              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-white/[0.08] pointer-events-none" />
+              <div className="absolute left-[7px] top-0 bottom-0 w-[2px] bg-foreground/[0.08] pointer-events-none" />
 
               {monthEntries.map((entry, idx) => {
                 const isLast = idx === monthEntries.length - 1
@@ -806,7 +808,7 @@ export default function TimelineView({
                   <div key={entry.id} className={`relative flex gap-3 ${isLast ? '' : 'mb-3'}`}>
                     {/* Dot */}
                     <div className="relative z-[1] flex-shrink-0 mt-2.5">
-                      <div className={`h-3 w-3 rounded-full ${dotColor[entry.status]} ring-2 ring-white/10`} />
+                      <div className={`h-3 w-3 rounded-full ${dotColor[entry.status]} ring-2 ring-foreground/10`} />
                     </div>
 
                     {/* Card */}
@@ -826,12 +828,12 @@ export default function TimelineView({
                           primaryAction()
                         }
                       }}
-                      className={`flex-1 rounded-xl bg-white/[0.06] border border-white/[0.08] px-3 py-2.5 min-w-0 active:bg-white/[0.1] hover:bg-white/[0.08] transition-colors min-h-[44px] cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${isBusy ? 'opacity-60' : ''}`}
+                      className={`flex-1 rounded-xl bg-foreground/[0.06] border border-foreground/[0.08] px-3 py-2.5 min-w-0 active:bg-foreground/[0.1] hover:bg-foreground/[0.08] transition-colors min-h-[44px] cursor-pointer touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${isBusy ? 'opacity-60' : ''}`}
                       style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
                       {/* Date row */}
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-2xs text-white/40 font-medium">
+                        <span className="text-2xs text-foreground/40 font-medium">
                           {formatDate(entry.date)}
                         </span>
 
@@ -839,8 +841,8 @@ export default function TimelineView({
                         <span
                           className={`text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none ${
                             entry.type === 'task'
-                              ? 'bg-[#A17A63]/15 text-[#A17A63]'
-                              : 'bg-blue-400/15 text-blue-400'
+                              ? 'bg-primary/15 text-primary'
+                              : 'bg-info/15 text-info'
                           }`}
                         >
                           {entry.type === 'task' ? 'Task' : 'Event'}
@@ -848,7 +850,7 @@ export default function TimelineView({
 
                         {/* Category badge (timeline events only) */}
                         {entry.category && (
-                          <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none bg-purple-400/15 text-purple-300">
+                          <span className="text-2xs font-medium px-1.5 py-0.5 rounded-full leading-none bg-cat-milestone/15 text-cat-milestone-fg">
                             {entry.category}
                           </span>
                         )}
@@ -863,7 +865,7 @@ export default function TimelineView({
                               handleToggleTask(entry)
                             }}
                             disabled={isBusy}
-                            className={`ml-auto inline-flex items-center gap-1 min-h-[28px] min-w-[28px] px-2 py-1 rounded-full text-2xs font-medium leading-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 hover:bg-white/10 active:bg-white/15 transition-colors ${statusLabel[entry.status].className}`}
+                            className={`ml-auto inline-flex items-center gap-1 min-h-[28px] min-w-[28px] px-2 py-1 rounded-full text-2xs font-medium leading-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 hover:bg-foreground/10 active:bg-foreground/15 transition-colors ${statusLabel[entry.status].className}`}
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                           >
                             {statusIcon[entry.status]}
@@ -894,7 +896,7 @@ export default function TimelineView({
                               e.stopPropagation()
                               setOpenMenuId(menuOpen ? null : entry.id)
                             }}
-                            className="inline-flex items-center justify-center h-10 w-10 sm:h-7 sm:w-7 rounded-lg text-white/50 hover:text-white/90 hover:bg-white/10 active:bg-white/15 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                            className="inline-flex items-center justify-center h-10 w-10 sm:h-7 sm:w-7 rounded-lg text-foreground/50 hover:text-foreground/90 hover:bg-foreground/10 active:bg-foreground/15 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                           >
                             <MoreVertical className="h-4 w-4" />
@@ -902,7 +904,7 @@ export default function TimelineView({
                           {menuOpen && (
                             <div
                               role="menu"
-                              className="absolute right-0 top-full mt-1 z-50 bg-black/95 backdrop-blur-md border border-white/10 rounded-lg shadow-xl py-1 min-w-[160px]"
+                              className="absolute right-0 top-full mt-1 z-50 bg-overlay-scrim/95 backdrop-blur-md border border-foreground/10 rounded-lg shadow-xl py-1 min-w-[160px]"
                             >
                               <button
                                 type="button"
@@ -911,7 +913,7 @@ export default function TimelineView({
                                   e.stopPropagation()
                                   handleAttachItem(entry)
                                 }}
-                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors min-h-[40px] touch-manipulation"
+                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 transition-colors min-h-[40px] touch-manipulation"
                               >
                                 <MessageSquarePlus className="h-3.5 w-3.5" />
                                 Attach to chat
@@ -925,7 +927,7 @@ export default function TimelineView({
                                     setOpenMenuId(null)
                                     handleToggleTask(entry)
                                   }}
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors min-h-[40px] touch-manipulation"
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 transition-colors min-h-[40px] touch-manipulation"
                                 >
                                   {entry.completed ? (
                                     <>
@@ -948,7 +950,7 @@ export default function TimelineView({
                                     e.stopPropagation()
                                     handleEditDueDate(entry)
                                   }}
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-white/80 hover:bg-white/10 active:bg-white/15 transition-colors min-h-[40px] touch-manipulation"
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 transition-colors min-h-[40px] touch-manipulation"
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                   Edit due date
@@ -961,7 +963,7 @@ export default function TimelineView({
                                   e.stopPropagation()
                                   handleDelete(entry)
                                 }}
-                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 active:bg-red-500/20 transition-colors min-h-[40px] touch-manipulation"
+                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/10 active:bg-destructive/20 transition-colors min-h-[40px] touch-manipulation"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                                 Delete
@@ -972,13 +974,13 @@ export default function TimelineView({
                       </div>
 
                       {/* Title */}
-                      <p className="text-sm font-medium text-white/85 leading-snug mb-0.5">
+                      <p className="text-sm font-medium text-foreground/85 leading-snug mb-0.5">
                         {entry.type === 'task' && (
                           <span className="inline-flex items-center mr-1.5 align-middle">
                             {entry.completed ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                             ) : (
-                              <span className="inline-block h-3.5 w-3.5 rounded border border-white/20" />
+                              <span className="inline-block h-3.5 w-3.5 rounded border border-foreground/20" />
                             )}
                           </span>
                         )}
@@ -989,7 +991,7 @@ export default function TimelineView({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center ml-1.5 text-[#A17A63]/70 hover:text-[#A17A63] transition-colors"
+                            className="inline-flex items-center ml-1.5 text-primary/70 hover:text-primary transition-colors"
                           >
                             <ExternalLink className="h-3 w-3" />
                           </a>
@@ -998,12 +1000,12 @@ export default function TimelineView({
 
                       {/* Description / checklist source */}
                       {entry.description && (
-                        <p className="text-xs text-white/40 leading-relaxed line-clamp-3">
+                        <p className="text-xs text-foreground/40 leading-relaxed line-clamp-3">
                           {entry.description}
                         </p>
                       )}
                       {entry.checklistTitle && (
-                        <p className="text-2xs text-white/30 mt-0.5">
+                        <p className="text-2xs text-foreground/30 mt-0.5">
                           From: {entry.checklistTitle}
                         </p>
                       )}
@@ -1025,20 +1027,20 @@ function WeddingMarker({ date, countdown }: { date: Date; countdown: string }) {
     <div className="relative flex gap-3 mb-4">
       {/* Heart dot */}
       <div className="relative z-[1] flex-shrink-0 mt-2">
-        <div className="h-5 w-5 rounded-full bg-pink-500/80 ring-2 ring-pink-500/20 flex items-center justify-center">
-          <Heart className="h-3 w-3 text-white fill-white" />
+        <div className="h-5 w-5 rounded-full bg-cat-timeline/80 ring-2 ring-cat-timeline/20 flex items-center justify-center">
+          <Heart className="h-3 w-3 text-foreground fill-white" />
         </div>
       </div>
 
       {/* Card */}
-      <div className="flex-1 rounded-xl bg-pink-500/10 border border-pink-500/20 px-4 py-3">
+      <div className="flex-1 rounded-xl bg-cat-timeline/10 border border-cat-timeline/20 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-pink-300">Wedding Day</span>
-          <span className="text-2xs font-medium text-pink-400/80 bg-pink-500/15 px-1.5 py-0.5 rounded-full leading-none">
+          <span className="text-sm font-semibold text-cat-timeline-fg">Wedding Day</span>
+          <span className="text-2xs font-medium text-cat-timeline/80 bg-cat-timeline/15 px-1.5 py-0.5 rounded-full leading-none">
             {countdown}
           </span>
         </div>
-        <p className="text-xs text-pink-400/60 mt-0.5">{formatDate(date)}</p>
+        <p className="text-xs text-cat-timeline/60 mt-0.5">{formatDate(date)}</p>
       </div>
     </div>
   )

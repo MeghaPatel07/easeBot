@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Loader2, Sparkles, Heart, Calendar, MessageSquare, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError } from '@/services/authService'
+import { track } from '@/lib/analytics'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
@@ -66,6 +67,7 @@ export default function Login() {
   const handleGoogle = async () => {
     setError('')
     setGoogleLoading(true)
+    track('signup_started', { method: 'google' })
     try {
       await signInWithGoogle(true)
     } catch (err: any) {
@@ -123,6 +125,7 @@ export default function Login() {
     }
     setError('')
     setFpLoading(true)
+    track('password_reset_requested')
     try {
       const res = await fetch(`${API_BASE}/api/auth/forgot-password/send-otp`, {
         method: 'POST',
@@ -284,7 +287,7 @@ export default function Login() {
   if (user) return null
 
   // ── Shared input class ────────────────────────────────────────────────────
-  const inputCls = 'w-full rounded-xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-sm text-white/90 placeholder-white/30 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all'
+  const inputCls = 'w-full rounded-xl border border-foreground/[0.12] bg-foreground/[0.04] px-4 py-3 text-sm text-foreground/90 placeholder-foreground/30 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all'
   const btnPrimary = 'w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50'
 
   // ── Render Steps ──────────────────────────────────────────────────────────
@@ -296,10 +299,10 @@ export default function Login() {
       case 'entry':
         return (
           <>
-            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-white mb-2">
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
               Plan Your Dream Wedding
             </h1>
-            <p className="text-sm text-white/50 mb-8">
+            <p className="text-sm text-foreground/50 mb-8">
               Sign in to get AI-powered planning, personalized recommendations, and 24/7 support.
             </p>
 
@@ -313,16 +316,16 @@ export default function Login() {
               type="button"
               onClick={handleGoogle}
               disabled={googleLoading}
-              className="w-full flex items-center justify-center gap-3 rounded-xl border border-white/[0.12] bg-white/[0.04] px-4 py-3 text-sm font-medium text-white/90 hover:bg-white/[0.08] hover:border-white/[0.2] transition-all disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-foreground/[0.12] bg-foreground/[0.04] px-4 py-3 text-sm font-medium text-foreground/90 hover:bg-foreground/[0.08] hover:border-foreground/[0.2] transition-all disabled:opacity-50"
             >
               {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
               Continue With Google
             </button>
 
             <div className="flex items-center gap-4 my-6">
-              <div className="flex-1 h-px bg-white/[0.08]" />
-              <span className="text-2xs uppercase tracking-widest text-white/30">Or</span>
-              <div className="flex-1 h-px bg-white/[0.08]" />
+              <div className="flex-1 h-px bg-foreground/[0.08]" />
+              <span className="text-2xs uppercase tracking-widest text-foreground/30">Or</span>
+              <div className="flex-1 h-px bg-foreground/[0.08]" />
             </div>
 
             <form onSubmit={handleEmailContinue} className="space-y-3">
@@ -349,16 +352,16 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { setStep('entry'); setPassword(''); setError('') }}
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-6"
+              className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-6"
             >
               <ArrowLeft className="h-4 w-4" />Back
             </button>
 
-            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-white mb-2">
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
               Welcome Back
             </h1>
-            <p className="text-sm text-white/50 mb-8">
-              Enter your password for <span className="text-white/70">{email}</span>
+            <p className="text-sm text-foreground/50 mb-8">
+              Enter your password for <span className="text-foreground/70">{email}</span>
             </p>
 
             {error && (
@@ -381,7 +384,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/60 transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -396,7 +399,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => { setFpEmail(email); setError(''); setStep('fp-email') }}
-                className="text-white/40 hover:text-white/70 transition-colors"
+                className="text-foreground/40 hover:text-foreground/70 transition-colors"
               >
                 Forgot password?
               </button>
@@ -414,15 +417,15 @@ export default function Login() {
             <button
               type="button"
               onClick={resetForgotPassword}
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-6"
+              className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-6"
             >
               <ArrowLeft className="h-4 w-4" />Back to Sign In
             </button>
 
-            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-white mb-2">
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
               Reset Password
             </h1>
-            <p className="text-sm text-white/50 mb-8">
+            <p className="text-sm text-foreground/50 mb-8">
               Enter the email address associated with your account. We'll send you a verification code.
             </p>
 
@@ -456,16 +459,16 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { setStep('fp-email'); setError(''); setFpOtp(['', '', '', '', '', '']) }}
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-6"
+              className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-6"
             >
               <ArrowLeft className="h-4 w-4" />Back
             </button>
 
-            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-white mb-2">
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
               Enter Verification Code
             </h1>
-            <p className="text-sm text-white/50 mb-8">
-              We sent a 6-digit code to <span className="text-white/70">{fpEmail}</span>
+            <p className="text-sm text-foreground/50 mb-8">
+              We sent a 6-digit code to <span className="text-foreground/70">{fpEmail}</span>
             </p>
 
             {error && (
@@ -487,7 +490,7 @@ export default function Login() {
                     value={digit}
                     onChange={(e) => handleOtpChange(i, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                    className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border border-white/[0.12] bg-white/[0.04] text-white/90 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+                    className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border border-foreground/[0.12] bg-foreground/[0.04] text-foreground/90 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
                     autoFocus={i === 0}
                   />
                 ))}
@@ -504,8 +507,8 @@ export default function Login() {
 
             <div className="mt-4 text-center">
               {resendCooldown > 0 ? (
-                <p className="text-xs text-white/40">
-                  Resend code in <span className="text-white/60 font-medium">{resendCooldown}s</span>
+                <p className="text-xs text-foreground/40">
+                  Resend code in <span className="text-foreground/60 font-medium">{resendCooldown}s</span>
                 </p>
               ) : (
                 <button
@@ -528,15 +531,15 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { setStep('fp-otp'); setError(''); setFpNewPassword(''); setFpConfirmPassword('') }}
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors mb-6"
+              className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-6"
             >
               <ArrowLeft className="h-4 w-4" />Back
             </button>
 
-            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-white mb-2">
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
               Create New Password
             </h1>
-            <p className="text-sm text-white/50 mb-8">
+            <p className="text-sm text-foreground/50 mb-8">
               Your identity has been verified. Set a new password for your account.
             </p>
 
@@ -560,7 +563,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setFpShowNewPass(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/60 transition-colors"
                   tabIndex={-1}
                 >
                   {fpShowNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -578,14 +581,14 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setFpShowConfirmPass(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/60 transition-colors"
                   tabIndex={-1}
                 >
                   {fpShowConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {fpNewPassword && fpNewPassword.length < 6 && (
-                <p className="text-2xs text-white/40">Password must be at least 6 characters</p>
+                <p className="text-2xs text-foreground/40">Password must be at least 6 characters</p>
               )}
               <button type="submit" disabled={fpLoading} className={btnPrimary}>
                 {fpLoading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Reset Password'}
@@ -598,13 +601,13 @@ export default function Login() {
       case 'fp-success':
         return (
           <div className="text-center">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10 border border-green-500/20">
-              <CheckCircle2 className="h-8 w-8 text-green-400" />
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-success/10 border border-success/20">
+              <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
-            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-white mb-2">
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
               Password Updated
             </h1>
-            <p className="text-sm text-white/50 mb-8">
+            <p className="text-sm text-foreground/50 mb-8">
               Your password has been successfully reset. You can now sign in with your new password.
             </p>
             <button
@@ -620,16 +623,16 @@ export default function Login() {
   }
 
   return (
-    <div className="gradient-bg min-h-screen text-white/90">
+    <div className="gradient-bg min-h-screen text-foreground/90">
       {/* Top nav */}
       <header className="relative z-10 flex items-center justify-between px-6 py-4 md:px-10 md:py-6">
         <Link to="/" className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <span className="font-headline text-lg text-white tracking-tight">TheWeddingBot</span>
+          <span className="font-headline text-lg text-foreground tracking-tight">TheWeddingBot</span>
         </Link>
         <Link
           to="/pricing"
-          className="text-xs text-white/50 hover:text-white/80 transition-colors"
+          className="text-xs text-foreground/50 hover:text-foreground/80 transition-colors"
         >
           View Plans
         </Link>
@@ -642,13 +645,13 @@ export default function Login() {
           <div className="flex-1 max-w-md mx-auto lg:mx-0">
             {renderStep()}
 
-            <p className="mt-8 text-2xs text-white/30 leading-relaxed">
+            <p className="mt-8 text-2xs text-foreground/30 leading-relaxed">
               By continuing, you agree to our{' '}
-              <Link to="/terms" className="text-white/50 hover:text-white/70 underline underline-offset-2">
+              <Link to="/terms" className="text-foreground/50 hover:text-foreground/70 underline underline-offset-2">
                 Terms of Service
               </Link>{' '}
               and{' '}
-              <Link to="/privacy" className="text-white/50 hover:text-white/70 underline underline-offset-2">
+              <Link to="/privacy" className="text-foreground/50 hover:text-foreground/70 underline underline-offset-2">
                 Privacy Policy
               </Link>.
             </p>
@@ -656,7 +659,7 @@ export default function Login() {
 
           {/* Right — Promo card */}
           <div className="flex-1 max-w-md mx-auto lg:mx-0 lg:mt-4">
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-sm p-6 md:p-8">
+            <div className="rounded-2xl border border-foreground/[0.08] bg-foreground/[0.03] backdrop-blur-sm p-6 md:p-8">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="h-4 w-4 text-primary" />
                 <span className="text-2xs uppercase tracking-widest text-primary/80 font-semibold">
@@ -670,13 +673,13 @@ export default function Login() {
                     <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
                       <Icon className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <p className="text-sm text-white/70 leading-relaxed">{text}</p>
+                    <p className="text-sm text-foreground/70 leading-relaxed">{text}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="mt-6 pt-5 border-t border-white/[0.06]">
-                <p className="text-xs text-white/40 leading-relaxed">
+              <div className="mt-6 pt-5 border-t border-foreground/[0.06]">
+                <p className="text-xs text-foreground/40 leading-relaxed">
                   Free accounts include 10 messages per session. Upgrade to Pro for unlimited planning conversations, image generation, and more.
                 </p>
               </div>

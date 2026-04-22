@@ -91,12 +91,12 @@ export function DowngradeFlow({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-headline text-xl text-white">
+          <DialogTitle className="font-headline text-xl text-foreground">
             {step === 'success'
               ? 'Downgrade scheduled'
               : `Downgrade to ${tierLabel(targetTier)}`}
           </DialogTitle>
-          <DialogDescription className="text-white/50">
+          <DialogDescription className="text-foreground/50">
             {step === 'success'
               ? `Your plan will switch to ${tierLabel(targetTier)} at the end of your billing period.`
               : `You're currently on ${tierLabel(currentTier)}.`}
@@ -106,15 +106,15 @@ export function DowngradeFlow({
         {/* Confirm */}
         {step === 'confirm' && (
           <div className="flex flex-col gap-4 pt-2">
-            <div className="rounded-xl bg-white/[0.04] p-4">
+            <div className="rounded-xl bg-foreground/[0.04] p-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-white/60">{tierLabel(currentTier)}</span>
-                <ArrowDown className="h-4 w-4 text-white/40" />
-                <span className="text-white font-medium">{tierLabel(targetTier)}</span>
+                <span className="text-foreground/60">{tierLabel(currentTier)}</span>
+                <ArrowDown className="h-4 w-4 text-foreground/40" />
+                <span className="text-foreground font-medium">{tierLabel(targetTier)}</span>
               </div>
             </div>
 
-            <div className="space-y-2 text-xs text-white/50">
+            <div className="space-y-2 text-xs text-foreground/50">
               <p>
                 You'll keep full {tierLabel(currentTier)} access
                 {periodEnd ? ` until ${periodEnd}` : ' until the end of your current billing period'}.
@@ -130,7 +130,7 @@ export function DowngradeFlow({
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-foreground/[0.04] border border-foreground/[0.08] px-5 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.08] transition-colors"
               >
                 Confirm downgrade
               </button>
@@ -149,7 +149,7 @@ export function DowngradeFlow({
         {step === 'loading' && (
           <div className="flex flex-col items-center gap-4 py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p className="text-sm text-white/60">Scheduling your downgrade…</p>
+            <p className="text-sm text-foreground/60">Scheduling your downgrade…</p>
           </div>
         )}
 
@@ -160,10 +160,10 @@ export function DowngradeFlow({
               <Check className="h-6 w-6 text-primary" />
             </div>
             <div className="text-center">
-              <p className="text-sm text-white/90">
+              <p className="text-sm text-foreground/90">
                 Downgrade scheduled successfully.
               </p>
-              <p className="mt-1 text-xs text-white/50">
+              <p className="mt-1 text-xs text-foreground/50">
                 You'll continue with {tierLabel(currentTier)} features
                 {periodEnd ? ` until ${periodEnd}` : ' until the end of your billing period'}.
                 After that, you'll switch to {tierLabel(targetTier)}.
@@ -189,14 +189,14 @@ export function DowngradeFlow({
               <button
                 type="button"
                 onClick={() => setStep('confirm')}
-                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="flex-1 inline-flex h-10 items-center justify-center rounded-full bg-foreground/[0.04] border border-foreground/[0.08] px-5 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.08] transition-colors"
               >
                 Try again
               </button>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-white/[0.04] border border-white/[0.08] px-5 text-sm font-medium text-white/70 hover:bg-white/[0.08] transition-colors"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-foreground/[0.04] border border-foreground/[0.08] px-5 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.08] transition-colors"
               >
                 Close
               </button>

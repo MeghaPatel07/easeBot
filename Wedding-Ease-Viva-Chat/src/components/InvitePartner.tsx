@@ -174,16 +174,16 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
   return (
     <div className="space-y-6">
       {/* Share info section */}
-      <div className="rounded-2xl bg-white/[0.06] border p-5">
+      <div className="rounded-2xl bg-foreground/[0.06] border p-5">
         <div className="flex items-start gap-3">
           <div className="rounded-xl bg-primary/10 p-2.5">
             <Link className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-headline text-base font-semibold text-white/90">
+            <h3 className="font-headline text-base font-semibold text-foreground/90">
               Collaborative Planning
             </h3>
-            <p className="mt-1 text-sm text-white/90 leading-relaxed">
+            <p className="mt-1 text-sm text-foreground/90 leading-relaxed">
               Plan together in real-time. Invite your partner or planner to see all your checklists, budgets, and timelines. Changes sync instantly.
             </p>
           </div>
@@ -191,10 +191,10 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       </div>
 
       {/* Invite form */}
-      <div className="rounded-2xl bg-white/[0.06] border p-5">
+      <div className="rounded-2xl bg-foreground/[0.06] border p-5">
         <div className="flex items-center gap-2 mb-4">
           <UserPlus className="h-4.5 w-4.5 text-primary" />
-          <h4 className="font-headline text-sm font-semibold text-white/90">
+          <h4 className="font-headline text-sm font-semibold text-foreground/90">
             Send an Invite
           </h4>
         </div>
@@ -202,7 +202,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
         <form onSubmit={handleInvite} className="space-y-3">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-foreground/60" />
               <input
                 type="email"
                 placeholder="partner@email.com"
@@ -211,40 +211,40 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
                   setEmail(e.target.value)
                   if (error) setError(null)
                 }}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-12 pr-3 text-sm text-white/90 placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
+                className="w-full rounded-xl border border-foreground/10 bg-foreground/[0.04] py-2.5 pl-12 pr-3 text-sm text-foreground/90 placeholder:text-foreground/30 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
             >
               {loading ? 'Sending...' : 'Send Invite'}
             </button>
           </div>
 
           {error && (
-            <p className="text-sm text-red-400 flex items-center gap-1.5">
+            <p className="text-sm text-destructive flex items-center gap-1.5">
               <X className="h-3.5 w-3.5 flex-shrink-0" />
               {error}
             </p>
           )}
 
           {success && (
-            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 space-y-2">
-              <p className="text-sm text-emerald-300 flex items-center gap-1.5">
+            <div className="rounded-xl bg-success/10 border border-success/20 p-3 space-y-2">
+              <p className="text-sm text-success flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0" />
                 {success}
               </p>
               {lastInviteLink && (
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs bg-white/[0.04] rounded-lg border border-emerald-500/20 px-2.5 py-1.5 text-emerald-200 truncate">
+                  <code className="flex-1 text-xs bg-foreground/[0.04] rounded-lg border border-success/20 px-2.5 py-1.5 text-success-subtle truncate">
                     {lastInviteLink}
                   </code>
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="rounded-lg bg-white/[0.04] border border-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10 transition-colors flex items-center gap-1.5"
+                    className="rounded-lg bg-foreground/[0.04] border border-success/20 px-3 py-1.5 text-xs font-medium text-success hover:bg-success/10 transition-colors flex items-center gap-1.5"
                   >
                     {copied ? (
                       <>
@@ -266,14 +266,14 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       </div>
 
       {/* Active collaborators list / Empty state */}
-      <div className="rounded-2xl bg-white/[0.06] border p-5">
+      <div className="rounded-2xl bg-foreground/[0.06] border p-5">
         <div className="flex items-center gap-2 mb-4">
           <Users className="h-4.5 w-4.5 text-primary" />
-          <h4 className="font-headline text-sm font-semibold text-white/90">
+          <h4 className="font-headline text-sm font-semibold text-foreground/90">
             Collaborators
           </h4>
           {collaborators.length > 0 && (
-            <span className="ml-auto text-xs text-white/90 bg-primary/10 rounded-full px-2 py-0.5">
+            <span className="ml-auto text-xs text-foreground/90 bg-primary/10 rounded-full px-2 py-0.5">
               {collaborators.length}
             </span>
           )}
@@ -284,10 +284,10 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
             <div className="rounded-2xl bg-primary/10 p-4 mb-4">
               <Users className="h-8 w-8 text-primary" />
             </div>
-            <h5 className="font-headline text-base font-semibold text-white/90 mb-1">
+            <h5 className="font-headline text-base font-semibold text-foreground/90 mb-1">
               Plan together
             </h5>
-            <p className="text-sm text-white/90 max-w-xs leading-relaxed">
+            <p className="text-sm text-foreground/90 max-w-xs leading-relaxed">
               Invite your partner or a wedding planner to collaborate in real
               time. Share checklists, budgets, and timelines seamlessly.
             </p>
@@ -297,33 +297,33 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
             {collaborators.map((collab) => (
               <li
                 key={collab.email}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 group"
+                className="flex items-center gap-3 rounded-xl border border-foreground/10 bg-foreground/[0.04] p-3 group"
               >
                 <div className="rounded-lg bg-primary/10 p-2">
                   <Mail className="h-4 w-4 text-primary" />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white/90 truncate">
+                  <p className="text-sm font-medium text-foreground/90 truncate">
                     {collab.name || collab.email}
                   </p>
                   {collab.name && (
-                    <p className="text-xs text-white/90 truncate">
+                    <p className="text-xs text-foreground/90 truncate">
                       {collab.email}
                     </p>
                   )}
-                  <p className="text-xs text-white/90 mt-0.5">
+                  <p className="text-xs text-foreground/90 mt-0.5">
                     Invited {formatDate(collab.invitedAt)}
                   </p>
                 </div>
 
                 {collab.status === 'pending' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-medium text-amber-300">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-cat-budget/15 border border-cat-budget/30 px-2.5 py-0.5 text-xs font-medium text-cat-budget-fg">
                     <Clock className="h-3 w-3" />
                     Pending
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-success/15 border border-success/30 px-2.5 py-0.5 text-xs font-medium text-success">
                     <CheckCircle2 className="h-3 w-3" />
                     Active
                   </span>
@@ -331,7 +331,7 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
 
                 <button
                   onClick={() => handleRemove(collab.email)}
-                  className="rounded-lg p-1.5 text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                  className="rounded-lg p-1.5 text-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
                   title="Remove collaborator"
                 >
                   <X className="h-4 w-4" />

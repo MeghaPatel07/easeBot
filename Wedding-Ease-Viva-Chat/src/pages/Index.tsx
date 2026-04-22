@@ -43,11 +43,12 @@ import { addSavedItem } from '@/services/savedItemsService';
 import { getVoicePreset } from '@/services/voicePresets';
 import { getLocalVoiceId } from '@/services/settingsService';
 import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
+import { track, register } from '@/lib/analytics';
 import logoImg from '@/assets/images/logo.png';
 
 // ── Extracted components ────────────────────────────────────────────────────
 import ChatSidebar, { type SidebarView } from '@/components/chat/ChatSidebar';
-import ChatHeader, { SidebarToggle, ProfileIcon } from '@/components/chat/ChatHeader';
+import ChatHeader from '@/components/chat/ChatHeader';
 import ChatMessages from '@/components/chat/ChatMessages';
 import ChatInput from '@/components/chat/ChatInput';
 import { MODE_CONFIG, SUPPORTED_LANGUAGES, modeConfig, markdownToHtml, type ModeOrAuto } from '@/components/chat/constants';
@@ -125,6 +126,15 @@ const Index = () => {
     }
   }, []);
   const [selectedMode, setSelectedMode] = useState<ModeOrAuto>('auto');
+  // PostHog: fire mode_selected when the user changes mode. Skip the initial
+  // 'auto' render; skipRef ensures we don't track the mount default.
+  const prevModeRef = useRef<ModeOrAuto>('auto');
+  useEffect(() => {
+    if (prevModeRef.current === selectedMode) return;
+    track('mode_selected', { mode: selectedMode, previous_mode: prevModeRef.current });
+    prevModeRef.current = selectedMode;
+    register({ active_mode: selectedMode });
+  }, [selectedMode]);
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState('');
   const [inlineEditImage, setInlineEditImage] = useState<string | null>(null);
@@ -279,6 +289,7 @@ const Index = () => {
       const dataUri = reader.result as string;
       const base64 = dataUri.split(',')[1];
       setAttachedImage({ base64, mimeType: file.type, preview: dataUri });
+      track('image_uploaded', { size_kb: Math.round(file.size / 1024) });
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -337,6 +348,24 @@ const Index = () => {
     const imgMime = attachedImage?.mimeType;
     setAttachedImage(null);
     const attachments = incomingAttachments ?? stagedAttachments;
+    // PostHog: activation + message-sent tracking. first_message_sent fires
+    // once per browser (sessionStorage-gated) to measure time-to-activation.
+    try {
+      const firstAt = sessionStorage.getItem('ph_first_msg_at');
+      if (!firstAt) {
+        const start = Number(sessionStorage.getItem('ph_session_start') ?? Date.now());
+        sessionStorage.setItem('ph_first_msg_at', String(Date.now()));
+        track('first_message_sent', {
+          mode: mode ?? 'auto',
+          time_to_first_msg_ms: Date.now() - start,
+        });
+      }
+      track('message_sent', {
+        mode: mode ?? 'auto',
+        msg_len: text.length,
+        has_attachment: Boolean(imgBase64) || (attachments?.length ?? 0) > 0,
+      });
+    } catch {}
     const sendPromise = sendMessage(text || 'Describe this image', {
       mode,
       language: lang,
@@ -361,13 +390,14 @@ const Index = () => {
       if (result?.text) {
         setInputText(result.text);
         setVoiceLanguage(result.detectedLanguage);
+        track('voice_input_used', { duration_s: (result as { durationSeconds?: number }).durationSeconds ?? null });
       }
     } else if (voiceState === 'idle') {
       const err = await startRecording();
       if (err) {
         const toast = document.createElement('div');
         toast.textContent = `Mic: ${err}`;
-        toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-in fade-in';
+        toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-destructive/90 text-destructive-foreground text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-in fade-in';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3000);
       }
@@ -426,6 +456,7 @@ const Index = () => {
       }
     }
     sendMessage(text, undefined, mode, langHint, imgBase64, imgMime);
+    track('message_edited', { message_id: m.id, msg_len: text.length, has_image: !!imgBase64 });
     setInlineEditImage(null);
     setInlineEditImageMime(null);
   };
@@ -621,7 +652,7 @@ const Index = () => {
       // Show brief error toast
       const toast = document.createElement('div');
       toast.textContent = 'Voice synthesis failed. Please try again.';
-      toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-in fade-in';
+      toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-destructive/90 text-destructive-foreground text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-in fade-in';
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
     } finally { setTtsLoadingId(null); }
@@ -792,13 +823,13 @@ const Index = () => {
 
   // ── Shortcuts overlay ─────────────────────────────────────────────────────
   const shortcutsOverlayJSX = showShortcuts && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
-      <div className="bg-[#0F0D0C]/95 backdrop-blur-2xl rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay-scrim/30 backdrop-blur-sm" onClick={() => setShowShortcuts(false)}>
+      <div className="bg-card-elevated/95 backdrop-blur-2xl rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-headline text-lg text-white/90 flex items-center gap-2">
+          <h3 className="font-headline text-lg text-foreground/90 flex items-center gap-2">
             <Keyboard className="h-4 w-4 text-primary" />Keyboard Shortcuts
           </h3>
-          <button onClick={() => setShowShortcuts(false)} className="text-white/40 hover:text-white/60 text-sm">Esc</button>
+          <button onClick={() => setShowShortcuts(false)} className="text-foreground/40 hover:text-foreground/60 text-sm">Esc</button>
         </div>
         <div className="space-y-2.5">
           {[
@@ -808,12 +839,12 @@ const Index = () => {
             { keys: 'Shift + Enter', desc: 'New line in message' },
           ].map(({ keys, desc }) => (
             <div key={keys} className="flex items-center justify-between">
-              <span className="text-xs text-white/60">{desc}</span>
-              <kbd className="text-2xs font-mono bg-white/[0.06] text-white/60 px-2 py-0.5 rounded">{keys}</kbd>
+              <span className="text-xs text-foreground/60">{desc}</span>
+              <kbd className="text-2xs font-mono bg-foreground/[0.06] text-foreground/60 px-2 py-0.5 rounded">{keys}</kbd>
             </div>
           ))}
         </div>
-        <p className="text-2xs text-white/40 mt-4 text-center">Press <kbd className="font-mono bg-white/10 px-1 rounded text-3xs">Ctrl + /</kbd> anytime to toggle</p>
+        <p className="text-2xs text-foreground/40 mt-4 text-center">Press <kbd className="font-mono bg-foreground/10 px-1 rounded text-3xs">Ctrl + /</kbd> anytime to toggle</p>
       </div>
     </div>
   );
@@ -837,48 +868,48 @@ const Index = () => {
 
   const CHAT_SHARE_PLATFORMS = [
     {
-      name: 'WhatsApp', color: 'text-green-400',
+      name: 'WhatsApp', color: 'text-success',
       icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>,
       getUrl: (url: string) => `https://wa.me/?text=${encodeURIComponent(`Check out this conversation: ${url}`)}`
     },
     {
-      name: 'Twitter / X', color: 'text-white',
+      name: 'Twitter / X', color: 'text-foreground',
       icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>,
       getUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this wedding conversation from TheWeddingBot!')}`
     },
     {
-      name: 'Email', color: 'text-blue-400',
+      name: 'Email', color: 'text-info',
       icon: () => <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>,
       getUrl: (url: string) => `mailto:?subject=${encodeURIComponent('TheWeddingBot — Shared Conversation')}&body=${encodeURIComponent(`Check out this conversation: ${url}`)}`
     },
   ];
 
   const shareModalJSX = shareModalUrl && (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShareModalUrl(null)}>
-      <div className="bg-[#0F0D0C]/95 backdrop-blur-2xl rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-overlay-scrim/40 backdrop-blur-sm" onClick={() => setShareModalUrl(null)}>
+      <div className="bg-card-elevated/95 backdrop-blur-2xl rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white/90">Share conversation</h3>
-          <button onClick={() => setShareModalUrl(null)} className="p-1 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors">
+          <h3 className="text-sm font-semibold text-foreground/90">Share conversation</h3>
+          <button onClick={() => setShareModalUrl(null)} className="p-1 rounded-lg text-foreground/40 hover:text-foreground/70 hover:bg-foreground/10 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Title preview */}
-        <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-white/[0.04]">
-          <p className="text-xs text-white/60 truncate">{shareModalTitle}</p>
-          <p className="text-3xs text-white/30 mt-1">Link expires in 7 days</p>
+        <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-foreground/[0.04]">
+          <p className="text-xs text-foreground/60 truncate">{shareModalTitle}</p>
+          <p className="text-3xs text-foreground/30 mt-1">Link expires in 7 days</p>
         </div>
 
         {/* Copy link */}
-        <button onClick={handleCopyShareLink} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-white/70 hover:text-white/90 hover:bg-white/[0.06] transition-all mb-4">
-          {shareLinkCopied ? <Check className="h-4 w-4 text-green-400" /> : <Link className="h-4 w-4 text-white/40" />}
+        <button onClick={handleCopyShareLink} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-foreground/70 hover:text-foreground/90 hover:bg-foreground/[0.06] transition-all mb-4">
+          {shareLinkCopied ? <Check className="h-4 w-4 text-success" /> : <Link className="h-4 w-4 text-foreground/40" />}
           <span>{shareLinkCopied ? 'Link copied!' : 'Copy link'}</span>
-          {shareLinkCopied && <Check className="h-4 w-4 text-green-400 ml-auto" />}
+          {shareLinkCopied && <Check className="h-4 w-4 text-success ml-auto" />}
         </button>
 
         {/* Divider */}
-        <div className="border-t border-white/[0.06] mb-4" />
+        <div className="border-t border-foreground/[0.06] mb-4" />
 
         {/* Social platforms */}
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -887,9 +918,9 @@ const Index = () => {
             const isMailto = url.startsWith('mailto:')
             return (
             <a key={platform.name} href={url} target={isMailto ? '_self' : '_blank'} rel={isMailto ? undefined : 'noopener noreferrer'} onClick={() => setShareModalUrl(null)}
-              className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-white/[0.06] transition-colors">
+              className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-foreground/[0.06] transition-colors">
               <div className={platform.color}><platform.icon /></div>
-              <span className="text-3xs text-white/40">{platform.name}</span>
+              <span className="text-3xs text-foreground/40">{platform.name}</span>
             </a>
             )
           })}
@@ -898,22 +929,13 @@ const Index = () => {
         {/* Native share (mobile) */}
         {typeof navigator !== 'undefined' && 'share' in navigator && (
           <button onClick={handleNativeShareChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#A17A63]/15 text-sm text-[#A17A63] font-medium hover:bg-[#A17A63]/25 transition-colors">
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/15 text-sm text-primary font-medium hover:bg-primary/25 transition-colors">
             <Share2 className="h-4 w-4" />
             More sharing options
           </button>
         )}
       </div>
     </div>
-  );
-
-  // ── Profile icon (reused across views) ────────────────────────────────────
-  const profileIconJSX = (
-    <ProfileIcon
-      user={user}
-      profile={profile}
-      onShowSettings={() => setShowSettingsModal(true)}
-    />
   );
 
   // ── Auth modals (always mounted, reused across every view) ────────────────
@@ -929,9 +951,6 @@ const Index = () => {
       <FeedbackDialog open={homeFeedbackOpen} onOpenChange={setHomeFeedbackOpen} />
     </>
   );
-
-  // ── Sidebar toggle (used in non-chat views) ──────────────────────────────
-  const sidebarToggleJSX = <SidebarToggle isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(v => !v)} onNewChat={handleNewChat} />;
 
   // ── Sidebar (shared across all views) ─────────────────────────────────────
   const sidebarJSX = (
@@ -973,6 +992,32 @@ const Index = () => {
   void showSettingsModal;
   const settingsModalJSX = <SettingsShell onShowSignIn={() => setShowSignInModal(true)} onShowSignUp={() => setShowSignUpModal(true)} />;
 
+  // ── Shared chat header (used across chat + all sidebar views) ─────────────
+  const chatHeaderJSX = (
+    <ChatHeader
+      isSidebarOpen={isSidebarOpen}
+      onToggleSidebar={() => setIsSidebarOpen(v => !v)}
+      onNewChat={handleNewChat}
+      user={user}
+      profile={profile}
+      selectedMode={selectedMode}
+      onModeChange={setSelectedMode}
+      preferredLang={preferredLang}
+      onLanguageChange={handleLanguageChange}
+      onShowReminders={() => setSidebarView('reminders')}
+      onShowSignIn={() => setShowSignInModal(true)}
+      onShowSignUp={() => setShowSignUpModal(true)}
+      onSignOut={signOut}
+      onShowSettings={() => setShowSettingsModal(true)}
+      showSignInModal={showSignInModal}
+      onShowSignInModalChange={setShowSignInModal}
+      showSignUpModal={showSignUpModal}
+      onShowSignUpModalChange={setShowSignUpModal}
+      signUpPrefillEmail={signUpPrefillEmail}
+      onSignUpPrefillEmailChange={setSignUpPrefillEmail}
+    />
+  );
+
   // ── Auth wall for unauthorized chat access ────────────────────────────────
   // If someone navigates to /chat/:threadId without being logged in, or if the
   // logged-in user doesn't own the thread (Firestore returns permission error),
@@ -982,9 +1027,9 @@ const Index = () => {
       <div className="gradient-bg min-h-screen flex flex-col items-center justify-center px-6 text-center">
         {authModalsJSX}
         <div className="max-w-sm mx-auto">
-          <Lock className="h-12 w-12 text-[#A17A63]/60 mx-auto mb-4" />
-          <h2 className="font-headline text-xl text-white/90 mb-2">You cannot view this chat</h2>
-          <p className="text-sm text-white/50 mb-6">Login or signup to view.</p>
+          <Lock className="h-12 w-12 text-primary/60 mx-auto mb-4" />
+          <h2 className="font-headline text-xl text-foreground/90 mb-2">You cannot view this chat</h2>
+          <p className="text-sm text-foreground/50 mb-6">Login or signup to view.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button
               onClick={() => setShowSignInModal(true)}
@@ -1013,14 +1058,16 @@ const Index = () => {
         {shareModalJSX}
         {settingsModalJSX}
         {authModalsJSX}
-        {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+        {isSidebarOpen && <div className="fixed inset-0 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
         <main className={`flex-1 flex flex-col overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
-          <header className="flex items-center gap-2 px-2 sm:px-4 h-14  backdrop-blur-md border-b border-[#A17A63]/20 flex-shrink-0">
-            {sidebarToggleJSX}
-            <h2 className="font-headline text-lg text-white/90">Planner</h2>
-            <div className="ml-auto">{profileIconJSX}</div>
-          </header>
+          {chatHeaderJSX}
+          <div className="flex items-center gap-2 px-3 sm:px-5 h-11 flex-shrink-0 border-b border-border/40">
+            <Button variant="ghost" size="sm" onClick={() => { setSelectedChecklistId(null); navigate('/'); }} className="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10">
+              <ArrowLeft className="h-3.5 w-3.5 text-foreground/60" />
+            </Button>
+            <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2"><CheckSquare className="h-4 w-4 text-primary" />Planner</h2>
+          </div>
           <div className="flex-1 overflow-hidden p-4">
             <ChecklistDetail
               userId={user.uid}
@@ -1042,17 +1089,16 @@ const Index = () => {
       {shareModalJSX}
       {settingsModalJSX}
       {authModalsJSX}
-      {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+      {isSidebarOpen && <div className="fixed inset-0 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
       <main className={`flex-1 flex flex-col overflow-x-hidden overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
-        <header className="flex items-center gap-2 px-2 sm:px-4 h-14 flex-shrink-0">
-          {sidebarToggleJSX}
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-7 w-7 p-0 rounded-lg">
-            <ArrowLeft className="h-3.5 w-3.5 text-white/60" />
+        {chatHeaderJSX}
+        <div className="flex items-center gap-2 px-3 sm:px-5 h-11 flex-shrink-0 border-b border-border/40">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10">
+            <ArrowLeft className="h-3.5 w-3.5 text-foreground/60" />
           </Button>
-          <h2 className="font-headline text-lg text-white/90 flex items-center gap-2">{icon}{title}</h2>
-          <div className="ml-auto">{profileIconJSX}</div>
-        </header>
+          <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2">{icon}{title}</h2>
+        </div>
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-5">
           <div className=" mx-auto w-full">{children}</div>
         </div>
@@ -1071,7 +1117,7 @@ const Index = () => {
   if (sidebarView === 'liked') {
     return mainAreaShell('Liked Messages', <ThumbsUp className="h-5 w-5 text-primary" />,
       allLikedMessages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-white/40">
+        <div className="flex flex-col items-center justify-center py-16 text-foreground/40">
           <ThumbsUp className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm">No liked messages yet.</p>
           <p className="text-xs mt-1">Click the <ThumbsUp className="inline h-3 w-3 mx-0.5" /> on any AI response.</p>
@@ -1079,10 +1125,10 @@ const Index = () => {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
-            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)} className="text-left rounded-2xl bg-white/[0.06] px-4 py-3.5 space-y-2 hover:bg-white/[0.1] transition-all duration-150">
+            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)} className="text-left rounded-2xl bg-foreground/[0.06] px-4 py-3.5 space-y-2 hover:bg-foreground/[0.1] transition-all duration-150">
               {msg.mode && <span className="inline-block text-3xs uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
-              <p className="text-sm text-white/70 leading-relaxed line-clamp-5">{msg.text}</p>
-              <p className="text-2xs text-white/40">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              <p className="text-sm text-foreground/70 leading-relaxed line-clamp-5">{msg.text}</p>
+              <p className="text-2xs text-foreground/40">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
             </button>
           ))}
         </div>
@@ -1114,7 +1160,7 @@ const Index = () => {
   if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
   if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
-  if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-white/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
+  if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-foreground/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
   // ── Coming soon views ─────────────────────────────────────────────────────
   const comingSoonViews: Record<string, { title: string; icon: React.ReactNode; desc: string }> = {
@@ -1123,9 +1169,9 @@ const Index = () => {
   if (sidebarView in comingSoonViews) {
     const cs = comingSoonViews[sidebarView];
     return mainAreaShell(cs.title, cs.icon,
-      <div className="flex flex-col items-center justify-center py-20 text-center text-white/40 space-y-2">
+      <div className="flex flex-col items-center justify-center py-20 text-center text-foreground/40 space-y-2">
         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-1">{cs.icon}</div>
-        <p className="text-sm font-semibold text-white/60">Coming Soon</p>
+        <p className="text-sm font-semibold text-foreground/60">Coming Soon</p>
         <p className="text-xs max-w-xs leading-relaxed">{cs.desc}</p>
       </div>
     );
@@ -1159,54 +1205,33 @@ const Index = () => {
         {shareModalJSX}
         {settingsModalJSX}
         {authModalsJSX}
-        {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+        {isSidebarOpen && <div className="fixed inset-0 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
         {sidebarJSX}
 
         <main className={`flex-1 min-w-0 flex flex-col relative overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
-          <ChatHeader
-            isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={() => setIsSidebarOpen(v => !v)}
-            onNewChat={handleNewChat}
-            user={user}
-            profile={profile}
-            selectedMode={selectedMode}
-            onModeChange={setSelectedMode}
-            preferredLang={preferredLang}
-            onLanguageChange={handleLanguageChange}
-            onShowReminders={() => setSidebarView('reminders')}
-            onShowSignIn={() => setShowSignInModal(true)}
-            onShowSignUp={() => setShowSignUpModal(true)}
-            onSignOut={signOut}
-            onShowSettings={() => setShowSettingsModal(true)}
-            showSignInModal={showSignInModal}
-            onShowSignInModalChange={setShowSignInModal}
-            showSignUpModal={showSignUpModal}
-            onShowSignUpModalChange={setShowSignUpModal}
-            signUpPrefillEmail={signUpPrefillEmail}
-            onSignUpPrefillEmailChange={setSignUpPrefillEmail}
-          />
+          {chatHeaderJSX}
           {/* Guest banner with usage limits */}
           {!user && (
             <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
-              <div className="bg-white/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-white/70 space-y-1.5">
+              <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-foreground/70 space-y-1.5">
                 <div className="flex items-center gap-1.5">
                   <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                  <span className="font-semibold text-white/80">Guest Mode</span>
-                  <span className="text-white/40 mx-1">—</span>
+                  <span className="font-semibold text-foreground/80">Guest Mode</span>
+                  <span className="text-foreground/40 mx-1">—</span>
                   <span>{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining</span>
-                  <span className="text-white/30 hidden sm:inline">·</span>
+                  <span className="text-foreground/30 hidden sm:inline">·</span>
                   <span className="hidden sm:inline">{Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} remaining</span>
                   <div className="ml-auto flex items-center gap-2">
                     <div className="hidden sm:flex items-center gap-1.5">
                       {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
-                        <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-white/[0.12]'}`} />
+                        <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-foreground/[0.12]'}`} />
                       ))}
                     </div>
                   </div>
                 </div>
                 {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
                   <div className="flex items-center gap-2 pt-1">
-                    <span className="text-white/50 text-2xs">You've used all guest messages.</span>
+                    <span className="text-foreground/50 text-2xs">You've used all guest messages.</span>
                     <button
                       onClick={() => setShowSignUpModal(true)}
                       className="ml-auto px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
@@ -1215,7 +1240,7 @@ const Index = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="text-2xs text-white/40">
+                  <div className="text-2xs text-foreground/40">
                     This chat won't be saved.{' '}
                     <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
                       Sign in to save your conversations.
@@ -1277,10 +1302,10 @@ const Index = () => {
           <div className="mt-auto px-3 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
             {!user && guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
               <div className="max-w-3xl mx-auto w-full text-center py-3 space-y-2">
-                <p className="text-xs text-white/50">You've reached the guest message limit.</p>
+                <p className="text-xs text-foreground/50">You've reached the guest message limit.</p>
                 <button
                   onClick={() => setShowSignUpModal(true)}
-                  className="px-5 py-2 rounded-full bg-gradient-to-br from-[#B89382] to-[#8A6651] text-white text-sm font-semibold hover:from-[#A17A63] hover:to-[#603B25] transition-all shadow-md shadow-[#A17A63]/25"
+                  className="px-5 py-2 rounded-full bg-gradient-to-br from-primary-subtle to-primary-hover text-foreground text-sm font-semibold hover:from-primary hover:to-cat-knowledge transition-all shadow-md shadow-primary/25"
                 >
                   Sign up to continue chatting
                 </button>
@@ -1304,32 +1329,11 @@ const Index = () => {
       {shareModalJSX}
       {settingsModalJSX}
       {authModalsJSX}
-      {isSidebarOpen && <div className="fixed inset-0 bg-black/60 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+      {isSidebarOpen && <div className="fixed inset-0 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {sidebarJSX}
 
       <main className={`flex-1 flex flex-col relative overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
-        <ChatHeader
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={() => setIsSidebarOpen(v => !v)}
-          onNewChat={handleNewChat}
-          user={user}
-          profile={profile}
-          selectedMode={selectedMode}
-          onModeChange={setSelectedMode}
-          preferredLang={preferredLang}
-          onLanguageChange={handleLanguageChange}
-          onShowReminders={() => setSidebarView('reminders')}
-          onShowSignIn={() => setShowSignInModal(true)}
-          onShowSignUp={() => setShowSignUpModal(true)}
-          onSignOut={signOut}
-          onShowSettings={() => setShowSettingsModal(true)}
-          showSignInModal={showSignInModal}
-          onShowSignInModalChange={setShowSignInModal}
-          showSignUpModal={showSignUpModal}
-          onShowSignUpModalChange={setShowSignUpModal}
-          signUpPrefillEmail={signUpPrefillEmail}
-          onSignUpPrefillEmailChange={setSignUpPrefillEmail}
-        />
+        {chatHeaderJSX}
         {/* Landing content
             Mobile: top-aligned, tight spacing — everything must fit on a
             375×667 iPhone SE without scrolling. Desktop keeps the airy
@@ -1339,26 +1343,37 @@ const Index = () => {
             <div className="relative z-10 w-full">
               {/* Bot logo */}
               <div className="mx-auto mb-2 sm:mb-4">
-                <img src={logoImg} alt="TheWeddingBot" className="h-20 sm:h-30 object-contain mx-auto" />
+                <div className="relative mx-auto inline-block">
+                  <img src={logoImg} alt="TheWeddingBot" className="h-20 sm:h-30 object-contain block" />
+                  {/* Light-theme only: overlay an inverted copy clipped to the right half
+                      so only the text characters flip to black, not the left-side graphic */}
+                  <img
+                    src={logoImg}
+                    alt=""
+                    aria-hidden="true"
+                    className="hidden [.light_&]:block absolute inset-0 h-20 sm:h-30 object-contain invert"
+                    style={{ clipPath: 'inset(0 0 0 30%)' }}
+                  />
+                </div>
               </div>
-              {/* <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-[#A17A63]/60 font-label mb-6 text-center">Your Wedding Concierge</p> */}
+              {/* <p className="hidden sm:block text-2xs uppercase tracking-[0.25em] text-primary/60 font-label mb-6 text-center">Your Wedding Concierge</p> */}
 
               {/* Hero heading — tighter on mobile */}
               <h2 className="mt-12 font-headline text-lg sm:text-xl md:text-[1.3rem] text-soft mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
-  Hi!   <span className='text-[#a17a63cc]'>I'm here to help...</span>
+  Hi!   <span className='text-primary/80'>I'm here to help...</span>
               </h2>
               {/* <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
                 Tell me your event, style or budget — I'll guide you step by step.
               </p> */}
-  <div className="hidden sm:flex items-center gap-3 bg-white/[0.04] backdrop-blur-md rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
-                <Sparkles className="w-5 h-5 text-[#A17A63]/70 flex-shrink-0" />
+  <div className="glass-action-card hidden sm:flex items-center gap-3 rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
+                <Sparkles className="w-5 h-5 text-primary/70 flex-shrink-0" />
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold text-soft">Not sure where to start?</p>
                   <p className="text-xs text-soft">Tell me what you are looking for your celebration</p>
                 </div>
                 <button
                   onClick={() => setInputText('Help me decide what I need for my wedding')}
-                  className="px-4 py-2 rounded-full bg-white/[0.06] backdrop-blur-md text-soft text-xs font-semibold flex items-center gap-1.5 hover:bg-white/[0.1] transition-all flex-shrink-0"
+                  className="glass-action-card px-4 py-2 rounded-full text-soft text-xs font-semibold flex items-center gap-1.5 transition-all flex-shrink-0"
                 >
                   Help me decide <Sparkles className="w-3 h-3" />
                 </button>
@@ -1368,7 +1383,7 @@ const Index = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-5 max-w-2xl mx-auto">
                 {actionButtons.map((btn, i) => (
                   <button key={i} onClick={() => handleQuickPrompt(btn.action)} className="glass-action-card flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 rounded-xl sm:rounded-2xl py-2.5 sm:py-5 px-2 sm:px-3 group cursor-pointer">
-                    <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#A17A63]/70 group-hover:text-[#A17A63] transition-colors" />
+                    <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary/70 group-hover:text-primary transition-colors" />
                     <span className="text-[11px] sm:text-xs font-medium text-soft text-center leading-tight">{btn.text}</span>
                   </button>
                 ))}
@@ -1380,7 +1395,7 @@ const Index = () => {
               {/* Homepage feedback entry — visible to guests and signed-in users.
                   Opens DEV-B's FeedbackDialog. Placed in the empty-state so
                   users can flag bugs/ideas without hunting through the sidebar. */}
-              <div className="flex items-center justify-center gap-1.5 text-2xs sm:text-xs text-white/50 mb-2">
+              <div className="flex items-center justify-center gap-1.5 text-2xs sm:text-xs text-foreground/50 mb-2">
                 <MessageSquareHeart className="h-3.5 w-3.5 text-primary/70" />
                 <span>Have feedback?</span>
                 <button
@@ -1418,8 +1433,8 @@ const Index = () => {
                       title={hasSelection ? 'Reset occasion and mode' : 'Nothing to reset'}
                       aria-label="Reset occasion and mode"
                       className={`rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 transition-all duration-200 border whitespace-nowrap flex-shrink-0 flex items-center justify-center gap-1 ${hasSelection
-                        ? 'bg-white/10 border-white/20 text-white/90 hover:bg-white/15 cursor-pointer'
-                        : 'bg-white/[0.03] border-white/[0.08] text-white/30 cursor-not-allowed'
+                        ? 'bg-foreground/10 border-foreground/20 text-foreground/90 hover:bg-foreground/15 cursor-pointer'
+                        : 'bg-foreground/[0.03] border-foreground/[0.08] text-foreground/30 cursor-not-allowed'
                         }`}
                     >
                       <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -1432,8 +1447,8 @@ const Index = () => {
                     key={occ}
                     onClick={() => setSelectedOccasion(selectedOccasion === occ ? null : occ)}
                     className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
-                      ? 'bg-[#A17A63]/20 border-[#A17A63]/40 text-[#A17A63]'
-                      : 'bg-white/[0.06] border-white/[0.1] text-soft hover:bg-white/10'
+                      ? 'bg-primary/20 border-primary/40 text-primary'
+                      : 'bg-foreground/[0.06] border-foreground/[0.1] text-soft hover:bg-foreground/10'
                       }`}
                   >
                     {occ}
@@ -1446,7 +1461,7 @@ const Index = () => {
         </div>
 
         {/* Bottom tagline — desktop only; on mobile it's redundant and steals 30px */}
-        {/* <p className="hidden sm:block flex-shrink-0 text-center py-3 text-2xs text-white/25 uppercase tracking-[0.25em] font-medium">
+        {/* <p className="hidden sm:block flex-shrink-0 text-center py-3 text-2xs text-foreground/25 uppercase tracking-[0.25em] font-medium">
           wedding ease — your day, perfected
         </p> */}
       </main>

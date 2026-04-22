@@ -5,9 +5,12 @@ import { startReminderScheduler, stopReminderScheduler } from './services/remind
 import { startGuestCleanupCron, stopGuestCleanupCron } from './services/guestCleanupCron'
 import { startSubscriptionScheduler, stopSubscriptionScheduler } from './services/subscriptionScheduler'
 import { validatePaymentConfig } from './controllers/paymentController'
+import { initPostHog, shutdownPostHog } from './lib/posthog'
 
 // Fail fast on missing payment env vars before binding the port.
 validatePaymentConfig()
+
+initPostHog()
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = '0.0.0.0'
@@ -49,6 +52,8 @@ function gracefulShutdown(signal: string): void {
   stopReminderScheduler()
   stopGuestCleanupCron()
   stopSubscriptionScheduler()
+  // Flush PostHog buffered events before process exit.
+  void shutdownPostHog()
 
   // Stop accepting new connections
   server.close(() => {

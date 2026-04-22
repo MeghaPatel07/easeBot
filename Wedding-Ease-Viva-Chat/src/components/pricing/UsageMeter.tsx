@@ -78,7 +78,7 @@ function StateIcon({ state }: { state: UsageMeterState }) {
   }
   if (state === 'depleted') {
     return (
-      <Lock aria-hidden="true" className="h-3.5 w-3.5 text-white/90" />
+      <Lock aria-hidden="true" className="h-3.5 w-3.5 text-foreground/90" />
     )
   }
   return null
@@ -112,11 +112,11 @@ export function UsageMeter({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <StateIcon state={state} />
-          <span className="text-caption font-label uppercase tracking-wide text-white/90">
+          <span className="text-caption font-label uppercase tracking-wide text-foreground/90">
             {copy}
           </span>
         </div>
-        <span className="text-2xs text-white/90">
+        <span className="text-2xs text-foreground/90">
           {usedMonthly.toLocaleString()} / {capMonthly.toLocaleString()}
           {extras > 0 && ` (+${extras.toLocaleString()})`}
         </span>
@@ -158,7 +158,7 @@ export function UsageMeter({
           style={{ width: `${dailyPct}%` }}
         />
       </div>
-      <div className="flex justify-between text-3xs text-white/90">
+      <div className="flex justify-between text-3xs text-foreground/90">
         <span>Daily</span>
         <span>
           {usedDaily.toLocaleString()} / {capDaily.toLocaleString()}

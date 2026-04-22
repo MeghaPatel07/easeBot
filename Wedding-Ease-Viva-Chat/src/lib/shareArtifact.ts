@@ -28,7 +28,7 @@ function showToast(msg: string) {
   const toast = document.createElement('div')
   toast.textContent = msg
   toast.className =
-    'fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#3A0E20]/95 text-white text-xs px-4 py-2 rounded-full shadow-lg z-[10001] animate-in fade-in border border-[#C6944A]/40'
+    'fixed bottom-20 left-1/2 -translate-x-1/2 bg-surface-toast/95 text-white text-xs px-4 py-2 rounded-full shadow-lg z-[10001] animate-in fade-in border border-accent-gold/40'
   document.body.appendChild(toast)
   setTimeout(() => toast.remove(), 2600)
 }

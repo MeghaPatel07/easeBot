@@ -74,29 +74,29 @@ function ImagePreview({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay-scrim/90 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 z-10 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+        className="absolute top-4 right-4 z-10 h-10 w-10 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
       >
         <X className="h-5 w-5" />
       </button>
 
       {/* Zoom controls */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white/10 rounded-full px-3 py-1.5 backdrop-blur-sm">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-overlay-surface/10 rounded-full px-3 py-1.5 backdrop-blur-sm">
         <button
           onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.5)) }}
-          className="h-7 w-7 rounded-full hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+          className="h-7 w-7 rounded-full hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
         >
           <ZoomOut className="h-4 w-4" />
         </button>
-        <span className="text-white/70 text-xs min-w-[3rem] text-center">{Math.round(scale * 100)}%</span>
+        <span className="text-overlay-text/70 text-xs min-w-[3rem] text-center">{Math.round(scale * 100)}%</span>
         <button
           onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 3)) }}
-          className="h-7 w-7 rounded-full hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+          className="h-7 w-7 rounded-full hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
         >
           <ZoomIn className="h-4 w-4" />
         </button>
@@ -107,13 +107,13 @@ function ImagePreview({
         <>
           <button
             onClick={(e) => { e.stopPropagation(); prev() }}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); next() }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
@@ -154,14 +154,14 @@ function ImagePreview({
                 onClick={(e) => { e.stopPropagation(); setIndex(i); setScale(1) }}
                 className={`w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${
                   i === index
-                    ? 'border-[#A17A63] shadow-md shadow-[#A17A63]/30'
-                    : 'border-white/20 opacity-60 hover:opacity-100'
+                    ? 'border-primary shadow-md shadow-primary/30'
+                    : 'border-foreground/20 opacity-60 hover:opacity-100'
                 }`}
               >
                 <img src={url} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
               </button>
             ))}
-            <span className="text-white/50 text-xs ml-1">{index + 1}/{imageUrls.length}</span>
+            <span className="text-foreground/50 text-xs ml-1">{index + 1}/{imageUrls.length}</span>
           </div>
         )}
       </div>
@@ -173,7 +173,7 @@ function ImagePreview({
 function WatermarkOverlay() {
   return (
     <div className="absolute inset-0 pointer-events-none flex items-end justify-end p-3">
-      <span className="bg-black/50 text-white/70 text-[10px] font-medium px-2 py-1 rounded-md backdrop-blur-sm">
+      <span className="bg-overlay-scrim/50 text-overlay-text/70 text-[10px] font-medium px-2 py-1 rounded-md backdrop-blur-sm">
         Made with TheWeddingBot
       </span>
     </div>
@@ -262,13 +262,13 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             <>
               <button
                 onClick={() => setActiveIndex(i => (i - 1 + imageUrls.length) % imageUrls.length)}
-                className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text flex items-center justify-center backdrop-blur-sm transition-colors"
               >
                 <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
               <button
                 onClick={() => setActiveIndex(i => (i + 1) % imageUrls.length)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text flex items-center justify-center backdrop-blur-sm transition-colors"
               >
                 <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
@@ -283,7 +283,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
               onClick={() => setActiveIndex(i)}
               className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
                 i === activeIndex
-                  ? 'border-[#A17A63] shadow-md shadow-[#A17A63]/20'
+                  ? 'border-primary shadow-md shadow-primary/20'
                   : 'border-transparent opacity-60 hover:opacity-100'
               }`}
             >
@@ -291,7 +291,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             </button>
           ))}
         </div>
-        <p className="text-center text-2xs sm:text-3xs text-white/40">
+        <p className="text-center text-2xs sm:text-3xs text-foreground/40">
           {activeIndex + 1} of {imageUrls.length} variants
         </p>
       </div>

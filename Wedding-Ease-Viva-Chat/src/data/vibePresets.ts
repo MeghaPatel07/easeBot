@@ -1,3 +1,8 @@
+// NOTE: The hex values in this file are intentional creative content (user-selectable vibe gradients),
+// not theme chrome. The `accentColor`, `gradientFrom`, and `gradientTo` fields on each VibePreset
+// define the visual identity of each user-selectable vibe — the gradient IS the product.
+// They are excluded from the theme migration by scope. — Theme Migration Sprint F, 2026-04-20
+
 import type { VibePreset } from '@/types'
 
 export const VIBE_PRESETS: VibePreset[] = [

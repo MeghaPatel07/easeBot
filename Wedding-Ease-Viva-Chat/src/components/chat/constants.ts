@@ -41,17 +41,17 @@ export const MODE_CONFIG: ModeConfig[] = [
     description: 'Let TheWeddingBot choose the best approach for you',
     icon: Sparkles,
     pill: 'bg-mode-auto/10 text-mode-auto',
-    active: 'bg-[#8A7E72] text-white shadow-sm',
-    inactive: 'text-white/60 hover:bg-white/15',
+    active: 'bg-mode-auto-active text-primary-foreground shadow-sm',
+    inactive: 'text-foreground/60 hover:bg-foreground/15',
   },
   {
     key: 'planner',
     label: 'Planner',
     description: 'Create timelines, tasks, and organize your wedding',
     icon: Calendar,
-    pill: 'bg-[#A17A63]/10 text-[#A17A63]',
-    active: 'bg-[#A17A63] text-white shadow-sm',
-    inactive: 'text-white/60 hover:bg-white/15',
+    pill: 'bg-primary/10 text-primary',
+    active: 'bg-primary text-primary-foreground shadow-sm',
+    inactive: 'text-foreground/60 hover:bg-foreground/15',
   },
   {
     key: 'stylist',
@@ -59,8 +59,8 @@ export const MODE_CONFIG: ModeConfig[] = [
     description: 'Get aesthetic advice and design inspiration',
     icon: Heart,
     pill: 'bg-mode-stylist/10 text-mode-stylist',
-    active: 'bg-[#D4AF37] text-white shadow-sm',
-    inactive: 'text-white/60 hover:bg-white/15',
+    active: 'bg-mode-stylist-active text-primary-foreground shadow-sm',
+    inactive: 'text-foreground/60 hover:bg-foreground/15',
   },
   {
     key: 'knowledge',
@@ -68,8 +68,8 @@ export const MODE_CONFIG: ModeConfig[] = [
     description: 'Get answers to wedding etiquette and planning questions',
     icon: Lightbulb,
     pill: 'bg-mode-knowledge/10 text-mode-knowledge',
-    active: 'bg-[#6B5E52] text-white shadow-sm',
-    inactive: 'text-white/60 hover:bg-white/15',
+    active: 'bg-mode-knowledge-active text-primary-foreground shadow-sm',
+    inactive: 'text-foreground/60 hover:bg-foreground/15',
   },
 ];
 
@@ -80,20 +80,20 @@ export const modeConfig = (key: ModeOrAuto): ModeConfig =>
 // Tag presets for conversation organization
 // ─────────────────────────────────────────────────────────────────────────────
 export const TAG_PRESETS = [
-  { name: 'Venue',      color: 'bg-blue-500/15 text-blue-300 border-blue-500/25' },
-  { name: 'Catering',   color: 'bg-orange-500/15 text-orange-300 border-orange-500/25' },
-  { name: 'Budget',     color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' },
-  { name: 'Style',      color: 'bg-pink-500/15 text-pink-300 border-pink-500/25' },
-  { name: 'Attire',     color: 'bg-purple-500/15 text-purple-300 border-purple-500/25' },
-  { name: 'Music',      color: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25' },
-  { name: 'Flowers',    color: 'bg-rose-500/15 text-rose-300 border-rose-500/25' },
-  { name: 'Photo',      color: 'bg-amber-500/15 text-amber-300 border-amber-500/25' },
-  { name: 'Guest List', color: 'bg-teal-500/15 text-teal-300 border-teal-500/25' },
-  { name: 'Other',      color: 'bg-white/10 text-white/70 border-white/20' },
+  { name: 'Venue',      color: 'bg-tag-venue/15 text-tag-venue-fg border-tag-venue/25' },
+  { name: 'Catering',   color: 'bg-tag-catering/15 text-tag-catering-fg border-tag-catering/25' },
+  { name: 'Budget',     color: 'bg-success/15 text-success-subtle border-success/25' },
+  { name: 'Style',      color: 'bg-cat-timeline/15 text-cat-timeline-fg border-cat-timeline/25' },
+  { name: 'Attire',     color: 'bg-cat-milestone/15 text-cat-milestone-fg border-cat-milestone/25' },
+  { name: 'Music',      color: 'bg-tag-music/15 text-tag-music-fg border-tag-music/25' },
+  { name: 'Flowers',    color: 'bg-tag-flowers/15 text-tag-flowers-fg border-tag-flowers/25' },
+  { name: 'Photo',      color: 'bg-cat-budget/15 text-cat-budget-fg border-cat-budget/25' },
+  { name: 'Guest List', color: 'bg-tag-guest/15 text-tag-guest-fg border-tag-guest/25' },
+  { name: 'Other',      color: 'bg-foreground/10 text-foreground/70 border-foreground/20' },
 ];
 
 export const getTagStyle = (tagName: string) =>
-  TAG_PRESETS.find(t => t.name === tagName)?.color ?? 'bg-white/10 text-white/70 border-white/20';
+  TAG_PRESETS.find(t => t.name === tagName)?.color ?? 'bg-foreground/10 text-foreground/70 border-foreground/20';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Markdown to HTML converter for rich text copying

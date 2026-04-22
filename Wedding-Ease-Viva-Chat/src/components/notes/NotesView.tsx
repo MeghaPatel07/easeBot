@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown } from 'lucide-react';
+import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown, ChevronDown, AlertTriangle } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useNotes } from '@/hooks/useNotes';
 import { useNoteEditor } from '@/hooks/useNoteEditor';
 import {
@@ -29,6 +30,7 @@ import NoteEditor from '@/components/notes/NoteEditor';
 import NoteShareDialog from '@/components/notes/NoteShareDialog';
 import NoteCommentsSidebar from '@/components/notes/NoteCommentsSidebar';
 import NoteTemplateDialog from '@/components/notes/NoteTemplateDialog';
+import PaywallModal from '@/components/notes/PaywallModal';
 import BlockWidgetBar from '@/components/notes/toolbar/BlockWidgetBar';
 import { toast } from 'sonner';
 import { useAccount } from '@/hooks/useAccount';
@@ -81,6 +83,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const {
     note, isSaving, lastSavedAt, hasUnsavedChanges, save,
     updateContent, updateTitle, uploadImage,
+    conflict, dismissConflict, discardLocalEdits,
   } = useNoteEditor(activeNoteId, userId);
 
   // Local state
@@ -90,6 +93,31 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const [comments, setComments] = useState<NoteComment[]>([]);
   const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
   const [coverHovered, setCoverHovered] = useState(false);
+  const [notesPickerOpen, setNotesPickerOpen] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallTrigger, setPaywallTrigger] = useState<'edit' | 'create' | 'template'>('edit');
+
+  // Tier computation — hoisted so handlers can gate on it.
+  const { profile: accountProfile } = useAccount();
+  const tier = resolveTier(accountProfile);
+  const limits = getLimits(tier);
+  const tierAllowsEdit = limits.notesAccess === 'full';
+
+  const openPaywall = useCallback((reason: 'edit' | 'create' | 'template') => {
+    setPaywallTrigger(reason);
+    setPaywallOpen(true);
+  }, []);
+
+  const guardedCreateNote = useCallback(
+    (folderId?: string) => {
+      if (!tierAllowsEdit) {
+        openPaywall('create');
+        return;
+      }
+      createNote(folderId ? { folderId } : undefined);
+    },
+    [tierAllowsEdit, createNote, openPaywall],
+  );
   const coverInputRef = useRef<HTMLInputElement>(null);
   const handleEditorReady = useCallback((editor: Editor) => setEditorInstance(editor), []);
 
@@ -107,6 +135,11 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
   // Template handler
   const handleSelectTemplate = async (template: NoteTemplate) => {
+    if (!tierAllowsEdit) {
+      setShowTemplateDialog(false);
+      openPaywall('template');
+      return;
+    }
     try {
       await createNote({
         title: template.title,
@@ -253,73 +286,122 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
     }
   };
 
-  // Determine permissions — tier-gated: Free users get view-only access
-  const { profile: accountProfile } = useAccount();
-  const tier = resolveTier(accountProfile);
-  const limits = getLimits(tier);
-  const tierAllowsEdit = limits.notesAccess === 'full';
+  // Collaborators are stored with userId === email fallback (see notesSharingService),
+  // so match on both userId and email to be robust across older/newer records.
+  const normalizedEmail = (userEmail || '').trim().toLowerCase();
+  const matchesUser = (c: { userId?: string; email?: string }) =>
+    c.userId === userId || (c.email || '').trim().toLowerCase() === normalizedEmail;
 
   const isOwner = note?.ownerId === userId;
-  const isEditor = note?.collaborators?.some(
-    (c) => c.userId === userId && c.permission === 'editor'
-  );
+  const myCollaborator = note?.collaborators?.find(matchesUser);
+  const isEditor = myCollaborator?.permission === 'editor';
   const canEdit = tierAllowsEdit && (isOwner || isEditor);
   const readOnly = !canEdit;
   const blockedByTier = !tierAllowsEdit && (isOwner || isEditor);
 
-  // Word count -- content is Tiptap JSON, not HTML
-  const wordCount = note?.content
-    ? extractText((() => { try { return JSON.parse(note.content); } catch { return null; } })())
-        .split(/\s+/).filter(Boolean).length
-    : 0;
+  // Conflict display name: look up the remote editor in owner/collaborators,
+  // fall back to the raw id if we can't match (e.g. stale collaborator list).
+  const conflictName = React.useMemo(() => {
+    if (!conflict || !note) return null;
+    const id = conflict.remoteEditedBy;
+    if (note.ownerId === id) return note.ownerEmail || 'the owner';
+    const c = note.collaborators?.find(x => x.userId === id);
+    return c?.name || c?.email || 'another collaborator';
+  }, [conflict, note]);
+
+  const handleViewTheirs = useCallback(() => {
+    const remote = discardLocalEdits();
+    if (!remote || !editorInstance) return;
+    try {
+      const json = JSON.parse(remote);
+      editorInstance.commands.setContent(json);
+    } catch (err) {
+      console.error('[NotesView] failed to apply remote content', err);
+    }
+  }, [discardLocalEdits, editorInstance]);
+
+  // Word count -- content is Tiptap JSON, not HTML.
+  // Memoized because extractText walks the entire document; on a long note
+  // this ran on every render (e.g. every keystroke-triggered re-render).
+  const wordCount = React.useMemo(() => {
+    if (!note?.content) return 0;
+    let parsed: unknown;
+    try { parsed = JSON.parse(note.content); } catch { return 0; }
+    return extractText(parsed).split(/\s+/).filter(Boolean).length;
+  }, [note?.content]);
 
   // Trashed notes count
   const trashedCount = notes.filter(n => n.isDeleted).length;
 
   return (
-    <div className="flex h-[calc(100vh-7.5rem)] h-[calc(100dvh-7.5rem)] -m-3 sm:-m-5 rounded-xl overflow-hidden border border-white/[0.06]">
-      {/*
-        Responsive split-pane:
-        ── Desktop (≥640px): sidebar + editor side-by-side, both always visible.
-        ── Mobile  (<640px):  ONE pane visible at a time. When no note is
-            selected (activeNoteId == null), show the sidebar full-width. When
-            a note is selected, hide the sidebar and show the editor full-width.
-            The NoteHeader's mobile-only back button (onBack) clears
-            activeNoteId to return to the list.
-      */}
-
-      {/* Left sidebar — hidden on mobile when a note is open; full-width on mobile */}
-      <div className={`${activeNoteId ? 'hidden sm:flex' : 'flex w-full'} sm:w-auto sm:flex flex-shrink-0 h-full min-w-0`}>
-        <NotesSidebar
-          notes={notes}
-          sharedNotes={sharedNotes}
-          folders={folders}
-          activeNoteId={activeNoteId}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onSelectNote={handleSelectNote}
-          onCreateNote={() => createNote()}
-          onDeleteNote={deleteNote}
-          onRenameNote={(noteId, title) => updateNote(noteId, { title })}
-          onRestoreNote={handleRestoreNote}
-          onDuplicateNote={handleDuplicateNote}
-          onCreateFolder={createFolder}
-          onDeleteFolder={deleteFolder}
-          onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
-          onMoveNote={moveNoteToFolder}
-          onToggleFavorite={handleToggleFavorite}
-          onBack={() => { if (activeNoteId) handleSelectNote(null); else navigate('/'); }}
-          trashedCount={trashedCount}
-        />
+    <div className="flex flex-col h-[calc(100vh-7.5rem)] h-[calc(100dvh-7.5rem)] -m-3 sm:-m-5 rounded-xl overflow-hidden border border-foreground/[0.06]">
+      {/* Centered editor-panel controls — Google-Docs-style file picker.
+          "All notes" opens a popover with the list; "+ New note" creates.
+          Shown on all sizes — the outer app nav already fills the left column,
+          so a second persistent sidebar would create visual clutter. */}
+      <div className="flex items-center justify-center gap-2 px-3 py-2.5 bg-card/60 [.light_&]:bg-card/95 border-b border-border/40 flex-shrink-0">
+        <Popover open={notesPickerOpen} onOpenChange={setNotesPickerOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition-colors shadow-sm"
+              title="Switch notes"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>All notes</span>
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="center"
+            sideOffset={6}
+            className="w-64 p-0 border-border bg-card shadow-dropdown [&>div]:!w-full"
+          >
+            <div className="h-[min(70vh,36rem)] flex flex-col">
+              <NotesSidebar
+                notes={notes}
+                sharedNotes={sharedNotes}
+                folders={folders}
+                activeNoteId={activeNoteId}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onSelectNote={(noteId) => { handleSelectNote(noteId); setNotesPickerOpen(false); }}
+                onCreateNote={(folderId) => { guardedCreateNote(folderId); setNotesPickerOpen(false); }}
+                onDeleteNote={deleteNote}
+                onRenameNote={(noteId, title) => updateNote(noteId, { title })}
+                onRestoreNote={handleRestoreNote}
+                onDuplicateNote={handleDuplicateNote}
+                onCreateFolder={createFolder}
+                onDeleteFolder={deleteFolder}
+                onRenameFolder={(folderId, name) => updateFolder(folderId, { name })}
+                onMoveNote={moveNoteToFolder}
+                onToggleFavorite={handleToggleFavorite}
+                onBack={() => setNotesPickerOpen(false)}
+                trashedCount={trashedCount}
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
+        <button
+          type="button"
+          onClick={() => guardedCreateNote()}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary-hover transition-colors shadow-sm"
+          title="New note"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          <span>New note</span>
+        </button>
       </div>
 
-      {/* Main content area — hidden on mobile when no note is selected */}
-      <div className={`${activeNoteId ? 'flex' : 'hidden sm:flex'} flex-1 flex-col min-w-0 bg-white/[0.02]`}>
+      {/* Main content area — min-h-0 is required so flex children with
+          overflow-y-auto can actually shrink and scroll rather than
+          expanding the column and pushing the toolbar offscreen. */}
+      <div className="flex flex-1 flex-col min-h-0 min-w-0 bg-foreground/[0.02]">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-3">
               <Loader2 className="h-8 w-8 text-primary/40 mx-auto animate-spin" />
-              <p className="text-sm text-white/30">Loading notes...</p>
+              <p className="text-sm text-foreground/30">Loading notes...</p>
             </div>
           </div>
         ) : note ? (
@@ -343,29 +425,29 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               commentsCount={comments.length}
               onBack={() => handleSelectNote(null)}
             />
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
               {/* Shared note info banner */}
               {!isOwner && note.ownerEmail && (
-                <div className="max-w-3xl mx-auto px-3 sm:px-6 pt-3">
-                  <div className="flex flex-col gap-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3">
+                <div className="w-full px-3 sm:px-6 pt-3">
+                  <div className="flex flex-col gap-1.5 rounded-xl bg-foreground/[0.04] border border-foreground/[0.08] px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Crown className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
-                      <p className="text-xs text-white/60">
-                        <span className="text-white/80 font-medium">Shared by</span>{' '}
+                      <p className="text-xs text-foreground/60">
+                        <span className="text-foreground/80 font-medium">Shared by</span>{' '}
                         {note.ownerEmail}
                       </p>
                     </div>
                     {note.collaborators?.length > 0 && (
                       <div className="flex items-start gap-2">
-                        <Users className="h-3.5 w-3.5 text-white/30 flex-shrink-0 mt-0.5" />
+                        <Users className="h-3.5 w-3.5 text-foreground/30 flex-shrink-0 mt-0.5" />
                         <div className="flex flex-wrap gap-1">
                           {note.collaborators.map((c) => (
                             <span
                               key={c.userId}
-                              className="inline-flex items-center gap-1 text-[10px] bg-white/[0.06] border border-white/[0.08] rounded-full px-2 py-0.5 text-white/50"
+                              className="inline-flex items-center gap-1 text-[10px] bg-foreground/[0.06] border border-foreground/[0.08] rounded-full px-2 py-0.5 text-foreground/50"
                             >
                               {c.name || c.email.split('@')[0]}
-                              <span className="text-white/25">
+                              <span className="text-foreground/25">
                                 {c.permission === 'editor' ? 'edit' : c.permission === 'commenter' ? 'comment' : 'view'}
                               </span>
                             </span>
@@ -379,7 +461,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
               {/* Cover image area */}
               <div
-                className="relative max-w-3xl mx-auto"
+                className="relative w-full px-3 sm:px-6"
                 onMouseEnter={() => setCoverHovered(true)}
                 onMouseLeave={() => setCoverHovered(false)}
               >
@@ -395,7 +477,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="h-7 text-[11px] bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                          className="h-7 text-[11px] bg-overlay-scrim/60 hover:bg-overlay-scrim/80 text-overlay-text border-0 backdrop-blur-sm"
                           onClick={() => coverInputRef.current?.click()}
                         >
                           Change cover
@@ -403,7 +485,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                         <Button
                           size="sm"
                           variant="secondary"
-                          className="h-7 w-7 p-0 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
+                          className="h-7 w-7 p-0 bg-overlay-scrim/60 hover:bg-overlay-scrim/80 text-overlay-text border-0 backdrop-blur-sm"
                           onClick={handleRemoveCover}
                         >
                           <X className="h-3.5 w-3.5" />
@@ -417,7 +499,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 text-[11px] text-white/30 hover:text-white/60 gap-1.5"
+                        className="h-7 text-[11px] text-foreground/30 hover:text-foreground/60 gap-1.5"
                         onClick={() => coverInputRef.current?.click()}
                       >
                         <ImagePlus className="h-3.5 w-3.5" />
@@ -434,27 +516,80 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                   onChange={handleCoverImageChange}
                 />
               </div>
-              <div className="mx-auto px-3 sm:px-6 py-3 sm:py-4">
-                {blockedByTier && (
-                  <div className="mb-3 rounded-xl bg-primary/10 border border-primary/20 px-4 py-3 text-sm text-white/80">
-                    Notes are <span className="font-semibold">view-only</span> on the Free plan.{' '}
-                    <a href="/pricing" className="text-primary hover:underline font-medium">Upgrade to Pro</a>{' '}
-                    to edit, collaborate, and create new notes.
+              <div className="w-full px-3 sm:px-6 py-4 sm:py-6 pb-16 sm:pb-20">
+                {conflict && canEdit && (
+                  <div className="mb-3 rounded-2xl bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/40 px-4 py-3.5 flex items-center gap-3 shadow-sm">
+                    <div className="h-9 w-9 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground/90">
+                        {conflictName ? `${conflictName} just updated this note` : 'This note was just updated'}
+                      </p>
+                      <p className="text-xs text-foreground/55 mt-0.5">
+                        Your edits are saved locally. Choose which version to keep.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleViewTheirs}
+                        className="text-xs h-8 px-3"
+                      >
+                        View theirs
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={dismissConflict}
+                        className="text-xs h-8 px-3 bg-primary hover:bg-primary-hover text-primary-foreground"
+                      >
+                        Keep mine
+                      </Button>
+                    </div>
                   </div>
                 )}
-                <NoteEditor
-                  noteId={note.id}
-                  content={note.content}
-                  onUpdate={updateContent}
-                  onEditorReady={handleEditorReady}
-                  onImageUpload={uploadImage}
-                  readOnly={readOnly}
-                  placeholder="Start writing, or type '/' for commands..."
-                />
+                {blockedByTier && (
+                  <div className="mb-3 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/30 px-4 py-3.5 flex items-center gap-3 shadow-sm">
+                    <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                      <Crown className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground/90">Notes are view-only on Free</p>
+                      <p className="text-xs text-foreground/55 mt-0.5">Upgrade to Pro to edit, share, and collaborate.</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => openPaywall('edit')}
+                      className="flex-shrink-0 bg-primary hover:bg-primary-hover text-primary-foreground text-xs h-8 px-3"
+                    >
+                      Upgrade
+                    </Button>
+                  </div>
+                )}
+                <div
+                  className="relative w-full rounded-2xl bg-card border border-border/60 shadow-card px-5 py-5 sm:px-8 sm:py-7 min-h-[520px] focus-within:border-primary/40 focus-within:shadow-dropdown transition-all"
+                  onClickCapture={(e) => {
+                    if (blockedByTier) {
+                      e.stopPropagation();
+                      openPaywall('edit');
+                    }
+                  }}
+                >
+                  <NoteEditor
+                    noteId={note.id}
+                    content={note.content}
+                    onUpdate={updateContent}
+                    onEditorReady={handleEditorReady}
+                    onImageUpload={uploadImage}
+                    readOnly={readOnly}
+                    placeholder="Start writing, or type '/' for commands..."
+                  />
+                </div>
               </div>
             </div>
             {!readOnly && editorInstance && (
-              <div className="flex-shrink-0 border-t border-white/[0.06]">
+              <div className="flex-shrink-0 border-t border-foreground/[0.06]">
                 <div className="">
                   <BlockWidgetBar editor={editorInstance} onImageUpload={uploadImage} />
                 </div>
@@ -464,22 +599,25 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-4">
-              <FileText className="h-16 w-16 text-white/10 mx-auto" />
-              <h3 className="text-lg font-headline text-white/40">
+              <FileText className="h-16 w-16 text-foreground/10 mx-auto" />
+              <h3 className="text-lg font-headline text-foreground/40">
                 Select a note or create a new one
               </h3>
               <div className="flex gap-2 justify-center">
                 <Button
-                  onClick={() => createNote()}
+                  onClick={() => guardedCreateNote()}
                   variant="outline"
                   className="border-primary/40 text-primary hover:bg-primary/10"
                 >
                   <Plus className="h-4 w-4 mr-2" /> New Note
                 </Button>
                 <Button
-                  onClick={() => setShowTemplateDialog(true)}
+                  onClick={() => {
+                    if (!tierAllowsEdit) { openPaywall('template'); return; }
+                    setShowTemplateDialog(true);
+                  }}
                   variant="ghost"
-                  className="text-white/60 hover:text-white"
+                  className="text-foreground/60 hover:text-foreground"
                 >
                   <Layout className="h-4 w-4 mr-2" /> From Template
                 </Button>
@@ -542,6 +680,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
           open={showShareDialog}
           onClose={() => setShowShareDialog(false)}
           note={note}
+          isOwner={isOwner}
           onAddCollaborator={handleAddCollaborator}
           onRemoveCollaborator={handleRemoveCollaborator}
           onUpdatePermission={handleUpdateCollaboratorPermission}
@@ -555,6 +694,13 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         open={showTemplateDialog}
         onClose={() => setShowTemplateDialog(false)}
         onSelectTemplate={handleSelectTemplate}
+      />
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        currentTier={tier}
+        trigger={paywallTrigger}
       />
     </div>
   );

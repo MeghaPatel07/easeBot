@@ -68,10 +68,10 @@ export default function SharedNote() {
   // ── Loading state ──────────────────────────────────────────────────────────
   if (pageState === 'loading') {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-surface-note">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
-          <p className="text-sm text-white/50">Loading shared note...</p>
+          <p className="text-sm text-foreground/50">Loading shared note...</p>
         </div>
       </div>
     );
@@ -80,11 +80,11 @@ export default function SharedNote() {
   // ── Not found state ────────────────────────────────────────────────────────
   if (pageState === 'not-found') {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-surface-note">
         <div className="text-center space-y-4 max-w-md px-6">
-          <AlertCircle className="h-12 w-12 text-white/20 mx-auto" />
-          <h2 className="text-lg font-headline text-white/60">Note not found</h2>
-          <p className="text-sm text-white/40">
+          <AlertCircle className="h-12 w-12 text-foreground/20 mx-auto" />
+          <h2 className="text-lg font-headline text-foreground/60">Note not found</h2>
+          <p className="text-sm text-foreground/40">
             This note doesn't exist or the link may be invalid.
           </p>
           <Link to="/">
@@ -100,16 +100,16 @@ export default function SharedNote() {
   // ── No access state ─────────────────────────────────────────────────────────
   if (pageState === 'no-access') {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-surface-note">
         <div className="text-center space-y-4 max-w-md px-6">
-          <div className="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto">
-            <AlertCircle className="h-8 w-8 text-amber-400/60" />
+          <div className="h-16 w-16 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
+            <AlertCircle className="h-8 w-8 text-warning/60" />
           </div>
-          <h2 className="text-lg font-headline text-white/60">Access Restricted</h2>
-          <p className="text-sm text-white/40">
+          <h2 className="text-lg font-headline text-foreground/60">Access Restricted</h2>
+          <p className="text-sm text-foreground/40">
             This note exists but sharing has been disabled by the owner.
             {note?.ownerEmail && (
-              <span className="block mt-2 text-white/50">
+              <span className="block mt-2 text-foreground/50">
                 Contact <span className="text-primary/80">{note.ownerEmail}</span> to request access.
               </span>
             )}
@@ -127,17 +127,17 @@ export default function SharedNote() {
   // ── Error state ────────────────────────────────────────────────────────────
   if (pageState === 'error') {
     return (
-      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-[#1A0A10]">
+      <div className="min-h-[100vh] min-h-[100dvh] flex items-center justify-center bg-surface-note">
         <div className="text-center space-y-4 max-w-md px-6">
-          <XCircle className="h-12 w-12 text-red-400/40 mx-auto" />
-          <h2 className="text-lg font-headline text-white/60">Something went wrong</h2>
-          <p className="text-sm text-white/40">
+          <XCircle className="h-12 w-12 text-destructive/40 mx-auto" />
+          <h2 className="text-lg font-headline text-foreground/60">Something went wrong</h2>
+          <p className="text-sm text-foreground/40">
             Something went wrong. Please try again.
           </p>
           <div className="flex items-center justify-center gap-3 mt-4">
             <Button
               variant="outline"
-              className="border-white/20 text-white/60 hover:bg-white/10"
+              className="border-foreground/20 text-foreground/60 hover:bg-foreground/10"
               onClick={() => window.location.reload()}
             >
               Try again
@@ -161,17 +161,17 @@ export default function SharedNote() {
   const canComment = permission === 'comment' || permission === 'edit';
 
   return (
-    <div className="min-h-[100vh] min-h-[100dvh] bg-[#1A0A10]">
+    <div className="min-h-[100vh] min-h-[100dvh] bg-surface-note">
       {/* Branded header */}
-      <header className="border-b border-white/[0.06] px-6 py-4">
+      <header className="border-b border-foreground/[0.06] px-6 py-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               <span className="text-sm font-headline text-primary/80 tracking-wide">TheWeddingBot</span>
             </div>
-            <div className="h-5 w-px bg-white/10" />
-            <span className="text-[10px] uppercase tracking-wider text-white/30 font-medium">Shared Note</span>
+            <div className="h-5 w-px bg-foreground/10" />
+            <span className="text-[10px] uppercase tracking-wider text-foreground/30 font-medium">Shared Note</span>
           </div>
           <Link to="/">
             <Button variant="ghost" className="text-xs text-primary/70 hover:text-primary gap-1.5">
@@ -183,12 +183,12 @@ export default function SharedNote() {
       </header>
 
       {/* Note title bar */}
-      <div className="border-b border-white/[0.04] px-6 py-3">
+      <div className="border-b border-foreground/[0.04] px-6 py-3">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <span className="text-2xl">{note.icon || '\u{1F4DD}'}</span>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-headline text-white/90 truncate">{note.title || 'Untitled'}</h1>
-            <p className="text-[10px] text-white/30">
+            <h1 className="text-lg font-headline text-foreground/90 truncate">{note.title || 'Untitled'}</h1>
+            <p className="text-[10px] text-foreground/30">
               {permission === 'edit' ? 'You can edit this note' : permission === 'comment' ? 'You can comment on this note' : 'View only'}
             </p>
           </div>

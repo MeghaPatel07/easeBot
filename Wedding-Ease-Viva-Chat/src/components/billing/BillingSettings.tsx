@@ -70,11 +70,11 @@ export function BillingSettings({ className }: { className?: string }) {
   return (
     <div className={cn('flex flex-col gap-5', className)}>
       {/* Current plan */}
-      <div className="rounded-xl bg-white/[0.03] p-5">
+      <div className="rounded-xl bg-foreground/[0.03] p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-2xs uppercase tracking-wide text-white/90">Current plan</p>
-            <p className="font-headline text-2xl text-white/90">{tierLabel}</p>
+            <p className="text-2xs uppercase tracking-wide text-foreground/90">Current plan</p>
+            <p className="font-headline text-2xl text-foreground/90">{tierLabel}</p>
           </div>
           <span className="rounded-full bg-primary/10 px-3 py-1 text-2xs uppercase tracking-wide text-primary">
             {tier === 'free' || tier === 'guest' ? 'Free tier' : 'Active'}
@@ -82,7 +82,7 @@ export function BillingSettings({ className }: { className?: string }) {
         </div>
 
         {!user ? (
-          <p className="text-xs text-white/90">Sign in to view your usage details.</p>
+          <p className="text-xs text-foreground/90">Sign in to view your usage details.</p>
         ) : isLoading ? (
           <div className="h-12 w-full animate-pulse rounded-md bg-muted" aria-hidden="true" />
         ) : isError ? (
@@ -104,14 +104,14 @@ export function BillingSettings({ className }: { className?: string }) {
         )}
 
         {user && (
-          <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-white/90">
+          <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-foreground/90">
             <div>
               <p className="uppercase tracking-wide text-2xs">Monthly resets</p>
-              <p className="text-white/90">{formatResetDate(snapshot?.resetAt)}</p>
+              <p className="text-foreground/90">{formatResetDate(snapshot?.resetAt)}</p>
             </div>
             <div>
               <p className="uppercase tracking-wide text-2xs">Daily resets</p>
-              <p className="text-white/90">{formatResetDate(snapshot?.dailyResetAt)}</p>
+              <p className="text-foreground/90">{formatResetDate(snapshot?.dailyResetAt)}</p>
             </div>
           </div>
         )}
@@ -122,11 +122,11 @@ export function BillingSettings({ className }: { className?: string }) {
         <div className="rounded-xl bg-primary/5 p-4">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" />
-            <p className="text-sm font-medium text-white/90">
+            <p className="text-sm font-medium text-foreground/90">
               Top-up balance: {extras.toLocaleString()} tokens
             </p>
           </div>
-          <p className="mt-1 text-xs text-white/90">
+          <p className="mt-1 text-xs text-foreground/90">
             Top-up tokens drain after your monthly pool. They never expire.
           </p>
         </div>
@@ -136,18 +136,18 @@ export function BillingSettings({ className }: { className?: string }) {
       <div className="flex flex-wrap gap-2">
         <Link
           to="/pricing"
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/[0.06] px-4 text-sm font-medium text-white/90 hover:bg-white/[0.08]"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground/[0.06] px-4 text-sm font-medium text-foreground/90 hover:bg-foreground/[0.08]"
         >
           {tier === 'free' || tier === 'guest' ? 'Upgrade plan' : 'Change plan'}
         </Link>
       </div>
 
       {/* Invoices — lazy-loaded on click (hidden for signed-out users) */}
-      {/* {user && <div className="rounded-xl bg-white/[0.03] p-4">
+      {/* {user && <div className="rounded-xl bg-foreground/[0.03] p-4">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Receipt className="h-4 w-4 text-white/90" />
-            <p className="text-2xs uppercase tracking-wide text-white/90">Invoice history</p>
+            <Receipt className="h-4 w-4 text-foreground/90" />
+            <p className="text-2xs uppercase tracking-wide text-foreground/90">Invoice history</p>
           </div>
           {invoicesLoaded && (
             <button
@@ -165,7 +165,7 @@ export function BillingSettings({ className }: { className?: string }) {
           <button
             type="button"
             onClick={() => void handleViewInvoices()}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/[0.06] px-4 text-sm font-medium text-white/90 hover:bg-white/[0.08]"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-foreground/[0.06] px-4 text-sm font-medium text-foreground/90 hover:bg-foreground/[0.08]"
           >
             View invoices
           </button>
@@ -189,30 +189,30 @@ export function BillingSettings({ className }: { className?: string }) {
 
         {invoicesLoaded && !invoicesLoading && !invoicesError && (
           invoices.length === 0 ? (
-            <p className="text-xs text-white/90">
+            <p className="text-xs text-foreground/90">
               Invoices appear here after your first paid cycle.
             </p>
           ) : (
-            <ul className="divide-y divide-white/[0.06] text-sm">
+            <ul className="divide-y divide-foreground/[0.06] text-sm">
               {invoices.map((inv) => (
                 <li key={inv.invoiceId} className="flex items-center justify-between py-2">
                   <div>
-                    <p className="font-medium text-white/90">{inv.invoiceNumber}</p>
-                    <p className="text-xs text-white/90">
+                    <p className="font-medium text-foreground/90">{inv.invoiceNumber}</p>
+                    <p className="text-xs text-foreground/90">
                       {inv.date ? new Date(inv.date).toLocaleDateString() : '—'}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="font-medium text-white/90">
+                      <p className="font-medium text-foreground/90">
                         {inv.currencyCode || 'USD'} {inv.totalLocal.toFixed(2)}
                       </p>
-                      <p className="text-2xs uppercase tracking-wide text-white/90">{inv.status}</p>
+                      <p className="text-2xs uppercase tracking-wide text-foreground/90">{inv.status}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => void downloadInvoicePdf(inv.invoiceId)}
-                      className="rounded-lg bg-white/[0.06] px-3 py-1 text-xs text-white/90 hover:bg-white/[0.08]"
+                      className="rounded-lg bg-foreground/[0.06] px-3 py-1 text-xs text-foreground/90 hover:bg-foreground/[0.08]"
                     >
                       PDF
                     </button>

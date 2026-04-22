@@ -18,6 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import FontSizeControl from "./FontSizeControl";
 
 interface BlockWidget {
   name: string;
@@ -145,8 +146,11 @@ interface BlockWidgetBarProps {
 
 export default function BlockWidgetBar({ editor, onImageUpload }: BlockWidgetBarProps) {
   return (
-    <div className="flex items-center gap-1 flex-wrap px-1 py-2 border-t border-white/10 bg-black/30 backdrop-blur-sm rounded-b-lg">
-      <span className="text-[10px] uppercase tracking-wider text-white/30 font-medium px-2 mr-1 select-none">
+    <div className="flex items-center gap-1 overflow-x-auto sm:flex-wrap sm:overflow-visible px-1 py-2 border-t border-foreground/10 [.light_&]:border-border bg-overlay-scrim/30 [.light_&]:bg-card/95 backdrop-blur-sm rounded-b-lg scrollbar-hide">
+      <div className="flex items-center gap-1 pl-2 pr-2 mr-1 border-r border-foreground/10 [.light_&]:border-border flex-shrink-0">
+        <FontSizeControl editor={editor} variant="inline" />
+      </div>
+      <span className="text-[10px] uppercase tracking-wider text-foreground/30 font-medium px-2 mr-1 select-none flex-shrink-0">
         Insert
       </span>
       {WIDGETS.map((widget) => (
@@ -155,7 +159,7 @@ export default function BlockWidgetBar({ editor, onImageUpload }: BlockWidgetBar
             <button
               type="button"
               onClick={() => widget.action(editor, onImageUpload)}
-              className="group flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-white/[0.06] bg-white/[0.03] hover:bg-primary/10 hover:border-primary/30 transition-all text-white/50 hover:text-primary"
+              className="group flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-foreground/[0.06] bg-foreground/[0.03] [.light_&]:bg-background [.light_&]:border-border hover:bg-primary/10 hover:border-primary/30 transition-all text-foreground/50 [.light_&]:text-foreground/75 hover:text-primary flex-shrink-0"
             >
               <span className="flex-shrink-0">{widget.icon}</span>
               <span className="text-[11px] font-medium hidden sm:inline">
@@ -165,10 +169,10 @@ export default function BlockWidgetBar({ editor, onImageUpload }: BlockWidgetBar
           </TooltipTrigger>
           <TooltipContent
             side="top"
-            className="bg-black/90 border-white/10 text-white text-xs"
+            className="bg-overlay-scrim/90 border-foreground/10 text-overlay-text text-xs"
           >
             <span>{widget.name}</span>
-            <span className="ml-2 text-white/40 font-mono">{widget.shortcut}</span>
+            <span className="ml-2 text-foreground/40 font-mono">{widget.shortcut}</span>
           </TooltipContent>
         </Tooltip>
       ))}

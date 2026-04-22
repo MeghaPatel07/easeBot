@@ -2,16 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- Theme boot — runs before React mounts to kill the dark-mode flash
-         on cold reload (Sprint 4, Hana, fixes Marcus QA C-2). Reads the
-         persisted theme synchronously and applies the `dark` class to <html>. -->
+    <!-- Theme boot — runs before React mounts to kill the theme-swap flash
+         on cold reload. Reads the persisted theme synchronously and applies
+         either the `light` or `dark` class to <html>. Default is `light`.
+         Also sets color-scheme so native form controls / scrollbars track. -->
     <script>
       (function () {
         try {
           var t = localStorage.getItem('easebot-theme');
-          if (t !== 'system' && t !== 'light' && t !== 'dark') t = 'system';
-          var dark = t === 'dark' || (t === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          document.documentElement.classList.toggle('dark', dark);
+          if (t !== 'system' && t !== 'light' && t !== 'dark') t = 'light';
+          var resolved = t;
+          if (t === 'system') {
+            resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          var root = document.documentElement;
+          root.classList.toggle('dark', resolved === 'dark');
+          root.classList.toggle('light', resolved === 'light');
+          root.style.colorScheme = resolved;
         } catch (e) { /* private mode / no storage */ }
       })();
     </script>
@@ -24,7 +31,9 @@
 
     <!-- Mobile browser chrome color (Android Chrome / Safari iOS 15+) -->
     <meta name="theme-color" content="#3A0E20" />
-    <meta name="color-scheme" content="dark" />
+    <!-- color-scheme is set dynamically by the boot script above so native
+         form controls / scrollbars track the active theme. -->
+    <meta name="color-scheme" content="light dark" />
 
     <!-- iOS PWA / add-to-home-screen -->
     <meta name="apple-mobile-web-app-capable" content="yes" />

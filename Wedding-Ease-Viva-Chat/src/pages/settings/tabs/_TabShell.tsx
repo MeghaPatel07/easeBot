@@ -20,12 +20,12 @@ export function TabShell({ title, description, children }: TabShellProps) {
       <header className="flex flex-col gap-1">
         <h2
           id="settings-tab-title"
-          className="text-xl font-semibold tracking-tight text-white/90"
+          className="text-xl font-semibold tracking-tight text-foreground/90"
         >
           {title}
         </h2>
         {description && (
-          <p className="text-sm text-white/90">{description}</p>
+          <p className="text-sm text-foreground/90">{description}</p>
         )}
       </header>
       <div

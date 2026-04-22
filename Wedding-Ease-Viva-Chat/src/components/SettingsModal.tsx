@@ -41,8 +41,8 @@ function SliderRow({
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-medium text-white/80">{label}</span>
-        <span className="text-xs font-bold text-[#A17A63] bg-[#A17A63]/10 px-2 py-0.5 rounded-full min-w-[2rem] text-center">{value}</span>
+        <span className="text-sm font-medium text-foreground/80">{label}</span>
+        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full min-w-[2rem] text-center">{value}</span>
       </div>
       <Slider
         value={[value]}
@@ -53,8 +53,8 @@ function SliderRow({
         className="mb-1"
       />
       <div className="flex justify-between">
-        <span className="text-2xs text-white/30">{leftLabel}</span>
-        <span className="text-2xs text-white/30">{rightLabel}</span>
+        <span className="text-2xs text-foreground/30">{leftLabel}</span>
+        <span className="text-2xs text-foreground/30">{rightLabel}</span>
       </div>
     </div>
   )
@@ -159,7 +159,7 @@ export function SettingsModal({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="w-[95vw] sm:max-w-[520px] glass-panel rounded-2xl p-0 border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[520px] glass-panel rounded-2xl p-0 border border-foreground/[0.08] bg-card-elevated/90 backdrop-blur-2xl shadow-modal overflow-hidden">
         <DialogTitle className="sr-only">Personalization settings</DialogTitle>
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -169,15 +169,15 @@ export function SettingsModal({ open, onClose }: Props) {
           {/* Header */}
           <div className="px-6 pt-6 pb-4">
             <p className="text-xs font-medium uppercase tracking-widest text-primary mb-2">Personalization</p>
-            <h2 className="font-headline text-[1.5rem] leading-tight tracking-tight text-white">
+            <h2 className="font-headline text-[1.5rem] leading-tight tracking-tight text-foreground">
               Make it <span className="text-primary">yours</span>
             </h2>
-            <p className="text-xs text-white/40 mt-1.5">Customize how TheWeddingBot interacts with you</p>
+            <p className="text-xs text-foreground/40 mt-1.5">Customize how TheWeddingBot interacts with you</p>
           </div>
 
           {/* Tab bar */}
           <div className="px-6 mb-1">
-            <div className="flex gap-1 p-1 rounded-full bg-white/[0.04]">
+            <div className="flex gap-1 p-1 rounded-full bg-foreground/[0.04]">
               {TABS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
@@ -185,7 +185,7 @@ export function SettingsModal({ open, onClose }: Props) {
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-xs font-medium transition-all duration-200 ${
                     activeTab === id
                       ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-white/40 hover:text-white/60 hover:bg-white/[0.06]'
+                      : 'text-foreground/40 hover:text-foreground/60 hover:bg-foreground/[0.06]'
                   }`}
                 >
                   <Icon size={13} />
@@ -201,17 +201,17 @@ export function SettingsModal({ open, onClose }: Props) {
             {activeTab === 'identity' && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs text-white/50 ml-1">Nickname</label>
-                  <p className="text-xs text-white/30 ml-1">What should the AI call you during conversations?</p>
+                  <label className="text-xs text-foreground/50 ml-1">Nickname</label>
+                  <p className="text-xs text-foreground/30 ml-1">What should the AI call you during conversations?</p>
                   <input
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="e.g. Priya, Babe, The Bride"
-                    className="w-full h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] text-sm text-white/90 placeholder:text-white/25 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
+                    className="w-full h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] text-sm text-foreground/90 placeholder:text-foreground/25 focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all"
                   />
                 </div>
-                <div className="rounded-xl bg-gradient-to-br from-[#A17A63]/5 to-transparent border border-[#A17A63]/10 p-4">
-                  <p className="text-xs text-white/50 leading-relaxed">
+                <div className="rounded-xl bg-gradient-to-br from-primary/5 to-transparent border border-primary/10 p-4">
+                  <p className="text-xs text-foreground/50 leading-relaxed">
                     Your nickname helps create a more personal and warm conversation experience. You can change it anytime.
                   </p>
                 </div>
@@ -221,8 +221,8 @@ export function SettingsModal({ open, onClose }: Props) {
             {/* ── Tone ── */}
             {activeTab === 'tone' && (
               <div>
-                <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4 mb-4">
-                  <p className="text-xs text-white/45 leading-relaxed">
+                <div className="rounded-xl bg-foreground/[0.04] border border-foreground/[0.06] p-4 mb-4">
+                  <p className="text-xs text-foreground/45 leading-relaxed">
                     Adjust these sliders to shape how the AI communicates with you.
                   </p>
                 </div>
@@ -244,8 +244,8 @@ export function SettingsModal({ open, onClose }: Props) {
             {/* ── Voice ── */}
             {activeTab === 'voice' && (
               <div>
-                <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-4 mb-4">
-                  <p className="text-xs text-white/45 leading-relaxed">
+                <div className="rounded-xl bg-foreground/[0.04] border border-foreground/[0.06] p-4 mb-4">
+                  <p className="text-xs text-foreground/45 leading-relaxed">
                     Choose a voice for AI audio responses.
                   </p>
                 </div>
@@ -260,17 +260,17 @@ export function SettingsModal({ open, onClose }: Props) {
                         onClick={() => setVoiceId(preset.id)}
                         className={`rounded-xl p-3.5 cursor-pointer text-left transition-all duration-200 ${
                           isSelected
-                            ? 'bg-gradient-to-br from-[#A17A63]/15 to-[#D6C1C7]/5 border border-[#A17A63]/30 shadow-md shadow-[#A17A63]/10'
-                            : 'bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.05]'
+                            ? 'bg-gradient-to-br from-primary/15 to-secondary/5 border border-primary/30 shadow-md shadow-primary/10'
+                            : 'bg-foreground/[0.03] border border-foreground/[0.06] hover:border-foreground/[0.12] hover:bg-foreground/[0.05]'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-semibold text-white/90">{preset.name}</span>
+                            <span className="text-sm font-semibold text-foreground/90">{preset.name}</span>
                             <span className={`text-3xs font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
                               preset.gender === 'female'
-                                ? 'bg-pink-500/15 text-pink-300'
-                                : 'bg-blue-500/15 text-blue-300'
+                                ? 'bg-tag-flowers/15 text-tag-flowers-fg'
+                                : 'bg-tag-venue/15 text-tag-venue-fg'
                             }`}>
                               {preset.gender}
                             </span>
@@ -282,8 +282,8 @@ export function SettingsModal({ open, onClose }: Props) {
                               onClick={(e) => previewVoice(preset.id, e)}
                               className={`h-7 w-7 rounded-full flex items-center justify-center transition-all ${
                                 isPreviewing
-                                  ? 'bg-[#A17A63] text-white shadow-md shadow-[#A17A63]/30'
-                                  : 'text-white/35 hover:text-[#A17A63] hover:bg-[#A17A63]/10'
+                                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/30'
+                                  : 'text-foreground/35 hover:text-primary hover:bg-primary/10'
                               }`}
                             >
                               {previewLoadingId === preset.id
@@ -293,13 +293,13 @@ export function SettingsModal({ open, onClose }: Props) {
                                   : <Volume2 size={13} />}
                             </span>
                             {isSelected && (
-                              <div className="h-5 w-5 rounded-full bg-[#A17A63] flex items-center justify-center">
-                                <Check size={11} className="text-white" />
+                              <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                                <Check size={11} className="text-foreground" />
                               </div>
                             )}
                           </div>
                         </div>
-                        <span className="text-xs text-white/35 leading-relaxed">{preset.description}</span>
+                        <span className="text-xs text-foreground/35 leading-relaxed">{preset.description}</span>
                       </button>
                     )
                   })}
@@ -309,11 +309,11 @@ export function SettingsModal({ open, onClose }: Props) {
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2.5 px-6 py-4 border-t border-white/[0.06] bg-white/[0.02]">
+          <div className="flex justify-end gap-2.5 px-6 py-4 border-t border-foreground/[0.06] bg-foreground/[0.02]">
             <button
               onClick={onClose}
               disabled={saveState === 'saving'}
-              className="px-5 h-10 rounded-full text-sm font-medium text-white/50 hover:text-white/70 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-all disabled:opacity-50"
+              className="px-5 h-10 rounded-full text-sm font-medium text-foreground/50 hover:text-foreground/70 bg-foreground/[0.04] border border-foreground/[0.08] hover:bg-foreground/[0.08] transition-all disabled:opacity-50"
             >
               Cancel
             </button>
@@ -322,7 +322,7 @@ export function SettingsModal({ open, onClose }: Props) {
               disabled={saveState !== 'idle'}
               className={`px-6 h-10 rounded-full text-sm font-medium transition-all min-w-[100px] ${
                 saveState === 'saved'
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  ? 'bg-success/20 text-success border border-success/30'
                   : 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 disabled:opacity-60'
               }`}
             >

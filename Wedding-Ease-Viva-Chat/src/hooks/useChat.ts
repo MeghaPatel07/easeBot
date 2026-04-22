@@ -23,6 +23,7 @@ import { streamChatMessage, type StreamDoneEvent } from '@/services/functionsSer
 import { listReminders } from '@/services/reminderService'
 import type { ChatThread, ChatMessage, MessageAttachment, Mode, CalendarEvent, ReminderDoc, ToolAction, UserPersonalization } from '@/types'
 import type { ChatAttachment } from '@/contexts/ChatAttachmentsContext'
+import { track } from '@/lib/analytics'
 
 export interface Message {
   id: string
@@ -621,6 +622,34 @@ export function useChat(): UseChatResult {
         (finalMeta.toolActions ?? []) as ToolAction[],
       )
 
+      // Fire analytics for each artifact the AI created / edited this turn.
+      for (const a of (finalMeta.toolActions ?? []) as ToolAction[]) {
+        switch (a.tool) {
+          case 'create_checklist':
+            if (a.checklistId) track('ai_checklist_created', { checklist_id: a.checklistId, item_count: a.checklistItems?.length ?? 0 })
+            break
+          case 'create_note':
+            if (a.noteId) track('ai_note_created', { note_id: a.noteId })
+            break
+          case 'create_timeline_event':
+            if (a.timelineEventId) track('ai_timeline_event_created', { timeline_event_id: a.timelineEventId })
+            break
+          case 'create_reminder':
+          case 'save_reminder':
+            if (a.reminderId) track('ai_reminder_created', { reminder_id: a.reminderId })
+            break
+          case 'append_to_note':
+            if (a.noteId) track('ai_note_appended', { note_id: a.noteId })
+            break
+          case 'edit_checklist_item':
+            if (a.checklistId) track('ai_checklist_item_edited', { checklist_id: a.checklistId })
+            break
+          case 'mark_as_done':
+            if (a.checklistId) track('ai_checklist_item_marked_done', { checklist_id: a.checklistId })
+            break
+        }
+      }
+
       // Finalize the message with clean text + metadata
       // Use responseLanguage (language the AI replied in) for TTS; fall back to detectedLanguage
       setMessages(prev => prev.map(m => m.id === aiMsgId ? {
@@ -751,6 +780,8 @@ export function useChat(): UseChatResult {
       return prev.filter((m) => m.id !== messageId)
     })
 
+    track('message_liked', { message_id: messageId, liked: newLiked })
+
     // Persist to Firestore for logged-in users
     if (user && activeThreadIdRef.current) {
       try {
@@ -869,6 +900,7 @@ export function useChat(): UseChatResult {
   // ── Delete thread ──────────────────────────────────────────────────────────
   const deleteThread = useCallback(async (threadId: string) => {
     await deleteThreadDoc(threadId)
+    track('thread_deleted', { thread_id: threadId })
     if (activeThreadIdRef.current === threadId) {
       setMessages([])
       setActiveThreadId(null)
@@ -886,11 +918,13 @@ export function useChat(): UseChatResult {
   // ── Pin / unpin thread ────────────────────────────────────────────────────
   const pinThread = useCallback(async (threadId: string, pinned: boolean) => {
     await togglePinThread(threadId, pinned)
+    track('thread_pinned', { thread_id: threadId, pinned })
   }, [])
 
   // ── Archive / unarchive thread ──────────────────────────────────────────
   const archiveThread = useCallback(async (threadId: string, archived: boolean) => {
     await archiveThreadDoc(threadId, archived)
+    track('thread_archived', { thread_id: threadId, archived })
   }, [])
 
   // ── Update thread tags ─────────────────────────────────────────────────

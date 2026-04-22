@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Download, Share2, Bookmark, Check, Loader2, Copy, Link, X, Trash2, MessageSquarePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { track } from '@/lib/analytics'
 
 interface ImageActionsProps {
   imageUrl: string
@@ -30,7 +31,7 @@ const SHARE_PLATFORMS = [
       </svg>
     ),
     getUrl: (url: string) => `https://wa.me/?text=${encodeURIComponent(url)}`,
-    color: 'text-green-400',
+    color: 'text-success',
   },
   {
     name: 'Twitter / X',
@@ -40,7 +41,7 @@ const SHARE_PLATFORMS = [
       </svg>
     ),
     getUrl: (url: string) => `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this wedding design from TheWeddingBot!')}`,
-    color: 'text-white',
+    color: 'text-foreground',
   },
   {
     name: 'Pinterest',
@@ -50,7 +51,7 @@ const SHARE_PLATFORMS = [
       </svg>
     ),
     getUrl: (url: string) => `https://pinterest.com/pin/create/button/?url=${encodeURIComponent(url)}&media=${encodeURIComponent(url)}&description=${encodeURIComponent('Wedding inspiration from TheWeddingBot')}`,
-    color: 'text-red-400',
+    color: 'text-destructive',
   },
   {
     name: 'Email',
@@ -60,7 +61,7 @@ const SHARE_PLATFORMS = [
       </svg>
     ),
     getUrl: (url: string) => `mailto:?subject=${encodeURIComponent('TheWeddingBot — Image')}&body=${encodeURIComponent(`Check out this image: ${url}`)}`,
-    color: 'text-blue-400',
+    color: 'text-info',
   },
 ]
 
@@ -96,6 +97,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      track('image_downloaded', { size_kb: Math.round(blob.size / 1024) })
     } catch (err) {
       console.error('Download failed:', err)
     } finally {
@@ -114,6 +116,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
       ])
       setImageCopied(true)
       setTimeout(() => setImageCopied(false), 2000)
+      track('image_copied', {})
     } catch {
       // Fallback: copy URL instead
       handleCopyLink()
@@ -133,6 +136,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
     }
     setLinkCopied(true)
     setTimeout(() => setLinkCopied(false), 2000)
+    track('image_link_copied', {})
   }
 
   const handleNativeShare = async () => {
@@ -156,7 +160,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
     <>
       <div className={
         variant === 'preview'
-          ? 'flex gap-2 items-center bg-white/10 rounded-full px-3 py-1.5 backdrop-blur-sm'
+          ? 'flex gap-2 items-center bg-overlay-surface/10 rounded-full px-3 py-1.5 backdrop-blur-sm'
           : 'absolute top-2 right-2 flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200'
       }>
         {/* Download */}
@@ -164,8 +168,8 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
           <TooltipTrigger asChild>
             <Button size="sm" variant="ghost" onClick={handleDownload} disabled={downloading}
               className={variant === 'preview'
-                ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
-                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
+                ? 'h-9 w-9 p-0 rounded-full hover:bg-overlay-surface/20 text-overlay-text'
+                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text rounded-lg backdrop-blur-sm'
               }>
               {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </Button>
@@ -178,10 +182,10 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
           <TooltipTrigger asChild>
             <Button size="sm" variant="ghost" onClick={handleCopyImage}
               className={variant === 'preview'
-                ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
-                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
+                ? 'h-9 w-9 p-0 rounded-full hover:bg-overlay-surface/20 text-overlay-text'
+                : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text rounded-lg backdrop-blur-sm'
               }>
-              {imageCopied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+              {imageCopied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top"><p>{imageCopied ? 'Copied!' : 'Copy image'}</p></TooltipContent>
@@ -193,8 +197,8 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onAttachToChat() }}
                 className={variant === 'preview'
-                  ? 'h-9 w-9 p-0 rounded-full hover:bg-[#A17A63]/40 text-white'
-                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-[#A17A63]/70 text-white rounded-lg backdrop-blur-sm'
+                  ? 'h-9 w-9 p-0 rounded-full hover:bg-primary/40 text-overlay-text'
+                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-primary/70 text-overlay-text rounded-lg backdrop-blur-sm'
                 }>
                 <MessageSquarePlus className="h-4 w-4" />
               </Button>
@@ -209,8 +213,8 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={() => setShowShareModal(true)}
                 className={variant === 'preview'
-                  ? 'h-9 w-9 p-0 rounded-full hover:bg-white/20 text-white'
-                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm'
+                  ? 'h-9 w-9 p-0 rounded-full hover:bg-overlay-surface/20 text-overlay-text'
+                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text rounded-lg backdrop-blur-sm'
                 }>
                 <Share2 className="h-4 w-4" />
               </Button>
@@ -225,8 +229,8 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={onSaveToGallery} disabled={isSaved}
                 className={variant === 'preview'
-                  ? `h-9 w-9 p-0 rounded-full ${isSaved ? 'bg-[#A17A63]/40 text-white' : 'hover:bg-white/20 text-white'}`
-                  : `h-10 w-10 sm:h-7 sm:w-7 p-0 backdrop-blur-sm rounded-lg ${isSaved ? 'bg-[#A17A63]/50 text-white' : 'bg-black/50 hover:bg-black/70 text-white'}`
+                  ? `h-9 w-9 p-0 rounded-full ${isSaved ? 'bg-primary/40 text-overlay-text' : 'hover:bg-overlay-surface/20 text-overlay-text'}`
+                  : `h-10 w-10 sm:h-7 sm:w-7 p-0 backdrop-blur-sm rounded-lg ${isSaved ? 'bg-primary/50 text-overlay-text' : 'bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text'}`
                 }>
                 <Bookmark className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
               </Button>
@@ -241,8 +245,8 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={onDelete}
                 className={variant === 'preview'
-                  ? 'h-9 w-9 p-0 rounded-full hover:bg-red-500/70 text-white'
-                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-black/50 hover:bg-red-500/70 text-white rounded-lg backdrop-blur-sm'
+                  ? 'h-9 w-9 p-0 rounded-full hover:bg-destructive/70 text-overlay-text'
+                  : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-destructive/70 text-overlay-text rounded-lg backdrop-blur-sm'
                 }>
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -254,18 +258,18 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
 
       {/* Share Modal — portaled to body so transforms/overflow can't clip it */}
       {showShareModal && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
-          <div ref={modalRef} className="bg-[#0F0D0C]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-overlay-scrim/40 backdrop-blur-sm" onClick={() => setShowShareModal(false)}>
+          <div ref={modalRef} className="bg-card-elevated/95 backdrop-blur-xl border border-foreground/10 rounded-2xl shadow-modal w-[calc(100%-2rem)] max-w-sm p-5 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-white/90">Share image</h3>
-              <button onClick={() => setShowShareModal(false)} className="p-1 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors">
+              <h3 className="text-sm font-semibold text-foreground/90">Share image</h3>
+              <button onClick={() => setShowShareModal(false)} className="p-1 rounded-lg text-foreground/40 hover:text-foreground/70 hover:bg-foreground/10 transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Image preview */}
-            <div className="mb-4 rounded-xl overflow-hidden bg-white/[0.04] border border-white/[0.06]">
+            <div className="mb-4 rounded-xl overflow-hidden bg-foreground/[0.04] border border-foreground/[0.06]">
               <img src={imageUrl} alt="Share preview" className="w-full h-32 object-cover" />
             </div>
 
@@ -273,24 +277,24 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
             <div className="space-y-2 mb-4">
               <button
                 onClick={handleCopyImage}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-white/70 hover:text-white/90 hover:bg-white/[0.06] transition-all"
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-foreground/70 hover:text-foreground/90 hover:bg-foreground/[0.06] transition-all"
               >
-                <Copy className="h-4 w-4 text-white/40" />
+                <Copy className="h-4 w-4 text-foreground/40" />
                 <span>{imageCopied ? 'Image copied!' : 'Copy image'}</span>
-                {imageCopied && <Check className="h-4 w-4 text-green-400 ml-auto" />}
+                {imageCopied && <Check className="h-4 w-4 text-success ml-auto" />}
               </button>
               <button
                 onClick={handleCopyLink}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-white/70 hover:text-white/90 hover:bg-white/[0.06] transition-all"
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-foreground/70 hover:text-foreground/90 hover:bg-foreground/[0.06] transition-all"
               >
-                <Link className="h-4 w-4 text-white/40" />
+                <Link className="h-4 w-4 text-foreground/40" />
                 <span>{linkCopied ? 'Link copied!' : 'Copy link'}</span>
-                {linkCopied && <Check className="h-4 w-4 text-green-400 ml-auto" />}
+                {linkCopied && <Check className="h-4 w-4 text-success ml-auto" />}
               </button>
             </div>
 
             {/* Divider */}
-            <div className="border-t border-white/[0.06] mb-4" />
+            <div className="border-t border-foreground/[0.06] mb-4" />
 
             {/* Social platforms */}
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-4">
@@ -300,13 +304,16 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
                   href={platform.getUrl(imageUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => setShowShareModal(false)}
-                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-white/[0.06] transition-colors"
+                  onClick={() => {
+                    track('image_shared_to_social', { platform: platform.name })
+                    setShowShareModal(false)
+                  }}
+                  className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-foreground/[0.06] transition-colors"
                 >
                   <div className={`${platform.color}`}>
                     <platform.icon />
                   </div>
-                  <span className="text-3xs text-white/40">{platform.name}</span>
+                  <span className="text-3xs text-foreground/40">{platform.name}</span>
                 </a>
               ))}
             </div>
@@ -315,7 +322,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
             {typeof navigator !== 'undefined' && 'share' in navigator && (
               <button
                 onClick={handleNativeShare}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#A17A63]/15 border border-[#A17A63]/25 text-sm text-[#A17A63] font-medium hover:bg-[#A17A63]/25 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary/15 border border-primary/25 text-sm text-primary font-medium hover:bg-primary/25 transition-colors"
               >
                 <Share2 className="h-4 w-4" />
                 More sharing options

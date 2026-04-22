@@ -14,10 +14,10 @@ type Category = (typeof CATEGORIES)[number]
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string }> = {
   Vendor: { bg: 'bg-primary/10', text: 'text-primary' },
-  Decor:  { bg: 'bg-pink-100', text: 'text-pink-700' },
-  Tip:    { bg: 'bg-amber-500/15', text: 'text-amber-300' },
-  Recipe: { bg: 'bg-emerald-500/15', text: 'text-emerald-300' },
-  Other:  { bg: 'bg-white/[0.06]', text: 'text-white/70' },
+  Decor:  { bg: 'bg-cat-timeline-soft', text: 'text-cat-timeline-deep' },
+  Tip:    { bg: 'bg-cat-budget/15', text: 'text-cat-budget-fg' },
+  Recipe: { bg: 'bg-success/15', text: 'text-success-subtle' },
+  Other:  { bg: 'bg-foreground/[0.06]', text: 'text-foreground/70' },
 }
 
 function categoryStyle(cat: string) {
@@ -109,8 +109,8 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
               style={{ touchAction: 'manipulation' }}
               className={`px-2.5 py-1 h-9 sm:h-8 rounded-full text-xs font-medium transition-colors ${
                 active
-                  ? 'bg-primary text-white'
-                  : 'bg-white/[0.06] text-white/50 border border-white/10 hover:border-blue-200 hover:text-blue-600'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-foreground/[0.06] text-foreground/50 border border-foreground/10 hover:border-info/30 hover:text-info'
               }`}
             >
               {cat}
@@ -122,17 +122,17 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
       {/* Search bar + add button */}
       <div className="flex items-center gap-2 mb-3 flex-shrink-0">
         <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-foreground/30" />
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search saved items..."
-            className="w-full text-sm bg-white/[0.06] border border-white/10 rounded-xl pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 placeholder:text-white/30"
+            className="w-full text-sm bg-foreground/[0.06] border border-foreground/10 rounded-xl pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-info/30 focus:border-info/50 placeholder:text-foreground/30"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/50"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -140,7 +140,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
         </div>
         <button
           onClick={() => setShowAddForm(v => !v)}
-          className="h-9 w-9 flex items-center justify-center rounded-xl bg-primary hover:bg-primary/90 text-white transition-colors flex-shrink-0"
+          className="h-9 w-9 flex items-center justify-center rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground transition-colors flex-shrink-0"
           title="Add item manually"
         >
           <Plus className="h-4 w-4" />
@@ -149,17 +149,17 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
 
       {/* Add form */}
       {showAddForm && (
-        <div className="mb-3 flex-shrink-0 bg-white/[0.06] border border-blue-200 rounded-2xl p-4 space-y-3">
+        <div className="mb-3 flex-shrink-0 bg-foreground/[0.06] border border-info/30 rounded-2xl p-4 space-y-3">
           <textarea
             ref={textInputRef}
             value={newText}
             onChange={e => setNewText(e.target.value)}
             placeholder="Paste or type the snippet to save..."
             rows={3}
-            className="w-full text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 resize-none placeholder:text-white/30"
+            className="w-full text-sm bg-foreground/[0.04] border border-foreground/10 text-foreground/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-info/30 resize-none placeholder:text-foreground/30"
           />
           <div className="flex items-center gap-2">
-            <Tag className="h-3.5 w-3.5 text-white/40 flex-shrink-0" />
+            <Tag className="h-3.5 w-3.5 text-foreground/40 flex-shrink-0" />
             <div className="flex gap-1.5 flex-wrap">
               {CATEGORIES.filter(c => c !== 'All').map(cat => {
                 const style = categoryStyle(cat)
@@ -170,8 +170,8 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                     onClick={() => setNewCategory(cat)}
                     className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
                       selected
-                        ? `${style.bg} ${style.text} ring-2 ring-offset-1 ring-blue-300`
-                        : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.06]'
+                        ? `${style.bg} ${style.text} ring-2 ring-offset-1 ring-info/40`
+                        : 'bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/[0.06]'
                     }`}
                   >
                     {cat}
@@ -184,19 +184,19 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
             value={newNote}
             onChange={e => setNewNote(e.target.value)}
             placeholder="Optional note..."
-            className="w-full text-sm bg-white/[0.04] border border-white/10 text-white/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-white/30"
+            className="w-full text-sm bg-foreground/[0.04] border border-foreground/10 text-foreground/90 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-info/30 placeholder:text-foreground/30"
           />
           <div className="flex items-center gap-2 justify-end">
             <button
               onClick={() => { setShowAddForm(false); setNewText(''); setNewNote('') }}
-              className="text-xs text-white/40 hover:text-white/60 px-3 py-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+              className="text-xs text-foreground/40 hover:text-foreground/60 px-3 py-1.5 rounded-lg hover:bg-foreground/[0.06] transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleAdd}
               disabled={!newText.trim()}
-              className="text-xs font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed px-4 py-1.5 rounded-lg transition-colors"
             >
               Save
             </button>
@@ -207,10 +207,10 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
       {/* Items grid */}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-white/40">
+          <div className="flex flex-col items-center justify-center py-16 text-foreground/40">
             <Bookmark className="h-10 w-10 mb-3 opacity-20" />
             <p className="text-sm font-medium">No saved items yet</p>
-            <p className="text-xs text-white/30 mt-1 text-center max-w-[220px]">
+            <p className="text-xs text-foreground/30 mt-1 text-center max-w-[220px]">
               Bookmark snippets from your chats or add them manually with the + button above.
             </p>
           </div>
@@ -239,9 +239,9 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                     href={productData.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group relative flex flex-col bg-white/[0.06] border hover:border-blue-200 rounded-2xl overflow-hidden transition-all hover:shadow-md"
+                    className="group relative flex flex-col bg-foreground/[0.06] border hover:border-info/30 rounded-2xl overflow-hidden transition-all hover:shadow-md"
                   >
-                    <div className="relative overflow-hidden bg-white/[0.06] flex-shrink-0 h-32 sm:h-40">
+                    <div className="relative overflow-hidden bg-foreground/[0.06] flex-shrink-0 h-32 sm:h-40">
                       <img
                         src={productData.image}
                         alt={item.text}
@@ -253,7 +253,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                           e.stopPropagation();
                           handleDelete(item.id);
                         }}
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg bg-white/90 text-white/40 hover:text-red-500 transition-all"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-7 w-7 flex items-center justify-center rounded-lg bg-foreground/90 text-foreground/40 hover:text-destructive transition-all"
                         title="Delete"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -265,9 +265,9 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                           {item.category}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-white/85 line-clamp-2 flex-1">{item.text}</p>
+                      <p className="text-sm font-semibold text-foreground/85 line-clamp-2 flex-1">{item.text}</p>
                       {item.sourceThreadTitle && (
-                        <p className="text-2xs text-white/40 mt-auto pt-1.5">{item.sourceThreadTitle}</p>
+                        <p className="text-2xs text-foreground/40 mt-auto pt-1.5">{item.sourceThreadTitle}</p>
                       )}
                     </div>
                   </a>
@@ -278,12 +278,12 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
               return (
                 <div
                   key={item.id}
-                  className="group relative bg-white/[0.06] border hover:rounded-2xl p-4 transition-all hover:shadow-sm"
+                  className="group relative bg-foreground/[0.06] border hover:rounded-2xl p-4 transition-all hover:shadow-sm"
                 >
                   {/* Delete button */}
                   <button
                     onClick={() => handleDelete(item.id)}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-lg text-white/30 hover:text-red-400 hover:bg-red-50 transition-all"
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 h-6 w-6 flex items-center justify-center rounded-lg text-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all"
                     title="Delete"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -312,7 +312,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                               className={`text-3xs px-1.5 py-0.5 rounded-full font-medium transition-all ${
                                 item.category === cat
                                   ? `${cs.bg} ${cs.text} ring-1 ring-offset-1`
-                                  : 'bg-white/[0.05] text-white/40 border border-white/10 hover:bg-white/[0.08]'
+                                  : 'bg-foreground/[0.05] text-foreground/40 border border-foreground/10 hover:bg-foreground/[0.08]'
                               }`}
                             >{cat}</button>
                           )
@@ -322,15 +322,15 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                   </div>
 
                   {/* Text snippet */}
-                  <p className="text-sm text-white/70 leading-snug line-clamp-4 mb-2 pr-6">
+                  <p className="text-sm text-foreground/70 leading-snug line-clamp-4 mb-2 pr-6">
                     {item.text}
                   </p>
 
                   {/* Source thread */}
                   {item.sourceThreadTitle && (
                     <div className="flex items-center gap-1 mb-2">
-                      <MessageSquare className="h-2.5 w-2.5 text-white/30 flex-shrink-0" />
-                      <span className="text-2xs text-white/40 truncate">
+                      <MessageSquare className="h-2.5 w-2.5 text-foreground/30 flex-shrink-0" />
+                      <span className="text-2xs text-foreground/40 truncate">
                         {item.sourceThreadTitle}
                       </span>
                     </div>
@@ -348,17 +348,17 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                           if (e.key === 'Escape') { setEditingNoteId(null); setNoteText('') }
                         }}
                         placeholder="Add a note..."
-                        className="flex-1 text-xs bg-white/[0.04] border border-white/10 text-white/90 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-white/30"
+                        className="flex-1 text-xs bg-foreground/[0.04] border border-foreground/10 text-foreground/90 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-foreground/30"
                       />
                       <button
                         onClick={() => handleSaveNote(item.id)}
-                        className="text-2xs text-blue-500 hover:text-blue-700 font-medium"
+                        className="text-2xs text-info hover:text-info-subtle font-medium"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => { setEditingNoteId(null); setNoteText('') }}
-                        className="text-white/30 hover:text-white/50"
+                        className="text-foreground/30 hover:text-foreground/50"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -368,15 +368,15 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                       className="flex items-start gap-1.5 mb-2 cursor-pointer group/note"
                       onClick={() => { setEditingNoteId(item.id); setNoteText(item.note ?? '') }}
                     >
-                      <Edit3 className="h-2.5 w-2.5 text-white/30 flex-shrink-0 mt-0.5" />
-                      <span className="text-xs text-white/40 italic leading-snug group-hover/note:text-white/60 transition-colors">
+                      <Edit3 className="h-2.5 w-2.5 text-foreground/30 flex-shrink-0 mt-0.5" />
+                      <span className="text-xs text-foreground/40 italic leading-snug group-hover/note:text-foreground/60 transition-colors">
                         {item.note}
                       </span>
                     </div>
                   ) : (
                     <button
                       onClick={() => { setEditingNoteId(item.id); setNoteText('') }}
-                      className="flex items-center gap-1 text-2xs text-white/30 hover:text-blue-500 transition-colors mb-2"
+                      className="flex items-center gap-1 text-2xs text-foreground/30 hover:text-info transition-colors mb-2"
                     >
                       <Edit3 className="h-2.5 w-2.5" />
                       Add note
@@ -384,7 +384,7 @@ export default function SavedItemsView({ userId }: SavedItemsViewProps) {
                   )}
 
                   {/* Date */}
-                  <p className="text-2xs text-white/30">
+                  <p className="text-2xs text-foreground/30">
                     {formatDate(item.createdAt)}
                   </p>
                 </div>

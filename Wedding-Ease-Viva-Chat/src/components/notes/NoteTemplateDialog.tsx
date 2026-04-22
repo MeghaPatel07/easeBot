@@ -46,12 +46,12 @@ const NoteTemplateDialog: React.FC<NoteTemplateDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[560px] glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[560px] glass-panel rounded-2xl p-6 border border-foreground/[0.08] shadow-modal bg-card-elevated/90 backdrop-blur-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-headline text-xl text-white/90">
+          <DialogTitle className="font-headline text-xl text-foreground/90">
             Start from a template
           </DialogTitle>
-          <DialogDescription className="text-white/40 text-sm">
+          <DialogDescription className="text-foreground/40 text-sm">
             Choose a template to get started quickly with your wedding planning notes
           </DialogDescription>
         </DialogHeader>
@@ -62,23 +62,23 @@ const NoteTemplateDialog: React.FC<NoteTemplateDialogProps> = ({
             <button
               key={template.id}
               onClick={() => handleSelect(template)}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-white/[0.08] hover:border-primary/30 bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-center group"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-foreground/[0.08] hover:border-primary/30 bg-foreground/[0.03] hover:bg-foreground/[0.06] transition-all duration-200 text-center group"
             >
               <span className="text-2xl group-hover:scale-110 transition-transform">{template.icon}</span>
               <div>
-                <p className="text-xs font-medium text-white/80 group-hover:text-white">{template.title}</p>
-                <p className="text-[10px] text-white/30 mt-0.5 line-clamp-2">{template.description}</p>
+                <p className="text-xs font-medium text-foreground/80 group-hover:text-foreground">{template.title}</p>
+                <p className="text-[10px] text-foreground/30 mt-0.5 line-clamp-2">{template.description}</p>
               </div>
             </button>
           ))}
         </div>
 
         {/* Blank note option */}
-        <div className="border-t border-white/[0.06] pt-4 flex items-center justify-center">
+        <div className="border-t border-foreground/[0.06] pt-4 flex items-center justify-center">
           <Button
             onClick={handleBlank}
             variant="outline"
-            className="gap-2 border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.06] rounded-full text-sm"
+            className="gap-2 border-foreground/[0.08] text-foreground/50 hover:text-foreground/80 hover:bg-foreground/[0.06] rounded-full text-sm"
           >
             <FileText className="h-4 w-4" />
             Blank Note

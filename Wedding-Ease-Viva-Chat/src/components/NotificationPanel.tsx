@@ -92,9 +92,9 @@ function groupNotifications(
 function TypeIcon({ type }: { type: AppNotification['type'] }) {
   switch (type) {
     case 'overdue':
-      return <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
+      return <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
     case 'reminder':
-      return <Bell className="h-5 w-5 text-amber-500 shrink-0" />
+      return <Bell className="h-5 w-5 text-warning shrink-0" />
     case 'info':
       return <Info className="h-5 w-5 text-primary shrink-0" />
   }
@@ -172,11 +172,11 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
   if (notifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-        <div className="rounded-full bg-white/[0.06] p-4 mb-4">
-          <Bell className="h-8 w-8 text-white/40" />
+        <div className="rounded-full bg-foreground/[0.06] p-4 mb-4">
+          <Bell className="h-8 w-8 text-foreground/40" />
         </div>
-        <h3 className="text-lg font-semibold text-white/70 mb-1">No notifications</h3>
-        <p className="text-sm text-white/50 max-w-xs">
+        <h3 className="text-lg font-semibold text-foreground/70 mb-1">No notifications</h3>
+        <p className="text-sm text-foreground/50 max-w-xs">
           You'll see reminders for upcoming deadlines here
         </p>
       </div>
@@ -188,11 +188,11 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/10">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-white/90">Notifications</h2>
+          <h2 className="text-lg font-semibold text-foreground/90">Notifications</h2>
           {unreadCount > 0 && (
-            <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-white text-xs font-medium">
+            <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
               {unreadCount}
             </span>
           )}
@@ -200,7 +200,7 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
         {unreadCount > 0 && (
           <button
             onClick={handleMarkAllAsRead}
-            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 transition-colors"
+            className="flex items-center gap-1 text-xs text-info hover:text-info-subtle transition-colors"
           >
             <CheckCheck className="h-3.5 w-3.5" />
             Mark all read
@@ -213,8 +213,8 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
         {grouped.map((group) => (
           <div key={group.label}>
             {/* Group header */}
-            <div className="sticky top-0 z-10 px-4 py-2 bg-white/[0.04] backdrop-blur-sm">
-              <span className="text-xs font-medium text-white/50 uppercase tracking-wider">
+            <div className="sticky top-0 z-10 px-4 py-2 bg-foreground/[0.04] backdrop-blur-sm">
+              <span className="text-xs font-medium text-foreground/50 uppercase tracking-wider">
                 {group.label}
               </span>
             </div>
@@ -230,9 +230,9 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
                   }}
                   className={`
                     group relative flex items-start gap-3 px-4 py-3 cursor-pointer
-                    border-b border-white/[0.06] transition-all duration-200
+                    border-b border-foreground/[0.06] transition-all duration-200
                     ${isDeleting ? 'opacity-0 max-h-0 py-0 overflow-hidden' : 'opacity-100 max-h-40'}
-                    ${notif.read ? 'bg-white/[0.06] hover:bg-white/[0.06]' : 'bg-blue-500/10 hover:bg-blue-500/15'}
+                    ${notif.read ? 'bg-foreground/[0.06] hover:bg-foreground/[0.06]' : 'bg-info/10 hover:bg-info/15'}
                   `}
                 >
                   {/* Unread dot */}
@@ -247,11 +247,11 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug ${notif.read ? 'text-white/70' : 'text-white/90 font-semibold'}`}>
+                    <p className={`text-sm leading-snug ${notif.read ? 'text-foreground/70' : 'text-foreground/90 font-semibold'}`}>
                       {notif.title}
                     </p>
-                    <p className="text-xs text-white/50 mt-0.5 line-clamp-2">{notif.body}</p>
-                    <div className="flex items-center gap-1 mt-1 text-white/40">
+                    <p className="text-xs text-foreground/50 mt-0.5 line-clamp-2">{notif.body}</p>
+                    <div className="flex items-center gap-1 mt-1 text-foreground/40">
                       <Clock className="h-3 w-3" />
                       <span className="text-label">{timeAgo(notif.createdAt)}</span>
                     </div>
@@ -263,7 +263,7 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
                       e.stopPropagation()
                       handleDelete(notif.id)
                     }}
-                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-2 rounded hover:bg-red-50 text-white/40 hover:text-red-500 shrink-0 mt-0.5"
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-2 rounded hover:bg-destructive/10 text-foreground/40 hover:text-destructive shrink-0 mt-0.5"
                     aria-label="Delete notification"
                   >
                     <X className="h-5 w-5" />

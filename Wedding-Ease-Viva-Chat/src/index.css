@@ -4,9 +4,9 @@
 
 /* System font stack — matches Claude's clean sans-serif look */
 
-/* Shared soft-light text color */
+/* Shared soft text color — follows theme foreground */
 .text-soft {
-  color: #cfcecc;
+  color: hsl(var(--foreground) / 0.82);
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -16,130 +16,802 @@
    warm radial bloom, subtle grid overlay.
    ────────────────────────────────────────────────────────────────────────── */
 
+/* ─── SOURCE TOKENS ──────────────────────────────────────────────────────
+   Namespaced per-theme palettes. These are the single source of truth.
+   Each theme defines its own --dark-* / --light-* tokens independently —
+   no variable NAME is shared between the two source palettes.
+
+   The semantic aliases below (--background, --primary, --border, ...) are
+   the public API used by Tailwind and every component. `.dark` and `.light`
+   swap those aliases to the appropriate source at runtime.
+
+   Adding a token → add it to BOTH source blocks (--dark-* AND --light-*),
+   then add the alias line to the semantic block AND to both .dark / .light
+   orchestrator blocks below.
+   ──────────────────────────────────────────────────────────────────────── */
+
 @layer base {
   :root {
-    /* Surface */
-    --background: 20 13% 3%;
-    /* #090807 */
-    --foreground: 0 0% 100%;
-    /* white chat text */
+    /* ━━ DARK PALETTE (source) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-    --card: 20 10% 6%;
-    /* lifted dark glass surface */
-    --card-foreground: 0 0% 100%;
-
-    --popover: 20 10% 6%;
-    /* lifted near-black for menus */
-    --popover-foreground: 0 0% 100%;
+    /* Surfaces */
+    --dark-background: 20 13% 3%;                /* #090807 */
+    --dark-foreground: 0 0% 100%;                /* white chat text */
+    --dark-card: 20 10% 6%;                      /* lifted dark glass */
+    --dark-card-foreground: 0 0% 100%;
+    --dark-popover: 20 10% 6%;
+    --dark-popover-foreground: 0 0% 100%;
+    --dark-muted: 20 10% 8%;
+    --dark-muted-foreground: 0 0% 85%;
 
     /* Brand — bronze */
-    --primary: 22 25% 51%;
-    /* #A17A63 */
-    --primary-foreground: 0 0% 100%;
-    --primary-muted: 22 20% 65%;
-    /* lighter bronze for muted states */
+    --dark-primary: 22 25% 51%;                  /* #A17A63 */
+    --dark-primary-foreground: 0 0% 100%;
+    --dark-primary-muted: 22 20% 65%;
+    --dark-primary-hover: 22 26% 43%;            /* #8A6651 */
+    --dark-primary-subtle: 22 26% 62%;           /* #B89382 */
+    --dark-primary-light: 21 31% 58%;            /* #B58A73 */
+    --dark-primary-bright: 31 59% 78%;           /* #E8C8A6 */
+    --dark-primary-container: 343 14% 80%;       /* #D6C1C7 */
 
-    --secondary: 343 14% 80%;
-    /* #D6C1C7 warm rose */
-    --secondary-foreground: 20 13% 3%;
+    /* Secondary — warm rose */
+    --dark-secondary: 343 14% 80%;               /* #D6C1C7 */
+    --dark-secondary-foreground: 20 13% 3%;
+    --dark-secondary-container: 347 24% 88%;     /* #E9DADD */
 
-    --muted: 20 10% 8%;
-    --muted-foreground: 0 0% 85%;
-    /* white @ ~85% */
+    /* Accent */
+    --dark-accent: 22 25% 51%;
+    --dark-accent-foreground: 0 0% 100%;
+    --dark-accent-gold: 36 52% 53%;              /* #C6944A */
+    --dark-accent-sage: 106 12% 66%;             /* #A2B29D */
 
-    --accent: 22 25% 51%;
-    /* bronze */
-    --accent-foreground: 0 0% 100%;
+    /* Status */
+    --dark-destructive: 0 74% 52%;
+    --dark-destructive-foreground: 0 0% 100%;
+    --dark-destructive-subtle: 0 74% 70%;
+    --dark-warning: 38 92% 55%;
+    --dark-warning-foreground: 0 0% 100%;
+    --dark-warning-subtle: 38 92% 72%;
+    --dark-success: 142 71% 45%;
+    --dark-success-foreground: 0 0% 100%;
+    --dark-success-subtle: 142 71% 68%;
+    --dark-info: 217 91% 60%;
+    --dark-info-foreground: 0 0% 100%;
+    --dark-info-subtle: 217 91% 72%;
 
-    --destructive: 0 74% 52%;
-    --destructive-foreground: 0 0% 100%;
+    /* Tag palette — category badges in notes/chat */
+    --dark-tag-venue: 217 91% 60%;
+    --dark-tag-venue-fg: 217 91% 78%;
+    --dark-tag-catering: 27 96% 61%;
+    --dark-tag-catering-fg: 27 96% 76%;
+    --dark-tag-ceremony: 48 96% 53%;
+    --dark-tag-ceremony-fg: 48 96% 72%;
+    --dark-tag-reception: 0 84% 60%;
+    --dark-tag-reception-fg: 0 84% 76%;
+    --dark-tag-honeymoon: 189 94% 43%;
+    --dark-tag-honeymoon-fg: 189 94% 65%;
+    --dark-tag-guest: 142 71% 45%;
+    --dark-tag-guest-fg: 142 71% 68%;
+    --dark-tag-vendor: 239 84% 67%;
+    --dark-tag-vendor-fg: 239 84% 80%;
+    --dark-tag-music: 239 84% 67%;
+    --dark-tag-music-fg: 239 84% 80%;
+    --dark-tag-flowers: 330 81% 60%;
+    --dark-tag-flowers-fg: 330 81% 76%;
 
-    --warning: 38 92% 55%;
-    --warning-foreground: 0 0% 100%;
+    /* Form chrome */
+    --dark-border: 21 44% 26%;                   /* #603B25 */
+    --dark-input: 20 10% 10%;
+    --dark-ring: 22 25% 51%;
 
-    --border: 21 44% 26%;
-    /* #603B25 @ 52% via alpha in utilities */
-    --input: 20 10% 10%;
-    /* dark input fill */
-    --ring: 22 25% 51%;
+    /* Sidebar — glass bronze panel */
+    --dark-sidebar-background: 23 60% 55%;       /* #D07A46 */
+    --dark-sidebar-foreground: 0 0% 100%;
+    --dark-sidebar-primary: 22 25% 51%;
+    --dark-sidebar-primary-foreground: 0 0% 100%;
+    --dark-sidebar-accent: 22 25% 51%;
+    --dark-sidebar-accent-foreground: 0 0% 100%;
+    --dark-sidebar-border: 21 44% 26%;
+    --dark-sidebar-ring: 22 25% 51%;
+
+    /* Surface elevation */
+    --dark-surface: 20 13% 3%;
+    --dark-surface-container: 20 10% 5%;
+    --dark-surface-container-low: 20 12% 4%;
+    --dark-surface-container-high: 20 10% 7%;
+    --dark-surface-container-highest: 20 10% 10%;
+    --dark-card-elevated: 20 11% 5%;
+    --dark-outline: 21 44% 26%;
+    --dark-outline-variant: 20 10% 14%;
+
+    /* Unique surfaces */
+    --dark-surface-note: 337 44% 7%;             /* #1A0A10 */
+    --dark-surface-popover-alt: 0 0% 10%;
+    --dark-surface-tooltip: 346 36% 12%;
+    --dark-surface-toast: 336 61% 14%;
+
+    /* Figma raw RGB values */
+    --dark-bronze: 161 122 99;                   /* #A17A63 */
+    --dark-rose: 255 255 255;
+    --dark-header-pink: 214 193 199;
+    --dark-sidebar-fill: 208 122 70;             /* #D07A46 */
+    --dark-sidebar-stroke: 96 59 37;             /* #603B25 */
+    --dark-grid-bg: 42 42 42;                    /* #2A2A2A — grid stroke */
+    --dark-glow-outer: 10 10 10;
+
+    /* Mode button active backgrounds */
+    --dark-mode-auto-active: 30 10% 49%;         /* #8A7E72 */
+    --dark-mode-stylist-active: 46 65% 52%;      /* #D4AF37 */
+    --dark-mode-knowledge-active: 29 13% 37%;    /* #6B5E52 */
+
+    /* Category palette */
+    --dark-cat-budget:         38 92% 50%;
+    --dark-cat-budget-fg:      38 92% 70%;
+    --dark-cat-budget-deep:    32 95% 44%;
+    --dark-cat-budget-darker:  26 90% 37%;
+    --dark-cat-timeline:       330 81% 60%;
+    --dark-cat-timeline-fg:    330 81% 75%;
+    --dark-cat-timeline-soft:  326 78% 95%;
+    --dark-cat-timeline-deep:  335 78% 42%;
+    --dark-cat-milestone:      271 91% 65%;
+    --dark-cat-milestone-fg:   271 91% 78%;
+    --dark-cat-planner:        23 60% 55%;
+    --dark-cat-planner-fg:     23 75% 72%;
+    --dark-cat-stylist:        343 14% 80%;
+    --dark-cat-knowledge:      21 44% 26%;
+    --dark-cat-auto:           22 25% 51%;
+
+    /* Overlays — lightbox/toolbar scrims (same in both themes, see rationale in .light) */
+    --dark-overlay-scrim: 0 0% 0%;               /* pure black backdrop */
+    --dark-overlay-surface: 0 0% 100%;           /* white-tint fill for buttons on scrim */
+    --dark-overlay-border: 0 0% 100%;
+    --dark-overlay-text: 0 0% 100%;
+
+    /* Glass surfaces — theme-aware card/chip backgrounds (full rgba values) */
+    --dark-glass-bg: rgb(255 255 255 / 0.04);
+    --dark-glass-bg-hover: rgb(255 255 255 / 0.07);
+    --dark-glass-border: rgb(255 255 255 / 0.10);
+    --dark-glass-border-hover: rgb(161 122 99 / 0.40);
+
+    /* Gradient-bg layer: grid alpha + radial bloom (theme-aware) */
+    --dark-grid-alpha: 0.35;
+    --dark-grad-bg-bloom:
+      radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208 123 70) 0%, rgb(var(--dark-sidebar-fill) / 0.22) 30%, rgb(10 10 10 / 0) 70%),
+      radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208 123 70) 0%, rgb(var(--dark-sidebar-fill) / 0.22) 30%, rgb(10 10 10 / 0) 70%);
+
+    /* Elevation shadows */
+    --dark-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.08);
+    --dark-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.18);
+    --dark-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.25);
+    --dark-shadow-modal: 0 32px 64px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.05);
+    --dark-shadow-dropdown: 0 16px 48px -12px rgb(0 0 0 / 0.7);
+    --dark-shadow-dropdown-sm: 0 25px 50px -12px rgb(0 0 0 / 0.4);
+    --dark-shadow-glass: 0 8px 32px rgb(0 0 0 / 0.37);
+    --dark-shadow-glow-brand: 0 0 24px rgb(161 122 99 / 0.12);
+    --dark-shadow-input-focus: 0 0 0 1px rgb(161 122 99 / 0.4), 0 0 24px rgb(161 122 99 / 0.12);
+    --dark-shadow-card-hover: 0 8px 32px rgb(161 122 99 / 0.12);
+    --dark-shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -1px 0 rgb(255 255 255 / 0.03), 0 16px 48px -12px rgb(0 0 0 / 0.55);
+
+    /* Gradients */
+    --dark-grad-brand-bloom:
+      radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208 123 70) 0%, rgb(208 122 70 / 0.22) 30%, rgb(10 10 10 / 0) 70%),
+      radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208 123 70) 0%, rgb(208 122 70 / 0.22) 30%, rgb(10 10 10 / 0) 70%);
+    --dark-grad-sidebar: linear-gradient(180deg, rgb(208 122 70 / 0.03) 0%, rgb(208 122 70 / 0.02) 100%);
+    --dark-grad-sidebar-chip: linear-gradient(180deg, rgb(161 122 99 / 0.35) 0%, rgb(161 122 99 / 0.22) 100%);
+
+
+    /* ━━ LIGHT PALETTE (source) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       Warm-ivory / terracotta / gold system derived from lightmode.html.
+       No --dark-* tokens referenced below — fully independent. */
+
+    /* Surfaces */
+    --light-background: white;              /* #FAF6F0 warm ivory */
+    --light-foreground: 21 41% 16%;              /* #3A2418 deep coffee */
+    --light-card: 0 0% 100%;
+    --light-card-foreground: 21 41% 16%;
+    --light-popover: 0 0% 100%;
+    --light-popover-foreground: 21 41% 16%;
+    --light-muted: 33 53% 92%;                   /* #F5EDE1 */
+    --light-muted-foreground: 22 20% 45%;        /* #8B6F5C */
+
+    /* Brand */
+    --light-primary: 22 25% 51%;
+    --light-primary-foreground: 0 0% 100%;
+    --light-primary-muted: 22 20% 58%;
+    --light-primary-hover: 22 26% 43%;
+    --light-primary-subtle: 22 26% 62%;
+    --light-primary-light: 21 31% 58%;
+    --light-primary-bright: 31 59% 78%;
+    --light-primary-container: 343 14% 80%;
+
+    /* Secondary */
+    --light-secondary: 347 30% 88%;
+    --light-secondary-foreground: 21 41% 16%;
+    --light-secondary-container: 347 24% 88%;
+
+    /* Accent */
+    --light-accent: 22 25% 51%;
+    --light-accent-foreground: 0 0% 100%;
+    --light-accent-gold: 36 48% 60%;
+    --light-accent-sage: 106 12% 50%;
+
+    /* Status */
+    --light-destructive: 0 74% 48%;
+    --light-destructive-foreground: 0 0% 100%;
+    --light-destructive-subtle: 0 74% 42%;
+    --light-warning: 38 92% 48%;
+    --light-warning-foreground: 21 41% 16%;
+    --light-warning-subtle: 32 95% 42%;
+    --light-success: 142 71% 32%;
+    --light-success-foreground: 0 0% 100%;
+    --light-success-subtle: 142 71% 28%;
+    --light-info: 217 91% 48%;
+    --light-info-foreground: 0 0% 100%;
+    --light-info-subtle: 217 91% 40%;
+
+    /* Tag palette — deeper for readability on ivory */
+    --light-tag-venue: 217 91% 48%;
+    --light-tag-venue-fg: 217 91% 35%;
+    --light-tag-catering: 27 96% 48%;
+    --light-tag-catering-fg: 27 96% 35%;
+    --light-tag-ceremony: 48 85% 42%;
+    --light-tag-ceremony-fg: 42 85% 32%;
+    --light-tag-reception: 0 74% 48%;
+    --light-tag-reception-fg: 0 74% 38%;
+    --light-tag-honeymoon: 189 94% 38%;
+    --light-tag-honeymoon-fg: 189 94% 28%;
+    --light-tag-guest: 142 71% 32%;
+    --light-tag-guest-fg: 142 71% 26%;
+    --light-tag-vendor: 239 70% 55%;
+    --light-tag-vendor-fg: 239 70% 42%;
+    --light-tag-music: 239 70% 55%;
+    --light-tag-music-fg: 239 70% 42%;
+    --light-tag-flowers: 330 75% 48%;
+    --light-tag-flowers-fg: 330 75% 38%;
+
+    /* Form chrome */
+    --light-border: 33 44% 85%;                  /* #E8DCC8 warm beige */
+    --light-input: 0 0% 100%;
+    --light-ring: 22 25% 51%;
+
+    /* Sidebar — light ivory glass */
+    --light-sidebar-background: 35 60% 94%;      /* #F8F2E8 */
+    --light-sidebar-foreground: 21 41% 16%;
+    --light-sidebar-primary: 22 25% 51%;
+    --light-sidebar-primary-foreground: 0 0% 100%;
+    --light-sidebar-accent: 22 25% 51%;
+    --light-sidebar-accent-foreground: 0 0% 100%;
+    --light-sidebar-border: 33 44% 85%;
+    --light-sidebar-ring: 22 25% 51%;
+
+    /* Surface elevation */
+    --light-surface: 37 49% 96%;
+    --light-surface-container: 40 100% 97%;      /* #FFF9F0 */
+    --light-surface-container-low: 33 53% 92%;
+    --light-surface-container-high: 0 0% 100%;
+    --light-surface-container-highest: 0 0% 100%;
+    --light-card-elevated: 0 0% 100%;
+    --light-outline: 33 44% 85%;
+    --light-outline-variant: 33 44% 90%;
+
+    /* Unique surfaces */
+    --light-surface-note: 40 100% 97%;
+    --light-surface-popover-alt: 0 0% 100%;
+    --light-surface-tooltip: 21 41% 16%;         /* inverse: dark chip in light UI */
+    --light-surface-toast: 21 41% 16%;
+
+    /* Figma raw RGB values */
+    --light-bronze: 161 122 99;
+    --light-rose: 250 246 240;
+    --light-header-pink: 214 193 199;
+    --light-sidebar-fill: 208 122 70;
+    --light-sidebar-stroke: 96 59 37;
+    --light-grid-bg: 138 95 70;                  /* warm brown grid on ivory */
+    --light-glow-outer: 250 246 240;
+
+    /* Mode button active backgrounds */
+    --light-mode-auto-active: 22 25% 51%;
+    --light-mode-stylist-active: 46 65% 45%;
+    --light-mode-knowledge-active: 29 13% 37%;
+
+    /* Category palette — deeper variants for readability on cream */
+    --light-cat-budget:         38 92% 50%;
+    --light-cat-budget-fg:      32 95% 44%;
+    --light-cat-budget-deep:    32 95% 44%;
+    --light-cat-budget-darker:  26 90% 37%;
+    --light-cat-timeline:       330 81% 60%;
+    --light-cat-timeline-fg:    335 78% 42%;
+    --light-cat-timeline-soft:  326 78% 95%;
+    --light-cat-timeline-deep:  335 78% 42%;
+    --light-cat-milestone:      271 91% 58%;
+    --light-cat-milestone-fg:   271 91% 50%;
+    --light-cat-planner:        23 60% 50%;
+    --light-cat-planner-fg:     23 75% 42%;
+    --light-cat-stylist:        343 35% 65%;
+    --light-cat-knowledge:      21 44% 26%;
+    --light-cat-auto:           22 25% 51%;
+
+    /* Overlays — lightbox/toolbar retain the cinema dark scrim in light mode.
+       Kept in the light source palette for parity; values intentionally match. */
+    --light-overlay-scrim: 0 0% 0%;
+    --light-overlay-surface: 0 0% 100%;
+    --light-overlay-border: 0 0% 100%;
+    --light-overlay-text: 0 0% 100%;
+
+    /* Glass surfaces — solid card on ivory; retains warm-brown border accent */
+    --light-glass-bg: rgb(248 248 248 / 75%);
+    --light-glass-bg-hover: rgb(255 255 255 / 0.95);
+    --light-glass-border: rgb(138 95 70 / 0.18);
+    --light-glass-border-hover: rgb(161 122 99 / 0.45);
+
+    /* Gradient-bg layer — softer grid + warm ivory fade-out bloom */
+    --light-grid-alpha: 0.05;
+    --light-grad-bg-bloom:
+      radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208 123 70 / 28%) 0%, rgb(208 122 70 / 0.12) 30%, rgb(250 246 240 / 0) 70%),
+      radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208 123 70 / 63%) 0%, rgb(208 122 70 / 11%) 30%, rgb(250 246 240 / 0%) 70%);
+
+    /* Shadows — soft warm-brown alpha (per lightmode.html) */
+    --light-shadow-sm: 0 2px 8px rgb(138 95 70 / 0.06);
+    --light-shadow-md: 0 4px 16px rgb(138 95 70 / 0.08);
+    --light-shadow-lg: 0 10px 30px rgb(138 95 70 / 0.10);
+    --light-shadow-modal: 0 32px 64px -12px rgb(138 95 70 / 0.25), 0 0 0 1px rgb(138 95 70 / 0.08);
+    --light-shadow-dropdown: 0 16px 48px -12px rgb(138 95 70 / 0.18);
+    --light-shadow-dropdown-sm: 0 25px 50px -12px rgb(138 95 70 / 0.15);
+    --light-shadow-glass: 0 8px 32px rgb(138 95 70 / 0.08);
+    --light-shadow-glow-brand: 0 0 24px rgb(161 122 99 / 0.25);
+    --light-shadow-input-focus: 0 0 0 1px rgb(161 122 99 / 0.5), 0 0 24px rgb(161 122 99 / 0.15);
+    --light-shadow-card-hover: 0 8px 32px rgb(161 122 99 / 0.12);
+    --light-shadow-card: 0 4px 16px rgb(138 95 70 / 0.08);
+
+    /* Gradients — lighter end stops */
+    --light-grad-brand-bloom:
+      radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208 123 70 / 0.35) 0%, rgb(208 122 70 / 0.10) 30%, rgb(250 246 240 / 0) 70%),
+      radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208 123 70 / 0.35) 0%, rgb(208 122 70 / 0.10) 30%, rgb(250 246 240 / 0) 70%);
+    --light-grad-sidebar: linear-gradient(180deg, rgb(255 255 255 / 0.5) 0%, rgb(255 255 255 / 0.3) 100%);
+    --light-grad-sidebar-chip: linear-gradient(180deg, rgb(161 122 99 / 0.15) 0%, rgb(161 122 99 / 0.08) 100%);
+
+
+    /* ━━ SEMANTIC ALIASES (public API, default → dark) ━━━━━━━━━━━━━━━━━━━
+       Components and Tailwind consume these shared names. `.dark` / `.light`
+       below re-bind them to the corresponding source block. Default (no
+       class on <html>) falls back to dark — matches prior behaviour. */
 
     --radius: 1rem;
 
-    /* Sidebar — glass bronze panel */
-    --sidebar-background: 23 60% 55%;
-    /* #D07A46, used at 2% alpha in glass-sidebar */
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 22 25% 51%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 22 25% 51%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 21 44% 26%;
-    --sidebar-ring: 22 25% 51%;
+    --background: var(--dark-background);
+    --foreground: var(--dark-foreground);
+    --card: var(--dark-card);
+    --card-foreground: var(--dark-card-foreground);
+    --popover: var(--dark-popover);
+    --popover-foreground: var(--dark-popover-foreground);
+    --muted: var(--dark-muted);
+    --muted-foreground: var(--dark-muted-foreground);
 
-    /* Surface elevation */
-    --surface: 20 13% 3%;
-    --surface-container: 20 10% 5%;
-    --surface-container-low: 20 12% 4%;
-    --surface-container-high: 20 10% 7%;
-    --surface-container-highest: 20 10% 10%;
-    --outline: 21 44% 26%;
-    --outline-variant: 20 10% 14%;
+    --primary: var(--dark-primary);
+    --primary-foreground: var(--dark-primary-foreground);
+    --primary-muted: var(--dark-primary-muted);
+    --primary-hover: var(--dark-primary-hover);
+    --primary-subtle: var(--dark-primary-subtle);
+    --primary-light: var(--dark-primary-light);
+    --primary-bright: var(--dark-primary-bright);
+    --primary-container: var(--dark-primary-container);
 
-    /* Figma theme raw values (use in utilities / inline) */
-    --bronze: 161 122 99;
-    /* #A17A63 */
-    --rose: 255 255 255;
-    /* white */
-    --header-pink: 214 193 199;
-    /* #D6C1C7 */
-    --sidebar-fill: 208 122 70;
-    /* #D07A46 */
-    --sidebar-stroke: 96 59 37;
-    /* #603B25 */
-    --grid-stroke: 42 42 42;
-    /* #2A2A2A */
-    --glow-outer: 10 10 10;
-    /* #0A0A0A */
+    --secondary: var(--dark-secondary);
+    --secondary-foreground: var(--dark-secondary-foreground);
+    --secondary-container: var(--dark-secondary-container);
+
+    --accent: var(--dark-accent);
+    --accent-foreground: var(--dark-accent-foreground);
+    --accent-gold: var(--dark-accent-gold);
+    --accent-sage: var(--dark-accent-sage);
+
+    --destructive: var(--dark-destructive);
+    --destructive-foreground: var(--dark-destructive-foreground);
+    --destructive-subtle: var(--dark-destructive-subtle);
+    --warning: var(--dark-warning);
+    --warning-foreground: var(--dark-warning-foreground);
+    --warning-subtle: var(--dark-warning-subtle);
+    --success: var(--dark-success);
+    --success-foreground: var(--dark-success-foreground);
+    --success-subtle: var(--dark-success-subtle);
+    --info: var(--dark-info);
+    --info-foreground: var(--dark-info-foreground);
+    --info-subtle: var(--dark-info-subtle);
+
+    --tag-venue: var(--dark-tag-venue);
+    --tag-venue-fg: var(--dark-tag-venue-fg);
+    --tag-catering: var(--dark-tag-catering);
+    --tag-catering-fg: var(--dark-tag-catering-fg);
+    --tag-ceremony: var(--dark-tag-ceremony);
+    --tag-ceremony-fg: var(--dark-tag-ceremony-fg);
+    --tag-reception: var(--dark-tag-reception);
+    --tag-reception-fg: var(--dark-tag-reception-fg);
+    --tag-honeymoon: var(--dark-tag-honeymoon);
+    --tag-honeymoon-fg: var(--dark-tag-honeymoon-fg);
+    --tag-guest: var(--dark-tag-guest);
+    --tag-guest-fg: var(--dark-tag-guest-fg);
+    --tag-vendor: var(--dark-tag-vendor);
+    --tag-vendor-fg: var(--dark-tag-vendor-fg);
+    --tag-music: var(--dark-tag-music);
+    --tag-music-fg: var(--dark-tag-music-fg);
+    --tag-flowers: var(--dark-tag-flowers);
+    --tag-flowers-fg: var(--dark-tag-flowers-fg);
+
+    --border: var(--dark-border);
+    --input: var(--dark-input);
+    --ring: var(--dark-ring);
+
+    --sidebar-background: var(--dark-sidebar-background);
+    --sidebar-foreground: var(--dark-sidebar-foreground);
+    --sidebar-primary: var(--dark-sidebar-primary);
+    --sidebar-primary-foreground: var(--dark-sidebar-primary-foreground);
+    --sidebar-accent: var(--dark-sidebar-accent);
+    --sidebar-accent-foreground: var(--dark-sidebar-accent-foreground);
+    --sidebar-border: var(--dark-sidebar-border);
+    --sidebar-ring: var(--dark-sidebar-ring);
+
+    --surface: var(--dark-surface);
+    --surface-container: var(--dark-surface-container);
+    --surface-container-low: var(--dark-surface-container-low);
+    --surface-container-high: var(--dark-surface-container-high);
+    --surface-container-highest: var(--dark-surface-container-highest);
+    --card-elevated: var(--dark-card-elevated);
+    --outline: var(--dark-outline);
+    --outline-variant: var(--dark-outline-variant);
+
+    --surface-note: var(--dark-surface-note);
+    --surface-popover-alt: var(--dark-surface-popover-alt);
+    --surface-tooltip: var(--dark-surface-tooltip);
+    --surface-toast: var(--dark-surface-toast);
+
+    --bronze: var(--dark-bronze);
+    --rose: var(--dark-rose);
+    --header-pink: var(--dark-header-pink);
+    --sidebar-fill: var(--dark-sidebar-fill);
+    --sidebar-stroke: var(--dark-sidebar-stroke);
+    --grid-stroke: var(--dark-grid-bg);
+    --glow-outer: var(--dark-glow-outer);
+
+    --mode-auto-active: var(--dark-mode-auto-active);
+    --mode-stylist-active: var(--dark-mode-stylist-active);
+    --mode-knowledge-active: var(--dark-mode-knowledge-active);
+
+    --cat-budget: var(--dark-cat-budget);
+    --cat-budget-fg: var(--dark-cat-budget-fg);
+    --cat-budget-deep: var(--dark-cat-budget-deep);
+    --cat-budget-darker: var(--dark-cat-budget-darker);
+    --cat-timeline: var(--dark-cat-timeline);
+    --cat-timeline-fg: var(--dark-cat-timeline-fg);
+    --cat-timeline-soft: var(--dark-cat-timeline-soft);
+    --cat-timeline-deep: var(--dark-cat-timeline-deep);
+    --cat-milestone: var(--dark-cat-milestone);
+    --cat-milestone-fg: var(--dark-cat-milestone-fg);
+    --cat-planner: var(--dark-cat-planner);
+    --cat-planner-fg: var(--dark-cat-planner-fg);
+    --cat-stylist: var(--dark-cat-stylist);
+    --cat-knowledge: var(--dark-cat-knowledge);
+    --cat-auto: var(--dark-cat-auto);
+
+    --overlay-scrim: var(--dark-overlay-scrim);
+    --overlay-surface: var(--dark-overlay-surface);
+    --overlay-border: var(--dark-overlay-border);
+    --overlay-text: var(--dark-overlay-text);
+
+    --glass-bg: var(--dark-glass-bg);
+    --glass-bg-hover: var(--dark-glass-bg-hover);
+    --glass-border: var(--dark-glass-border);
+    --glass-border-hover: var(--dark-glass-border-hover);
+
+    --grid-alpha: var(--dark-grid-alpha);
+    --grad-bg-bloom: var(--dark-grad-bg-bloom);
+
+    --shadow-sm: var(--dark-shadow-sm);
+    --shadow-md: var(--dark-shadow-md);
+    --shadow-lg: var(--dark-shadow-lg);
+    --shadow-modal: var(--dark-shadow-modal);
+    --shadow-dropdown: var(--dark-shadow-dropdown);
+    --shadow-dropdown-sm: var(--dark-shadow-dropdown-sm);
+    --shadow-glass: var(--dark-shadow-glass);
+    --shadow-glow-brand: var(--dark-shadow-glow-brand);
+    --shadow-input-focus: var(--dark-shadow-input-focus);
+    --shadow-card-hover: var(--dark-shadow-card-hover);
+    --shadow-card: var(--dark-shadow-card);
+
+    --grad-brand-bloom: var(--dark-grad-brand-bloom);
+    --grad-sidebar: var(--dark-grad-sidebar);
+    --grad-sidebar-chip: var(--dark-grad-sidebar-chip);
+  }
+
+  /* ─── ORCHESTRATOR — runtime theme swap (variable aliasing only) ───── */
+
+  .light {
+    --background: var(--light-background);
+    --foreground: var(--light-foreground);
+    --card: var(--light-card);
+    --card-foreground: var(--light-card-foreground);
+    --popover: var(--light-popover);
+    --popover-foreground: var(--light-popover-foreground);
+    --muted: var(--light-muted);
+    --muted-foreground: var(--light-muted-foreground);
+
+    --primary: var(--light-primary);
+    --primary-foreground: var(--light-primary-foreground);
+    --primary-muted: var(--light-primary-muted);
+    --primary-hover: var(--light-primary-hover);
+    --primary-subtle: var(--light-primary-subtle);
+    --primary-light: var(--light-primary-light);
+    --primary-bright: var(--light-primary-bright);
+    --primary-container: var(--light-primary-container);
+
+    --secondary: var(--light-secondary);
+    --secondary-foreground: var(--light-secondary-foreground);
+    --secondary-container: var(--light-secondary-container);
+
+    --accent: var(--light-accent);
+    --accent-foreground: var(--light-accent-foreground);
+    --accent-gold: var(--light-accent-gold);
+    --accent-sage: var(--light-accent-sage);
+
+    --destructive: var(--light-destructive);
+    --destructive-foreground: var(--light-destructive-foreground);
+    --destructive-subtle: var(--light-destructive-subtle);
+    --warning: var(--light-warning);
+    --warning-foreground: var(--light-warning-foreground);
+    --warning-subtle: var(--light-warning-subtle);
+    --success: var(--light-success);
+    --success-foreground: var(--light-success-foreground);
+    --success-subtle: var(--light-success-subtle);
+    --info: var(--light-info);
+    --info-foreground: var(--light-info-foreground);
+    --info-subtle: var(--light-info-subtle);
+
+    --tag-venue: var(--light-tag-venue);
+    --tag-venue-fg: var(--light-tag-venue-fg);
+    --tag-catering: var(--light-tag-catering);
+    --tag-catering-fg: var(--light-tag-catering-fg);
+    --tag-ceremony: var(--light-tag-ceremony);
+    --tag-ceremony-fg: var(--light-tag-ceremony-fg);
+    --tag-reception: var(--light-tag-reception);
+    --tag-reception-fg: var(--light-tag-reception-fg);
+    --tag-honeymoon: var(--light-tag-honeymoon);
+    --tag-honeymoon-fg: var(--light-tag-honeymoon-fg);
+    --tag-guest: var(--light-tag-guest);
+    --tag-guest-fg: var(--light-tag-guest-fg);
+    --tag-vendor: var(--light-tag-vendor);
+    --tag-vendor-fg: var(--light-tag-vendor-fg);
+    --tag-music: var(--light-tag-music);
+    --tag-music-fg: var(--light-tag-music-fg);
+    --tag-flowers: var(--light-tag-flowers);
+    --tag-flowers-fg: var(--light-tag-flowers-fg);
+
+    --border: var(--light-border);
+    --input: var(--light-input);
+    --ring: var(--light-ring);
+
+    --sidebar-background: var(--light-sidebar-background);
+    --sidebar-foreground: var(--light-sidebar-foreground);
+    --sidebar-primary: var(--light-sidebar-primary);
+    --sidebar-primary-foreground: var(--light-sidebar-primary-foreground);
+    --sidebar-accent: var(--light-sidebar-accent);
+    --sidebar-accent-foreground: var(--light-sidebar-accent-foreground);
+    --sidebar-border: var(--light-sidebar-border);
+    --sidebar-ring: var(--light-sidebar-ring);
+
+    --surface: var(--light-surface);
+    --surface-container: var(--light-surface-container);
+    --surface-container-low: var(--light-surface-container-low);
+    --surface-container-high: var(--light-surface-container-high);
+    --surface-container-highest: var(--light-surface-container-highest);
+    --card-elevated: var(--light-card-elevated);
+    --outline: var(--light-outline);
+    --outline-variant: var(--light-outline-variant);
+
+    --surface-note: var(--light-surface-note);
+    --surface-popover-alt: var(--light-surface-popover-alt);
+    --surface-tooltip: var(--light-surface-tooltip);
+    --surface-toast: var(--light-surface-toast);
+
+    --bronze: var(--light-bronze);
+    --rose: var(--light-rose);
+    --header-pink: var(--light-header-pink);
+    --sidebar-fill: var(--light-sidebar-fill);
+    --sidebar-stroke: var(--light-sidebar-stroke);
+    --grid-stroke: var(--light-grid-bg);
+    --glow-outer: var(--light-glow-outer);
+
+    --mode-auto-active: var(--light-mode-auto-active);
+    --mode-stylist-active: var(--light-mode-stylist-active);
+    --mode-knowledge-active: var(--light-mode-knowledge-active);
+
+    --cat-budget: var(--light-cat-budget);
+    --cat-budget-fg: var(--light-cat-budget-fg);
+    --cat-budget-deep: var(--light-cat-budget-deep);
+    --cat-budget-darker: var(--light-cat-budget-darker);
+    --cat-timeline: var(--light-cat-timeline);
+    --cat-timeline-fg: var(--light-cat-timeline-fg);
+    --cat-timeline-soft: var(--light-cat-timeline-soft);
+    --cat-timeline-deep: var(--light-cat-timeline-deep);
+    --cat-milestone: var(--light-cat-milestone);
+    --cat-milestone-fg: var(--light-cat-milestone-fg);
+    --cat-planner: var(--light-cat-planner);
+    --cat-planner-fg: var(--light-cat-planner-fg);
+    --cat-stylist: var(--light-cat-stylist);
+    --cat-knowledge: var(--light-cat-knowledge);
+    --cat-auto: var(--light-cat-auto);
+
+    --overlay-scrim: var(--light-overlay-scrim);
+    --overlay-surface: var(--light-overlay-surface);
+    --overlay-border: var(--light-overlay-border);
+    --overlay-text: var(--light-overlay-text);
+
+    --glass-bg: var(--light-glass-bg);
+    --glass-bg-hover: var(--light-glass-bg-hover);
+    --glass-border: var(--light-glass-border);
+    --glass-border-hover: var(--light-glass-border-hover);
+
+    --grid-alpha: var(--light-grid-alpha);
+    --grad-bg-bloom: var(--light-grad-bg-bloom);
+
+    --shadow-sm: var(--light-shadow-sm);
+    --shadow-md: var(--light-shadow-md);
+    --shadow-lg: var(--light-shadow-lg);
+    --shadow-modal: var(--light-shadow-modal);
+    --shadow-dropdown: var(--light-shadow-dropdown);
+    --shadow-dropdown-sm: var(--light-shadow-dropdown-sm);
+    --shadow-glass: var(--light-shadow-glass);
+    --shadow-glow-brand: var(--light-shadow-glow-brand);
+    --shadow-input-focus: var(--light-shadow-input-focus);
+    --shadow-card-hover: var(--light-shadow-card-hover);
+    --shadow-card: var(--light-shadow-card);
+
+    --grad-brand-bloom: var(--light-grad-brand-bloom);
+    --grad-sidebar: var(--light-grad-sidebar);
+    --grad-sidebar-chip: var(--light-grad-sidebar-chip);
   }
 
   .dark {
-    --background: 20 13% 3%;
-    --foreground: 0 0% 100%;
-    --card: 20 10% 6%;
-    --card-foreground: 0 0% 100%;
-    --popover: 20 10% 6%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 22 25% 51%;
-    --primary-foreground: 0 0% 100%;
-    --primary-muted: 22 20% 65%;
-    --secondary: 343 14% 80%;
-    --secondary-foreground: 20 13% 3%;
-    --muted: 20 10% 8%;
-    --muted-foreground: 0 0% 85%;
-    --accent: 22 25% 51%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
-    --warning: 38 92% 55%;
-    --warning-foreground: 0 0% 100%;
-    --border: 21 44% 26%;
-    --input: 20 10% 10%;
-    --ring: 22 25% 51%;
-    --sidebar-background: 23 60% 55%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 22 25% 51%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 22 25% 51%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 21 44% 26%;
-    --sidebar-ring: 22 25% 51%;
-    --surface: 20 13% 3%;
-    --surface-container: 20 10% 5%;
-    --surface-container-low: 20 12% 4%;
-    --surface-container-high: 20 10% 7%;
-    --surface-container-highest: 20 10% 10%;
-    --outline: 21 44% 26%;
-    --outline-variant: 20 10% 14%;
+    --background: var(--dark-background);
+    --foreground: var(--dark-foreground);
+    --card: var(--dark-card);
+    --card-foreground: var(--dark-card-foreground);
+    --popover: var(--dark-popover);
+    --popover-foreground: var(--dark-popover-foreground);
+    --muted: var(--dark-muted);
+    --muted-foreground: var(--dark-muted-foreground);
+
+    --primary: var(--dark-primary);
+    --primary-foreground: var(--dark-primary-foreground);
+    --primary-muted: var(--dark-primary-muted);
+    --primary-hover: var(--dark-primary-hover);
+    --primary-subtle: var(--dark-primary-subtle);
+    --primary-light: var(--dark-primary-light);
+    --primary-bright: var(--dark-primary-bright);
+    --primary-container: var(--dark-primary-container);
+
+    --secondary: var(--dark-secondary);
+    --secondary-foreground: var(--dark-secondary-foreground);
+    --secondary-container: var(--dark-secondary-container);
+
+    --accent: var(--dark-accent);
+    --accent-foreground: var(--dark-accent-foreground);
+    --accent-gold: var(--dark-accent-gold);
+    --accent-sage: var(--dark-accent-sage);
+
+    --destructive: var(--dark-destructive);
+    --destructive-foreground: var(--dark-destructive-foreground);
+    --destructive-subtle: var(--dark-destructive-subtle);
+    --warning: var(--dark-warning);
+    --warning-foreground: var(--dark-warning-foreground);
+    --warning-subtle: var(--dark-warning-subtle);
+    --success: var(--dark-success);
+    --success-foreground: var(--dark-success-foreground);
+    --success-subtle: var(--dark-success-subtle);
+    --info: var(--dark-info);
+    --info-foreground: var(--dark-info-foreground);
+    --info-subtle: var(--dark-info-subtle);
+
+    --tag-venue: var(--dark-tag-venue);
+    --tag-venue-fg: var(--dark-tag-venue-fg);
+    --tag-catering: var(--dark-tag-catering);
+    --tag-catering-fg: var(--dark-tag-catering-fg);
+    --tag-ceremony: var(--dark-tag-ceremony);
+    --tag-ceremony-fg: var(--dark-tag-ceremony-fg);
+    --tag-reception: var(--dark-tag-reception);
+    --tag-reception-fg: var(--dark-tag-reception-fg);
+    --tag-honeymoon: var(--dark-tag-honeymoon);
+    --tag-honeymoon-fg: var(--dark-tag-honeymoon-fg);
+    --tag-guest: var(--dark-tag-guest);
+    --tag-guest-fg: var(--dark-tag-guest-fg);
+    --tag-vendor: var(--dark-tag-vendor);
+    --tag-vendor-fg: var(--dark-tag-vendor-fg);
+    --tag-music: var(--dark-tag-music);
+    --tag-music-fg: var(--dark-tag-music-fg);
+    --tag-flowers: var(--dark-tag-flowers);
+    --tag-flowers-fg: var(--dark-tag-flowers-fg);
+
+    --border: var(--dark-border);
+    --input: var(--dark-input);
+    --ring: var(--dark-ring);
+
+    --sidebar-background: var(--dark-sidebar-background);
+    --sidebar-foreground: var(--dark-sidebar-foreground);
+    --sidebar-primary: var(--dark-sidebar-primary);
+    --sidebar-primary-foreground: var(--dark-sidebar-primary-foreground);
+    --sidebar-accent: var(--dark-sidebar-accent);
+    --sidebar-accent-foreground: var(--dark-sidebar-accent-foreground);
+    --sidebar-border: var(--dark-sidebar-border);
+    --sidebar-ring: var(--dark-sidebar-ring);
+
+    --surface: var(--dark-surface);
+    --surface-container: var(--dark-surface-container);
+    --surface-container-low: var(--dark-surface-container-low);
+    --surface-container-high: var(--dark-surface-container-high);
+    --surface-container-highest: var(--dark-surface-container-highest);
+    --card-elevated: var(--dark-card-elevated);
+    --outline: var(--dark-outline);
+    --outline-variant: var(--dark-outline-variant);
+
+    --surface-note: var(--dark-surface-note);
+    --surface-popover-alt: var(--dark-surface-popover-alt);
+    --surface-tooltip: var(--dark-surface-tooltip);
+    --surface-toast: var(--dark-surface-toast);
+
+    --bronze: var(--dark-bronze);
+    --rose: var(--dark-rose);
+    --header-pink: var(--dark-header-pink);
+    --sidebar-fill: var(--dark-sidebar-fill);
+    --sidebar-stroke: var(--dark-sidebar-stroke);
+    --grid-stroke: var(--dark-grid-bg);
+    --glow-outer: var(--dark-glow-outer);
+
+    --mode-auto-active: var(--dark-mode-auto-active);
+    --mode-stylist-active: var(--dark-mode-stylist-active);
+    --mode-knowledge-active: var(--dark-mode-knowledge-active);
+
+    --cat-budget: var(--dark-cat-budget);
+    --cat-budget-fg: var(--dark-cat-budget-fg);
+    --cat-budget-deep: var(--dark-cat-budget-deep);
+    --cat-budget-darker: var(--dark-cat-budget-darker);
+    --cat-timeline: var(--dark-cat-timeline);
+    --cat-timeline-fg: var(--dark-cat-timeline-fg);
+    --cat-timeline-soft: var(--dark-cat-timeline-soft);
+    --cat-timeline-deep: var(--dark-cat-timeline-deep);
+    --cat-milestone: var(--dark-cat-milestone);
+    --cat-milestone-fg: var(--dark-cat-milestone-fg);
+    --cat-planner: var(--dark-cat-planner);
+    --cat-planner-fg: var(--dark-cat-planner-fg);
+    --cat-stylist: var(--dark-cat-stylist);
+    --cat-knowledge: var(--dark-cat-knowledge);
+    --cat-auto: var(--dark-cat-auto);
+
+    --overlay-scrim: var(--dark-overlay-scrim);
+    --overlay-surface: var(--dark-overlay-surface);
+    --overlay-border: var(--dark-overlay-border);
+    --overlay-text: var(--dark-overlay-text);
+
+    --glass-bg: var(--dark-glass-bg);
+    --glass-bg-hover: var(--dark-glass-bg-hover);
+    --glass-border: var(--dark-glass-border);
+    --glass-border-hover: var(--dark-glass-border-hover);
+
+    --grid-alpha: var(--dark-grid-alpha);
+    --grad-bg-bloom: var(--dark-grad-bg-bloom);
+
+    --shadow-sm: var(--dark-shadow-sm);
+    --shadow-md: var(--dark-shadow-md);
+    --shadow-lg: var(--dark-shadow-lg);
+    --shadow-modal: var(--dark-shadow-modal);
+    --shadow-dropdown: var(--dark-shadow-dropdown);
+    --shadow-dropdown-sm: var(--dark-shadow-dropdown-sm);
+    --shadow-glass: var(--dark-shadow-glass);
+    --shadow-glow-brand: var(--dark-shadow-glow-brand);
+    --shadow-input-focus: var(--dark-shadow-input-focus);
+    --shadow-card-hover: var(--dark-shadow-card-hover);
+    --shadow-card: var(--dark-shadow-card);
+
+    --grad-brand-bloom: var(--dark-grad-brand-bloom);
+    --grad-sidebar: var(--dark-grad-sidebar);
+    --grad-sidebar-chip: var(--dark-grad-sidebar-chip);
   }
 }
 
@@ -160,7 +832,7 @@
 
 
   body {
-    background-color: #090807;
+    background-color: hsl(var(--background));
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -260,6 +932,27 @@
   }
 }
 
+/* Light-theme readability overrides: low-alpha foreground is too faint on ivory.
+   Dark mode keeps the Tailwind-generated alpha; light mode bumps contrast. */
+.light .text-foreground\/45 { color: hsl(var(--foreground)); }
+.light .text-foreground\/40 { color: hsl(var(--foreground) / 0.75); }
+.light .text-foreground\/35 { color: hsl(var(--foreground) / 0.70); }
+.light .text-foreground\/30 { color: hsl(var(--foreground) / 0.65); }
+.light .text-foreground\/25 { color: hsl(var(--foreground) / 0.60); }
+
+/* Chat message text — darker coffee in light mode for readability.
+   Applies to bot-message prose and user-message bubble when tagged. */
+.light .chat-msg-text,
+.light .chat-msg-text :is(p, h1, h2, h3, h4, li, strong, em, blockquote, code) {
+  color: hsl(22 9.38% 10.33%);
+}
+
+/* Sidebar chat thread titles — deep coffee in light mode for readability. */
+.light .thread-title,
+.light .thread-title:hover {
+  color: hsl(21 41% 16% / 0.94);
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
    BACKGROUND SHELL — grid + radial bronze bloom on #090807
    Applied via .gradient-bg (already used by Index.tsx shell).
@@ -293,26 +986,26 @@
 
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(161, 122, 99, 0.2);
+    box-shadow: 0 0 20px rgb(var(--bronze) / 0.2);
   }
 
   50% {
-    box-shadow: 0 0 40px rgba(161, 122, 99, 0.4);
+    box-shadow: 0 0 40px rgb(var(--bronze) / 0.4);
   }
 }
 
 .gradient-bg,
 .gradient-bg-expanded {
   position: relative;
-  /* background-color: #090807; */
-      /* background-color: #1a140e; */
-      background-color: #0c0907;
+  background-color: hsl(var(--background));
   isolation: isolate;
   /* Prevent mobile overscroll bounce */
   overscroll-behavior: none;
 }
 
-/* Grid overlay — #2A2A2A @ 14% opacity, 1px lines, ~36px cells */
+/* Grid overlay — grid-stroke + grid-alpha swap per theme.
+   Mask confines the grid to the top-right + bottom-left corners with a
+   fadeout, matching the same layout across light and dark modes. */
 .gradient-bg::before,
 .gradient-bg-expanded::before {
   content: '';
@@ -321,15 +1014,21 @@
   pointer-events: none;
   z-index: 0;
   background-image:
-    linear-gradient(to right, rgba(42, 42, 42, 0.35) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(42, 42, 42, 0.35) 1px, transparent 1px);
+    linear-gradient(to right, rgb(var(--grid-stroke) / var(--grid-alpha)) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--grid-stroke) / var(--grid-alpha)) 1px, transparent 1px);
   background-size: 26px 26px;
-  mask-image: radial-gradient(ellipse 120% 100% at 50% 50%, #000 60%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 120% 100% at 50% 50%, #000 60%, transparent 100%);
+  mask-image:
+    radial-gradient(ellipse 85% 70% at 100% 0%, #000 10%, transparent 85%),
+    radial-gradient(ellipse 110% 90% at 0% 100%, #000 15%, transparent 90%);
+  -webkit-mask-image:
+    radial-gradient(ellipse 85% 70% at 100% 0%, #000 10%, transparent 85%),
+    radial-gradient(ellipse 110% 90% at 0% 100%, #000 15%, transparent 90%);
+  mask-composite: add;
+  -webkit-mask-composite: source-over;
 }
 
-/* Corner radial bronze blooms — #D07A46 → #0A0A0A, heavy blur.
-   Top-right + bottom-left, mirroring the Figma reference. */
+/* Corner radial blooms — theme-swapped via --grad-bg-bloom
+   (dark: bronze → near-black; light: bronze → ivory) */
 .gradient-bg::after,
 .gradient-bg-expanded::after {
   content: '';
@@ -337,11 +1036,16 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background:
-    radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208, 123, 70) 0%, rgba(208, 122, 70, 0.22) 30%, rgba(10, 10, 10, 0) 70%),
-    radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208, 123, 70) 0%, rgba(208, 122, 70, 0.22) 30%, rgba(10, 10, 10, 0) 70%);
+  background: var(--grad-bg-bloom);
   filter: blur(120px);
-  /* opacity: 0.95; */
+}
+
+/* Dark mode: custom bronze corner blooms — top-right + bottom-left */
+.dark .gradient-bg::after,
+.dark .gradient-bg-expanded::after {
+  background:
+    radial-gradient(ellipse 55% 80% at 95% 0%, rgb(208 123 70 / 30%) 0%, rgb(var(--dark-sidebar-fill) / 0.22) 30%, rgb(10 10 10 / 0) 70%),
+    radial-gradient(ellipse 75% 70% at 5% 100%, rgb(208 123 70 / 38%) 0%, rgb(var(--dark-sidebar-fill) / 0.22) 30%, rgb(10 10 10 / 0) 70%);
 }
 
 /* keep content above bg overlays — but skip fixed-position children
@@ -377,8 +1081,8 @@
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
   background:
-    linear-gradient(180deg, rgba(208, 122, 70, 0.03) 0%, rgba(208, 122, 70, 0.02) 100%);
-  border: 1px solid rgba(96, 59, 37, 0.52);
+    linear-gradient(180deg, rgb(var(--sidebar-fill) / 0.03) 0%, rgb(var(--sidebar-fill) / 0.02) 100%);
+  border: 1px solid rgb(var(--sidebar-stroke) / 0.52);
   box-shadow:
     0 4px 4px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -388,7 +1092,7 @@
 .glass-sidebar-chip {
   backdrop-filter: blur(16px) saturate(130%);
   -webkit-backdrop-filter: blur(16px) saturate(130%);
-  background: linear-gradient(180deg, rgba(161, 122, 99, 0.35) 0%, rgba(161, 122, 99, 0.22) 100%);
+  background: linear-gradient(180deg, rgb(var(--bronze) / 0.35) 0%, rgb(var(--bronze) / 0.22) 100%);
   border: 1px solid rgba(0, 0, 0, 0.35);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
@@ -423,12 +1127,12 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(161, 122, 99, 0.3);
+  background: rgb(var(--bronze) / 0.3);
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(161, 122, 99, 0.5);
+  background: rgb(var(--bronze) / 0.5);
 }
 
 .scrollbar-hide::-webkit-scrollbar {
@@ -442,7 +1146,7 @@
 
 /* Bronze glow on input focus */
 .input-glow:focus-within {
-  box-shadow: 0 0 0 1px rgba(161, 122, 99, 0.4), 0 0 24px rgba(161, 122, 99, 0.12);
+  box-shadow: var(--shadow-input-focus);
 }
 
 /* Bot avatar shimmer */
@@ -450,11 +1154,11 @@
 
   0%,
   100% {
-    box-shadow: 0 0 8px rgba(161, 122, 99, 0.35);
+    box-shadow: 0 0 8px rgb(var(--bronze) / 0.35);
   }
 
   50% {
-    box-shadow: 0 0 16px rgba(161, 122, 99, 0.55);
+    box-shadow: 0 0 16px rgb(var(--bronze) / 0.55);
   }
 }
 
@@ -539,7 +1243,7 @@
   top: 25%;
   height: 50%;
   width: 3px;
-  background: #A17A63;
+  background: hsl(var(--primary));
   border-radius: 0 3px 3px 0;
 }
 
@@ -563,28 +1267,28 @@
 .glass-action-card {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   transition: all 0.3s ease;
 }
 
 .glass-action-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(161, 122, 99, 0.4);
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(161, 122, 99, 0.12);
+  box-shadow: var(--shadow-card-hover);
 }
 
 /* Event chip pill */
 .event-chip {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   transition: all 0.2s ease;
 }
 
 .event-chip:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(161, 122, 99, 0.35);
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
 }

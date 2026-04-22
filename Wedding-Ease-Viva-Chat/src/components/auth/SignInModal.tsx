@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError, linkPendingGoogleCredential } from '@/services/authService'
 import type { AuthCredential } from 'firebase/auth'
@@ -155,31 +156,74 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   // ── Email sign-in ─────────────────────────────────────────────────────────
 
   async function handleEmailSignIn() {
-    if (!email || !password) { setError('Please enter your email and password'); return }
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail && !password) {
+      const msg = 'Please enter your email and password'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
+    if (!trimmedEmail) {
+      const msg = 'Email is required'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(trimmedEmail)) {
+      const msg = 'Please enter a valid email address'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
+    if (!password) {
+      const msg = 'Password is required'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setLoading(true)
     try {
-      if (rememberMe) localStorage.setItem(REMEMBER_KEY, email)
+      if (rememberMe) localStorage.setItem(REMEMBER_KEY, trimmedEmail)
       else localStorage.removeItem(REMEMBER_KEY)
-      await signIn(email, password)
+      await signIn(trimmedEmail, password)
+      toast.success('Welcome back!')
       onOpenChange(false)
       reset()
     } catch (err: any) {
-      if (err.code === 'UNVERIFIED_ACCOUNT') {
+      const code = err.code ?? err.message
+      if (code === 'UNVERIFIED_ACCOUNT') {
         setUnverifiedUser({ uid: err.uid, email: err.email, name: err.name, phone: err.phone })
         setView('unverified')
-      } else if (
-        err.code === 'auth/user-not-found' ||
-        err.code === 'auth/invalid-credential' ||
-        err.code === 'auth/wrong-password'
-      ) {
-        // No account found — redirect to sign up with email pre-filled
-        reset()
-        onOpenChange(false)
-        onSwitchToSignUp(email)
+        toast.warning('Account not verified', {
+          description: 'Please verify your email to continue.',
+        })
+      } else if (code === 'auth/user-not-found') {
+        const msg = 'No account found with this email. Please sign up first.'
+        setError(msg)
+        toast.error('Account not found', { description: msg })
+      } else if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') {
+        const msg = 'Incorrect email or password.'
+        setError(msg)
+        toast.error('Sign in failed', { description: msg })
+      } else if (code === 'auth/too-many-requests') {
+        const msg = 'Too many failed attempts. Please try again later.'
+        setError(msg)
+        toast.error('Too many attempts', { description: msg })
+      } else if (code === 'USE_PHONE_SIGNIN') {
+        const msg = mapAuthError(code)
+        setError(msg)
+        toast.error('Use phone sign-in', { description: msg })
+      } else if (code === 'auth/network-request-failed' || code === 'NETWORK_ERROR') {
+        const msg = 'Network error. Please check your connection and try again.'
+        setError(msg)
+        toast.error('Network error', { description: msg })
       } else {
-        const msg = mapAuthError(err.code ?? err.message)
-        if (msg) setError(msg)
+        const msg = mapAuthError(code ?? 'auth/unknown')
+        if (msg) {
+          setError(msg)
+          toast.error('Sign in failed', { description: msg })
+        }
       }
     } finally {
       setLoading(false)
@@ -193,17 +237,32 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
     setLoading(true)
     try {
       await signInWithGoogle(false)
+      toast.success('Welcome back!', { description: 'Signed in with Google.' })
       onOpenChange(false)
       reset()
     } catch (err: any) {
-      if (err.code === 'LINK_GOOGLE_TO_PASSWORD') {
+      const code = err.code ?? err.message
+      if (code === 'auth/popup-closed-by-user') return
+      if (code === 'LINK_GOOGLE_TO_PASSWORD') {
         setLinkEmail(err.email ?? '')
         setPendingCred((err.pendingCred as AuthCredential) ?? null)
         setView('link-google')
+        toast.info('Link your account', {
+          description: 'Enter your password to link Google sign-in.',
+        })
         return
       }
-      const msg = mapAuthError(err.code ?? err.message)
-      if (msg) setError(msg)
+      if (code === 'GOOGLE_ACCOUNT_NOT_FOUND') {
+        const msg = 'No account found with this Google email. Please sign up first.'
+        setError(msg)
+        toast.error('Account not found', { description: msg })
+        return
+      }
+      const msg = mapAuthError(code)
+      if (msg) {
+        setError(msg)
+        toast.error('Google sign-in failed', { description: msg })
+      }
     } finally {
       setLoading(false)
     }
@@ -213,7 +272,12 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   async function handleSendOtp() {
     const e164 = toE164(phone)
-    if (!e164) { setError('Enter a valid phone number'); return }
+    if (!e164) {
+      const msg = 'Enter a valid phone number'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setDeviceMismatch(false)
     setLoading(true)
@@ -223,10 +287,21 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
       setOtp('')
       setOtpResendTimer(OTP_RESEND_COOLDOWN)
       setOtpExpiryTimer(OTP_EXPIRY_SECONDS)
+      toast.success('Code sent', { description: `Sent to ${e164} via WhatsApp.` })
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
-      if (msg) setError(msg)
+      const code = e.code ?? e.message ?? 'auth/unknown'
+      if (code === 'PHONE_NOT_FOUND') {
+        const msg = 'No account found with this phone number. Please sign up first.'
+        setError(msg)
+        toast.error('Account not found', { description: msg })
+      } else {
+        const msg = mapAuthError(code)
+        if (msg) {
+          setError(msg)
+          toast.error('Could not send code', { description: msg })
+        }
+      }
     } finally {
       setLoading(false)
     }
@@ -234,27 +309,46 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   async function handleVerifyOtp() {
     const e164 = toE164(phone)
-    if (!e164) { setError('Enter a valid phone number'); return }
-    if (!otp || otp.length < 6) { setError('Enter the 6-digit code'); return }
+    if (!e164) {
+      const msg = 'Enter a valid phone number'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
+    if (!otp || otp.length < 6) {
+      const msg = 'Enter the 6-digit code'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setLoading(true)
     try {
       const ok = await verifyPhoneOtpWhatsApp(e164, otp, 'login')
       if (!ok) {
-        setError('Incorrect or expired code')
+        const msg = 'Incorrect or expired code'
+        setError(msg)
+        toast.error('Invalid code', { description: 'The OTP is incorrect or has expired.' })
         return
       }
       await signInPhone(e164)
+      toast.success('Welcome back!')
       onOpenChange(false)
       reset()
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      if (e.code === 'PHONE_DEVICE_MISMATCH') {
+      const code = e.code ?? e.message ?? 'auth/unknown'
+      if (code === 'PHONE_DEVICE_MISMATCH') {
         setDeviceMismatch(true)
-        setError(mapAuthError('PHONE_DEVICE_MISMATCH'))
+        const msg = mapAuthError('PHONE_DEVICE_MISMATCH')
+        setError(msg)
+        toast.error('Device not registered', { description: msg })
       } else {
-        const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
-        if (msg) setError(msg)
+        const msg = mapAuthError(code)
+        if (msg) {
+          setError(msg)
+          toast.error('Sign in failed', { description: msg })
+        }
       }
     } finally {
       setLoading(false)
@@ -265,7 +359,18 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   async function handleFpSendOtp() {
     const target = fpEmail.trim()
-    if (!target) { setError('Enter your email'); return }
+    if (!target) {
+      const msg = 'Enter your email'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(target)) {
+      const msg = 'Please enter a valid email address'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setLoading(true)
     try {
@@ -273,10 +378,13 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
       setFpStep('otp')
       setFpOtp(['', '', '', '', '', ''])
       setFpResendTimer(FP_RESEND_COOLDOWN)
+      toast.success('Code sent', { description: `Check ${target} for the verification code.` })
       setTimeout(() => fpOtpInputsRef.current[0]?.focus(), 100)
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
+      const msg = e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR')
+      setError(msg)
+      toast.error('Could not send code', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -290,10 +398,13 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
       await sendForgotPasswordOtp(fpEmail.trim())
       setFpResendTimer(FP_RESEND_COOLDOWN)
       setFpOtp(['', '', '', '', '', ''])
+      toast.success('Code resent', { description: `Sent to ${fpEmail.trim()}.` })
       fpOtpInputsRef.current[0]?.focus()
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
+      const msg = e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR')
+      setError(msg)
+      toast.error('Could not resend code', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -326,7 +437,12 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   async function handleFpVerifyOtp() {
     const code = fpOtp.join('')
-    if (code.length !== 6) { setError('Enter the 6-digit code'); return }
+    if (code.length !== 6) {
+      const msg = 'Enter the 6-digit code'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setLoading(true)
     try {
@@ -337,25 +453,47 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
       setFpStep('newpass')
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
+      const msg = e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR')
+      setError(msg)
+      toast.error('Invalid code', { description: msg })
     } finally {
       setLoading(false)
     }
   }
 
   async function handleFpResetPassword() {
-    if (!fpNewPassword) { setError('Enter a new password'); return }
+    if (!fpNewPassword) {
+      const msg = 'Enter a new password'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     const pw = validatePassword(fpNewPassword)
-    if (!pw.ok) { setError(pw.issues.map(describeIssue).join(' · ')); return }
-    if (fpNewPassword !== fpConfirmPassword) { setError('Passwords do not match'); return }
+    if (!pw.ok) {
+      const msg = pw.issues.map(describeIssue).join(' · ')
+      setError(msg)
+      toast.error('Weak password', { description: msg })
+      return
+    }
+    if (fpNewPassword !== fpConfirmPassword) {
+      const msg = 'Passwords do not match'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setLoading(true)
     try {
       await updatePasswordByEmail(fpEmail.trim(), fpResetToken, fpNewPassword)
       setFpStep('success')
+      toast.success('Password updated', {
+        description: 'You can now sign in with your new password.',
+      })
     } catch (err: unknown) {
       const e = err as { code?: string; message?: string }
-      setError(e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR'))
+      const msg = e.message || mapAuthError(e.code ?? 'FORGOT_PASSWORD_ERROR')
+      setError(msg)
+      toast.error('Reset failed', { description: msg })
     } finally {
       setLoading(false)
     }
@@ -364,15 +502,26 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   // ── Unverified recovery ───────────────────────────────────────────────────
 
   async function handleResendVerification() {
-    if (!resendPassword) { setError('Enter your password to resend verification'); return }
+    if (!resendPassword) {
+      const msg = 'Enter your password to resend verification'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setLoading(true)
     try {
       await resendVerification(unverifiedUser!.email, resendPassword)
       setResendSent(true)
+      toast.success('Verification email sent', {
+        description: `Check ${unverifiedUser!.email} and click the link.`,
+      })
     } catch (err: any) {
       const msg = mapAuthError(err.code ?? err.message)
-      if (msg) setError(msg)
+      if (msg) {
+        setError(msg)
+        toast.error('Could not resend email', { description: msg })
+      }
     } finally {
       setLoading(false)
     }
@@ -381,18 +530,32 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   // ── Link Google to password account ──────────────────────────────────────
 
   async function handleLinkGoogle() {
-    if (!linkPassword) { setError('Enter your password to link Google'); return }
-    if (!pendingCred) { setError('Missing pending credential; please try again'); return }
+    if (!linkPassword) {
+      const msg = 'Enter your password to link Google'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
+    if (!pendingCred) {
+      const msg = 'Missing pending credential; please try again'
+      setError(msg)
+      toast.error(msg)
+      return
+    }
     setError('')
     setLoading(true)
     try {
       await linkPendingGoogleCredential(linkEmail, linkPassword, pendingCred)
+      toast.success('Account linked', { description: 'Google sign-in is now connected.' })
       onOpenChange(false)
       reset()
     } catch (err) {
       const e = err as { code?: string; message?: string }
       const msg = mapAuthError(e.code ?? e.message ?? 'auth/unknown')
-      if (msg) setError(msg)
+      if (msg) {
+        setError(msg)
+        toast.error('Link failed', { description: msg })
+      }
     } finally {
       setLoading(false)
     }
@@ -402,7 +565,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] sm:max-w-[440px] glass-panel rounded-2xl p-0 border border-white/[0.08] bg-[#0F0D0C]/90 backdrop-blur-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-[440px] glass-panel rounded-2xl p-0 border border-foreground/[0.08] bg-card-elevated/90 backdrop-blur-2xl shadow-modal overflow-hidden">
         {/* Decorative blurs */}
         <div className="absolute -top-12 -right-12 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
@@ -416,33 +579,33 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 <>
                   <DialogHeader className="text-left space-y-3">
                     <p className="text-xs font-medium uppercase tracking-widest text-primary">Reset password</p>
-                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                       Recover your <span className="text-primary">account</span>
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-white/40">
+                    <DialogDescription className="text-sm text-foreground/40">
                       Enter your email and we'll send you a 6-digit verification code.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-5 mt-6">
                     <div className="space-y-2">
-                      <label className="text-xs text-white/50 ml-1">Email</label>
+                      <label className="text-xs text-foreground/50 ml-1">Email</label>
                       <Input
                         type="email"
                         value={fpEmail}
                         onChange={e => setFpEmail(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleFpSendOtp()}
                         placeholder="Enter your mail"
-                        className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                        className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                       />
                     </div>
-                    {error && <p className="text-sm text-red-400">{error}</p>}
+                    {error && <p className="text-sm text-destructive">{error}</p>}
                     <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleFpSendOtp} disabled={loading}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                       Send Verification Code
                     </Button>
                     <button
                       type="button"
-                      className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                      className="w-full h-12 rounded-full bg-transparent border border-foreground/[0.12] flex items-center justify-center gap-2 text-foreground/50 text-sm font-medium hover:bg-foreground/[0.04] hover:border-foreground/[0.18] transition-all"
                       onClick={() => { setView('default'); setError('') }}
                     >
                       <ArrowLeft className="h-4 w-4" /> Back to Sign In
@@ -456,11 +619,11 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 <>
                   <DialogHeader className="text-left space-y-3">
                     <p className="text-xs font-medium uppercase tracking-widest text-primary">Verification</p>
-                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                       Enter your <span className="text-primary">code</span>
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-white/40">
-                      We sent a 6-digit code to <span className="text-white/70">{fpEmail}</span>
+                    <DialogDescription className="text-sm text-foreground/40">
+                      We sent a 6-digit code to <span className="text-foreground/70">{fpEmail}</span>
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-5 mt-6">
@@ -475,19 +638,19 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           value={digit}
                           onChange={e => handleFpOtpChange(i, e.target.value)}
                           onKeyDown={e => handleFpOtpKeyDown(i, e)}
-                          className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-white/20 bg-white/[0.06] text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-white/[0.1] transition-all caret-primary"
+                          className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-foreground/20 bg-foreground/[0.06] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-foreground/[0.1] transition-all caret-primary"
                         />
                       ))}
                     </div>
-                    {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+                    {error && <p className="text-sm text-destructive text-center">{error}</p>}
                     <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleFpVerifyOtp} disabled={loading || fpOtp.join('').length !== 6}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Verify Code
                     </Button>
                     <div className="text-center">
                       {fpResendTimer > 0 ? (
-                        <p className="text-xs text-white/40">
-                          Resend code in <span className="text-white/60 font-medium">{fpResendTimer}s</span>
+                        <p className="text-xs text-foreground/40">
+                          Resend code in <span className="text-foreground/60 font-medium">{fpResendTimer}s</span>
                         </p>
                       ) : (
                         <button
@@ -502,7 +665,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                     </div>
                     <button
                       type="button"
-                      className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                      className="w-full h-12 rounded-full bg-transparent border border-foreground/[0.12] flex items-center justify-center gap-2 text-foreground/50 text-sm font-medium hover:bg-foreground/[0.04] hover:border-foreground/[0.18] transition-all"
                       onClick={() => { setFpStep('email'); setError('') }}
                     >
                       <ArrowLeft className="h-4 w-4" /> Back
@@ -516,28 +679,28 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                 <>
                   <DialogHeader className="text-left space-y-3">
                     <p className="text-xs font-medium uppercase tracking-widest text-primary">New password</p>
-                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                    <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                       Create a new <span className="text-primary">password</span>
                     </DialogTitle>
-                    <DialogDescription className="text-sm text-white/40">
+                    <DialogDescription className="text-sm text-foreground/40">
                       Identity verified. Set a new password for your account.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 mt-6">
                     <div className="space-y-2">
-                      <label className="text-xs text-white/50 ml-1">New password</label>
+                      <label className="text-xs text-foreground/50 ml-1">New password</label>
                       <div className="relative">
                         <Input
                           type={fpShowNewPass ? 'text' : 'password'}
                           value={fpNewPassword}
                           onChange={e => setFpNewPassword(e.target.value)}
                           placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
-                          className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                          className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                         />
                         <button
                           type="button"
                           onClick={() => setFpShowNewPass(s => !s)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/60"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/35 hover:text-foreground/60"
                           tabIndex={-1}
                         >
                           {fpShowNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -545,7 +708,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                       </div>
                       {fpNewPassword && (() => {
                         const { score, issues } = validatePassword(fpNewPassword)
-                        const colors = ['bg-red-500', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500']
+                        const colors = ['bg-destructive', 'bg-destructive', 'bg-warning', 'bg-warning', 'bg-success']
                         const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong']
                         const requirements: { key: PasswordIssue; label: string }[] = [
                           { key: 'tooShort', label: `At least ${PASSWORD_MIN_LENGTH} characters` },
@@ -562,12 +725,12 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                                   <div
                                     key={i}
                                     className={`h-1 flex-1 rounded-full transition-colors ${
-                                      i < score ? colors[score] : 'bg-white/10'
+                                      i < score ? colors[score] : 'bg-foreground/10'
                                     }`}
                                   />
                                 ))}
                               </div>
-                              <span className="text-[10px] font-label uppercase tracking-widest text-white/40 w-16 text-right">
+                              <span className="text-[10px] font-label uppercase tracking-widest text-foreground/40 w-16 text-right">
                                 {labels[score]}
                               </span>
                             </div>
@@ -575,8 +738,8 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                               {requirements.map(({ key, label }) => {
                                 const met = !issues.includes(key)
                                 return (
-                                  <li key={key} className={`text-[11px] flex items-center gap-1.5 transition-colors ${met ? 'text-green-400' : 'text-white/30'}`}>
-                                    <span className={`inline-block w-3 h-3 rounded-full border text-center leading-3 text-[8px] ${met ? 'border-green-400 bg-green-400/20' : 'border-white/20'}`}>
+                                  <li key={key} className={`text-[11px] flex items-center gap-1.5 transition-colors ${met ? 'text-success' : 'text-foreground/30'}`}>
+                                    <span className={`inline-block w-3 h-3 rounded-full border text-center leading-3 text-[8px] ${met ? 'border-success bg-success/20' : 'border-foreground/20'}`}>
                                       {met ? '✓' : ''}
                                     </span>
                                     {label}
@@ -589,7 +752,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                       })()}
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs text-white/50 ml-1">Confirm password</label>
+                      <label className="text-xs text-foreground/50 ml-1">Confirm password</label>
                       <div className="relative">
                         <Input
                           type={fpShowConfirmPass ? 'text' : 'password'}
@@ -597,19 +760,19 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           onChange={e => setFpConfirmPassword(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleFpResetPassword()}
                           placeholder="Re-enter new password"
-                          className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                          className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                         />
                         <button
                           type="button"
                           onClick={() => setFpShowConfirmPass(s => !s)}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/35 hover:text-white/60"
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/35 hover:text-foreground/60"
                           tabIndex={-1}
                         >
                           {fpShowConfirmPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
-                    {error && <p className="text-sm text-red-400">{error}</p>}
+                    {error && <p className="text-sm text-destructive">{error}</p>}
                     <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleFpResetPassword} disabled={loading}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Reset Password
@@ -621,11 +784,11 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {/* Step 4 — Success */}
               {fpStep === 'success' && (
                 <div className="py-6 space-y-5 text-center mt-4">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                  <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                  <CheckCircle className="h-12 w-12 text-success mx-auto" />
+                  <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                     Password <span className="text-primary">updated</span>
                   </DialogTitle>
-                  <p className="text-sm text-white/60">
+                  <p className="text-sm text-foreground/60">
                     Sign in with your new password.
                   </p>
                   <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={() => { setView('default'); setFpStep('email'); setFpEmail(''); setFpResetToken(''); setFpNewPassword(''); setFpConfirmPassword('') }}>
@@ -641,30 +804,30 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
             <>
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Almost there</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Verify your <span className="text-primary">account</span>
                 </DialogTitle>
-                <DialogDescription className="text-sm text-white/40">
+                <DialogDescription className="text-sm text-foreground/40">
                   Your account hasn't been verified yet. Resend the verification email below.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-5 mt-6">
                 {!resendSent ? (
                   <>
-                    <p className="text-sm text-white/50">
-                      Account: <span className="font-medium text-white/70">{unverifiedUser?.email}</span>
+                    <p className="text-sm text-foreground/50">
+                      Account: <span className="font-medium text-foreground/70">{unverifiedUser?.email}</span>
                     </p>
                     <div className="space-y-2">
-                      <label className="text-xs text-white/50 ml-1">Password (to confirm it's you)</label>
+                      <label className="text-xs text-foreground/50 ml-1">Password (to confirm it's you)</label>
                       <Input
                         type="password"
                         value={resendPassword}
                         onChange={e => setResendPassword(e.target.value)}
                         placeholder="Enter your password"
-                        className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                        className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                       />
                     </div>
-                    {error && <p className="text-sm text-red-400">{error}</p>}
+                    {error && <p className="text-sm text-destructive">{error}</p>}
                     <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleResendVerification} disabled={loading}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
                       Resend Verification Email
@@ -672,16 +835,16 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                   </>
                 ) : (
                   <div className="text-center space-y-4 py-2">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                    <p className="text-sm text-white/60">
-                      Verification email resent to <span className="font-medium text-white/70">{unverifiedUser?.email}</span>.
+                    <CheckCircle className="h-12 w-12 text-success mx-auto" />
+                    <p className="text-sm text-foreground/60">
+                      Verification email resent to <span className="font-medium text-foreground/70">{unverifiedUser?.email}</span>.
                       After verifying, sign in again.
                     </p>
                   </div>
                 )}
                 <button
                   type="button"
-                  className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                  className="w-full h-12 rounded-full bg-transparent border border-foreground/[0.12] flex items-center justify-center gap-2 text-foreground/50 text-sm font-medium hover:bg-foreground/[0.04] hover:border-foreground/[0.18] transition-all"
                   onClick={() => { setView('default'); setError(''); setResendSent(false) }}
                 >
                   <ArrowLeft className="h-4 w-4" /> Back to Sign In
@@ -695,32 +858,32 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
             <>
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Link account</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Connect your <span className="text-primary">Google</span>
                 </DialogTitle>
-                <DialogDescription className="text-sm text-white/40">
-                  An account already exists for <span className="font-medium text-white/60">{linkEmail}</span>. Enter your password to link Google sign-in.
+                <DialogDescription className="text-sm text-foreground/40">
+                  An account already exists for <span className="font-medium text-foreground/60">{linkEmail}</span>. Enter your password to link Google sign-in.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-5 mt-6">
                 <div className="space-y-2">
-                  <label className="text-xs text-white/50 ml-1">Password</label>
+                  <label className="text-xs text-foreground/50 ml-1">Password</label>
                   <Input
                     type="password"
                     value={linkPassword}
                     onChange={e => setLinkPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                    className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                   />
                 </div>
-                {error && <p className="text-sm text-red-400">{error}</p>}
+                {error && <p className="text-sm text-destructive">{error}</p>}
                 <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleLinkGoogle} disabled={loading}>
                   {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Link Google & Sign in
                 </Button>
                 <button
                   type="button"
-                  className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-2 text-white/50 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all"
+                  className="w-full h-12 rounded-full bg-transparent border border-foreground/[0.12] flex items-center justify-center gap-2 text-foreground/50 text-sm font-medium hover:bg-foreground/[0.04] hover:border-foreground/[0.18] transition-all"
                   onClick={() => { setView('default'); setError(''); setLinkPassword(''); setPendingCred(null) }}
                 >
                   <ArrowLeft className="h-4 w-4" /> Back to Sign In
@@ -735,19 +898,19 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {/* Header — left-aligned */}
               <DialogHeader className="text-left space-y-3">
                 <p className="text-xs font-medium uppercase tracking-widest text-primary">Welcome back</p>
-                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-white">
+                <DialogTitle className="font-headline text-[1.75rem] leading-tight tracking-tight text-foreground">
                   Lets continue<br />your <span className="text-primary">story</span>
                 </DialogTitle>
                 <DialogDescription className="sr-only">Sign in to your account</DialogDescription>
               </DialogHeader>
 
               {/* Tabs */}
-              <div className="flex bg-white/[0.03] border border-white/[0.06] p-1 rounded-full gap-1 mt-6 mb-6">
+              <div className="flex bg-foreground/[0.03] border border-foreground/[0.06] p-1 rounded-full gap-1 mt-6 mb-6">
                 {(['email', 'phone'] as Tab[]).map(t => (
                   <button
                     key={t}
                     onClick={() => { setTab(t); setError(''); setDeviceMismatch(false) }}
-                    className={`flex-1 py-2.5 text-sm font-medium rounded-full transition-all ${tab === t ? 'bg-primary text-primary-foreground shadow-sm' : 'text-white/40 hover:text-white/60'}`}
+                    className={`flex-1 py-2.5 text-sm font-medium rounded-full transition-all ${tab === t ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground/40 hover:text-foreground/60'}`}
                   >
                     {t === 'email' ? <><Mail className="inline h-3.5 w-3.5 mr-1.5" />Email</> : <><Phone className="inline h-3.5 w-3.5 mr-1.5" />Phone</>}
                   </button>
@@ -758,29 +921,29 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {tab === 'email' && (
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Email</label>
+                    <label className="text-xs text-foreground/50 ml-1">Email</label>
                     <Input
                       type="email"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="Enter your mail"
-                      className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                      className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Password</label>
+                    <label className="text-xs text-foreground/50 ml-1">Password</label>
                     <Input
                       type="password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleEmailSignIn()}
                       placeholder="Enter your password"
-                      className="h-12 px-4 rounded-2xl bg-transparent border border-white/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-white/25 text-sm text-white/90"
+                      className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                     />
                     <div className="flex justify-end">
                       <button
                         type="button"
-                        className="text-xs text-white/35 hover:text-primary transition-colors"
+                        className="text-xs text-foreground/35 hover:text-primary transition-colors"
                         onClick={() => { setView('forgot'); setFpStep('email'); setFpEmail(email); setError('') }}
                       >
                         Forgot Password?
@@ -788,7 +951,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                     </div>
                   </div>
 
-                  {error && <p className="text-sm text-red-400">{error}</p>}
+                  {error && <p className="text-sm text-destructive">{error}</p>}
 
                   <Button
                     className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90 mt-2"
@@ -805,7 +968,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
               {tab === 'phone' && (
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <label className="text-xs text-white/50 ml-1">Phone Number</label>
+                    <label className="text-xs text-foreground/50 ml-1">Phone Number</label>
                     <div className="flex gap-2 items-start">
                       <div className="flex-1">
                         <PhoneInput value={phone} onChange={setPhone} disabled={otpSent} placeholder="98765 43210" />
@@ -814,7 +977,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                         variant="outline"
                         onClick={handleSendOtp}
                         disabled={loading || (otpSent && otpResendTimer > 0)}
-                        className="whitespace-nowrap h-12 rounded-2xl border-white/[0.12]"
+                        className="whitespace-nowrap h-12 rounded-2xl border-foreground/[0.12]"
                       >
                         {loading && !otpSent ? <Loader2 className="h-4 w-4 animate-spin" /> : otpSent ? (otpResendTimer > 0 ? `Resend (${otpResendTimer}s)` : 'Resend') : 'Send OTP'}
                       </Button>
@@ -823,17 +986,17 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
                   {otpSent && (
                     <>
-                      <p className="text-xs text-white/40">
+                      <p className="text-xs text-foreground/40">
                         Code sent via WhatsApp. Expires in {Math.floor(otpExpiryTimer / 60)}:{(otpExpiryTimer % 60).toString().padStart(2, '0')}.
                       </p>
                       <div className="space-y-2">
-                        <label className="text-xs text-white/50 ml-1">Verification Code</label>
+                        <label className="text-xs text-foreground/50 ml-1">Verification Code</label>
                         <Input
                           value={otp}
                           onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           placeholder="6-digit code"
                           maxLength={6}
-                          className="h-12 rounded-2xl bg-transparent border border-white/[0.12] text-center tracking-widest text-lg text-white/90"
+                          className="h-12 rounded-2xl bg-transparent border border-foreground/[0.12] text-center tracking-widest text-lg text-foreground/90"
                           onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
                         />
                       </div>
@@ -842,11 +1005,11 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
                   {error && (
                     <div className="space-y-2">
-                      <p className="text-sm text-red-400">{error}</p>
+                      <p className="text-sm text-destructive">{error}</p>
                       {deviceMismatch && (
                         <Button
                           variant="outline"
-                          className="w-full h-12 rounded-2xl border-white/[0.12]"
+                          className="w-full h-12 rounded-2xl border-foreground/[0.12]"
                           onClick={() => { setTab('email'); setError(''); setDeviceMismatch(false) }}
                         >
                           Use Email Sign-In Instead
@@ -870,22 +1033,22 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
 
               {/* Divider */}
               <div className="flex items-center gap-4 mt-6 mb-4">
-                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
-                <span className="text-xs text-white/30">Or continue with</span>
-                <div className="h-[1px] flex-1 bg-white/[0.06]"></div>
+                <div className="h-[1px] flex-1 bg-foreground/[0.06]"></div>
+                <span className="text-xs text-foreground/30">Or continue with</span>
+                <div className="h-[1px] flex-1 bg-foreground/[0.06]"></div>
               </div>
 
               {/* Google — bottom */}
               <button
                 onClick={handleGoogle}
                 disabled={loading}
-                className="w-full h-12 rounded-full bg-transparent border border-white/[0.12] flex items-center justify-center gap-3 text-white/70 text-sm font-medium hover:bg-white/[0.04] hover:border-white/[0.18] transition-all disabled:opacity-50"
+                className="w-full h-12 rounded-full bg-transparent border border-foreground/[0.12] flex items-center justify-center gap-3 text-foreground/70 text-sm font-medium hover:bg-foreground/[0.04] hover:border-foreground/[0.18] transition-all disabled:opacity-50"
               >
                 <GoogleIcon /> Continue with Google
               </button>
 
               {/* Switch to sign up */}
-              <p className="text-center text-sm text-white/40 mt-5">
+              <p className="text-center text-sm text-foreground/40 mt-5">
                 Don't have an account?{' '}
                 <button className="text-primary font-semibold hover:underline" onClick={() => switchToSignUp()}>
                   Sign up

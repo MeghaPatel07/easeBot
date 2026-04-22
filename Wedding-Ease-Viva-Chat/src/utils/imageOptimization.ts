@@ -94,7 +94,7 @@ export const ImageWithPlaceholder: React.FC<ImageWithPlaceholderProps> = ({
         'div',
         {
           className:
-            'flex items-center justify-center w-full h-full text-sm text-stone-400',
+            'flex items-center justify-center w-full h-full text-sm text-foreground/40',
           'aria-label': 'Image failed to load',
         },
         'Image unavailable',

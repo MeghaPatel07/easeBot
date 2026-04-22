@@ -27,7 +27,7 @@ interface TierPricing {
 // Canonical prices from PRICING_PRD.md §4
 const TIERS: TierPricing[] = [
   { tier: 'free', monthlyUsd: 0, annualUsd: 0 },
-  { tier: 'pro', monthlyUsd: 0.01, annualUsd: 0.12, isRecommended: true },
+  { tier: 'pro', monthlyUsd: 10, annualUsd: 0.12, isRecommended: true },
   { tier: 'promax', monthlyUsd: 39, annualUsd: 299 },
 ]
 
@@ -49,7 +49,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How much does it cost to use?',
-    a: 'TheWeddingBot offers a free tier to get started. Pro (₹1/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($39/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.',
+    a: 'TheWeddingBot offers a free tier to get started. Pro ($10/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($39/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.',
   },
   {
     q: 'Can I cancel my subscription anytime?',
@@ -164,33 +164,33 @@ function ComparisonCell({ value }: { value: CellValue }) {
     return value ? (
       <Check className="mx-auto h-4 w-4 text-primary" />
     ) : (
-      <XIcon className="mx-auto h-4 w-4 text-white/20" />
+      <XIcon className="mx-auto h-4 w-4 text-foreground/20" />
     )
   }
-  return <span className="text-white/80">{value}</span>
+  return <span className="text-foreground/80">{value}</span>
 }
 
 function ComparisonTable({ className }: { className?: string }) {
   return (
     <section aria-label="Detailed feature comparison" className={className}>
-      <h2 className="font-headline text-3xl md:text-4xl text-white text-center mb-10">
+      <h2 className="font-headline text-3xl md:text-4xl text-foreground text-center mb-10">
         Compare Plans in Detail
       </h2>
 
-      <div className="overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm">
+      <div className="overflow-x-auto rounded-2xl border border-foreground/[0.06] bg-foreground/[0.02] backdrop-blur-sm">
         <table className="w-full min-w-[600px] text-sm">
           <thead>
-            <tr className="border-b border-white/[0.08]">
-              <th className="py-4 px-5 text-left text-xs font-medium uppercase tracking-wider text-white/40">
+            <tr className="border-b border-foreground/[0.08]">
+              <th className="py-4 px-5 text-left text-xs font-medium uppercase tracking-wider text-foreground/40">
                 Feature
               </th>
-              <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-white/40 w-[140px]">
+              <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-foreground/40 w-[140px]">
                 Free
               </th>
               <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-primary w-[140px]">
                 Pro
               </th>
-              <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-white/40 w-[160px]">
+              <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-foreground/40 w-[160px]">
                 Pro Max
               </th>
             </tr>
@@ -200,7 +200,7 @@ function ComparisonTable({ className }: { className?: string }) {
               <tr>
                 <td
                   colSpan={4}
-                  className="bg-white/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-wider text-white/60 border-t border-white/[0.06]"
+                  className="bg-foreground/[0.03] px-5 py-3 text-xs font-semibold uppercase tracking-wider text-foreground/60 border-t border-foreground/[0.06]"
                 >
                   {group.heading}
                 </td>
@@ -208,9 +208,9 @@ function ComparisonTable({ className }: { className?: string }) {
               {group.rows.map((row) => (
                 <tr
                   key={row.feature}
-                  className="border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                  className="border-t border-foreground/[0.04] hover:bg-foreground/[0.02] transition-colors"
                 >
-                  <td className="py-3 px-5 text-white/70">{row.feature}</td>
+                  <td className="py-3 px-5 text-foreground/70">{row.feature}</td>
                   <td className="py-3 px-4 text-center text-xs">
                     <ComparisonCell value={row.free} />
                   </td>
@@ -364,23 +364,23 @@ export default function Pricing() {
   const upgradeTargetUsd = !upgradeTargetRow ? 0 : cycle === 'monthly' ? upgradeTargetRow.monthlyUsd : upgradeTargetRow.annualUsd
 
   return (
-    <div className="gradient-bg min-h-screen text-white/90">
+    <div className="gradient-bg min-h-screen text-foreground/90">
       <div className="relative mx-auto max-w-5xl px-6 py-12 md:py-16">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition mb-8"
+          className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground/90 transition mb-8"
         >
           <ArrowLeft className="h-4 w-4" /> Back to {SERVICE_NAME}
         </Link>
 
         <header className="mb-10 text-center md:text-left">
-          <p className="font-label uppercase tracking-[0.2em] text-2xs text-white/40 mb-3">
+          <p className="font-label uppercase tracking-[0.2em] text-2xs text-foreground/40 mb-3">
             Pricing
           </p>
-          <h1 className="font-headline text-4xl md:text-5xl tracking-tight text-white mb-3">
+          <h1 className="font-headline text-4xl md:text-5xl tracking-tight text-foreground mb-3">
             Plans That Grow With Your Wedding
           </h1>
-          <p className="text-sm text-white/60 max-w-2xl">
+          <p className="text-sm text-foreground/60 max-w-2xl">
             Vertical wedding AI — planner, stylist, and knowledge modes — priced
             against what you'd pay a human planner, not a ChatGPT subscription.
             Cancel anytime.
@@ -392,7 +392,7 @@ export default function Pricing() {
           <div
             role="tablist"
             aria-label="Billing cycle"
-            className="inline-flex rounded-full bg-white/[0.04] p-1"
+            className="inline-flex rounded-full bg-foreground/[0.04] p-1"
           >
             {(['monthly', 'annual'] as BillingCycle[]).map((c) => (
               <button
@@ -404,7 +404,7 @@ export default function Pricing() {
                   'min-h-9 rounded-full px-4 text-xs font-medium transition-colors',
                   cycle === c
                     ? 'bg-primary text-primary-foreground'
-                    : 'text-white/60 hover:text-white/90',
+                    : 'text-foreground/60 hover:text-foreground/90',
                 )}
               >
                 {c === 'monthly' ? 'Monthly' : 'Annual — save ~34%'}
@@ -412,13 +412,13 @@ export default function Pricing() {
             ))}
           </div>
 
-          <label className="inline-flex items-center gap-2 text-xs text-white/50">
+          <label className="inline-flex items-center gap-2 text-xs text-foreground/50">
             Show prices in
             <select
               aria-label="Currency"
               value={currency}
               onChange={(e) => handleCurrencyOverride(e.target.value)}
-              className="min-h-9 rounded-xl bg-white/[0.04] px-2 text-white/90 focus:outline-none focus:ring-1 focus:ring-white/10 transition-colors"
+              className="min-h-9 rounded-xl bg-foreground/[0.04] px-2 text-foreground/90 focus:outline-none focus:ring-1 focus:ring-foreground/10 transition-colors"
             >
               {CURRENCY_OPTIONS.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -431,7 +431,7 @@ export default function Pricing() {
         {returnReason === 'already_subscribed' && (
           <div
             role="status"
-            className="mb-4 rounded-xl bg-primary/10 border border-primary/20 p-4 text-sm text-white/90"
+            className="mb-4 rounded-xl bg-primary/10 border border-primary/20 p-4 text-sm text-foreground/90"
           >
             You already have an active plan. Choose a different tier below to upgrade or downgrade.
           </div>
@@ -462,7 +462,7 @@ export default function Pricing() {
                 onSelect={handleSelect}
               />
               {c.subtitle && (
-                <p className="text-center text-2xs text-white/40">{c.subtitle}</p>
+                <p className="text-center text-2xs text-foreground/40">{c.subtitle}</p>
               )}
             </div>
           ))}
@@ -471,19 +471,19 @@ export default function Pricing() {
         {(currentTier === 'pro' || currentTier === 'promax') && (
           <section
             aria-label="Token top-up pack"
-            className="mb-12 rounded-2xl bg-white/[0.03] backdrop-blur-sm p-6 border border-white/[0.06]"
+            className="mb-12 rounded-2xl bg-foreground/[0.03] backdrop-blur-sm p-6 border border-foreground/[0.06]"
           >
-            <h2 className="font-headline text-xl text-white mb-1">Need More Tokens?</h2>
-            <p className="text-xs text-white/50 mb-4">
+            <h2 className="font-headline text-xl text-foreground mb-1">Need More Tokens?</h2>
+            <p className="text-xs text-foreground/50 mb-4">
               Buy a 2 million token top-up pack — tokens are added to your existing
               pool instantly (stackable, max 10 / month). No refunds.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-baseline gap-3">
-                <span className="font-headline text-3xl text-white">
+                <span className="font-headline text-3xl text-foreground">
                   {formatCurrency(10, currency, rate)}
                 </span>
-                <span className="text-xs text-white/50">/ 2M tokens, one-time</span>
+                <span className="text-xs text-foreground/50">/ 2M tokens, one-time</span>
               </div>
               <button
                 type="button"
@@ -497,7 +497,7 @@ export default function Pricing() {
           </section>
         )}
 
-        <p className="text-center text-2xs text-white/35 mb-12">
+        <p className="text-center text-2xs text-foreground/35 mb-12">
           *Usage limits apply. Prices shown don't include applicable tax. Prices and plans are subject to change at TheWeddingBot's discretion.
         </p>
 
@@ -506,10 +506,10 @@ export default function Pricing() {
 
         {/* ── FAQ Section ──────────────────────────────────────────────────── */}
         <section aria-label="Frequently asked questions" className="mb-16">
-          <h2 className="font-headline text-3xl md:text-4xl text-white text-center mb-10">
+          <h2 className="font-headline text-3xl md:text-4xl text-foreground text-center mb-10">
             Frequently Asked Questions
           </h2>
-          <div className="max-w-2xl mx-auto divide-y divide-white/[0.08]">
+          <div className="max-w-2xl mx-auto divide-y divide-foreground/[0.08]">
             {FAQ_ITEMS.map((item, idx) => {
               const isOpen = openFaqIdx === idx
               return (
@@ -520,13 +520,13 @@ export default function Pricing() {
                     className="w-full flex items-center justify-between gap-4 py-5 text-left group"
                     aria-expanded={isOpen}
                   >
-                    <span className="text-base md:text-lg font-medium text-white/90 group-hover:text-white transition-colors">
+                    <span className="text-base md:text-lg font-medium text-foreground/90 group-hover:text-foreground transition-colors">
                       {item.q}
                     </span>
                     {isOpen ? (
-                      <Minus className="h-5 w-5 text-white/40 flex-shrink-0" />
+                      <Minus className="h-5 w-5 text-foreground/40 flex-shrink-0" />
                     ) : (
-                      <Plus className="h-5 w-5 text-white/40 flex-shrink-0" />
+                      <Plus className="h-5 w-5 text-foreground/40 flex-shrink-0" />
                     )}
                   </button>
                   <div
@@ -535,7 +535,7 @@ export default function Pricing() {
                       isOpen ? 'max-h-40 pb-5 opacity-100' : 'max-h-0 pb-0 opacity-0',
                     )}
                   >
-                    <p className="text-sm text-white/50 leading-relaxed">{item.a}</p>
+                    <p className="text-sm text-foreground/50 leading-relaxed">{item.a}</p>
                   </div>
                 </div>
               )
@@ -543,7 +543,7 @@ export default function Pricing() {
           </div>
         </section>
 
-        <p className="text-center text-xs text-white/40">
+        <p className="text-center text-xs text-foreground/40">
           Base currency is USD. Local prices update every minute via
           exchangerate-api. Final checkout locks the rate server-side.
           Questions?{' '}

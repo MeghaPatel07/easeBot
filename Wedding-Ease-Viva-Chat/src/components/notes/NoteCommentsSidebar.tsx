@@ -131,7 +131,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
               className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md border transition-colors ${
                 reacted
                   ? 'border-primary/30 bg-primary/10 text-primary'
-                  : 'border-white/10 bg-white/[0.03] text-white/40 hover:bg-white/[0.06]'
+                  : 'border-foreground/10 bg-foreground/[0.03] text-foreground/40 hover:bg-foreground/[0.06]'
               }`}
             >
               <span>{emoji}</span>
@@ -143,16 +143,16 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
         {/* Add reaction picker (collapsed into a + button) */}
         <div className="relative group">
           <button
-            className="text-[10px] px-1.5 py-0.5 rounded-md border border-white/10 bg-white/[0.03] text-white/30 hover:bg-white/[0.06] hover:text-white/50 transition-colors"
+            className="text-[10px] px-1.5 py-0.5 rounded-md border border-foreground/10 bg-foreground/[0.03] text-foreground/30 hover:bg-foreground/[0.06] hover:text-foreground/50 transition-colors"
           >
             +
           </button>
-          <div className="absolute bottom-full left-0 mb-1 hidden group-hover:flex items-center gap-0.5 bg-[#1a1a1a]/95 backdrop-blur-md border border-white/10 rounded-lg p-1 shadow-xl z-10">
+          <div className="absolute bottom-full left-0 mb-1 hidden group-hover:flex items-center gap-0.5 bg-surface-popover-alt/95 backdrop-blur-md border border-foreground/10 rounded-lg p-1 shadow-xl z-10">
             {PRESET_REACTIONS.map(emoji => (
               <button
                 key={emoji}
                 onClick={() => onReact(comment.id, emoji)}
-                className="text-sm hover:bg-white/10 rounded p-1 transition-colors"
+                className="text-sm hover:bg-foreground/10 rounded p-1 transition-colors"
               >
                 {emoji}
               </button>
@@ -176,7 +176,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
               if (e.key === 'Enter') handleSubmitEdit(comment.id);
               if (e.key === 'Escape') handleCancelEdit();
             }}
-            className="flex-1 text-xs px-2 py-1.5 rounded-md bg-white/[0.06] border border-white/10 text-white/80 placeholder-white/25 outline-none focus:ring-1 focus:ring-primary/30"
+            className="flex-1 text-xs px-2 py-1.5 rounded-md bg-foreground/[0.06] border border-foreground/10 text-foreground/80 placeholder-foreground/25 outline-none focus:ring-1 focus:ring-primary/30"
           />
           <button
             onClick={() => handleSubmitEdit(comment.id)}
@@ -187,7 +187,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
           </button>
           <button
             onClick={handleCancelEdit}
-            className="p-1 rounded-md hover:bg-white/10 text-white/30 hover:text-white/50 transition-colors"
+            className="p-1 rounded-md hover:bg-foreground/10 text-foreground/30 hover:text-foreground/50 transition-colors"
           >
             <X className="h-2.5 w-2.5" />
           </button>
@@ -198,7 +198,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
     return (
       <p className={textClass}>
         {comment.content}
-        {comment.isEdited && <span className="text-white/20 ml-1 text-[9px]">(edited)</span>}
+        {comment.isEdited && <span className="text-foreground/20 ml-1 text-[9px]">(edited)</span>}
       </p>
     );
   };
@@ -209,12 +209,12 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
         open ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
-      <div className="w-72 h-full bg-black/40 backdrop-blur-md border-l border-white/10 flex flex-col">
+      <div className="w-72 h-full bg-overlay-scrim/40 backdrop-blur-md border-l border-foreground/10 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/[0.06] flex-shrink-0">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-primary/60" />
-            <h3 className="text-sm font-medium text-white/80">
+            <h3 className="text-sm font-medium text-foreground/80">
               Comments
               {activeCommentCount > 0 && (
                 <span className="ml-1.5 text-[10px] bg-primary/20 text-primary rounded-full px-1.5 py-0.5">
@@ -223,7 +223,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
               )}
             </h3>
           </div>
-          <Button variant="ghost" className="h-7 w-7 p-0 rounded-lg hover:bg-white/10 text-white/40" onClick={onClose}>
+          <Button variant="ghost" className="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10 text-foreground/40" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -233,8 +233,8 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
           <div className="p-3 space-y-3">
             {threads.length === 0 && (
               <div className="text-center py-8">
-                <MessageSquare className="h-8 w-8 text-white/10 mx-auto mb-2" />
-                <p className="text-xs text-white/25 italic">No comments yet</p>
+                <MessageSquare className="h-8 w-8 text-foreground/10 mx-auto mb-2" />
+                <p className="text-xs text-foreground/25 italic">No comments yet</p>
               </div>
             )}
 
@@ -243,15 +243,15 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
                 key={parent.id}
                 className={`rounded-lg border p-3 space-y-2 ${
                   parent.resolved
-                    ? 'border-white/5 bg-white/[0.02] opacity-60'
-                    : 'border-white/10 bg-white/[0.04]'
+                    ? 'border-foreground/5 bg-foreground/[0.02] opacity-60'
+                    : 'border-foreground/10 bg-foreground/[0.04]'
                 }`}
               >
                 {/* Anchor text */}
                 {parent.anchorText && (
-                  <div className="flex items-start gap-1.5 pb-1.5 border-b border-white/[0.06]">
+                  <div className="flex items-start gap-1.5 pb-1.5 border-b border-foreground/[0.06]">
                     <span className="text-[10px] text-primary/50 mt-0.5">|</span>
-                    <p className="text-[10px] text-white/30 italic line-clamp-2">
+                    <p className="text-[10px] text-foreground/30 italic line-clamp-2">
                       "{parent.anchorText}"
                     </p>
                   </div>
@@ -263,10 +263,10 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
                     <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center text-[8px] text-primary font-medium flex-shrink-0">
                       {parent.authorName?.[0]?.toUpperCase() || '?'}
                     </div>
-                    <span className="text-[10px] font-medium text-white/60 truncate">{parent.authorName}</span>
-                    <span className="text-[9px] text-white/20 flex-shrink-0">{formatTimestamp(parent.createdAt)}</span>
+                    <span className="text-[10px] font-medium text-foreground/60 truncate">{parent.authorName}</span>
+                    <span className="text-[9px] text-foreground/20 flex-shrink-0">{formatTimestamp(parent.createdAt)}</span>
                   </div>
-                  {renderCommentContent(parent, 'text-xs text-white/70 leading-relaxed')}
+                  {renderCommentContent(parent, 'text-xs text-foreground/70 leading-relaxed')}
                 </div>
 
                 {/* Reactions for parent */}
@@ -274,31 +274,31 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
 
                 {/* Replies */}
                 {replies.map(reply => (
-                  <div key={reply.id} className="ml-4 pl-2 border-l border-white/[0.08] space-y-1">
+                  <div key={reply.id} className="ml-4 pl-2 border-l border-foreground/[0.08] space-y-1">
                     <div className="flex items-center gap-1.5">
-                      <div className="h-4 w-4 rounded-full bg-white/10 flex items-center justify-center text-[7px] text-white/50 font-medium flex-shrink-0">
+                      <div className="h-4 w-4 rounded-full bg-foreground/10 flex items-center justify-center text-[7px] text-foreground/50 font-medium flex-shrink-0">
                         {reply.authorName?.[0]?.toUpperCase() || '?'}
                       </div>
-                      <span className="text-[10px] font-medium text-white/50 truncate">{reply.authorName}</span>
-                      <span className="text-[9px] text-white/20 flex-shrink-0">{formatTimestamp(reply.createdAt)}</span>
+                      <span className="text-[10px] font-medium text-foreground/50 truncate">{reply.authorName}</span>
+                      <span className="text-[9px] text-foreground/20 flex-shrink-0">{formatTimestamp(reply.createdAt)}</span>
                       {reply.authorId === currentUserId && (
                         <>
                           <button
                             onClick={() => handleStartEdit(reply)}
-                            className="ml-auto p-0.5 rounded hover:bg-white/10 text-white/20 hover:text-white/50 transition-colors"
+                            className="ml-auto p-0.5 rounded hover:bg-foreground/10 text-foreground/20 hover:text-foreground/50 transition-colors"
                           >
                             <Pencil className="h-2.5 w-2.5" />
                           </button>
                           <button
                             onClick={() => onDelete(reply.id)}
-                            className="p-0.5 rounded hover:bg-white/10 text-white/20 hover:text-red-400 transition-colors"
+                            className="p-0.5 rounded hover:bg-foreground/10 text-foreground/20 hover:text-destructive transition-colors"
                           >
                             <Trash2 className="h-2.5 w-2.5" />
                           </button>
                         </>
                       )}
                     </div>
-                    {renderCommentContent(reply, 'text-[11px] text-white/60 leading-relaxed')}
+                    {renderCommentContent(reply, 'text-[11px] text-foreground/60 leading-relaxed')}
                     {renderReactions(reply)}
                   </div>
                 ))}
@@ -309,8 +309,8 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
                     onClick={() => parent.resolved ? onUnresolve(parent.id) : onResolve(parent.id)}
                     className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md transition-colors ${
                       parent.resolved
-                        ? 'text-green-400/60 hover:bg-green-500/10'
-                        : 'text-white/30 hover:bg-white/[0.06] hover:text-white/50'
+                        ? 'text-success/60 hover:bg-success/10'
+                        : 'text-foreground/30 hover:bg-foreground/[0.06] hover:text-foreground/50'
                     }`}
                   >
                     {parent.resolved ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
@@ -318,7 +318,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
                   </button>
                   <button
                     onClick={() => { setReplyingTo(replyingTo === parent.id ? null : parent.id); setReplyText(''); }}
-                    className="flex items-center gap-1 text-[10px] text-white/30 hover:text-white/50 px-2 py-0.5 rounded-md hover:bg-white/[0.06] transition-colors"
+                    className="flex items-center gap-1 text-[10px] text-foreground/30 hover:text-foreground/50 px-2 py-0.5 rounded-md hover:bg-foreground/[0.06] transition-colors"
                   >
                     <Reply className="h-3 w-3" />
                     Reply
@@ -327,14 +327,14 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
                     <>
                       <button
                         onClick={() => handleStartEdit(parent)}
-                        className="flex items-center gap-1 text-[10px] text-white/30 hover:text-white/50 px-2 py-0.5 rounded-md hover:bg-white/[0.06] transition-colors"
+                        className="flex items-center gap-1 text-[10px] text-foreground/30 hover:text-foreground/50 px-2 py-0.5 rounded-md hover:bg-foreground/[0.06] transition-colors"
                       >
                         <Pencil className="h-3 w-3" />
                         Edit
                       </button>
                       <button
                         onClick={() => onDelete(parent.id)}
-                        className="ml-auto p-0.5 rounded hover:bg-white/10 text-white/20 hover:text-red-400 transition-colors"
+                        className="ml-auto p-0.5 rounded hover:bg-foreground/10 text-foreground/20 hover:text-destructive transition-colors"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -351,7 +351,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
                       value={replyText}
                       onChange={e => setReplyText(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleSubmitReply(parent.id)}
-                      className="flex-1 text-xs px-2 py-1.5 rounded-md bg-white/[0.06] border border-white/10 text-white/80 placeholder-white/25 outline-none focus:ring-1 focus:ring-primary/30"
+                      className="flex-1 text-xs px-2 py-1.5 rounded-md bg-foreground/[0.06] border border-foreground/10 text-foreground/80 placeholder-foreground/25 outline-none focus:ring-1 focus:ring-primary/30"
                     />
                     <button
                       onClick={() => handleSubmitReply(parent.id)}
@@ -368,15 +368,15 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
         </ScrollArea>
 
         {/* New comment input */}
-        <div className="flex-shrink-0 border-t border-white/[0.06] p-3 space-y-2">
-          <label className="text-[10px] text-white/30 font-medium uppercase tracking-wider">Add comment</label>
+        <div className="flex-shrink-0 border-t border-foreground/[0.06] p-3 space-y-2">
+          <label className="text-[10px] text-foreground/30 font-medium uppercase tracking-wider">Add comment</label>
           <div className="flex items-center gap-1.5">
             <input
               placeholder="Write a comment..."
               value={newCommentText}
               onChange={e => setNewCommentText(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddTopComment()}
-              className="flex-1 text-xs px-2.5 py-2 rounded-lg bg-white/[0.06] border border-white/10 text-white/80 placeholder-white/25 outline-none focus:ring-1 focus:ring-primary/30"
+              className="flex-1 text-xs px-2.5 py-2 rounded-lg bg-foreground/[0.06] border border-foreground/10 text-foreground/80 placeholder-foreground/25 outline-none focus:ring-1 focus:ring-primary/30"
             />
             <button
               onClick={handleAddTopComment}

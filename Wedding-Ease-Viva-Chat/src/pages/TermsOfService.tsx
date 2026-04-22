@@ -8,7 +8,7 @@ const SERVICE_NAME = 'TheWeddingBot'
 
 export default function TermsOfService() {
   return (
-    <div className="gradient-bg min-h-screen text-white/85">
+    <div className="gradient-bg min-h-screen text-foreground/85">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -left-24 w-[28rem] h-[28rem] bg-secondary/10 rounded-full blur-3xl" />
@@ -17,24 +17,24 @@ export default function TermsOfService() {
       <div className="relative mx-auto max-w-3xl px-6 py-12 md:py-16">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition mb-8"
+          className="inline-flex items-center gap-2 text-sm text-foreground/60 hover:text-foreground/90 transition mb-8"
         >
           <ArrowLeft className="h-4 w-4" /> Back to {SERVICE_NAME}
         </Link>
 
         <header className="mb-10">
-          <p className="font-label uppercase tracking-[0.2em] text-2xs text-white/40 mb-3">
+          <p className="font-label uppercase tracking-[0.2em] text-2xs text-foreground/40 mb-3">
             Legal
           </p>
-          <h1 className="font-headline text-4xl md:text-5xl tracking-tight text-white mb-3">
+          <h1 className="font-headline text-4xl md:text-5xl tracking-tight text-foreground mb-3">
             Terms of Service
           </h1>
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-foreground/50">
             Effective date: {EFFECTIVE_DATE}
           </p>
         </header>
 
-        <article className="prose prose-invert max-w-none prose-headings:font-headline prose-headings:text-white prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-3 prose-h3:text-lg prose-p:text-white/70 prose-p:leading-relaxed prose-li:text-white/70 prose-strong:text-white/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+        <article className="prose prose-invert max-w-none prose-headings:font-headline prose-headings:text-foreground prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-3 prose-h3:text-lg prose-p:text-foreground/70 prose-p:leading-relaxed prose-li:text-foreground/70 prose-strong:text-foreground/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
           <p>
             Welcome to {SERVICE_NAME} (the “Service”), an AI-powered wedding
             planning assistant operated by {COMPANY_NAME} (“we,” “us,” or
@@ -292,11 +292,11 @@ export default function TermsOfService() {
           </p>
         </article>
 
-        <footer className="mt-14 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-white/40">
+        <footer className="mt-14 pt-8 border-t border-foreground/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-foreground/40">
           <p>© {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.</p>
           <div className="flex gap-5">
-            <Link to="/privacy" className="hover:text-white/80">Privacy Policy</Link>
-            <Link to="/terms" className="hover:text-white/80">Terms of Service</Link>
+            <Link to="/privacy" className="hover:text-foreground/80">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-foreground/80">Terms of Service</Link>
           </div>
         </footer>
       </div>

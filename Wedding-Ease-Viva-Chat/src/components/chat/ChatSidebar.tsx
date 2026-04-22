@@ -162,13 +162,13 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             if (e.key === 'Escape') setRenamingThreadId(null);
           }}
           onBlur={() => submitRename(thread.id)}
-          className="flex-1 text-xs px-2 py-1.5 rounded-lg bg-white/[0.06] border border-primary/20 outline-none focus:ring-1 focus:ring-primary/30 text-white/90"
+          className="flex-1 text-xs px-2 py-1.5 rounded-lg bg-foreground/[0.06] border border-primary/20 outline-none focus:ring-1 focus:ring-primary/30 text-foreground/90"
         />
       ) : (
         <>
           <button
             onClick={() => onLoadChat(thread.id)}
-            className={`thread-title w-full text-left text-xs rounded-lg transition-all duration-200 px-2 py-1.5 ${activeThreadId === thread.id ? 'bg-white/[0.08] text-primary font-medium' : 'text-white/50 hover:text-white/75 hover:bg-white/[0.04]'}`}
+            className={`thread-title w-full text-left text-xs rounded-lg transition-all duration-200 px-2 py-1.5 ${activeThreadId === thread.id ? 'bg-foreground/[0.08] text-primary font-medium' : 'text-foreground/50 hover:text-foreground/75 hover:bg-foreground/[0.04]'}`}
           >
             <div className="flex items-center gap-1.5">
               {showPinIcon && <Pin className="h-2.5 w-2.5 text-primary/40 flex-shrink-0" />}
@@ -184,11 +184,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-opacity text-white/50 z-10" onClick={e => e.stopPropagation()}>
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-foreground/10 transition-opacity text-foreground/50 z-10" onClick={e => e.stopPropagation()}>
                 <MoreHorizontal className="h-3 w-3" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-40 bg-[#0F0D0C]/95 backdrop-blur-sm border-white/10 text-white/80" align="end">
+            <DropdownMenuContent className="w-40 bg-card-elevated/95 backdrop-blur-sm border-foreground/10 text-foreground/80" align="end">
               <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => onPinThread(thread.id, !thread.pinned)}>
                 {thread.pinned ? <PinOff className="mr-2 h-3.5 w-3.5" /> : <Pin className="mr-2 h-3.5 w-3.5" />}
                 {thread.pinned ? 'Unpin' : 'Pin'}
@@ -206,7 +206,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}>
                 <Pencil className="mr-2 h-3.5 w-3.5" />Rename
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer text-xs text-red-500 focus:text-red-500" onClick={() => setDeleteConfirmThreadId(thread.id)}>
+              <DropdownMenuItem className="cursor-pointer text-xs text-destructive focus:text-destructive" onClick={() => setDeleteConfirmThreadId(thread.id)}>
                 <Trash2 className="mr-2 h-3.5 w-3.5" />Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -219,9 +219,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   // ── Tag picker modal ───────────────────────────────────────────────────────
   const tagPickerModal = (
     <Dialog open={!!tagPickerThreadId} onOpenChange={(open) => !open && setTagPickerThreadId(null)}>
-      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[500px] glass-panel rounded-2xl p-6 border border-white/[0.08] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)] bg-[#0F0D0C]/90 backdrop-blur-2xl">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[500px] glass-panel rounded-2xl p-6 border border-foreground/[0.08] shadow-modal bg-card-elevated/90 backdrop-blur-2xl">
         <DialogHeader>
-          <DialogTitle className="font-headline text-xl text-white/90">Organize with Tags</DialogTitle>
+          <DialogTitle className="font-headline text-xl text-foreground/90">Organize with Tags</DialogTitle>
           <DialogDescription>Select tags to organize this conversation</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto custom-scrollbar py-4">
@@ -234,7 +234,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 onClick={() => handleToggleTag(tagPickerThreadId!, tag.name)}
                 className={`py-3 px-4 rounded-xl border-2 font-medium transition-all text-sm ${isActive
                   ? tag.color + ' border-opacity-80 ring-2 ring-offset-2'
-                  : 'bg-white/10 text-white/40 border-white/15 hover:bg-white/15 hover:border-white/25'
+                  : 'bg-foreground/10 text-foreground/40 border-foreground/15 hover:bg-foreground/15 hover:border-foreground/25'
                   }`}
               >
                 {tag.name}
@@ -242,11 +242,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             );
           })}
         </div>
-        <div className="flex gap-2 justify-end pt-4 border-t border-white/10">
-          <Button variant="ghost" onClick={() => setTagPickerThreadId(null)} className="px-6 text-white/60 hover:text-white/80">
+        <div className="flex gap-2 justify-end pt-4 border-t border-foreground/10">
+          <Button variant="ghost" onClick={() => setTagPickerThreadId(null)} className="px-6 text-foreground/60 hover:text-foreground/80">
             Cancel
           </Button>
-          <Button onClick={() => setTagPickerThreadId(null)} className="px-6 bg-primary hover:bg-primary/90 text-white">
+          <Button onClick={() => setTagPickerThreadId(null)} className="px-6 bg-primary hover:bg-primary/90 text-primary-foreground">
             Done
           </Button>
         </div>
@@ -286,11 +286,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {deleteConfirmModal}
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-body ${isOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-[#A17A63]/15 backdrop-blur-2xl bg-white/[0.04] overflow-hidden">
+        <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-primary/15 backdrop-blur-2xl bg-foreground/[0.04] overflow-hidden">
 
           {/* Top bar: close + search + new chat */}
           <div className="flex items-center justify-between px-3 pt-3 pb-1 flex-shrink-0">
-            <Button onClick={onToggle} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/70" title="Close sidebar">
+            <Button onClick={onToggle} variant="ghost" className="h-8 w-8 rounded-full hover:bg-foreground/10 text-foreground/70" title="Close sidebar">
               <PanelLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-0.5">
@@ -298,16 +298,16 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 const t = resolveTier(profile)
                 const searchAllowed = getLimits(t).chatSearchable
                 return searchAllowed ? (
-                  <Button onClick={() => { setShowSearch(v => !v); if (showSearch) onSearchQueryChange(''); }} variant="ghost" className={`h-8 w-8 rounded-full hover:bg-white/10 text-white/60 ${showSearch ? 'bg-white/10' : ''}`} title="Search chats">
+                  <Button onClick={() => { setShowSearch(v => !v); if (showSearch) onSearchQueryChange(''); }} variant="ghost" className={`h-8 w-8 rounded-full hover:bg-foreground/10 text-foreground/60 ${showSearch ? 'bg-foreground/10' : ''}`} title="Search chats">
                     <Search className="h-3.5 w-3.5" />
                   </Button>
                 ) : (
-                  <Button onClick={() => { /* noop — show tooltip instead */ }} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/30 cursor-not-allowed" title="Chat search — upgrade to Pro">
+                  <Button onClick={() => { /* noop — show tooltip instead */ }} variant="ghost" className="h-8 w-8 rounded-full hover:bg-foreground/10 text-foreground/30 cursor-not-allowed" title="Chat search — upgrade to Pro">
                     <Search className="h-3.5 w-3.5" />
                   </Button>
                 )
               })()}
-              <Button onClick={onNewChat} variant="ghost" className="h-8 w-8 rounded-full hover:bg-white/10 text-white/60" title="New Chat">
+              <Button onClick={onNewChat} variant="ghost" className="h-8 w-8 rounded-full hover:bg-foreground/10 text-foreground/60" title="New Chat">
                 <SquarePen className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -316,8 +316,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           {/* Search bar */}
           {user && showSearch && (
             <div className="relative px-3 pb-2">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40" />
-              <Input placeholder="Search chats..." value={searchQuery} onChange={e => onSearchQueryChange(e.target.value)} className="pl-9 bg-white/[0.06] border-white/10 rounded-xl text-sm text-white/90 placeholder-white/35 h-8" autoFocus />
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-3 w-3 text-foreground/40" />
+              <Input placeholder="Search chats..." value={searchQuery} onChange={e => onSearchQueryChange(e.target.value)} className="pl-9 bg-foreground/[0.06] border-foreground/10 rounded-xl text-sm text-foreground/90 placeholder-foreground/35 h-8" autoFocus />
             </div>
           )}
 
@@ -342,12 +342,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     <button
                       key={view}
                       onClick={() => onSetSidebarView(view)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs ${isActive ? 'bg-white/[0.1] text-[#A17A63] font-medium' : 'text-white/45 hover:text-white/70 hover:bg-white/[0.04]'}`}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-xs ${isActive ? 'bg-foreground/[0.1] text-primary font-medium' : 'text-foreground/45 hover:text-foreground/70 hover:bg-foreground/[0.04]'}`}
                     >
-                      <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-[#A17A63]' : 'text-white/35'}`} />
+                      <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary' : 'text-foreground/35'}`} />
                       <span>{label}</span>
                       {badge > 0 && (
-                        <span className={`ml-auto text-2xs rounded-full px-1.5 py-0.5 font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-primary/15 text-primary/80'}`}>{badge}</span>
+                        <span className={`ml-auto text-2xs rounded-full px-1.5 py-0.5 font-bold ${isActive ? 'bg-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary/80'}`}>{badge}</span>
                       )}
                     </button>
                   );
@@ -361,7 +361,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 {/* Pinned Threads */}
                 {pinnedThreads.length > 0 && (
                   <div className="mb-3">
-                    <h3 className="uppercase tracking-[0.12em] text-2xs text-white/35 mb-2 px-2 font-semibold flex items-center gap-1.5">
+                    <h3 className="uppercase tracking-[0.12em] text-2xs text-foreground/35 mb-2 px-2 font-semibold flex items-center gap-1.5">
                       <Pin className="h-3 w-3" />Pinned
                     </h3>
                     <div className="space-y-0.5">
@@ -371,10 +371,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 )}
 
                 {/* Recent Threads */}
-                <h3 className="uppercase tracking-[0.12em] text-2xs text-white/35 mb-2 px-2 font-semibold">Recent</h3>
+                <h3 className="uppercase tracking-[0.12em] text-2xs text-foreground/35 mb-2 px-2 font-semibold">Recent</h3>
                 <div>
-                  {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-2xs text-white/30 text-center py-4 px-3 italic">Your conversations will appear here.</p>}
-                  {sortedGroupKeys.length === 0 && searchQuery && <p className="text-xs text-white/35 text-center py-3">No chats found for "{searchQuery}"</p>}
+                  {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-2xs text-foreground/30 text-center py-4 px-3 italic">Your conversations will appear here.</p>}
+                  {sortedGroupKeys.length === 0 && searchQuery && <p className="text-xs text-foreground/35 text-center py-3">No chats found for "{searchQuery}"</p>}
                   {sortedGroupKeys.map(dateKey => (
                     <div key={dateKey}>
                       <div className="space-y-0.5">
@@ -387,7 +387,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 {/* Tag filter bar */}
                 {allUsedTags.length > 0 && (
                   <div className="mt-3 px-1">
-                    <h3 className="uppercase tracking-[0.12em] text-2xs text-white/35 mb-1.5 px-1 font-semibold flex items-center gap-1.5">
+                    <h3 className="uppercase tracking-[0.12em] text-2xs text-foreground/35 mb-1.5 px-1 font-semibold flex items-center gap-1.5">
                       <Tag className="h-3 w-3" />Filter by Tag
                     </h3>
                     <div className="flex flex-wrap gap-1">
@@ -397,14 +397,14 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                           onClick={() => setSelectedTagFilter(selectedTagFilter === tag ? null : tag)}
                           className={`text-3xs px-2 py-0.5 rounded-full border font-medium transition-all ${selectedTagFilter === tag
                             ? getTagStyle(tag) + ' ring-1 ring-offset-1'
-                            : 'bg-white/[0.06] text-white/35 border-white/10 hover:bg-white/10'
+                            : 'bg-foreground/[0.06] text-foreground/35 border-foreground/10 hover:bg-foreground/10'
                             }`}
                         >{tag}</button>
                       ))}
                       {selectedTagFilter && (
                         <button
                           onClick={() => setSelectedTagFilter(null)}
-                          className="text-3xs px-2 py-0.5 rounded-full border border-white/15 bg-white/[0.06] text-white/40 hover:bg-white/10 flex items-center gap-0.5"
+                          className="text-3xs px-2 py-0.5 rounded-full border border-foreground/15 bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 flex items-center gap-0.5"
                         ><X className="h-2.5 w-2.5" />Clear</button>
                       )}
                     </div>
@@ -414,7 +414,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 {/* Archived Threads */}
                 {archivedThreads.length > 0 && (
                   <Collapsible open={showArchived} onOpenChange={setShowArchived} className="mt-2">
-                    <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-2 py-1.5 text-3xs font-bold uppercase tracking-wider text-white/35 hover:text-white/60">
+                    <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-2 py-1.5 text-3xs font-bold uppercase tracking-wider text-foreground/35 hover:text-foreground/60">
                       {showArchived ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                       <Archive className="h-3 w-3" />
                       Archived
@@ -424,7 +424,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                         <div key={thread.id} className="px-2">
                           <button
                             onClick={() => onLoadChat(thread.id)}
-                            className="w-full text-left text-xs px-2 py-1 rounded text-white/40 hover:text-white/70 hover:bg-white/[0.06] truncate transition-all"
+                            className="thread-title w-full text-left text-xs px-2 py-1 rounded text-foreground/40 hover:text-foreground/70 hover:bg-foreground/[0.06] truncate transition-all"
                             title={thread.title}
                           >
                             {thread.title}
@@ -441,9 +441,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   const l = getLimits(t)
                   if (l.chatRetentionDays === null || t === 'guest') return null
                   return (
-                    <div className="mt-3 mx-2 rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2">
-                      <p className="text-3xs text-white/40 leading-relaxed">
-                        Free plan: chat history is kept for <span className="text-white/60 font-medium">{l.chatRetentionDays} days</span>.
+                    <div className="mt-3 mx-2 rounded-lg bg-foreground/[0.04] border border-foreground/[0.06] px-3 py-2">
+                      <p className="text-3xs text-foreground/40 leading-relaxed">
+                        Free plan: chat history is kept for <span className="text-foreground/60 font-medium">{l.chatRetentionDays} days</span>.
                         {' '}<a href="/pricing" className="text-primary hover:underline">Upgrade</a> for full history.
                       </p>
                     </div>
@@ -460,7 +460,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               onClick={() => setFeedbackOpen(true)}
               aria-label="Send Feedback"
               title="Send Feedback"
-              className="w-full flex items-center gap-3 px-2.5 py-2.5 min-h-[40px] rounded-xl transition-all duration-200 text-xs text-white/70 hover:text-white hover:bg-primary/10 border border-transparent hover:border-primary/30"
+              className="w-full flex items-center gap-3 px-2.5 py-2.5 min-h-[40px] rounded-xl transition-all duration-200 text-xs text-foreground/70 hover:text-foreground hover:bg-primary/10 border border-transparent hover:border-primary/30"
             >
               <MessageSquareHeart className="h-4 w-4 flex-shrink-0 text-primary" />
               <span className="font-medium">Send Feedback</span>
@@ -469,11 +469,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
           </div>
 
           {/* Bottom: profile dropdown (logged-in) or guest actions */}
-          <div className="flex-shrink-0 border-t border-white/[0.06] px-3 py-2.5" style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}>
+          <div className="flex-shrink-0 border-t border-foreground/[0.06] px-3 py-2.5" style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom, 0px))' }}>
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/60 hover:text-white/90 hover:bg-white/[0.05]">
+                  <button className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-foreground/60 hover:text-foreground/90 hover:bg-foreground/[0.05]">
                     <Avatar className="h-7 w-7 flex-shrink-0">
                       <AvatarFallback className="bg-primary/15 text-primary text-2xs font-semibold">
                         {profile?.name
@@ -482,10 +482,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col items-start min-w-0 flex-1">
-                      <span className="text-xs font-medium text-white/90 truncate w-full text-left">
+                      <span className="text-xs font-medium text-foreground/90 truncate w-full text-left">
                         {profile?.name || 'My Account'}
                       </span>
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-white/40">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-foreground/40">
                         {resolvedTier === 'promax' ? 'Pro Max' : resolvedTier === 'pro' ? 'Pro' : 'Free'}
                       </span>
                     </div>
@@ -503,28 +503,28 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
               </DropdownMenu>
             ) : (
               <div className="space-y-0.5">
-                <button onClick={() => navigate('/pricing')} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                <button onClick={() => navigate('/pricing')} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-foreground/45 hover:text-foreground/75 hover:bg-foreground/[0.05]">
                   <Sparkles className="h-4 w-4 flex-shrink-0" />
                   <span>See Plans And Pricing</span>
                 </button>
-                <button onClick={onShowSettings} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                <button onClick={onShowSettings} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-foreground/45 hover:text-foreground/75 hover:bg-foreground/[0.05]">
                   <Settings className="h-4 w-4 flex-shrink-0" />
                   <span>Settings</span>
                 </button>
-                <button onClick={() => navigate('/help')} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-white/45 hover:text-white/75 hover:bg-white/[0.05]">
+                <button onClick={() => navigate('/help')} className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl transition-all duration-200 text-xs text-foreground/45 hover:text-foreground/75 hover:bg-foreground/[0.05]">
                   <CircleHelp className="h-4 w-4 flex-shrink-0" />
                   <span>Help</span>
                 </button>
 
                 {/* Sign-in nudge banner */}
-                <div className="mt-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-3">
-                  <p className="text-xs font-medium text-white/80">Get Responses Tailored To You</p>
-                  <p className="mt-1 text-2xs text-white/40 leading-relaxed">
+                <div className="mt-2 rounded-xl border border-foreground/[0.08] bg-foreground/[0.03] px-3 py-3">
+                  <p className="text-xs font-medium text-foreground/80">Get Responses Tailored To You</p>
+                  <p className="mt-1 text-2xs text-foreground/40 leading-relaxed">
                     Log in to save chats, create images, and get personalized wedding planning.
                   </p>
                   <button
                     onClick={onShowSignIn}
-                    className="mt-2.5 w-full rounded-xl bg-white/[0.9] py-2 text-xs font-semibold text-[#0F0D0C] hover:bg-white transition-colors"
+                    className="mt-2.5 w-full rounded-xl bg-foreground/[0.9] py-2 text-xs font-semibold text-card-elevated hover:bg-foreground transition-colors"
                   >
                     Log In
                   </button>

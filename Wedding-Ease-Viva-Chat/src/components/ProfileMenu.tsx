@@ -87,7 +87,7 @@ function planBadgeClass(tier: 'free' | 'pro' | 'promax' | undefined): string {
   if (tier === 'pro' || tier === 'promax') {
     return 'bg-primary/15 text-primary'
   }
-  return 'bg-white/[0.06] text-white/90'
+  return 'bg-foreground/[0.06] text-foreground/90'
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ export function ProfileMenu({
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">Account</p>
-            <p className="text-xs leading-none text-white/90">
+            <p className="text-xs leading-none text-foreground/90">
               Sign in to save your wedding plans
             </p>
           </div>
@@ -169,10 +169,10 @@ export function ProfileMenu({
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight text-white/90 truncate">
+            <p className="text-sm font-semibold leading-tight text-foreground/90 truncate">
               {profile.name || 'Wedding planner'}
             </p>
-            <p className="text-xs leading-tight text-white/90 truncate">
+            <p className="text-xs leading-tight text-foreground/90 truncate">
               {profile.email}
             </p>
             <span
