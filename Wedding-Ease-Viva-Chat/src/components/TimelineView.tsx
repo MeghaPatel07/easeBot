@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Calendar,
   CheckCircle2,
@@ -28,6 +28,12 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
@@ -146,9 +152,7 @@ export default function TimelineView({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [chooserMode, setChooserMode] = useState<ChooserMode>('chooser')
   const [submitting, setSubmitting] = useState(false)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement | null>(null)
 
   // Event form state
   const [evTitle, setEvTitle] = useState('')
@@ -159,23 +163,6 @@ export default function TimelineView({
   // Task form state
   const [taskText, setTaskText] = useState('')
   const [taskDueDate, setTaskDueDate] = useState('')
-
-  // Close open menu when tapping outside
-  useEffect(() => {
-    if (!openMenuId) return
-    const handler = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as Node
-      if (menuRef.current && !menuRef.current.contains(target)) {
-        setOpenMenuId(null)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    document.addEventListener('touchstart', handler, { passive: true })
-    return () => {
-      document.removeEventListener('mousedown', handler)
-      document.removeEventListener('touchstart', handler)
-    }
-  }, [openMenuId])
 
   const resetForms = () => {
     setEvTitle('')
@@ -284,7 +271,6 @@ export default function TimelineView({
   }
 
   const handleDelete = async (entry: TimelineEntry) => {
-    setOpenMenuId(null)
     if (!window.confirm(`Delete "${entry.title}"? This cannot be undone.`)) return
     setBusyId(entry.id)
     try {
@@ -309,7 +295,6 @@ export default function TimelineView({
   }
 
   const handleEditDueDate = async (entry: TimelineEntry) => {
-    setOpenMenuId(null)
     if (entry.source !== 'checklist' || !entry.itemId) {
       toast.info('Editing dates for this item is not supported yet.')
       return
@@ -415,7 +400,6 @@ export default function TimelineView({
   }, [checklists, reminders, timelineEvents])
 
   const handleAttachItem = (entry: TimelineEntry) => {
-    setOpenMenuId(null)
     addAttachment({
       kind: 'timeline',
       id: entry.id,
@@ -803,7 +787,6 @@ export default function TimelineView({
                 const isLast = idx === monthEntries.length - 1
                 const isBusy = busyId === entry.id
                 const isTask = entry.type === 'task'
-                const menuOpen = openMenuId === entry.id
                 const primaryAction = isTask
                   ? () => handleToggleTask(entry)
                   : () => {
@@ -890,52 +873,30 @@ export default function TimelineView({
                         )}
 
                         {/* Menu button (delete / edit) */}
-                        <div
-                          className="relative flex-shrink-0"
-                          ref={menuOpen ? menuRef : undefined}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            aria-label={`More actions for ${entry.title}`}
-                            aria-haspopup="menu"
-                            aria-expanded={menuOpen}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setOpenMenuId(menuOpen ? null : entry.id)
-                            }}
-                            className="inline-flex items-center justify-center h-10 w-10 sm:h-7 sm:w-7 rounded-lg text-foreground/50 hover:text-foreground/90 hover:bg-foreground/10 active:bg-foreground/15 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-                            style={{ WebkitTapHighlightColor: 'transparent' }}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                          {menuOpen && (
-                            <div
-                              role="menu"
-                              className="absolute right-0 top-full mt-1 z-50 bg-overlay-scrim/95 backdrop-blur-md border border-foreground/10 rounded-lg shadow-xl py-1 min-w-[160px]"
-                            >
+                        <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
-                                role="menuitem"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleAttachItem(entry)
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 transition-colors min-h-[40px] touch-manipulation"
+                                aria-label={`More actions for ${entry.title}`}
+                                className="inline-flex items-center justify-center h-10 w-10 sm:h-7 sm:w-7 rounded-lg text-foreground/50 hover:text-foreground/90 hover:bg-foreground/10 active:bg-foreground/15 data-[state=open]:bg-foreground/15 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                                style={{ WebkitTapHighlightColor: 'transparent' }}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" sideOffset={4} className="min-w-[160px]">
+                              <DropdownMenuItem
+                                onSelect={() => handleAttachItem(entry)}
+                                className="text-xs gap-2 py-2 cursor-pointer"
                               >
                                 <MessageSquarePlus className="h-3.5 w-3.5" />
                                 Attach to chat
-                              </button>
+                              </DropdownMenuItem>
                               {isTask && entry.itemId && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setOpenMenuId(null)
-                                    handleToggleTask(entry)
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 transition-colors min-h-[40px] touch-manipulation"
+                                <DropdownMenuItem
+                                  onSelect={() => handleToggleTask(entry)}
+                                  className="text-xs gap-2 py-2 cursor-pointer"
                                 >
                                   {entry.completed ? (
                                     <>
@@ -948,36 +909,26 @@ export default function TimelineView({
                                       Mark complete
                                     </>
                                   )}
-                                </button>
+                                </DropdownMenuItem>
                               )}
                               {isTask && entry.itemId && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleEditDueDate(entry)
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/80 hover:bg-foreground/10 active:bg-foreground/15 transition-colors min-h-[40px] touch-manipulation"
+                                <DropdownMenuItem
+                                  onSelect={() => handleEditDueDate(entry)}
+                                  className="text-xs gap-2 py-2 cursor-pointer"
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                   Edit due date
-                                </button>
+                                </DropdownMenuItem>
                               )}
-                              <button
-                                type="button"
-                                role="menuitem"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDelete(entry)
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-destructive hover:bg-destructive/10 active:bg-destructive/20 transition-colors min-h-[40px] touch-manipulation"
+                              <DropdownMenuItem
+                                onSelect={() => handleDelete(entry)}
+                                className="text-xs text-destructive focus:text-destructive focus:bg-destructive/10 gap-2 py-2 cursor-pointer"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                                 Delete
-                              </button>
-                            </div>
-                          )}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
 
