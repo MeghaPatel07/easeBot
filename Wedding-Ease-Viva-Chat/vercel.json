@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/ingest/:path*", "destination": "https://backend.theweddingbot.ai/ingest/:path*" },
+    { "source": "/ingest/(.*)", "destination": "https://backend.theweddingbot.ai/ingest/$1" },
+    { "source": "/ingest", "destination": "https://backend.theweddingbot.ai/ingest" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
