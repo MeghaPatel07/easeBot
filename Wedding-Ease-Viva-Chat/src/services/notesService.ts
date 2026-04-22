@@ -21,6 +21,40 @@ import type { Note, NoteFolder } from '@/types/notes'
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10 MB
 
+// C1 cap: Firestore doc limit is ~1MB. Keep searchableText well under that so
+// the rest of the note (content, cover URL, collaborators) has headroom.
+// Overflow to `notes/{id}/searchChunks` is a deferred follow-up.
+export const SEARCHABLE_TEXT_MAX_CHARS = 500 * 1024
+
+/**
+ * Flatten a Tiptap-JSON note body into a single plain-text blob suitable for
+ * client-side `includes()` search. Whitespace is collapsed and the result is
+ * capped at SEARCHABLE_TEXT_MAX_CHARS to protect the 1MB Firestore doc limit.
+ */
+export function deriveSearchableText(contentJson: string | undefined | null): string {
+  if (!contentJson) return ''
+  let doc: unknown
+  try {
+    doc = JSON.parse(contentJson)
+  } catch {
+    return ''
+  }
+
+  const collect = (node: any): string => {
+    if (!node) return ''
+    if (typeof node === 'string') return node
+    if (node.type === 'text' && typeof node.text === 'string') return node.text
+    if (Array.isArray(node.content)) return node.content.map(collect).join(' ')
+    if (node.content) return collect(node.content)
+    return ''
+  }
+
+  const text = collect(doc).replace(/\s+/g, ' ').trim()
+  return text.length > SEARCHABLE_TEXT_MAX_CHARS
+    ? text.slice(0, SEARCHABLE_TEXT_MAX_CHARS)
+    : text
+}
+
 // ── Collection / doc helpers ─────────────────────────────────────────────────
 
 function notesCol() {
@@ -49,12 +83,15 @@ export async function createNote(
   const id = crypto.randomUUID()
   const now = serverTimestamp()
 
+  const content = data?.content ?? '{"type":"doc","content":[{"type":"paragraph"}]}'
+
   const note: Record<string, unknown> = {
     id,
     title: data?.title ?? 'Untitled',
     icon: data?.icon ?? null,
     coverImage: data?.coverImage ?? null,
-    content: data?.content ?? '{"type":"doc","content":[{"type":"paragraph"}]}',
+    content,
+    searchableText: deriveSearchableText(content),
     folderId: data?.folderId ?? null,
     tags: data?.tags ?? [],
     category: data?.category ?? 'general',
@@ -92,8 +129,15 @@ export async function updateNote(
   noteId: string,
   updates: Partial<Note>
 ): Promise<void> {
+  // Derive searchableText whenever content changes so body search (C1) stays
+  // in sync without every caller having to remember to compute it.
+  const derived: Partial<Note> =
+    updates.content !== undefined
+      ? { ...updates, searchableText: deriveSearchableText(updates.content) }
+      : updates
+
   await updateDoc(noteDoc(noteId), {
-    ...updates,
+    ...derived,
     updatedAt: serverTimestamp(),
   })
 }

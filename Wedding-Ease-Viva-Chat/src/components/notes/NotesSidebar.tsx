@@ -42,6 +42,8 @@ export interface NotesSidebarProps {
   onToggleFavorite: (noteId: string, favorited: boolean) => void;
   onBack: () => void;
   trashedCount?: number;
+  /** Hide the back arrow when the sidebar is rendered persistently (no popover to close). */
+  showBackButton?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -86,6 +88,31 @@ function highlightMatch(text: string, query: string): React.ReactNode {
   );
 }
 
+/**
+ * Pick a short window around the first query match in a longer body text,
+ * prefixed/suffixed with ellipses when the snippet is mid-document. Returns
+ * null when the query isn't found. Powers C1 body-match previews.
+ */
+function getBodySnippet(body: string | undefined, query: string, windowSize = 60): React.ReactNode | null {
+  if (!body || !query) return null;
+  const lower = body.toLowerCase();
+  const q = query.toLowerCase();
+  const idx = lower.indexOf(q);
+  if (idx === -1) return null;
+  const half = Math.floor(windowSize / 2);
+  const start = Math.max(0, idx - half);
+  const end = Math.min(body.length, idx + query.length + half);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < body.length ? '…' : '';
+  return (
+    <>
+      {prefix}
+      {highlightMatch(body.slice(start, end), query)}
+      {suffix}
+    </>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,7 +121,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   onSearchChange, onSelectNote, onCreateNote, onDeleteNote,
   onRenameNote, onRestoreNote, onDuplicateNote,
   onCreateFolder, onDeleteFolder, onRenameFolder, onMoveNote,
-  onToggleFavorite, onBack, trashedCount,
+  onToggleFavorite, onBack, trashedCount, showBackButton = true,
 }) => {
   const [activeFilter, setActiveFilter] = useState<SidebarFilter>('all');
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
@@ -156,7 +183,10 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(n => n.title.toLowerCase().includes(q));
+      filtered = filtered.filter(n =>
+        n.title.toLowerCase().includes(q) ||
+        (n.searchableText || '').toLowerCase().includes(q),
+      );
     }
     return filtered;
   }, [notes, sharedNotes, activeFilter, searchQuery]);
@@ -179,7 +209,17 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
   // ── Note item renderer ────────────────────────────────────────────────────
   const isSharedView = activeFilter === 'shared';
 
-  const renderNoteItem = (note: Note) => (
+  const renderNoteItem = (note: Note) => {
+    // C1: when the query doesn't match the title but does match the body,
+    // show a short snippet below so the user can see *why* the note matched.
+    const titleMatches = searchQuery
+      ? (note.title || '').toLowerCase().includes(searchQuery.toLowerCase())
+      : false;
+    const bodySnippet = searchQuery && !titleMatches
+      ? getBodySnippet(note.searchableText, searchQuery)
+      : null;
+
+    return (
     <div
       key={note.id}
       className={`group relative rounded-xl sm:rounded-lg transition-all duration-200 ${
@@ -224,6 +264,14 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
           </Badge>
           <span className="text-[10px] sm:text-[9px] text-foreground/40 sm:text-foreground/30">{timeAgo(note.updatedAt)}</span>
         </div>
+
+        {/* C1: body-match snippet — only rendered when the query matches
+            the body but not the title, so it explains why the row matched. */}
+        {bodySnippet && (
+          <p className="text-[10px] sm:text-[9px] text-foreground/40 sm:text-foreground/35 mt-1 sm:mt-0.5 line-clamp-2">
+            {bodySnippet}
+          </p>
+        )}
 
         {/* Sharing info for "Shared with Me" view */}
         {isSharedView && (
@@ -318,7 +366,8 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
       </>
       )}
     </div>
-  );
+    );
+  };
 
   // ── Filter buttons ──────────────────────────────────────────────────────────
   const allNotesCount = notes.filter(n => !n.isDeleted).length;
@@ -336,11 +385,15 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
     <div className="w-full sm:w-64 flex-shrink-0 bg-overlay-scrim/40 [.light_&]:bg-card/95 [.light_&]:shadow-card backdrop-blur-md sm:border-r border-foreground/10 [.light_&]:border-border flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1 sm:pb-1 flex-shrink-0 gap-2">
-        <Button onClick={onBack} variant="ghost" className="h-9 w-9 sm:h-8 sm:w-8 rounded-full hover:bg-foreground/10 text-foreground/70 flex-shrink-0" title="Back">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        {showBackButton ? (
+          <Button onClick={onBack} variant="ghost" className="h-9 w-9 sm:h-8 sm:w-8 rounded-full hover:bg-foreground/10 text-foreground/70 flex-shrink-0" title="Back">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        ) : (
+          <h2 className="hidden sm:block text-[11px] font-semibold tracking-wide uppercase text-foreground/40 px-1">Notes</h2>
+        )}
         <h2 className="sm:hidden flex-1 text-base font-headline text-foreground/90 text-center truncate">Notes</h2>
-        <Button onClick={() => onCreateNote()} variant="ghost" className="h-9 sm:h-8 gap-1.5 rounded-lg hover:bg-foreground/10 text-foreground/70 sm:text-foreground/60 text-xs px-2.5 flex-shrink-0" title="New note">
+        <Button onClick={() => onCreateNote()} variant="ghost" className="h-9 sm:h-8 gap-1.5 rounded-lg hover:bg-foreground/10 text-foreground/70 sm:text-foreground/60 text-xs px-2.5 flex-shrink-0 ml-auto" title="New note">
           <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           <span>New</span>
         </Button>

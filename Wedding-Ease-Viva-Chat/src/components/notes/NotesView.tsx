@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown, ChevronDown } from 'lucide-react';
+import { FileText, Plus, Layout, Loader2, ImagePlus, X, Users, Crown, ChevronDown, AlertTriangle } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -83,6 +83,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const {
     note, isSaving, lastSavedAt, hasUnsavedChanges, save,
     updateContent, updateTitle, uploadImage,
+    conflict, dismissConflict, discardLocalEdits,
   } = useNoteEditor(activeNoteId, userId);
 
   // Local state
@@ -298,19 +299,46 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   const readOnly = !canEdit;
   const blockedByTier = !tierAllowsEdit && (isOwner || isEditor);
 
-  // Word count -- content is Tiptap JSON, not HTML
-  const wordCount = note?.content
-    ? extractText((() => { try { return JSON.parse(note.content); } catch { return null; } })())
-        .split(/\s+/).filter(Boolean).length
-    : 0;
+  // Conflict display name: look up the remote editor in owner/collaborators,
+  // fall back to the raw id if we can't match (e.g. stale collaborator list).
+  const conflictName = React.useMemo(() => {
+    if (!conflict || !note) return null;
+    const id = conflict.remoteEditedBy;
+    if (note.ownerId === id) return note.ownerEmail || 'the owner';
+    const c = note.collaborators?.find(x => x.userId === id);
+    return c?.name || c?.email || 'another collaborator';
+  }, [conflict, note]);
+
+  const handleViewTheirs = useCallback(() => {
+    const remote = discardLocalEdits();
+    if (!remote || !editorInstance) return;
+    try {
+      const json = JSON.parse(remote);
+      editorInstance.commands.setContent(json);
+    } catch (err) {
+      console.error('[NotesView] failed to apply remote content', err);
+    }
+  }, [discardLocalEdits, editorInstance]);
+
+  // Word count -- content is Tiptap JSON, not HTML.
+  // Memoized because extractText walks the entire document; on a long note
+  // this ran on every render (e.g. every keystroke-triggered re-render).
+  const wordCount = React.useMemo(() => {
+    if (!note?.content) return 0;
+    let parsed: unknown;
+    try { parsed = JSON.parse(note.content); } catch { return 0; }
+    return extractText(parsed).split(/\s+/).filter(Boolean).length;
+  }, [note?.content]);
 
   // Trashed notes count
   const trashedCount = notes.filter(n => n.isDeleted).length;
 
   return (
     <div className="flex flex-col h-[calc(100vh-7.5rem)] h-[calc(100dvh-7.5rem)] -m-3 sm:-m-5 rounded-xl overflow-hidden border border-foreground/[0.06]">
-      {/* Centered editor-panel controls — replaces the old full-width topbar.
-          Prominent primary-colored buttons for "All notes" and "+ New". */}
+      {/* Centered editor-panel controls — Google-Docs-style file picker.
+          "All notes" opens a popover with the list; "+ New note" creates.
+          Shown on all sizes — the outer app nav already fills the left column,
+          so a second persistent sidebar would create visual clutter. */}
       <div className="flex items-center justify-center gap-2 px-3 py-2.5 bg-card/60 [.light_&]:bg-card/95 border-b border-border/40 flex-shrink-0">
         <Popover open={notesPickerOpen} onOpenChange={setNotesPickerOpen}>
           <PopoverTrigger asChild>
@@ -365,8 +393,10 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         </button>
       </div>
 
-      {/* Main content area */}
-      <div className="flex flex-1 flex-col min-w-0 bg-foreground/[0.02]">
+      {/* Main content area — min-h-0 is required so flex children with
+          overflow-y-auto can actually shrink and scroll rather than
+          expanding the column and pushing the toolbar offscreen. */}
+      <div className="flex flex-1 flex-col min-h-0 min-w-0 bg-foreground/[0.02]">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-3">
@@ -395,7 +425,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               commentsCount={comments.length}
               onBack={() => handleSelectNote(null)}
             />
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
               {/* Shared note info banner */}
               {!isOwner && note.ownerEmail && (
                 <div className="w-full px-3 sm:px-6 pt-3">
@@ -486,7 +516,39 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                   onChange={handleCoverImageChange}
                 />
               </div>
-              <div className="w-full px-3 sm:px-6 py-4 sm:py-6">
+              <div className="w-full px-3 sm:px-6 py-4 sm:py-6 pb-16 sm:pb-20">
+                {conflict && canEdit && (
+                  <div className="mb-3 rounded-2xl bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/40 px-4 py-3.5 flex items-center gap-3 shadow-sm">
+                    <div className="h-9 w-9 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground/90">
+                        {conflictName ? `${conflictName} just updated this note` : 'This note was just updated'}
+                      </p>
+                      <p className="text-xs text-foreground/55 mt-0.5">
+                        Your edits are saved locally. Choose which version to keep.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleViewTheirs}
+                        className="text-xs h-8 px-3"
+                      >
+                        View theirs
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={dismissConflict}
+                        className="text-xs h-8 px-3 bg-primary hover:bg-primary-hover text-primary-foreground"
+                      >
+                        Keep mine
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {blockedByTier && (
                   <div className="mb-3 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/30 px-4 py-3.5 flex items-center gap-3 shadow-sm">
                     <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">

@@ -51,14 +51,30 @@ function clearDraft(noteId: string) {
   }
 }
 
+// ── Remote-edit conflict state (A1 Approach B) ─────────────────────────────
+// When a remote collaborator saves while we have local unflushed edits, we
+// surface a banner so the user can resolve (take theirs, or overwrite with
+// mine). The editor itself already refuses to clobber divergent local state
+// (see NoteEditor.tsx :210-226), so this is purely about preventing the next
+// debounce from silently overwriting the collaborator's change.
+export type RemoteConflict = {
+  remoteEditedBy: string // userId of the collaborator whose change we haven't accepted
+  remoteContent: string  // snapshot to apply if the user picks "take theirs"
+}
+
 export function useNoteEditor(noteId: string | null, userId: string | null) {
   const [note, setNote] = useState<Note | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [conflict, setConflict] = useState<RemoteConflict | null>(null)
 
   // Buffered local edits (not yet persisted)
   const pendingUpdatesRef = useRef<Partial<Note>>({})
+
+  // Last remote-content snapshot we've seen from the subscription, used to
+  // detect collaborator edits that land while we have local divergence.
+  const prevRemoteContentRef = useRef<string | null>(null)
 
   // Refs to avoid stale closures
   const noteIdRef = useRef(noteId)
@@ -88,7 +104,11 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     pendingUpdatesRef.current = {}
 
     updateNote(nId, { ...updates, lastEditedBy: uId })
-      .then(() => clearDraft(nId))
+      .then(() => {
+        clearDraft(nId)
+        // Our write just became canonical; drop any pending conflict banner.
+        if (noteIdRef.current === nId) setConflict(null)
+      })
       .catch((err) => console.error('[useNoteEditor] flush failed', err))
   }, [])
 
@@ -98,9 +118,27 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
       setNote(null)
       setHasUnsavedChanges(false)
       pendingUpdatesRef.current = {}
+      prevRemoteContentRef.current = null
+      setConflict(null)
       return
     }
+    // Reset the remote-snapshot tracker when switching notes so the first
+    // subscription event on a fresh note doesn't register as a conflict.
+    prevRemoteContentRef.current = null
+    setConflict(null)
+
     const unsub = subscribeToNote(noteId, (n) => {
+      if (n) {
+        const prev = prevRemoteContentRef.current
+        const remoteChanged = prev !== null && prev !== n.content
+        const byOther = !!userIdRef.current && n.lastEditedBy !== userIdRef.current
+        const hasLocalContentPending = pendingUpdatesRef.current.content !== undefined
+
+        if (remoteChanged && byOther && hasLocalContentPending) {
+          setConflict({ remoteEditedBy: n.lastEditedBy, remoteContent: n.content })
+        }
+        prevRemoteContentRef.current = n.content
+      }
       setNote(n)
     })
     return () => unsub()
@@ -166,6 +204,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
           if (noteIdRef.current === currentNoteId) {
             setHasUnsavedChanges(false)
             setLastSavedAt(new Date())
+            setConflict(null)
           }
           clearDraft(currentNoteId)
         })
@@ -240,6 +279,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
       if (noteIdRef.current === currentNoteId) {
         setHasUnsavedChanges(false)
         setLastSavedAt(new Date())
+        setConflict(null)
       }
       clearDraft(currentNoteId)
     } catch (err) {
@@ -284,6 +324,31 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     return () => window.removeEventListener('beforeunload', handler)
   }, [flushPending])
 
+  // ── Conflict resolution handlers (A1 Approach B) ─────────────────────────
+  // "Keep mine": just close the banner. The existing pending edits will save
+  // on the next debounce, overwriting the collaborator's version — the user
+  // chose that tradeoff by dismissing.
+  const dismissConflict = useCallback(() => {
+    setConflict(null)
+  }, [])
+
+  // "View theirs": throw away local unsaved edits (including the A3 draft)
+  // and return the remote-content snapshot so the caller can replace the
+  // editor's document with it.
+  const discardLocalEdits = useCallback((): string | null => {
+    const c = conflict
+    const nId = noteIdRef.current
+    pendingUpdatesRef.current = {}
+    setHasUnsavedChanges(false)
+    setConflict(null)
+    if (nId) clearDraft(nId)
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+    }
+    return c?.remoteContent ?? null
+  }, [conflict])
+
   // ── Image upload ──────────────────────────────────────────────────────────
   const uploadImage = useCallback(
     async (file: File): Promise<string | null> => {
@@ -307,5 +372,8 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     updateContent,
     updateTitle,
     uploadImage,
+    conflict,
+    dismissConflict,
+    discardLocalEdits,
   }
 }

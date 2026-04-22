@@ -28,6 +28,7 @@ export interface Note {
   icon: string | null
   coverImage: string | null
   content: string // Tiptap JSON stringified
+  searchableText?: string // derived plain text from content, capped at 500K chars — drives body search (C1). Optional: legacy notes written before C1 have no value until next edit.
   folderId: string | null
   tags: string[]
   category: NoteCategory

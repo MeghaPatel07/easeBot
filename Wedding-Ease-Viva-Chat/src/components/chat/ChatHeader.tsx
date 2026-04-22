@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  PanelLeft, SquarePen, Languages, Bell,
+  PanelLeft, SquarePen, Globe, Bell,
   User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -142,7 +142,7 @@ const MobileLanguageSelector: React.FC<{
           aria-label="Response language"
           title="Response language"
         >
-          <Languages className="h-4 w-4" />
+          <Globe className="h-4 w-4" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44 text-soft">
@@ -187,7 +187,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 text-foreground/60 text-xs font-medium px-2 py-1 rounded-full hover:bg-foreground/10 transition-colors">
-                <Languages className="h-3.5 w-3.5" />
+                <Globe className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">
                   {SUPPORTED_LANGUAGES.find((l) => l.code === preferredLang)?.label ?? 'Lang'}
                 </span>

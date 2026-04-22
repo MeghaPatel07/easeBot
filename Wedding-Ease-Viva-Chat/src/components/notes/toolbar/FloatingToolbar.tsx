@@ -13,13 +13,13 @@ import {
   Heading2,
   Heading3,
   Palette,
-  Type,
 } from "lucide-react";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import FontSizeControl from "./FontSizeControl";
 
 interface FloatingToolbarProps {
   editor: Editor;
@@ -41,17 +41,6 @@ const TEXT_COLORS = [
   { name: "Blue", color: "#3b82f6" },
   { name: "Purple", color: "#a855f7" },
   { name: "Yellow", color: "#eab308" },
-];
-
-const FONT_SIZES = [
-  { label: "Small", value: "12px" },
-  { label: "Normal", value: "14px" },
-  { label: "Medium", value: "16px" },
-  { label: "Large", value: "18px" },
-  { label: "XL", value: "20px" },
-  { label: "2XL", value: "24px" },
-  { label: "3XL", value: "28px" },
-  { label: "4XL", value: "32px" },
 ];
 
 function ToolbarButton({
@@ -254,42 +243,8 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
         </PopoverContent>
       </Popover>
 
-      {/* Font size picker */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            title="Font size"
-            className="h-7 w-7 rounded flex items-center justify-center text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text transition-colors"
-          >
-            <Type className="h-3.5 w-3.5" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto bg-overlay-scrim/90 backdrop-blur-md border-overlay-border/10 p-2"
-          sideOffset={8}
-        >
-          <div className="flex flex-col gap-0.5 min-w-[100px]">
-            <button
-              type="button"
-              onClick={() => (editor as any).chain().focus().unsetFontSize().run()}
-              className="px-2 py-1 text-left text-xs rounded text-overlay-text/60 hover:bg-overlay-surface/10 hover:text-overlay-text transition-colors"
-            >
-              Default
-            </button>
-            {FONT_SIZES.map((fs) => (
-              <button
-                key={fs.value}
-                type="button"
-                onClick={() => (editor as any).chain().focus().setFontSize(fs.value).run()}
-                className="px-2 py-1 text-left text-xs rounded text-overlay-text/60 hover:bg-overlay-surface/10 hover:text-overlay-text transition-colors"
-              >
-                {fs.label} <span className="text-overlay-text/30 ml-1">{fs.value}</span>
-              </button>
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
+      {/* Font size control — Google-Docs-style numeric stepper + preset dropdown */}
+      <FontSizeControl editor={editor} variant="overlay" />
 
       <div className="w-px h-5 bg-overlay-surface/10 mx-0.5" />
 
