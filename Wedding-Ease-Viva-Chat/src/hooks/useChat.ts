@@ -358,6 +358,34 @@ export function useChat(): UseChatResult {
     // (let-inside-try is not visible to the sibling catch).
     let streamedText = ''
 
+    // Persist a stopped-response bubble with one retry. Awaited by both the
+    // post-loop abort-detection path and the AbortError catch, so the tab has
+    // a real chance to flush before the user navigates away.
+    const persistStoppedMessage = async (stoppedText: string) => {
+      if (!user || !threadId) return
+      const payload = {
+        role: 'assistant',
+        content: stoppedText,
+        originalContent: null,
+        mode: (mode ?? 'assistant') as Mode,
+        language: 'en',
+        audioUrl: null,
+        liked: false,
+      } as NewMessage
+      try {
+        await addMessage(threadId, payload)
+      } catch (err) {
+        console.warn('[useChat] persist stopped msg retry after error:', err)
+        try {
+          await new Promise(r => setTimeout(r, 500))
+          await addMessage(threadId, payload)
+        } catch (err2) {
+          console.error('[useChat] persist stopped msg failed twice:', err2)
+          toast.error('Could not save the stopped response. It may disappear on refresh.')
+        }
+      }
+    }
+
     try {
       const aiMsgId = (Date.now() + 1).toString()
 
@@ -521,17 +549,7 @@ export function useChat(): UseChatResult {
           return prev
         })
 
-        if (user && threadId) {
-          addMessage(threadId, {
-            role: 'assistant',
-            content: stoppedText,
-            originalContent: null,
-            mode: (mode ?? 'assistant') as Mode,
-            language: 'en',
-            audioUrl: null,
-            liked: false,
-          } as NewMessage).catch(e => console.error('[useChat] persist stopped msg error:', e))
-        }
+        await persistStoppedMessage(stoppedText)
         return
       }
 
@@ -710,18 +728,9 @@ export function useChat(): UseChatResult {
           return prev
         })
 
-        // Persist stopped response to Firestore
-        if (user && threadId) {
-          addMessage(threadId, {
-            role: 'assistant',
-            content: stoppedText,
-            originalContent: null,
-            mode: (mode ?? 'assistant') as Mode,
-            language: 'en',
-            audioUrl: null,
-            liked: false,
-          } as NewMessage).catch(e => console.error('[useChat] persist stopped msg error:', e))
-        }
+        // Persist stopped response to Firestore — awaited so the write has
+        // a chance to land before a follow-up tab close.
+        await persistStoppedMessage(stoppedText)
         return
       }
       console.error('[useChat] sendMessage error:', err)

@@ -159,7 +159,7 @@ export default function ResizableImageView({
 
         {/* Toolbar — overlay inside the image at top */}
         {toolbarVisible && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-overlay-scrim/80 backdrop-blur-sm border border-foreground/10 rounded-lg px-1 py-0.5 shadow-xl z-50">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-popover/95 text-popover-foreground backdrop-blur-sm border border-border rounded-lg px-1 py-0.5 shadow-xl z-50">
             <ToolbarButton
               active={alignment === "left"}
               onClick={() => setAlignment("left")}
@@ -182,7 +182,7 @@ export default function ResizableImageView({
               <AlignRight className="h-3.5 w-3.5" />
             </ToolbarButton>
 
-            <div className="w-px h-4 bg-foreground/20 mx-0.5" />
+            <div className="w-px h-4 bg-popover-foreground/20 mx-0.5" />
 
             <ToolbarButton onClick={toggleFullWidth} title="Full width">
               <Maximize2 className="h-3.5 w-3.5" />
@@ -231,7 +231,7 @@ function ToolbarButton({
       className={`p-1.5 rounded-md transition-colors ${
         active
           ? "bg-primary/30 text-primary"
-          : "text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+          : "text-popover-foreground/70 hover:bg-popover-foreground/10 hover:text-popover-foreground"
       } ${className}`}
     >
       {children}

@@ -26,6 +26,8 @@ import {
   computeStats,
 } from '@/services/checklistService'
 import { useChatAttachments } from '@/contexts/ChatAttachmentsContext'
+import { useAuth } from '@/contexts/AuthContext'
+import ExportMenu from '@/components/ExportMenu'
 import type { Checklist } from '@/types'
 import { track } from '@/lib/analytics'
 
@@ -51,6 +53,7 @@ export default function PlannerView({
   const [creating, setCreating] = useState(false)
   const navigate = useNavigate()
   const { addAttachment } = useChatAttachments()
+  const { profile } = useAuth()
 
   useEffect(() => {
     const unsub = subscribeToChecklists(userId, setChecklists)
@@ -274,6 +277,16 @@ export default function PlannerView({
                       >
                         <Copy className="h-3.5 w-3.5" /> Copy
                       </DropdownMenuItem>
+                      <ExportMenu
+                        profile={profile}
+                        source="checklist"
+                        sourceId={cl.id}
+                        filenameBase={cl.title?.replace(/[^a-z0-9-_]+/gi, '_').toLowerCase() || 'checklist'}
+                        data={[{
+                          title: cl.title || 'Checklist',
+                          items: cl.items.map(i => ({ text: i.text, completed: i.completed })),
+                        }]}
+                      />
                       <DropdownMenuItem
                         onSelect={() => handleDelete(cl)}
                         className="text-xs text-destructive focus:text-destructive focus:bg-destructive/10 gap-2 py-2 cursor-pointer"

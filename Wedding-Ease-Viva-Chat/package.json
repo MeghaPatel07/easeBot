@@ -67,6 +67,7 @@
     "embla-carousel-react": "^8.3.0",
     "firebase": "^12.10.0",
     "input-otp": "^1.2.4",
+    "jspdf": "^4.2.1",
     "libphonenumber-js": "^1.12.41",
     "lucide-react": "^0.462.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.48.0",

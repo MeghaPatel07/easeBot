@@ -1,12 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Star, Share2, MoreHorizontal, Trash2, Heart, Download,
+  Star, Share2, MoreHorizontal, Trash2, Heart, FileText, Lock,
   Loader2, Check, Eye, Save, Undo2, Redo2, Copy, Scissors, ClipboardPaste,
   MessageSquare, Keyboard, ArrowLeft, MessageSquarePlus,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useChatAttachments } from '@/contexts/ChatAttachmentsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  checkExportAccess,
+  generateHtmlPdfBlob,
+  downloadFile,
+} from '@/services/exportService';
+import { track } from '@/lib/analytics';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -110,6 +117,50 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
   const titleRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { addAttachment } = useChatAttachments();
+  const { profile } = useAuth();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    if (!note) return;
+    const gate = checkExportAccess(profile, 'pdf');
+    if (!gate.allowed) {
+      track('data_export_requested', {
+        source: 'note',
+        source_id: note.id,
+        format: 'pdf',
+        allowed: false,
+        tier: gate.tier,
+      });
+      toast.error(gate.message ?? 'Upgrade to download notes as PDF.', {
+        action: { label: 'Upgrade', onClick: () => navigate('/pricing') },
+      });
+      return;
+    }
+    const dom = editor?.view?.dom as HTMLElement | undefined;
+    if (!dom) {
+      toast.error('Editor not ready — open the note and try again.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const blob = await generateHtmlPdfBlob(dom, note.title || 'Untitled');
+      const filename = (note.title || 'note').replace(/[^a-z0-9-_]+/gi, '_').toLowerCase();
+      downloadFile(blob, `${filename}.pdf`, 'application/pdf');
+      track('data_export_requested', {
+        source: 'note',
+        source_id: note.id,
+        format: 'pdf',
+        allowed: true,
+        tier: gate.tier,
+      });
+      toast.success('PDF download started');
+    } catch (err) {
+      console.error('Note PDF export failed:', err);
+      toast.error('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // ── "Attach to chat" ─────────────────────────────────────────────────────
   // Stages this note in the ChatAttachmentsContext tray so the user can
@@ -354,12 +405,16 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
         {/* Category selector */}
         {!readOnly && (
           <Select value={note.category} onValueChange={(v) => onUpdateCategory(v as NoteCategory)}>
-            <SelectTrigger className="w-28 h-8 text-xs bg-foreground/[0.06] border-foreground/10 text-foreground/70 rounded-lg">
-              <SelectValue />
+            <SelectTrigger className="w-28 h-8 text-xs bg-foreground/[0.06] border border-foreground/15 text-foreground/80 rounded-lg hover:bg-foreground/10">
+              <SelectValue placeholder="Category" />
             </SelectTrigger>
-            <SelectContent className="bg-surface-popover-alt/95 backdrop-blur-md border-foreground/10 text-foreground/80">
+            <SelectContent className="bg-popover text-popover-foreground border-border">
               {CATEGORIES.map(c => (
-                <SelectItem key={c.value} value={c.value} className="text-xs cursor-pointer">
+                <SelectItem
+                  key={c.value}
+                  value={c.value}
+                  className="text-xs cursor-pointer text-popover-foreground focus:bg-primary/15 focus:text-popover-foreground data-[state=checked]:bg-primary/10 data-[state=checked]:text-primary"
+                >
                   {c.label}
                 </SelectItem>
               ))}
@@ -484,35 +539,18 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
               <Heart className={`mr-2 h-3.5 w-3.5 ${note.favorited ? 'fill-primary text-primary' : ''}`} />
               {note.favorited ? 'Unfavorite' : 'Favorite'}
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => {
-              // Extract plain text from Tiptap JSON content
-              let plainText = '';
-              try {
-                const doc = JSON.parse(note.content);
-                const extractText = (node: Record<string, unknown>): string => {
-                  if (node.text) return node.text as string;
-                  if (node.content && Array.isArray(node.content)) {
-                    return (node.content as Record<string, unknown>[])
-                      .map((child) => extractText(child))
-                      .join(node.type === 'doc' || node.type === 'bulletList' || node.type === 'orderedList' || node.type === 'taskList' ? '\n' : '');
-                  }
-                  return '';
-                };
-                plainText = extractText(doc);
-              } catch {
-                // Fallback: if content is not JSON, use as-is
-                plainText = note.content;
-              }
-              const blob = new Blob([note.title + '\n\n' + plainText], { type: 'text/plain' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${note.title || 'note'}.txt`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}>
-              <Download className="mr-2 h-3.5 w-3.5" />
-              Export as text
+            <DropdownMenuItem
+              className="cursor-pointer text-xs gap-2"
+              disabled={isExporting}
+              onSelect={(e) => { e.preventDefault(); void handleDownloadPdf(); }}
+            >
+              {isExporting
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <FileText className="h-3.5 w-3.5" />}
+              <span className="flex-1">Download as PDF</span>
+              {!checkExportAccess(profile, 'pdf').allowed && (
+                <Lock className="h-3 w-3 text-foreground/40" />
+              )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => setShowShortcuts(true)}>

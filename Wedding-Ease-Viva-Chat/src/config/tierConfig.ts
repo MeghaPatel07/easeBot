@@ -17,7 +17,7 @@ export interface TierLimits {
   chatExportable: boolean
   maxProjects: number
   notesAccess: 'view' | 'full'
-  exportFormats: ('pdf' | 'csv' | 'json')[]
+  exportFormats: ('pdf' | 'csv')[]
   shareableLinks: boolean
   imageWatermark: boolean
   priorityRouting: boolean
@@ -54,7 +54,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     chatSearchable: false,
     chatExportable: false,
     maxProjects: 1,
-    notesAccess: 'view',
+    notesAccess: 'full',
     exportFormats: ['pdf'],
     shareableLinks: false,
     imageWatermark: true,
@@ -91,7 +91,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     chatExportable: true,
     maxProjects: 5,
     notesAccess: 'full',
-    exportFormats: ['pdf', 'csv', 'json'],
+    exportFormats: ['pdf', 'csv'],
     shareableLinks: true,
     imageWatermark: false,
     priorityRouting: true,

@@ -1,12 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Export Service — PRICING_PRD §4 tier-gated exports.
-// Free: checklist PDF only. Pro: PDF + CSV. ProMax: PDF + CSV + JSON + links.
+// Free: checklist PDF only. Pro: PDF + CSV. ProMax: PDF + CSV + share links.
 // All exports run client-side (no backend endpoint needed for v1).
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { jsPDF } from 'jspdf'
+import html2canvas from 'html2canvas'
 import { resolveTier, getLimits, tierLabel, upgradeTier, type PlanTier } from '@/config/tierConfig'
 
-export type ExportFormat = 'pdf' | 'csv' | 'json'
+export type ExportFormat = 'pdf' | 'csv'
 
 export interface ExportGateResult {
   allowed: boolean
@@ -69,46 +71,167 @@ export interface ExportableItem {
   date?: string
 }
 
-/** Generate a simple text-based "PDF" content (actual PDF lib can be added later). */
-export function generatePdfContent(data: ExportableItem[]): string {
-  const lines: string[] = []
-  for (const item of data) {
-    lines.push(`=== ${item.title} ===`)
-    if (item.date) lines.push(`Date: ${item.date}`)
-    if (item.items) {
+/** Render a real PDF document via jsPDF and return it as a Blob. */
+export function generatePdfBlob(data: ExportableItem[]): Blob {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+
+  const marginX = 48
+  const marginTop = 56
+  const marginBottom = 56
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const contentWidth = pageWidth - marginX * 2
+  const lineHeight = 16
+  let y = marginTop
+
+  const advance = (delta: number) => {
+    if (y + delta > pageHeight - marginBottom) {
+      doc.addPage()
+      y = marginTop
+    }
+    y += delta
+  }
+
+  const writeLine = (text: string, size: number, style: 'normal' | 'bold' = 'normal') => {
+    doc.setFont('helvetica', style)
+    doc.setFontSize(size)
+    const wrapped = doc.splitTextToSize(text || ' ', contentWidth) as string[]
+    for (const line of wrapped) {
+      if (y + lineHeight > pageHeight - marginBottom) {
+        doc.addPage()
+        y = marginTop
+      }
+      doc.text(line, marginX, y)
+      y += lineHeight
+    }
+  }
+
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i]
+    if (i > 0) advance(8)
+
+    writeLine(item.title || 'Untitled', 16, 'bold')
+
+    if (item.date) {
+      writeLine(item.date, 10, 'normal')
+    }
+
+    advance(4)
+
+    if (item.items && item.items.length > 0) {
       for (const sub of item.items) {
-        lines.push(`  ${sub.completed ? '[x]' : '[ ]'} ${sub.text}`)
+        const marker = sub.completed ? '[x]' : '[ ]'
+        writeLine(`${marker} ${sub.text}`, 11, 'normal')
       }
     }
-    if (item.content) lines.push(item.content)
-    lines.push('')
+
+    if (item.content) {
+      advance(4)
+      writeLine(item.content, 11, 'normal')
+    }
   }
-  return lines.join('\n')
+
+  return doc.output('blob') as Blob
 }
 
-/** Generate CSV content. */
+/**
+ * Rasterise a rendered HTML element to a multi-page PDF.
+ * Preserves fonts, colors, images, and layout by painting the node with
+ * html2canvas and tiling the resulting bitmap across A4 pages.
+ */
+export async function generateHtmlPdfBlob(
+  element: HTMLElement,
+  title?: string,
+): Promise<Blob> {
+  // Wait a tick so any images inside the node have a chance to decode.
+  const imgs = Array.from(element.querySelectorAll('img'))
+  await Promise.all(
+    imgs.map(img =>
+      img.complete && img.naturalHeight > 0
+        ? Promise.resolve()
+        : new Promise<void>(resolve => {
+            img.addEventListener('load', () => resolve(), { once: true })
+            img.addEventListener('error', () => resolve(), { once: true })
+          }),
+    ),
+  )
+
+  const bodyBg = getComputedStyle(document.body).backgroundColor || '#ffffff'
+  const canvas = await html2canvas(element, {
+    backgroundColor: bodyBg,
+    scale: Math.min(2, window.devicePixelRatio || 1.5),
+    useCORS: true,
+    logging: false,
+    // Honor element's own width; height will derive from layout.
+    windowWidth: element.scrollWidth,
+  })
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 32
+  const contentWidth = pageWidth - margin * 2
+  const imgWidth = contentWidth
+  const pxPerPt = canvas.width / imgWidth
+  const contentHeightPx = Math.floor((pageHeight - margin * 2) * pxPerPt)
+
+  if (title) {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.text(title, margin, margin + 12)
+  }
+  const firstPageOffset = title ? margin + 28 : margin
+
+  // Slice the source canvas vertically across pages.
+  let y = 0
+  let firstPage = true
+  while (y < canvas.height) {
+    const sliceHeight = Math.min(contentHeightPx, canvas.height - y)
+    const pageCanvas = document.createElement('canvas')
+    pageCanvas.width = canvas.width
+    pageCanvas.height = sliceHeight
+    const ctx = pageCanvas.getContext('2d')
+    if (!ctx) break
+    ctx.fillStyle = bodyBg
+    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+    ctx.drawImage(canvas, 0, y, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight)
+
+    const imgData = pageCanvas.toDataURL('image/png')
+    const imgHeightPt = sliceHeight / pxPerPt
+
+    if (!firstPage) doc.addPage()
+    const topOffset = firstPage ? firstPageOffset : margin
+    doc.addImage(imgData, 'PNG', margin, topOffset, imgWidth, imgHeightPt, undefined, 'FAST')
+
+    firstPage = false
+    y += sliceHeight
+  }
+
+  return doc.output('blob') as Blob
+}
+
+/** Generate CSV content. Title sits in a section header row rather than
+ *  repeating down column A for every item. */
 export function generateCsvContent(data: ExportableItem[]): string {
-  const rows: string[][] = [['Title', 'Item', 'Completed', 'Date']]
-  for (const item of data) {
-    if (item.items) {
+  const rows: string[][] = []
+  data.forEach((item, idx) => {
+    if (idx > 0) rows.push([''])
+    rows.push([item.title || 'Untitled'])
+    rows.push(['Item', 'Completed', 'Date'])
+    if (item.items && item.items.length > 0) {
       for (const sub of item.items) {
-        rows.push([item.title, sub.text, sub.completed ? 'Yes' : 'No', item.date ?? ''])
+        rows.push([sub.text, sub.completed ? 'Yes' : 'No', item.date ?? ''])
       }
     } else {
-      rows.push([item.title, item.content ?? '', '', item.date ?? ''])
+      rows.push([item.content ?? '', '', item.date ?? ''])
     }
-  }
+  })
   return rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n')
 }
 
-/** Generate JSON content. */
-export function generateJsonContent(data: ExportableItem[]): string {
-  return JSON.stringify(data, null, 2)
-}
-
-/** Trigger a file download in the browser. */
-export function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType })
+/** Trigger a file download in the browser. Accepts Blob or string payloads. */
+export function downloadFile(content: Blob | string, filename: string, mimeType: string): void {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -129,25 +252,20 @@ export function exportData(
   const gate = checkExportAccess(profile, format)
   if (!gate.allowed) return gate
 
-  let content: string
+  let content: Blob | string
   let mimeType: string
   let ext: string
 
   switch (format) {
     case 'pdf':
-      content = generatePdfContent(data)
-      mimeType = 'text/plain'
-      ext = 'txt' // actual PDF generation would use jsPDF
+      content = generatePdfBlob(data)
+      mimeType = 'application/pdf'
+      ext = 'pdf'
       break
     case 'csv':
       content = generateCsvContent(data)
       mimeType = 'text/csv'
       ext = 'csv'
-      break
-    case 'json':
-      content = generateJsonContent(data)
-      mimeType = 'application/json'
-      ext = 'json'
       break
   }
 

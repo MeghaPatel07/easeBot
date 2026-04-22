@@ -127,7 +127,7 @@ const COMPARISON_DATA: ComparisonGroup[] = [
     rows: [
       { feature: 'Chat history', free: '30-day rolling', pro: 'Full, searchable', promax: 'Full, searchable, exportable' },
       { feature: 'Wedding projects', free: '1', pro: '2', promax: '5' },
-      { feature: 'Notes', free: 'View only', pro: 'Full access', promax: 'Full access' },
+      { feature: 'Notes', free: 'Full access', pro: 'Full access', promax: 'Full access' },
     ],
   },
   {
@@ -135,7 +135,6 @@ const COMPARISON_DATA: ComparisonGroup[] = [
     rows: [
       { feature: 'PDF export', free: 'Checklist only', pro: true, promax: true },
       { feature: 'CSV export', free: false, pro: true, promax: true },
-      { feature: 'JSON export', free: false, pro: false, promax: true },
       { feature: 'Shareable read-only links', free: false, pro: false, promax: true },
     ],
   },

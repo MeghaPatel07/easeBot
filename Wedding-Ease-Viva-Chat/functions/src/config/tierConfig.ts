@@ -27,7 +27,7 @@ export interface TierLimits {
   /** Notes access level */
   notesAccess: 'view' | 'full'
   /** Allowed export formats */
-  exportFormats: ('pdf' | 'csv' | 'json')[]
+  exportFormats: ('pdf' | 'csv')[]
   /** Whether shareable read-only links are available */
   shareableLinks: boolean
   /** Whether generated images have watermarks */
@@ -69,7 +69,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     chatSearchable: false,
     chatExportable: false,
     maxProjects: 1,
-    notesAccess: 'view',
+    notesAccess: 'full',
     exportFormats: ['pdf'],     // checklist PDF only
     shareableLinks: false,
     imageWatermark: true,
@@ -106,7 +106,7 @@ export const TIER_LIMITS: Record<PlanTier, TierLimits> = {
     chatExportable: true,
     maxProjects: 5,
     notesAccess: 'full',
-    exportFormats: ['pdf', 'csv', 'json'],
+    exportFormats: ['pdf', 'csv'],
     shareableLinks: true,
     imageWatermark: false,
     priorityRouting: true,
