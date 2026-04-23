@@ -183,7 +183,9 @@
       "Bash(git pull *)",
       "Bash(git -C /Users/krish/Desktop/easebot log --all --oneline -- \"**/Pricing.tsx\")",
       "Bash(git -C /Users/krish/Desktop/easebot log --all -p -- \"Wedding-Ease-Viva-Chat/src/pages/Pricing.tsx\")",
-      "Bash(sips -g pixelWidth -g pixelHeight /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/easebot.png)"
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/easebot.png)",
+      "Bash(sips -Z 300 /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/images/easebot.png --out /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/images/easebot.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/images/easebot.png)"
     ]
   }
 }
