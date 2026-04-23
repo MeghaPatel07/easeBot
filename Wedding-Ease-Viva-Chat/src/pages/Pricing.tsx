@@ -28,7 +28,7 @@ interface TierPricing {
 // Canonical prices from PRICING_PRD.md §4
 const TIERS: TierPricing[] = [
   { tier: 'free', monthlyUsd: 0, annualUsd: 0 },
-  { tier: 'pro', monthlyUsd: 10, annualUsd: 0.12, isRecommended: true },
+  { tier: 'pro', monthlyUsd: 10, annualUsd: 79, isRecommended: true },
   { tier: 'promax', monthlyUsd: 39, annualUsd: 299 },
 ]
 

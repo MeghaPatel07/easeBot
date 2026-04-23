@@ -180,7 +180,10 @@
       "Bash(git commit *)",
       "Bash(git push *)",
       "Bash(git fetch *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(git -C /Users/krish/Desktop/easebot log --all --oneline -- \"**/Pricing.tsx\")",
+      "Bash(git -C /Users/krish/Desktop/easebot log --all -p -- \"Wedding-Ease-Viva-Chat/src/pages/Pricing.tsx\")",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/easebot.png)"
     ]
   }
 }
