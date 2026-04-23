@@ -3,7 +3,7 @@ import { useTypewriter } from '@/hooks/useTypewriter';
 import {
   Send, Sparkles, Calendar, CheckSquare,
   Copy, Download, ThumbsUp, Edit3, Lock,
-  RefreshCw, Loader2, Bookmark,
+  RefreshCw, Loader2, Bookmark, Heart,
   Check, Volume2, X, ImagePlus,
   ChevronUp, ChevronLeft, ChevronRight,
   Minimize2, Maximize2, Type, GraduationCap, ImageOff,
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { Message } from '@/hooks/useChat';
+import type { Message, MessageProductCard } from '@/hooks/useChat';
 import type { UserProfile } from '@/types';
 import ComparisonTable from '@/components/ComparisonTable';
 import { ImageCarousel } from '@/components/ImageCarousel';
@@ -69,6 +69,10 @@ export interface ChatMessagesProps {
   onToneModifier: (modifier: string) => void;
   onConvertToTable: (message: Message) => void;
   onSaveProduct: (title: string, url: string, imageUrl: string) => void;
+  likedProductIds?: Set<string>;
+  onToggleProductLike?: (product: MessageProductCard) => void;
+  onShareProduct?: (productTitle: string) => void;
+  onRequestMoreProducts?: () => void;
   onOpenPlanner: (checklistId: string) => void;
   onShowSignIn: () => void;
   onDeleteImage?: (messageId: string, imageUrl: string) => void;
@@ -120,6 +124,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   getBranchInfo, onSwitchBranch,
   onLoadMoreMessages, onCopyMessage, onDownloadMessage, onToggleLike, onRegenerateMessage,
   onContinueGenerating, onToneModifier, onConvertToTable, onSaveProduct,
+  likedProductIds, onToggleProductLike,
+  onShareProduct, onRequestMoreProducts,
   onOpenPlanner, onShowSignIn, onDeleteImage,
   ttsLoadingId, ttsActiveId, ttsAudioUrls, onTtsPlay, onTtsClose,
   copiedMsgId, savedProductIds,
@@ -144,11 +150,20 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   const pendingScrollRef = useRef(pendingScrollToId);
   useEffect(() => { pendingScrollRef.current = pendingScrollToId; }, [pendingScrollToId]);
 
-  // Auto-scroll to bottom on new messages (skip when a targeted scroll is pending)
+  // Auto-scroll to bottom only when a message is added or the streaming text
+  // actually grows — NOT on every `messages` identity change. Toggling a like
+  // (message-level or per-product) produces a new array reference with no new
+  // content; scrolling on those would yank the user away from what they're
+  // reading. Skip when a targeted scroll (e.g. jump-to-liked) is pending.
+  const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+  const autoScrollKey = lastMessage
+    ? `${messages.length}:${lastMessage.id}:${lastMessage.text.length}`
+    : '';
   useEffect(() => {
     if (pendingScrollRef.current) return;
+    if (!autoScrollKey) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [autoScrollKey, isTyping]);
 
   const handleLoadMore = async () => {
     if (loadingMoreMessages || !hasMoreMessages) return;
@@ -602,6 +617,83 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   onDelete={onDeleteImage ? (imageUrl) => onDeleteImage(message.id, imageUrl) : undefined}
                   isGuest={!user}
                 />
+              )}
+              {message.products && message.products.length > 0 && (
+                <div className="mt-3 not-prose">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-3xs uppercase tracking-wider text-foreground/40 font-semibold">
+                      Recommended from WeddingEase
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {message.products.map((p) => {
+                      const pid = p.uid || `${p.name}-${p.productUrl}`.toLowerCase().replace(/\s+/g, '-');
+                      const isLiked = likedProductIds?.has(pid) ?? false;
+                      return (
+                        <div
+                          key={pid}
+                          className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-foreground/10 bg-foreground/[0.04] backdrop-blur-md shadow-glass hover:bg-foreground/[0.06] hover:border-primary/40 transition-all duration-200"
+                        >
+                          <a
+                            href={p.productUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block no-underline flex-1 flex flex-row gap-3 items-center"
+                          >
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <span className="text-sm font-semibold text-primary leading-snug line-clamp-1">
+                                {p.name}
+                              </span>
+                              {p.description && (
+                                <span className="text-xs text-mode-auto-active leading-relaxed line-clamp-2">
+                                  {p.description}
+                                </span>
+                              )}
+                            </div>
+                          </a>
+                          {user && (
+                            <button
+                              onClick={() => onToggleProductLike?.(p)}
+                              aria-label={isLiked ? 'Unlike' : 'Like'}
+                              className={`flex-shrink-0 p-2 rounded-lg transition-all ${
+                                isLiked
+                                  ? 'text-primary'
+                                  : 'text-foreground/40 hover:text-primary hover:bg-primary/10'
+                              }`}
+                              title={isLiked ? 'Unlike' : 'Like'}
+                            >
+                              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => onShareProduct?.(p.name)}
+                            aria-label="Share this product"
+                            tabIndex={0}
+                            className="flex-shrink-0 h-10 w-10 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg transition-all text-foreground/40 hover:text-primary hover:bg-primary/10"
+                          >
+                            <Share2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {message.productsHasMore && onRequestMoreProducts && (
+                    <button
+                      onClick={onRequestMoreProducts}
+                      className="mt-2 text-xs text-primary font-semibold hover:underline"
+                    >
+                      See more options
+                    </button>
+                  )}
+                </div>
               )}
               {message.imageDeleted && !message.imageUrls?.length && !message.imageUrl && (
                 <div className="mt-2 mb-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-foreground/[0.04] border border-foreground/[0.06] max-w-xs">

@@ -5,9 +5,31 @@ import { validateBody } from '../middleware/validateRequest'
 import { ChatRequestSchema } from '../schemas/chat'
 import { quotaCheck } from '../middleware/quotaMiddleware'
 import { chatBurstRateLimiter } from '../middleware/rateLimiter'
+import { cancel as cancelRequest } from '../services/cancellationRegistry'
 
 const router = Router()
 router.post('/', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), handleChat)
+
+/**
+ * Explicit cancel endpoint. The frontend calls this when the user clicks Stop,
+ * because client-side `AbortController.abort()` alone is unreliable in
+ * production: reverse proxies and LBs often hold the upstream socket open so
+ * `req.on('close')` never fires, and the image pipeline runs to completion
+ * (Azure image gen + Firebase Storage upload + Firestore write) regardless.
+ */
+router.post('/cancel', requireAuth, (req: Request, res: Response) => {
+  const { requestId } = (req.body ?? {}) as { requestId?: string }
+  if (!requestId || typeof requestId !== 'string') {
+    res.status(400).json({ error: 'requestId is required' })
+    return
+  }
+  const outcome = cancelRequest(requestId, req.user?.uid ?? null)
+  if (outcome === 'forbidden') {
+    res.status(403).json({ error: 'forbidden' })
+    return
+  }
+  res.status(204).end()
+})
 
 /**
  * SSE streaming endpoint with heartbeat, event IDs, and reconnection support.

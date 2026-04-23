@@ -26,14 +26,20 @@ const LANGUAGE_NAMES: Record<string, string> = {
 /**
  * Returns the target response language code ('en', 'gu', 'hi', …).
  *
- * @param payloadLanguage - the `language` field from the API payload (user preference)
- * @param detectedLanguage - language detected from the user's actual input
+ * Priority:
+ *   1. An explicit non-'auto' payloadLanguage (the user's session choice)
+ *      wins over Azure's language detection. This includes 'en' — previously
+ *      the 'en' case fell through to detection, which caused replies to flip
+ *      to French / Spanish etc. when Azure mis-detected typo-heavy English
+ *      messages as another language.
+ *   2. If payload is 'auto' or missing, honor detectedLanguage.
+ *   3. Otherwise fall back to English.
  */
 export function determineTargetLanguage(
   payloadLanguage: string | undefined,
   detectedLanguage: string
 ): string {
-  if (payloadLanguage && payloadLanguage !== 'auto' && payloadLanguage !== 'en') {
+  if (payloadLanguage && payloadLanguage !== 'auto') {
     return payloadLanguage
   }
   if (detectedLanguage && detectedLanguage !== 'en') {

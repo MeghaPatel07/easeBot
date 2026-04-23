@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { subscribeToLikedProducts, addLikedProduct, removeLikedProduct } from '@/services/likedProductsService'
 import { collection, query, where, getDocs, getDoc, doc, DocumentSnapshot } from 'firebase/firestore'
 import { toast } from 'sonner'
 import { db } from '@/lib/firebase'
@@ -19,11 +20,21 @@ import {
   removeMessageImage,
   type NewMessage,
 } from '@/services/chatService'
-import { streamChatMessage, type StreamDoneEvent } from '@/services/functionsService'
+import { streamChatMessage, cancelChatRequest, type StreamDoneEvent } from '@/services/functionsService'
 import { listReminders } from '@/services/reminderService'
 import type { ChatThread, ChatMessage, MessageAttachment, Mode, CalendarEvent, ReminderDoc, ToolAction, UserPersonalization } from '@/types'
 import type { ChatAttachment } from '@/contexts/ChatAttachmentsContext'
 import { track } from '@/lib/analytics'
+
+export interface MessageProductCard {
+  uid: string
+  name: string
+  description: string
+  imageUrl: string
+  productUrl: string
+  price?: number
+  currency?: string
+}
 
 export interface Message {
   id: string
@@ -50,6 +61,9 @@ export interface Message {
   // IDs show a "Deleted artifact" chip.
   attachments?: MessageAttachment[]
   partialImageUrl?: string    // partial progressive render from GPT-Image-1.5
+  // Recommended products sidecar — rendered as a card strip below the bubble.
+  products?: MessageProductCard[]
+  productsHasMore?: boolean
 }
 
 export interface SendMessageOptions {
@@ -78,6 +92,9 @@ export interface UseChatResult {
   activeThreadId: string | null
   isTyping: boolean
   allLikedMessages: Message[]
+  likedProducts: import('@/services/likedProductsService').LikedProduct[]
+  likedProductIds: Set<string>
+  toggleProductLike: (product: MessageProductCard) => Promise<void>
   reminders: ReminderDoc[]
   lastToolActions: ToolAction[]
   hasMoreMessages: boolean
@@ -167,6 +184,8 @@ export function useChat(): UseChatResult {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
   const [allLikedMessages, setAllLikedMessages] = useState<Message[]>([])
+  const [likedProducts, setLikedProducts] = useState<import('@/services/likedProductsService').LikedProduct[]>([])
+  const likedProductIds = useMemo(() => new Set(likedProducts.map(p => p.id)), [likedProducts])
   const [reminders, setReminders] = useState<ReminderDoc[]>([])
   const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
@@ -182,6 +201,10 @@ export function useChat(): UseChatResult {
   useEffect(() => { activeThreadIdRef.current = activeThreadId }, [activeThreadId])
 
   const abortControllerRef = useRef<AbortController | null>(null)
+  // Client-generated id for the in-flight request. We POST this to
+  // /api/chat/cancel on Stop so the backend aborts even when the proxy
+  // swallows the client-side TCP close.
+  const activeRequestIdRef = useRef<string | null>(null)
 
   // ── Firestore thread subscription ─────────────────────────────────────────
   useEffect(() => {
@@ -230,6 +253,40 @@ export function useChat(): UseChatResult {
 
     fetchLiked()
   }, [user?.uid])
+
+  // ── Firestore liked-products subscription ─────────────────────────────────
+  useEffect(() => {
+    if (!user) { setLikedProducts([]); return }
+    return subscribeToLikedProducts(user.uid, setLikedProducts)
+  }, [user?.uid])
+
+  // Toggle the like state of a product. Persists to Firestore so the Liked
+  // quick-link view can surface it across sessions.
+  const toggleProductLike = useCallback(async (product: MessageProductCard) => {
+    if (!user) return
+    const productId = product.uid || `${product.name}-${product.productUrl}`.toLowerCase().replace(/\s+/g, '-')
+    const isLiked = likedProductIds.has(productId)
+    try {
+      if (isLiked) {
+        await removeLikedProduct(user.uid, productId)
+      } else {
+        const threadId = activeThreadIdRef.current
+        const threadTitle = threadId
+          ? (threads.find(t => t.id === threadId)?.title ?? null)
+          : null
+        await addLikedProduct(user.uid, productId, {
+          name: product.name,
+          description: product.description ?? '',
+          imageUrl: product.imageUrl,
+          productUrl: product.productUrl,
+          sourceThreadId: threadId ?? null,
+          sourceThreadTitle: threadTitle,
+        })
+      }
+    } catch (err) {
+      console.error('[useChat] toggleProductLike error:', err)
+    }
+  }, [user, likedProductIds, threads])
 
   // ── Fetch reminders from Firestore ────────────────────────────────────────
   const refetchReminders = useCallback(async () => {
@@ -351,6 +408,11 @@ export function useChat(): UseChatResult {
 
     const controller = new AbortController()
     abortControllerRef.current = controller
+    const requestId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+    activeRequestIdRef.current = requestId
 
     let threadId = activeThreadIdRef.current
 
@@ -465,6 +527,7 @@ export function useChat(): UseChatResult {
           ...(vibeTitle !== undefined ? { vibeTitle } : {}),
           ...(vibeDescriptors !== undefined ? { vibeDescriptors } : {}),
           ...(attachments && attachments.length > 0 ? { attachments } : {}),
+          requestId,
         },
         controller.signal
       )) {
@@ -485,6 +548,14 @@ export function useChat(): UseChatResult {
               m.id === aiMsgId ? { ...m, imageGenerating: true } : m
             ))
           }
+        } else if (event.t === 'p') {
+          // Product recommendations sidecar — attached to the streaming
+          // message. Rendered below the bubble as a card strip.
+          const products = Array.isArray((event as any).products) ? (event as any).products : []
+          const productsHasMore = Boolean((event as any).hasMore)
+          setMessages(prev => prev.map(m =>
+            m.id === aiMsgId ? { ...m, products, productsHasMore } : m
+          ))
         } else if (event.t === 'd') {
           finalMeta = event
           // The `d` event is authoritative — replace the accumulated stream
@@ -496,6 +567,15 @@ export function useChat(): UseChatResult {
             streamedText = event.text
             setMessages(prev => prev.map(m =>
               m.id === aiMsgId ? { ...m, text: streamedText } : m
+            ))
+          }
+          // Products may arrive in the `d` event as a fallback (e.g. for
+          // reconnects via Last-Event-ID that missed the earlier `p` event).
+          const finalProducts = Array.isArray((event as any).products) ? (event as any).products : null
+          if (finalProducts && finalProducts.length > 0) {
+            const finalHasMore = Boolean((event as any).productsHasMore)
+            setMessages(prev => prev.map(m =>
+              m.id === aiMsgId ? { ...m, products: finalProducts, productsHasMore: finalHasMore } : m
             ))
           }
         } else if (event.t === 'e') {
@@ -674,6 +754,12 @@ export function useChat(): UseChatResult {
 
       // Finalize the message with clean text + metadata
       // Use responseLanguage (language the AI replied in) for TTS; fall back to detectedLanguage
+      // Products may have arrived earlier via the 'p' event; finalMeta may also carry them
+      // as a safety net. Prefer whichever is non-empty.
+      const finalProducts = (finalMeta!.products && finalMeta!.products.length > 0)
+        ? finalMeta!.products
+        : (messagesRef.current.find(m => m.id === aiMsgId)?.products ?? [])
+      const finalProductsHasMore = finalMeta!.productsHasMore ?? (messagesRef.current.find(m => m.id === aiMsgId)?.productsHasMore ?? false)
       setMessages(prev => prev.map(m => m.id === aiMsgId ? {
         ...m,
         text: finalMeta!.text || streamedText,
@@ -688,9 +774,11 @@ export function useChat(): UseChatResult {
         language: finalMeta!.responseLanguage || finalMeta!.detectedLanguage || 'en',
         checklistData,
         attachments: aiAttachments.length > 0 ? aiAttachments : undefined,
+        products: finalProducts.length > 0 ? finalProducts : undefined,
+        productsHasMore: finalProducts.length > 0 ? finalProductsHasMore : undefined,
       } : m))
 
-      // Persist assistant message to Firestore (including image URLs)
+      // Persist assistant message to Firestore (including image URLs + products)
       if (user && threadId) {
         await addMessage(threadId, {
           role: 'assistant',
@@ -704,6 +792,7 @@ export function useChat(): UseChatResult {
           liked: false,
           checklistData: checklistData ?? null,
           ...(aiAttachments.length > 0 ? { attachments: aiAttachments } : {}),
+          ...(finalProducts.length > 0 ? { products: finalProducts, productsHasMore: finalProductsHasMore } : {}),
         } as NewMessage)
       }
     } catch (err: any) {
@@ -772,6 +861,7 @@ export function useChat(): UseChatResult {
     } finally {
       setIsTyping(false)
       abortControllerRef.current = null
+      activeRequestIdRef.current = null
     }
   }, [user, profile, refetchReminders, isTyping])
 
@@ -838,8 +928,18 @@ export function useChat(): UseChatResult {
   }, [])
 
   // ── Stop generation ────────────────────────────────────────────────────────
+  // We do two things on Stop:
+  //   1. Abort the fetch so the browser tears down the SSE stream (UI stops).
+  //   2. Fire-and-forget POST /api/chat/cancel with the requestId so the
+  //      backend aborts even when the reverse proxy in front of Node holds
+  //      the upstream socket open and `req.on('close')` never fires. Without
+  //      this, the image pipeline (Azure fetch + Firebase Storage + Firestore
+  //      write) runs to completion and the image still appears in the gallery
+  //      even though the user cancelled.
   const stopGeneration = useCallback(() => {
+    const id = activeRequestIdRef.current
     abortControllerRef.current?.abort()
+    if (id) void cancelChatRequest(id)
   }, [])
 
   // ── Load a thread from Firestore (paginated — latest 30) ──────────────────
@@ -868,6 +968,8 @@ export function useChat(): UseChatResult {
           language: data.language || 'en',
           checklistData: data.checklistData ?? null,
           attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
+          products: data.products && data.products.length > 0 ? data.products : undefined,
+          productsHasMore: data.productsHasMore ?? undefined,
         } as Message))
       )
     } catch (err) {
@@ -899,6 +1001,8 @@ export function useChat(): UseChatResult {
         language: data.language || 'en',
         checklistData: data.checklistData ?? null,
         attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
+        products: data.products && data.products.length > 0 ? data.products : undefined,
+        productsHasMore: data.productsHasMore ?? undefined,
       }))
       setMessages(prev => [...older, ...prev])
     } catch (err) {
@@ -970,6 +1074,9 @@ export function useChat(): UseChatResult {
     activeThreadId,
     isTyping,
     allLikedMessages,
+    likedProducts,
+    likedProductIds,
+    toggleProductLike,
     reminders,
     lastToolActions,
     hasMoreMessages,

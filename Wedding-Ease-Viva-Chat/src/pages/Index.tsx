@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Sparkles, Heart, MessageSquare, Calendar, Lightbulb, Globe,
   Lock, ArrowLeft, CheckSquare,
@@ -63,6 +65,7 @@ const Index = () => {
   const { user, profile, signOut, loading: authLoading } = useAuth();
   const {
     messages, threads, activeThreadId, isTyping, allLikedMessages, reminders, lastToolActions,
+    likedProducts, likedProductIds, toggleProductLike,
     sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
     hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError,
@@ -500,13 +503,23 @@ const Index = () => {
     if (userMsgIdx >= 0) {
       const userMsg = messages[userMsgIdx];
       truncateMessages(userMsgIdx);
-      const skipOpts = guestImageLimitReached ? { skipImageGeneration: true } : {};
+      // Preserve the original turn's mode and language so regeneration lands
+      // in the same mode and replies in the same language. Prefer the
+      // previous AI message's stamped language (what the model actually
+      // produced); fall back to the user's session preference.
+      const preservedMode = m.mode ?? (selectedMode === 'auto' ? undefined : selectedMode);
+      const preservedLanguage = m.language ?? langHint;
+      const baseOpts = {
+        ...(preservedMode ? { mode: preservedMode } : {}),
+        ...(preservedLanguage ? { language: preservedLanguage } : {}),
+        ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
+      };
       if (userMsg.attachedImage) {
         const match = userMsg.attachedImage.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) sendMessage(userMsg.text, { imageBase64: match[2], imageMimeType: match[1], ...skipOpts });
-        else sendMessage(userMsg.text, skipOpts);
+        if (match) sendMessage(userMsg.text, { imageBase64: match[2], imageMimeType: match[1], ...baseOpts });
+        else sendMessage(userMsg.text, baseOpts);
       } else {
-        sendMessage(userMsg.text, skipOpts);
+        sendMessage(userMsg.text, baseOpts);
       }
     }
   };
@@ -1017,7 +1030,8 @@ const Index = () => {
       onShowSignIn={() => setShowSignInModal(true)}
       onShowSignUp={() => setShowSignUpModal(true)}
       onSignOut={signOut}
-      allLikedMessagesCount={allLikedMessages.length}
+      onShowNotifications={() => setSidebarView('reminders')}
+      allLikedMessagesCount={allLikedMessages.length + likedProducts.length}
       calendarEventsCount={reminders.length}
       overdueCount={overdueCount}
       galleryImageCount={galleryImageCount}
@@ -1154,24 +1168,89 @@ const Index = () => {
     );
   }
 
-  // ── Liked messages ────────────────────────────────────────────────────────
+  // ── Liked messages + products ─────────────────────────────────────────────
   if (sidebarView === 'liked') {
-    return mainAreaShell('Liked Messages', <ThumbsUp className="h-5 w-5 text-primary" />,
-      allLikedMessages.length === 0 ? (
+    const isEmpty = allLikedMessages.length === 0 && likedProducts.length === 0;
+    return mainAreaShell('Liked', <ThumbsUp className="h-5 w-5 text-primary" />,
+      isEmpty ? (
         <div className="flex flex-col items-center justify-center py-16 text-foreground/40">
           <ThumbsUp className="h-10 w-10 mb-3 opacity-20" />
-          <p className="text-sm">No liked messages yet.</p>
-          <p className="text-xs mt-1">Click the <ThumbsUp className="inline h-3 w-3 mx-0.5" /> on any AI response.</p>
+          <p className="text-sm">Nothing liked yet.</p>
+          <p className="text-xs mt-1">Tap the heart on a product or <ThumbsUp className="inline h-3 w-3 mx-0.5" /> on any AI response.</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
-            <button key={msg.id} onClick={() => handleLikedMessageClick(msg)} className="text-left rounded-2xl bg-foreground/[0.06] px-4 py-3.5 space-y-2 hover:bg-foreground/[0.1] transition-all duration-150">
-              {msg.mode && <span className="inline-block text-3xs uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
-              <p className="text-sm text-foreground/70 leading-relaxed line-clamp-5">{msg.text}</p>
-              <p className="text-2xs text-foreground/40">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-            </button>
-          ))}
+        <div className="space-y-8">
+          {likedProducts.length > 0 && (
+            <section>
+              <h3 className="text-3xs uppercase tracking-wider text-foreground/40 font-semibold mb-3">
+                Liked Products
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {likedProducts.map((p) => (
+                  <a
+                    key={p.id}
+                    href={p.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-foreground/10 bg-foreground/[0.06] hover:bg-foreground/[0.1] hover:border-primary/40 transition-all duration-150 no-underline"
+                  >
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      className="w-[72px] h-[72px] object-cover rounded-xl flex-shrink-0"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                    />
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <span className="text-sm font-semibold text-primary leading-snug line-clamp-1">{p.name}</span>
+                      {p.description && (
+                        <span className="text-xs text-foreground/60 leading-relaxed line-clamp-2">{p.description}</span>
+                      )}
+                      {p.sourceThreadTitle && (
+                        <span className="text-2xs text-foreground/40 mt-0.5 line-clamp-1">from "{p.sourceThreadTitle}"</span>
+                      )}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+          {allLikedMessages.length > 0 && (
+            <section>
+              <h3 className="text-3xs uppercase tracking-wider text-foreground/40 font-semibold mb-3">
+                Liked Messages
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {allLikedMessages.slice().sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).map((msg) => (
+                  <div
+                    key={msg.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleLikedMessageClick(msg)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleLikedMessageClick(msg); } }}
+                    className="cursor-pointer text-left rounded-2xl bg-foreground/[0.06] px-4 py-3.5 space-y-2 hover:bg-foreground/[0.1] transition-all duration-150"
+                  >
+                    {msg.mode && <span className="inline-block text-3xs uppercase tracking-wider font-semibold text-primary/70 bg-primary/10 rounded-full px-1.5 py-0.5">{msg.mode}</span>}
+                    <div className="relative max-h-40 overflow-hidden">
+                      <div className="prose prose-sm prose-invert max-w-none text-[13px] leading-[1.6] text-foreground/70 prose-headings:text-foreground/80 prose-headings:text-sm prose-headings:font-semibold prose-headings:mt-1 prose-headings:mb-1 prose-strong:text-foreground/85 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-a:text-primary prose-a:no-underline">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            // Block images/links from doing anything inside a preview.
+                            img: () => null,
+                            a: ({ children }: any) => <span className="text-primary font-medium">{children}</span>,
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
+                      </div>
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-foreground/[0.06] to-transparent" />
+                    </div>
+                    <p className="text-2xs text-foreground/40">{msg.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )
     );
@@ -1324,6 +1403,35 @@ const Index = () => {
             onToneModifier={handleToneModifier}
             onConvertToTable={handleConvertToTable}
             onSaveProduct={handleSaveProduct}
+            likedProductIds={likedProductIds}
+            onToggleProductLike={(product) => {
+              const productId = product.uid || `${product.name}-${product.productUrl}`.toLowerCase().replace(/\s+/g, '-');
+              track('product_like_toggled', { product_id: productId, liked: !likedProductIds.has(productId) });
+              void toggleProductLike(product);
+            }}
+            onShareProduct={async (productTitle) => {
+              if (!activeThreadId) return;
+              try {
+                const shareId = await createSharedChat(activeThreadId, productTitle || 'Recommended product');
+                const shareUrl = `${window.location.origin}/share/${shareId}`;
+                setShareModalUrl(shareUrl);
+                setShareModalTitle(productTitle || 'Recommended product');
+                setShareModalThreadId(activeThreadId);
+                setShareLinkCopied(false);
+                track('product_shared_link_created', { thread_id: activeThreadId });
+              } catch (err) {
+                console.error('[share:product] error:', err);
+              }
+            }}
+            onRequestMoreProducts={() => {
+              if (!checkAndBumpGuestCount()) return;
+              const mode = selectedMode === 'auto' ? undefined : selectedMode;
+              sendMessage('show more', {
+                mode,
+                language: langHint,
+                ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
+              });
+            }}
             onOpenPlanner={(checklistId) => { navigate(`/${activeUserId}/planner/${checklistId}`); setSelectedChecklistId(checklistId); }}
             onShowSignIn={() => setShowSignInModal(true)}
             onDeleteImage={deleteMessageImage}

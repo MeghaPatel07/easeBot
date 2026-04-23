@@ -185,7 +185,12 @@
       "Bash(git -C /Users/krish/Desktop/easebot log --all -p -- \"Wedding-Ease-Viva-Chat/src/pages/Pricing.tsx\")",
       "Bash(sips -g pixelWidth -g pixelHeight /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/easebot.png)",
       "Bash(sips -Z 300 /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/images/easebot.png --out /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/images/easebot.png)",
-      "Bash(sips -g pixelWidth -g pixelHeight /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/images/easebot.png)"
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/public/images/easebot.png)",
+      "Bash(grep -n \"allLikedMessages,\\\\s*$\\\\|return {\" /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/hooks/useChat.ts)",
+      "Bash(awk 'NR>=1079 && NR<=1110 {print NR\": \"$0} /^export async function handleChatStream/,/^export /' /Users/krish/Desktop/easebot/easebot-backend/src/controllers/chatController.ts)",
+      "Bash(awk 'NR>=1600 && NR<=1720' /Users/krish/Desktop/easebot/easebot-backend/src/controllers/chatController.ts)",
+      "Bash(git log *)",
+      "Bash(sips -g all \"/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/IMG_0721.png\")"
     ]
   }
 }

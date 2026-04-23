@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore } from 'firebase/firestore'
 import { getFunctions } from 'firebase/functions'
 import { getStorage } from 'firebase/storage'
 
@@ -16,7 +16,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+// `ignoreUndefinedProperties: true` so writes don't throw when a document
+// carries an undefined field (e.g. older messages without `mode`, or a
+// product with an unset optional field). Without this flag addDoc / setDoc
+// fails on any undefined, which has broken the chat-share flow before.
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true })
 export const functions = getFunctions(app)
 export const storage = getStorage(app)
 

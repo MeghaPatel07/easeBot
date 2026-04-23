@@ -45,6 +45,9 @@ export interface ChatPayload {
   // Structured context the user explicitly attached to this message (e.g.
   // "Attach to chat" on a saved note). Validated per-item in the controller.
   attachments?: _ChatAttachment[]
+  // Client-generated id used to explicitly cancel this request via
+  // POST /chat/cancel when the user clicks Stop. See cancellationRegistry.
+  requestId?: string
 }
 
 export interface ToolAction {
@@ -91,6 +94,16 @@ export interface ToolErrorInfo {
   userFacing?: string
 }
 
+export interface ChatProductCard {
+  uid: string
+  name: string
+  description: string
+  imageUrl: string
+  productUrl: string
+  price?: number
+  currency?: string
+}
+
 export interface ChatResponse {
   text: string
   audioUrl: string | null
@@ -104,6 +117,10 @@ export interface ChatResponse {
   imageQuota?: ImageQuotaStatus
   styleMemory?: StyleMemory
   toolErrors?: ToolErrorInfo[]
+  /** Recommended products sidecar — rendered below the message bubble. */
+  products?: ChatProductCard[]
+  /** Whether more products are available on a follow-up "show more" turn. */
+  productsHasMore?: boolean
 }
 
 export interface HistoryMessage {

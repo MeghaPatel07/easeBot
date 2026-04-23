@@ -63,6 +63,7 @@ export interface ChatSidebarProps {
   onShowSignIn: () => void;
   onShowSignUp: () => void;
   onSignOut: () => void;
+  onShowNotifications?: () => void;
   // Data for badges
   allLikedMessagesCount: number;
   calendarEventsCount: number;
@@ -99,6 +100,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onNewChat, onLoadChat, onDeleteThread, onRenameThread, onPinThread,
   onArchiveThread, onShareThread, onUpdateThreadTags,
   onShowShortcuts, onShowSettings, onShowSignIn, onShowSignUp, onSignOut,
+  onShowNotifications,
   allLikedMessagesCount, calendarEventsCount, overdueCount, galleryImageCount,
   searchQuery, onSearchQueryChange,
 }) => {
@@ -519,6 +521,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                     onShowSignUp={onShowSignUp}
                     onSignOut={onSignOut}
                     onShowShortcuts={onShowShortcuts}
+                    onShowNotifications={onShowNotifications}
                   />
                 </DropdownMenuContent>
               </DropdownMenu>
