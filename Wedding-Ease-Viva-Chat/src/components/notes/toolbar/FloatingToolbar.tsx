@@ -75,7 +75,7 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
+      className={`h-7 w-7 flex-shrink-0 rounded flex items-center justify-center transition-colors ${
         isActive
           ? "bg-primary/20 text-primary"
           : "text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text"
@@ -124,7 +124,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       options={{
         placement: "top",
       }}
-      className="bg-overlay-scrim/80 backdrop-blur-md border border-overlay-border/10 rounded-lg shadow-xl p-1 flex items-center gap-0.5"
+      className="bg-overlay-scrim/80 backdrop-blur-md border border-overlay-border/10 rounded-lg shadow-xl p-1 flex flex-nowrap items-center gap-0.5 max-w-[calc(100vw-1rem)] overflow-x-auto scrollbar-hide"
     >
       <ToolbarButton
         onClick={() => {
@@ -181,7 +181,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
         <Code className="h-3.5 w-3.5" />
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-overlay-surface/10 mx-0.5" />
+      <div className="w-px h-5 flex-shrink-0 bg-overlay-surface/10 mx-0.5" />
 
       {/* Highlight color picker */}
       <Popover>
@@ -189,7 +189,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
           <button
             type="button"
             title="Highlight"
-            className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
+            className={`h-7 w-7 flex-shrink-0 rounded flex items-center justify-center transition-colors ${
               editor.isActive("highlight")
                 ? "bg-primary/20 text-primary"
                 : "text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text"
@@ -241,7 +241,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
           <button
             type="button"
             title="Text color"
-            className="h-7 w-7 rounded flex items-center justify-center text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text transition-colors"
+            className="h-7 w-7 flex-shrink-0 rounded flex items-center justify-center text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text transition-colors"
           >
             <Palette className="h-3.5 w-3.5" />
           </button>
@@ -278,7 +278,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
       {/* Font size control — Google-Docs-style numeric stepper + preset dropdown */}
       <FontSizeControl editor={editor} variant="overlay" />
 
-      <div className="w-px h-5 bg-overlay-surface/10 mx-0.5" />
+      <div className="w-px h-5 flex-shrink-0 bg-overlay-surface/10 mx-0.5" />
 
       {/* Link */}
       <Popover open={linkOpen} onOpenChange={setLinkOpen}>
@@ -291,7 +291,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
               setLinkUrl(existingHref);
               setLinkOpen(true);
             }}
-            className={`h-7 w-7 rounded flex items-center justify-center transition-colors ${
+            className={`h-7 w-7 flex-shrink-0 rounded flex items-center justify-center transition-colors ${
               editor.isActive("link")
                 ? "bg-primary/20 text-primary"
                 : "text-overlay-text/70 hover:bg-overlay-surface/10 hover:text-overlay-text"
@@ -348,7 +348,7 @@ export default function FloatingToolbar({ editor }: FloatingToolbarProps) {
         </PopoverContent>
       </Popover>
 
-      <div className="w-px h-5 bg-overlay-surface/10 mx-0.5" />
+      <div className="w-px h-5 flex-shrink-0 bg-overlay-surface/10 mx-0.5" />
 
       {/* Headings */}
       <ToolbarButton

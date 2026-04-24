@@ -199,6 +199,16 @@ export interface ChatThread {
   activeMode: Mode
 }
 
+export interface ChatProductCard {
+  uid: string
+  name: string
+  description: string
+  imageUrl: string
+  productUrl: string
+  price?: number
+  currency?: string
+}
+
 export interface ChatMessage {
   id: string
   role: MessageRole
@@ -218,6 +228,9 @@ export interface ChatMessage {
   // send. Stored as a display snapshot — click-through resolves against live
   // collections at render time; missing IDs render as "Deleted artifact".
   attachments?: MessageAttachment[]
+  // Recommended products sidecar — rendered as a card strip below the bubble.
+  products?: ChatProductCard[]
+  productsHasMore?: boolean
 }
 
 export interface Product {
@@ -264,6 +277,14 @@ export interface ChatFunctionPayload {
     preview?: string
     payload: unknown
   }>
+  /**
+   * Client-generated id for this turn. Sent so the frontend can explicitly
+   * cancel the in-flight request via POST /api/chat/cancel when the user
+   * clicks Stop — needed because production proxies often swallow the
+   * client-side TCP abort, leaving the backend unable to detect disconnects
+   * via `req.on('close')`.
+   */
+  requestId?: string
 }
 
 export interface CalendarEvent {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  PanelLeft, SquarePen, Globe, Bell,
+  PanelLeft, SquarePen, Globe,
   User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import {
 import type { UserProfile } from '@/types';
 import { MODE_CONFIG, SUPPORTED_LANGUAGES, type ModeOrAuto } from './constants';
 import ThemeToggle from '@/components/ui/theme-toggle';
+import weddingEaseLogo from '@/assets/images/Wedding ease.png';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -206,11 +207,22 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </DropdownMenu>
         </div>
         <ThemeToggle size="sm" />
-        {user && (
-          <button className="inline-flex items-center justify-center h-10 w-10 sm:h-auto sm:w-auto sm:p-1.5 text-foreground/60 hover:text-primary transition-colors" onClick={onShowReminders}>
-            <Bell className="h-4 w-4" />
-          </button>
-        )}
+        {/* Mobile-only: header logo. Desktop shows the bottom-right floater instead. */}
+        <a
+          href="https://weddingease.ai"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open WeddingEase in a new tab"
+          title="Visit WeddingEase"
+          className="sm:hidden inline-flex items-center justify-center h-8 w-8 rounded-full hover:bg-foreground/10 transition-all duration-200 hover:scale-105 active:scale-95"
+        >
+          <img
+            src={weddingEaseLogo}
+            alt=""
+            className="h-6 w-6 object-contain"
+            draggable={false}
+          />
+        </a>
         {/* Profile icon intentionally removed — PM decision: single profile
             entry point in the sidebar (ProfileMenu, bottom-left) to match
             ChatGPT/Claude UX. Sidebar ProfileMenu wires Settings + sign-in. */}

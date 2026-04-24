@@ -28,6 +28,8 @@ const MODE_PATTERNS: Array<{ mode: Mode; patterns: RegExp[] }> = [
     mode: 'stylist',
     patterns: [
       /\b(dress|gown|suit|tux|tuxedo|veil|flowers|floral|bouquet|centerpiece|décor|decor|color|colour|palette|aesthetic|theme|style|mood.?board|inspiration|look|vibe|bohemian|rustic|modern|romantic|vintage|glamour|bridesmaid|groomsmen|attire|outfit|fashion)\b/i,
+      // Indian/wedding-specific attire, jewellery, and décor nouns.
+      /\b(lehenga|saree|sari|sharara|anarkali|gharara|ghagra|sherwani|kurta|kurti|achkan|nehru jacket|indo[- ]?western|blouse|dupatta|stole|mangalsutra|necklace|earring|earrings|jhumka|jhumkas|maang ?tikka|tikka|bangle|bangles|bracelet|chooda|kaleere|nath|ring|mandap|garland|marigold|clutch|purse|potli|heels|footwear|juttis?|mojaris?)\b/i,
     ],
   },
   {

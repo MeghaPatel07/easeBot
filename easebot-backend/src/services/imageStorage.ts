@@ -2,7 +2,7 @@
  * Image storage service — uploads generated images to Firebase Storage
  * and saves metadata to Firestore `userImages` collection.
  */
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { collection, doc, setDoc, getDocs, query, where, orderBy, limit as fsLimit, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import type { Mode } from '../types'
@@ -76,22 +76,38 @@ export function categorizeFromPrompt(prompt: string): ImageCategory {
 
 // ── Storage Operations ──────────────────────────────────────────────────────────
 
+class CancelledError extends Error {
+  constructor() {
+    super('cancelled')
+    this.name = 'CancelledError'
+  }
+}
+
 /**
  * Upload a single generated image to Firebase Storage and save metadata.
  * @param base64 Raw base64 string (no data URI prefix)
  * @param userId Firebase Auth UID
  * @param metadata Image metadata
+ * @param signal Optional AbortSignal. If aborted before upload starts or before
+ *   the Firestore write, the operation short-circuits and no artifacts remain.
+ *   Firebase's JS SDK does not expose cancellation for `uploadBytes`, so an
+ *   abort that arrives mid-upload cannot interrupt the Storage write itself —
+ *   but the post-upload Firestore write is still skipped, and we attempt to
+ *   delete the just-uploaded object so the gallery never sees it.
  * @returns CDN URL and Firestore document ID
  */
 export async function storeGeneratedImage(
   base64: string,
   userId: string,
-  metadata: StoreImageMetadata
+  metadata: StoreImageMetadata,
+  signal?: AbortSignal,
 ): Promise<{ url: string; imageId: string }> {
   const imageId = crypto.randomUUID()
   const filename = `generated/${userId}/${Date.now()}-${imageId}.jpg`
 
   try {
+    if (signal?.aborted) throw new CancelledError()
+
     const storage = getStorage()
     const storageRef = ref(storage, filename)
     const buffer = Buffer.from(base64, 'base64')
@@ -104,6 +120,19 @@ export async function storeGeneratedImage(
         threadId: metadata.threadId || '',
       },
     })
+
+    // Upload is not cancellable mid-flight. If the user aborted while the
+    // upload was in flight, tear down the just-written object and bail before
+    // we write the Firestore metadata row (which is what actually makes the
+    // image appear in the gallery).
+    if (signal?.aborted) {
+      try {
+        await deleteObject(storageRef)
+      } catch (cleanupErr) {
+        console.warn('[imageStorage] post-abort storage cleanup failed (swallowed):', cleanupErr)
+      }
+      throw new CancelledError()
+    }
 
     const url = await getDownloadURL(storageRef)
 
@@ -130,6 +159,7 @@ export async function storeGeneratedImage(
 
     return { url, imageId }
   } catch (err) {
+    if (err instanceof CancelledError) throw err
     console.error('[imageStorage] storeGeneratedImage error:', err)
     throw err
   }
@@ -140,17 +170,22 @@ export async function storeGeneratedImage(
  * @param base64Array Array of raw base64 strings
  * @param userId Firebase Auth UID
  * @param metadata Shared metadata for all images
+ * @param signal Optional AbortSignal — see storeGeneratedImage.
  * @returns Array of CDN URLs and Firestore document IDs
  */
 export async function storeMultipleImages(
   base64Array: string[],
   userId: string,
-  metadata: StoreImageMetadata
+  metadata: StoreImageMetadata,
+  signal?: AbortSignal,
 ): Promise<{ url: string; imageId: string }[]> {
+  if (signal?.aborted) throw new CancelledError()
   return Promise.all(
-    base64Array.map(b64 => storeGeneratedImage(b64, userId, metadata))
+    base64Array.map(b64 => storeGeneratedImage(b64, userId, metadata, signal))
   )
 }
+
+export { CancelledError }
 
 // ── Query Operations ────────────────────────────────────────────────────────────
 

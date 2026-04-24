@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -6,6 +6,8 @@ import { getSharedChat, type SharedChatData } from '@/services/chatService'
 import { Loader2, ArrowLeft, MessageSquare } from 'lucide-react'
 import { track } from '@/lib/analytics'
 import { useAuth } from '@/contexts/AuthContext'
+
+const BAD_IMG_HOSTS = ['cdn.openai.com', 'example.com', 'placeholder.com', 'placehold.it']
 
 export default function SharedChat() {
   const { shareId } = useParams<{ shareId: string }>()
@@ -21,16 +23,11 @@ export default function SharedChat() {
         if (!result) setError('This shared conversation has expired or does not exist.')
         else {
           setData(result)
-          // Fire once per successful load of a shared-thread page.
-          // `shareId` stands in for the thread identifier from the viewer's
-          // POV (the underlying thread_id is a private relation on the doc).
           track('shared_thread_viewed', { thread_id: shareId, is_authenticated: !!user })
         }
       })
       .catch(() => setError('Failed to load shared conversation.'))
       .finally(() => setLoading(false))
-    // Intentionally only depends on shareId — we want one fire per page load,
-    // not a re-fire when auth state resolves slightly later.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shareId])
 
@@ -74,31 +71,151 @@ export default function SharedChat() {
 
       {/* Messages */}
       <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
-        {data.messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'user' ? (
-              <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-secondary-foreground shadow-sm">
-                <p className="text-caption leading-relaxed">{msg.content}</p>
-              </div>
-            ) : (
-              <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg">
-                <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-foreground/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-glass text-foreground/90">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}
-                    components={{
-                      a: ({ href, children }) => (
-                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors">
-                          {children}
-                        </a>
-                      ),
-                    }}
-                  >
-                    {msg.content}
-                  </ReactMarkdown>
+        {data.messages.map((msg, i) => {
+          const carouselUrls = (msg.imageUrls && msg.imageUrls.length > 0)
+            ? msg.imageUrls
+            : (msg.imageUrl ? [msg.imageUrl] : [])
+          return (
+            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {msg.role === 'user' ? (
+                <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-secondary-foreground shadow-sm">
+                  <p className="text-caption leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 </div>
-              </div>
-            )}
-          </div>
-        ))}
+              ) : (
+                <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg w-full">
+                  {msg.mode && (
+                    <span className="inline-block mb-1.5 text-3xs uppercase tracking-wider font-semibold text-primary/80 bg-primary/10 rounded-full px-2 py-0.5">
+                      {msg.mode}
+                    </span>
+                  )}
+                  <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-foreground/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-glass text-foreground/90 prose-headings:text-foreground/90 prose-strong:text-foreground/95 prose-li:text-foreground/85 prose-p:text-foreground/85 prose-a:text-primary prose-a:no-underline prose-img:my-1">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        a: ({ href, children }) => (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors">
+                            {children}
+                          </a>
+                        ),
+                        img: ({ src, alt }: any) => {
+                          if (typeof src === 'string' && BAD_IMG_HOSTS.some(h => src.includes(h))) {
+                            return null
+                          }
+                          // Skip inline images that are already rendered by the
+                          // generated-image carousel below.
+                          if (typeof src === 'string' && carouselUrls.includes(src)) {
+                            return null
+                          }
+                          return (
+                            <img
+                              src={src}
+                              alt={alt ?? ''}
+                              className="max-w-full w-[120px] sm:w-[200px] h-auto sm:h-[200px] object-cover rounded-xl shadow-sm flex-shrink-0"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                            />
+                          )
+                        },
+                        // Old-style inline product lines: `![Name](img) [Name](url)|desc`.
+                        // Render as a card when the <li> contains both an img and an anchor.
+                        li: ({ children }: any) => {
+                          const flat = (nodes: React.ReactNode): React.ReactNode[] =>
+                            React.Children.toArray(nodes).flatMap(n =>
+                              React.isValidElement(n) && (n.type === 'p' || n.type === 'span')
+                                ? flat((n.props as { children?: React.ReactNode }).children)
+                                : [n]
+                            )
+                          const kids = flat(children)
+                          const imgNode = kids.find(n => React.isValidElement(n) && 'src' in (n.props as object)) as React.ReactElement<{ src: string; alt?: string }> | undefined
+                          const anchorNode = kids.find(n => React.isValidElement(n) && 'href' in (n.props as object)) as React.ReactElement<{ href: string; children: React.ReactNode }> | undefined
+                          if (imgNode && anchorNode) {
+                            const textNodes = kids.filter(n => typeof n === 'string') as string[]
+                            const rawMeta = textNodes.join('').replace(/^\|/, '')
+                            const description = rawMeta.split('|').slice(1).join('|').trim()
+                            const href = anchorNode.props.href ?? '#'
+                            const title = anchorNode.props.children
+                            const imageUrl = imgNode.props.src
+                            return (
+                              <li className="list-none mb-3 not-prose">
+                                <a
+                                  href={href}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-foreground/10 bg-foreground/[0.04] backdrop-blur-md shadow-glass hover:bg-foreground/[0.06] hover:border-primary/40 transition-all duration-200 no-underline"
+                                >
+                                  <img
+                                    src={imageUrl}
+                                    alt={typeof title === 'string' ? title : ''}
+                                    className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0"
+                                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                                  />
+                                  <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                    <span className="text-sm font-semibold text-primary leading-snug line-clamp-1">{title}</span>
+                                    {description && <span className="text-xs text-foreground/60 leading-relaxed line-clamp-2">{description}</span>}
+                                  </div>
+                                </a>
+                              </li>
+                            )
+                          }
+                          return <li>{children}</li>
+                        },
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+
+                  {/* Generated images (carousel simplified to a vertical strip for share view) */}
+                  {carouselUrls.length > 0 && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {carouselUrls.map((url, idx) => (
+                        <img
+                          key={`${idx}-${url}`}
+                          src={url}
+                          alt=""
+                          className="w-full h-auto object-cover rounded-xl shadow-sm"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Recommended products sidecar (read-only) */}
+                  {msg.products && msg.products.length > 0 && (
+                    <div className="mt-3">
+                      <span className="text-3xs uppercase tracking-wider text-foreground/40 font-semibold">
+                        Recommended from WeddingEase
+                      </span>
+                      <div className="mt-1.5 flex flex-col gap-2">
+                        {msg.products.map((p) => (
+                          <a
+                            key={p.uid}
+                            href={p.productUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex flex-row gap-3 items-start p-3 rounded-2xl border border-foreground/10 bg-foreground/[0.04] backdrop-blur-md shadow-glass hover:bg-foreground/[0.06] hover:border-primary/40 transition-all duration-200 no-underline"
+                          >
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="w-[80px] h-[80px] object-cover rounded-xl flex-shrink-0"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                            />
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                              <span className="text-sm font-semibold text-primary leading-snug line-clamp-1">{p.name}</span>
+                              {p.description && (
+                                <span className="text-xs text-foreground/60 leading-relaxed line-clamp-2">{p.description}</span>
+                              )}
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Footer */}

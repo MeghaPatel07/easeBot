@@ -30,6 +30,7 @@ import {
   Keyboard,
   LifeBuoy,
   ExternalLink,
+  Bell,
 } from 'lucide-react'
 
 import {
@@ -62,6 +63,8 @@ export interface ProfileMenuProps {
   onShowHelp?: () => void
   /** Open keyboard shortcuts dialog */
   onShowShortcuts?: () => void
+  /** Open the reminders / notifications panel. */
+  onShowNotifications?: () => void
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,6 +102,7 @@ export function ProfileMenu({
   onSignOut,
   onShowHelp,
   onShowShortcuts,
+  onShowNotifications,
 }: ProfileMenuProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -198,6 +202,15 @@ export function ProfileMenu({
         <SettingsIcon className="mr-2 h-4 w-4" />
         <span>Settings</span>
       </DropdownMenuItem>
+      {onShowNotifications && (
+        <DropdownMenuItem
+          className="cursor-pointer min-h-11"
+          onClick={onShowNotifications}
+        >
+          <Bell className="mr-2 h-4 w-4" />
+          <span>Notifications</span>
+        </DropdownMenuItem>
+      )}
       <DropdownMenuItem
         className="cursor-pointer min-h-11"
         onClick={() => openSettings('plan-billing')}

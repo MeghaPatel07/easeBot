@@ -11,8 +11,10 @@ import { IMAGE_TOOL, generateImageGptImage1, editImageGptImage1, extractStyleDes
 import { expandWithPromptArchitect, type PromptArchitectOutput } from '../services/promptArchitect'
 import { postProcessImage } from '../services/imagePostProcessor'
 import { storeMultipleImages } from '../services/imageStorage'
+import { register as registerCancellation, unregister as unregisterCancellation } from '../services/cancellationRegistry'
 import { getTier as meterGetTier } from '../services/tokenMeter'
-import { getRelevantProductsViaAlgolia, formatProductsContext } from '../services/algoliaProducts'
+import { maybeRecommendProducts } from '../services/productRecommender'
+import type { ProductResult } from '../services/products'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
 import { getStylistPrompt } from '../prompts/stylist'
@@ -127,7 +129,49 @@ interface UserProfileContext {
 // Keywords that clearly indicate the user wants an image output. Deliberately
 // broad — we only use this check alongside the "user uploaded a photo" gate, so
 // false positives are inert (no photo → no forced tool call).
-const IMAGE_INTENT_RE = /\b(draw|render|generate\s+(?:an?\s+)?(?:image|picture|photo)|visualize|illustrate|mood\s?board|picture\s+of|image\s+of)\b/i
+const IMAGE_INTENT_RE = /\b(draw|render|visualize|illustrate|mood\s?board|(?:picture|image|photo)\s+(?:of|for)|(?:generate|create|make|design|produce)\b[^.?!\n]{0,40}?\b(?:image|picture|photo|mood\s?board|visual))\b/i
+
+// Stricter gate used to *remove* IMAGE_TOOL from the LLM's toolset when the
+// user clearly isn't asking for a visual. This is the authoritative check for
+// "should the model even be able to call generate_image on this turn" —
+// instruction-based gating in the prompt alone is not reliable.
+// Matches explicit visual-output asks: "draw", "render", "visualize",
+// "illustrate", "mood board", "picture/image/photo of|for X", "generate/create/
+// make/design/produce ... image/picture/photo/visual", "show me a picture/
+// image/photo". The short {0,40} window lets a pronoun or descriptor sit
+// between the verb and the noun — "generate me image", "create us a beach
+// picture", "make a modern wedding visual" — which a strict adjacency check
+// would miss and (until fixed) was stripping the image tool in those cases.
+// Stays non-greedy and sentence-local so it still does NOT match "show me
+// ideas", "show me styles", "inspire me", "give me ideas", "suggest looks".
+const WANTS_IMAGE_RE = /\b(draw|render|visualize|illustrate|mood\s?board|(?:picture|image|photo)\s+(?:of|for)|(?:generate|create|make|design|produce)\b[^.?!\n]{0,40}?\b(?:image|picture|photo|mood\s?board|visual)|show\s+me\s+(?:an?\s+|the\s+)?(?:picture|image|photo))\b/i
+
+function userWantsImageOutput(userMessage: string): boolean {
+  return WANTS_IMAGE_RE.test(userMessage || '')
+}
+
+// Hard gate for write-producing tools (notes, reminders, checklists, timeline
+// events). When the user has NOT explicitly asked to save/remind/list/schedule
+// anything, strip these tools so the LLM can't "be helpful" by quietly
+// creating artifacts in assistant/stylist/knowledge modes. Planner mode is
+// exempt because it's the mode explicitly for these actions.
+// Matches: "save this", "note this", "remember this", "write it down",
+// "add to my notes", "create a note", "checklist", "todo", "make a list",
+// "remind me", "set a reminder", "schedule", "add to timeline / calendar",
+// "book this", "add it to my planner".
+const WRITE_INTENT_RE = /\b(save|saving|remember|note\s+(?:this|that|it|down)|write\s+(?:this|that|it)\s+down|add\s+to\s+(?:my\s+)?(?:notes?|planner|timeline|calendar|checklist|list)|create\s+(?:a\s+|an\s+)?(?:note|checklist|reminder|list|event|timeline)|make\s+(?:a\s+|an\s+)?(?:note|checklist|list|reminder|event)|checklist|to.?do\s+list|task\s+list|remind\s+me|reminder|notify\s+me|schedule|book\s+(?:this|that|it|an?\s+appointment)|mark\s+as\s+done|mark\s+it\s+done|tick\s+off)\b/i
+
+const WRITE_TOOL_NAMES = new Set<string>([
+  'create_note',
+  'append_to_note',
+  'create_checklist',
+  'create_reminder',
+  'create_timeline_event',
+])
+
+function userWantsWriteAction(userMessage: string): boolean {
+  return WRITE_INTENT_RE.test(userMessage || '')
+}
 
 // Patterns in the chat LLM's text response that identify a refusal. When any of
 // these match and the user attached a photo, we override the refusal.
@@ -294,42 +338,17 @@ interface SystemPromptResult {
   algoliaQueried: boolean
 }
 
-// Detect if the user is explicitly asking for product/shopping recommendations.
-// General inspiration, idea, or advice requests should NOT trigger product injection.
-const PRODUCT_INTENT_RE = /\b(show me products?|recommend\s+(?:a |some )?products?|product\s+(?:ideas?|suggestions?|recommendations?)|shop(?:ping)?|buy|purchase|where (?:can i|to) (?:buy|get|find)|suggest\s+(?:a |some )?(?:bags?|clutch|purse|lehenga|dress|gown|saree|ring|jewelry|necklace|earring|outfit|sherwani|kurta))\b/i
-
-function hasProductIntent(userMessage: string): boolean {
-  return PRODUCT_INTENT_RE.test(userMessage)
-}
-
 async function buildSystemPrompt(
   mode: Mode,
-  userMessage: string,
+  _userMessage: string,
   userRole?: string | null,
   personalization?: UserPersonalization,
   userProfile?: UserProfileContext | null,
+  _threadId?: string,
 ): Promise<SystemPromptResult> {
   const userContext = buildUserContextSuffix(userProfile)
 
   if (mode === 'stylist') {
-    // Only fetch products when user explicitly asks for product recommendations.
-    // General "give me ideas" or "inspire me" messages should get creative
-    // styling advice, not a product catalogue listing.
-    if (hasProductIntent(userMessage)) {
-      try {
-        const products = await getRelevantProductsViaAlgolia(userMessage)
-        const context = formatProductsContext(products)
-        return {
-          prompt: getStylistPrompt(context) + buildPersonalizationSuffix(personalization) + userContext,
-          algoliaQueried: true,
-        }
-      } catch {
-        return {
-          prompt: getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext,
-          algoliaQueried: false,
-        }
-      }
-    }
     return {
       prompt: getStylistPrompt() + buildPersonalizationSuffix(personalization) + userContext,
       algoliaQueried: false,
@@ -496,6 +515,20 @@ async function handleImageToolCall(
   // Track which size was actually used for storage metadata
   const imgSize = llmChosenSize // Overridden above for edit paths via sourceSize
 
+  const cancelledResult: ImageToolResult = {
+    result: 'Image generation was cancelled.',
+    action: { tool: 'generate_image', imagePrompt: finalPrompt },
+    imageUrls: [],
+    styleDescriptors: [],
+  }
+
+  // Early abort check: if the user stopped generation while Azure was
+  // producing the image, skip post-processing + storage + token charge.
+  if (opts.signal?.aborted) {
+    console.log('[chatController] Client disconnected before post-process, skipping')
+    return cancelledResult
+  }
+
   // ── Stage 6: Post-Processing ──────────────────────────────────────────────
   if (base64Images.length > 0) {
     base64Images = await Promise.all(
@@ -515,31 +548,44 @@ async function handleImageToolCall(
     }
   }
 
-  // If client disconnected during generation, skip storage
+  // If client disconnected during generation or post-processing, skip storage
+  // AND skip the token charge below. The earlier check catches the common case
+  // (abort during the Azure fetch); this one catches abort during post-process.
   if (opts.signal?.aborted) {
     console.log('[chatController] Client disconnected, skipping image storage')
-    return {
-      result: 'Image generation was cancelled.',
-      action: { tool: 'generate_image', imagePrompt: finalPrompt },
-      imageUrls: [],
-      styleDescriptors: [],
-    }
+    return cancelledResult
   }
 
   // Store images (for logged-in users)
   let imageUrls: string[] = []
   if (opts.isLoggedIn && opts.uid) {
-    const stored = await storeMultipleImages(base64Images, opts.uid, {
-      prompt: imgPrompt,
-      enhancedPrompt: imgPrompt,
-      mode: opts.mode,
-      threadId: opts.threadId || null,
-      aspectRatio: imgSize,
-      type: imgAction === 'edit' ? 'edited' : 'generated',
-      vibeId: buildVibeId(opts.vibeTitle),
-      vibeDescriptors: opts.vibeDescriptors && opts.vibeDescriptors.length > 0 ? opts.vibeDescriptors : null,
-    })
+    let stored: Awaited<ReturnType<typeof storeMultipleImages>>
+    try {
+      stored = await storeMultipleImages(base64Images, opts.uid, {
+        prompt: imgPrompt,
+        enhancedPrompt: imgPrompt,
+        mode: opts.mode,
+        threadId: opts.threadId || null,
+        aspectRatio: imgSize,
+        type: imgAction === 'edit' ? 'edited' : 'generated',
+        vibeId: buildVibeId(opts.vibeTitle),
+        vibeDescriptors: opts.vibeDescriptors && opts.vibeDescriptors.length > 0 ? opts.vibeDescriptors : null,
+      }, opts.signal)
+    } catch (err) {
+      if ((err as Error)?.name === 'CancelledError') {
+        console.log('[chatController] Image storage cancelled mid-upload, skipping token charge')
+        return cancelledResult
+      }
+      throw err
+    }
     imageUrls = stored.map(s => s.url)
+    // Final guard: do not bill tokens for an image the user never saw. An
+    // abort between the successful storage return and this check is rare, but
+    // costs the user tokens they shouldn't pay for if it happens.
+    if (opts.signal?.aborted) {
+      console.log('[chatController] Aborted after storage, skipping token charge')
+      return cancelledResult
+    }
     try {
       const tier = await meterGetTier(opts.uid)
       await chargeTokens(
@@ -647,6 +693,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       userRole,
       userPersonalization,
       userProfile,
+      threadId,
     )
     const systemPrompt =
       baseSystemPrompt +
@@ -677,8 +724,33 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // Resolve mode-specific temperature
     const temperature = MODE_TEMPERATURES[mode] ?? 0.7
 
+    // Kick off product recommender in parallel with the LLM call so Algolia
+    // latency overlaps with model inference instead of adding to it.
+    const userTurnNumber = history.filter(m => m.role === 'user').length + 1
+    const previousAssistantText = (() => {
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].role === 'assistant') return history[i].content
+      }
+      return undefined
+    })()
+    const previousUserText = (() => {
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].role === 'user') return history[i].content
+      }
+      return undefined
+    })()
+    const productsPromise = maybeRecommendProducts({
+      userMessage: englishText,
+      mode,
+      requestedMode,
+      turnNumber: userTurnNumber,
+      threadId,
+      previousAssistantText,
+      previousUserText,
+    })
+
     // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
-    const tools: ChatCompletionTool[] = getToolsForMode(mode, isLoggedIn)
+    let tools: ChatCompletionTool[] = getToolsForMode(mode, isLoggedIn)
     // Guest users still get IMAGE_TOOL for image requests (mode-agnostic).
     if (!isLoggedIn && !tools.some(t => t.type === 'function' && t.function.name === 'generate_image')) {
       tools.push(IMAGE_TOOL)
@@ -691,6 +763,25 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
     // P0-3: count actual vision image parts so we charge what we sent.
     const visionImageCount = visionData ? 1 : 0
+
+    // Hard gate: strip generate_image from the toolset when the user clearly
+    // isn't asking for a visual. Prompt-level gating alone is unreliable —
+    // GPT-4o will happily call the tool on "show me some ideas" even when
+    // the prompt says not to. Keep it when: photo attached (vision edit),
+    // Images Hub explicit force, or the message matches WANTS_IMAGE_RE.
+    const imageAllowed = Boolean(visionData) || forceImageGeneration === true || userWantsImageOutput(englishText)
+    if (!imageAllowed) {
+      tools = tools.filter(t => !(t.type === 'function' && t.function.name === 'generate_image'))
+    }
+
+    // Hard gate: strip write tools (create_note / create_checklist / create_reminder
+    // / create_timeline_event / append_to_note) unless the user is explicitly
+    // in planner mode OR the message carries a clear save/remind/schedule verb.
+    // Prevents "let me save this for you" hallucinations on styling queries.
+    const writeToolsAllowed = requestedMode === 'planner' || mode === 'planner' || userWantsWriteAction(englishText)
+    if (!writeToolsAllowed) {
+      tools = tools.filter(t => !(t.type === 'function' && WRITE_TOOL_NAMES.has(t.function.name)))
+    }
 
     // Prepend the structured attachments block to the user message so the LLM
     // receives note/checklist/timeline/file context as user-provided content
@@ -962,6 +1053,21 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       textForClient = textForClient.replace(/\n{3,}/g, '\n\n').trim()
     }
 
+    // Await the recommender (kicked off in parallel with the LLM call) and
+    // attach products + hasMore flag. Failure is non-fatal — absence of
+    // products is a valid response.
+    let recommendedProducts: ProductResult[] = []
+    let productsHasMore = false
+    try {
+      const rec = await productsPromise
+      if (rec && rec.products.length > 0) {
+        recommendedProducts = rec.products
+        productsHasMore = rec.hasMore
+      }
+    } catch (err) {
+      console.warn('[chatController] product recommender failed (swallowed):', err)
+    }
+
     const response: ChatResponse = {
       text: textForClient,
       audioUrl,
@@ -973,6 +1079,8 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       responseLanguage,
       styleMemory: imageToolStyleMemory,
       toolErrors: collectedToolErrors.length > 0 ? collectedToolErrors : undefined,
+      products: recommendedProducts.length > 0 ? recommendedProducts : undefined,
+      productsHasMore: recommendedProducts.length > 0 ? productsHasMore : undefined,
     }
     res.status(200).json(response)
   } catch (err: any) {
@@ -1013,6 +1121,20 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   // when the client disconnects or stops generation.
   const streamAbort = new AbortController()
   req.on('close', () => { streamAbort.abort() })
+
+  // Explicit-cancel path: register with the in-memory registry so POST
+  // /chat/cancel can abort this stream even when the proxy/LB in front of Node
+  // swallows the client-side TCP abort and `req.on('close')` never fires. See
+  // services/cancellationRegistry.ts.
+  const clientRequestId = (req.body && typeof req.body === 'object'
+    ? (req.body as { requestId?: unknown }).requestId
+    : undefined)
+  const requestId = typeof clientRequestId === 'string' && clientRequestId.length > 0
+    ? clientRequestId
+    : null
+  if (requestId) {
+    registerCancellation(requestId, streamAbort, req.user?.uid ?? null)
+  }
 
   // P0-1: hoisted so the outer catch can refund if the stream throws after
   // we have already debited tokens.
@@ -1076,6 +1198,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       userRole,
       userPersonalization,
       userProfile,
+      threadId,
     )
     const systemPrompt =
       baseSystemPrompt +
@@ -1110,8 +1233,34 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // Resolve mode-specific temperature
     const temperature = MODE_TEMPERATURES[mode] ?? 0.7
 
+    // Kick off product recommender in parallel with the LLM stream so Algolia
+    // latency is hidden behind the first-token latency. Gate is evaluated here;
+    // Promise resolves to null when no products should be shown this turn.
+    const userTurnNumber = history.filter(m => m.role === 'user').length + 1
+    const previousAssistantText = (() => {
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].role === 'assistant') return history[i].content
+      }
+      return undefined
+    })()
+    const previousUserText = (() => {
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i].role === 'user') return history[i].content
+      }
+      return undefined
+    })()
+    const productsPromise = maybeRecommendProducts({
+      userMessage: englishText,
+      mode,
+      requestedMode,
+      turnNumber: userTurnNumber,
+      threadId,
+      previousAssistantText,
+      previousUserText,
+    })
+
     // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
-    const tools: ChatCompletionTool[] = getToolsForMode(mode, isLoggedIn)
+    let tools: ChatCompletionTool[] = getToolsForMode(mode, isLoggedIn)
     // Guest users still get IMAGE_TOOL for image requests (mode-agnostic).
     if (!isLoggedIn && !tools.some(t => t.type === 'function' && t.function.name === 'generate_image')) {
       tools.push(IMAGE_TOOL)
@@ -1122,6 +1271,23 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     // Pass user-attached image as vision data so LLM can see it
     const visionData = (imageBase64 && imageMimeType) ? { base64: imageBase64, mimeType: imageMimeType } : undefined
+
+    // Hard gate: strip generate_image from the toolset unless the user is
+    // clearly asking for a visual. Prevents the LLM from turning replies like
+    // "elegant, and show me some ideas also" into an image-generation call.
+    const imageAllowed = Boolean(visionData) || forceImageGeneration === true || userWantsImageOutput(englishText)
+    if (!imageAllowed) {
+      tools = tools.filter(t => !(t.type === 'function' && t.function.name === 'generate_image'))
+    }
+
+    // Hard gate: strip write tools unless the user opted into planner mode
+    // OR asked explicitly to save/remind/list/schedule. Stops assistant mode
+    // from unilaterally creating notes / checklists / reminders on advisory
+    // queries like "elegant, and show me some ideas".
+    const writeToolsAllowed = requestedMode === 'planner' || mode === 'planner' || userWantsWriteAction(englishText)
+    if (!writeToolsAllowed) {
+      tools = tools.filter(t => !(t.type === 'function' && WRITE_TOOL_NAMES.has(t.function.name)))
+    }
     // P0-3: actual vision image count (currently vision is single-image per turn).
     const visionImageCount = visionData ? 1 : 0
 
@@ -1467,7 +1633,23 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       textForClient = textForClient.replace(/\n{3,}/g, '\n\n').trim()
     }
 
-    sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory })
+    // Await recommender (kicked off in parallel with the LLM stream) and emit
+    // a products sidecar event so the frontend can render a card strip below
+    // the message bubble. Failures are swallowed — products are non-essential.
+    let recommendedProducts: ProductResult[] = []
+    let productsHasMore = false
+    try {
+      const rec = await productsPromise
+      if (rec && rec.products.length > 0) {
+        recommendedProducts = rec.products
+        productsHasMore = rec.hasMore
+        sse({ t: 'p', products: rec.products, hasMore: rec.hasMore })
+      }
+    } catch (err) {
+      console.warn('[chatController:stream] product recommender failed (swallowed):', err)
+    }
+
+    sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory, products: recommendedProducts, productsHasMore })
     res.end()
 
     if (phDistinctId) {
@@ -1525,5 +1707,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
         latency_ms: Date.now() - phStart,
       })
     }
+  } finally {
+    if (requestId) unregisterCancellation(requestId)
   }
 }

@@ -275,16 +275,49 @@ export async function searchAllMessages(
 
 // ── Share conversation ────────────────────────────────────────────────────────
 
+export interface SharedChatProductCard {
+  uid: string
+  name: string
+  description: string
+  imageUrl: string
+  productUrl: string
+}
+
+export interface SharedChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  mode?: Mode
+  timestamp: Date
+  imageUrl?: string | null
+  imageUrls?: string[]
+  products?: SharedChatProductCard[]
+}
+
 export interface SharedChatData {
   threadTitle: string
-  messages: Array<{
-    role: 'user' | 'assistant'
-    content: string
-    mode?: Mode
-    timestamp: Date
-  }>
+  messages: SharedChatMessage[]
   sharedAt: Date
   expiresAt: Date
+}
+
+/** Deep-strip `undefined` values from a plain object. Firestore rejects
+ *  undefined on the Web SDK by default (no `ignoreUndefinedProperties`),
+ *  so the share write would throw if ANY message on the thread has an
+ *  undefined field (e.g. `mode` on older messages, or `description` on
+ *  a product where the backend didn't set it). */
+function pruneUndefined<T>(obj: T): T {
+  if (Array.isArray(obj)) {
+    return obj.map(pruneUndefined) as unknown as T
+  }
+  if (obj && typeof obj === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+      if (v === undefined) continue
+      out[k] = pruneUndefined(v)
+    }
+    return out as T
+  }
+  return obj
 }
 
 /** Create a shareable snapshot of a conversation */
@@ -294,12 +327,16 @@ export async function createSharedChat(threadId: string, threadTitle: string): P
   )
   const messages = msgSnap.docs.map(d => {
     const data = d.data() as ChatMessage
-    return {
+    const raw = {
       role: data.role,
       content: data.content,
       mode: data.mode,
       timestamp: data.timestamp?.toDate?.() ?? new Date(),
+      imageUrl: data.imageUrl ?? null,
+      imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
+      products: Array.isArray((data as any).products) ? (data as any).products : [],
     }
+    return pruneUndefined(raw)
   })
 
   const expiresAt = new Date()
@@ -328,6 +365,9 @@ export async function getSharedChat(shareId: string): Promise<SharedChatData | n
       content: m.content,
       mode: m.mode,
       timestamp: m.timestamp?.toDate?.() ?? new Date(m.timestamp),
+      imageUrl: m.imageUrl ?? null,
+      imageUrls: Array.isArray(m.imageUrls) ? m.imageUrls : [],
+      products: Array.isArray(m.products) ? m.products : [],
     })),
     sharedAt: data.sharedAt?.toDate?.() ?? new Date(),
     expiresAt,

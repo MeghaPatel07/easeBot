@@ -115,7 +115,17 @@ export async function generateImage(prompt: string): Promise<{ imageUrl: string 
 
 // ── Streaming chat (SSE) ───────────────────────────────────────────────────────
 
+export interface StreamProductCard {
+  uid: string
+  name: string
+  description: string
+  imageUrl: string
+  productUrl: string
+  price?: number
+  currency?: string
+}
 export interface StreamChunkEvent { t: 'c'; v: string }
+export interface StreamProductsEvent { t: 'p'; products: StreamProductCard[]; hasMore: boolean }
 export interface StreamDoneEvent {
   t: 'd'
   text: string
@@ -130,10 +140,12 @@ export interface StreamDoneEvent {
   imageUrls?: string[]
   imageQuota?: { allowed: boolean; remaining: number; dailyUsed: number; dailyLimit: number; resetAt: string }
   styleMemory?: { descriptors: string[]; colorPalette: string[]; aestheticRegister: string; culturalContext: string; lastGeneratedImageUrl: string | null }
+  products?: StreamProductCard[]
+  productsHasMore?: boolean
 }
 export interface StreamErrorEvent { t: 'e'; msg: string }
 export interface StreamImageEvent { t: 'img'; status: 'generating' | 'partial'; data?: string }
-export type StreamSSEEvent = StreamChunkEvent | StreamDoneEvent | StreamErrorEvent | StreamImageEvent
+export type StreamSSEEvent = StreamChunkEvent | StreamProductsEvent | StreamDoneEvent | StreamErrorEvent | StreamImageEvent
 
 export async function* streamChatMessage(
   payload: ChatFunctionPayload,
@@ -185,6 +197,32 @@ export async function* streamChatMessage(
       if (!raw) continue
       try { yield JSON.parse(raw) as StreamSSEEvent } catch { /* skip malformed */ }
     }
+  }
+}
+
+/**
+ * Explicitly cancel an in-flight chat stream. We call this alongside
+ * `AbortController.abort()` on the fetch because production reverse
+ * proxies/LBs often hold the upstream socket open after a client abort — the
+ * backend never sees `req.on('close')` fire, and the image pipeline (Azure
+ * fetch + Firebase Storage upload + Firestore write) runs to completion
+ * regardless. This endpoint sets an in-memory flag the backend checks.
+ *
+ * Best-effort: failures are swallowed so Stop feels instant.
+ */
+export async function cancelChatRequest(requestId: string): Promise<void> {
+  try {
+    const token = await getAuthToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    await fetch(`${API_BASE}/api/chat/cancel`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ requestId }),
+      keepalive: true,  // allow the request to outlive the page if user navigates
+    })
+  } catch {
+    // swallow — Stop should never be blocked by a failed cancel call
   }
 }
 
