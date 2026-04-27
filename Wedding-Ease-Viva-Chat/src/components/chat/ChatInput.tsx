@@ -36,6 +36,7 @@ export interface ChatInputProps {
   onCancelRecording?: () => void;
   /** Live mic amplitudes (0-255) for the recording waveform. */
   amplitudes?: number[];
+  className?: string;
 }
 
 // Auto-grow caps — the textarea grows freely up to these limits, then shows
@@ -60,6 +61,7 @@ const ChatInput = ({
   inputText, onInputChange, onSend, onStop, isTyping, placeholder,
   isRecording, voiceState, onMicClick, attachedImage, onAttachImage, onRemoveImage,
   selectedMode, onModeChange, recordingDuration, onCancelRecording, amplitudes,
+  className = "max-w-3xl mx-auto w-full",
 }: ChatInputProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [showModeDropdown, setShowModeDropdown] = useState(false);
@@ -171,7 +173,7 @@ const ChatInput = ({
   ) : null;
 
   return (
-    <div className="max-w-3xl mx-auto w-full">
+    <div className={className}>
       {/* MOBILE-ONLY mode chip row, ABOVE the input.
           IMPORTANT: no overflow-x-auto on this wrapper — it would clip the
           absolute-positioned dropdown above the chip and the sub-agent list

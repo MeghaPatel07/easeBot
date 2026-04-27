@@ -48,6 +48,8 @@ import type { ChatThread, Mode, Checklist, TimelineEvent } from '@/types';
 import { track, register } from '@/lib/analytics';
 import logoImg from '@/assets/images/logo.png';
 
+import WeddingEaseFloater from '@/components/WeddingEaseFloater';
+
 // ── Extracted components ────────────────────────────────────────────────────
 import ChatSidebar, { type SidebarView } from '@/components/chat/ChatSidebar';
 import ChatHeader from '@/components/chat/ChatHeader';
@@ -324,7 +326,7 @@ const Index = () => {
     }
     guestMessageCountRef.current += 1;
     setGuestMessageCount(guestMessageCountRef.current);
-    try { localStorage.setItem('easebot-guest-msg-count', String(guestMessageCountRef.current)) } catch {}
+    try { localStorage.setItem('easebot-guest-msg-count', String(guestMessageCountRef.current)) } catch { }
     return true;
   };
 
@@ -371,7 +373,7 @@ const Index = () => {
         msg_len: text.length,
         has_attachment: Boolean(imgBase64) || (attachments?.length ?? 0) > 0,
       });
-    } catch {}
+    } catch { }
     const sendPromise = sendMessage(text || 'Describe this image', {
       mode,
       language: lang,
@@ -774,7 +776,7 @@ const Index = () => {
     if (totalImgCount !== guestImageCountRef.current) {
       guestImageCountRef.current = totalImgCount;
       setGuestImageCount(totalImgCount);
-      try { localStorage.setItem('easebot-guest-img-count', String(totalImgCount)) } catch {}
+      try { localStorage.setItem('easebot-guest-img-count', String(totalImgCount)) } catch { }
     }
   }, [user, messages]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -964,18 +966,18 @@ const Index = () => {
             // Map platform label → short analytics channel slug.
             const channel = platform.name === 'WhatsApp' ? 'whatsapp'
               : platform.name === 'Twitter / X' ? 'twitter'
-              : platform.name === 'Email' ? 'email'
-              : platform.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+                : platform.name === 'Email' ? 'email'
+                  : platform.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
             return (
-            <a key={platform.name} href={url} target={isMailto ? '_self' : '_blank'} rel={isMailto ? undefined : 'noopener noreferrer'}
-              onClick={() => {
-                if (shareModalThreadId) track('thread_shared_social', { thread_id: shareModalThreadId, channel });
-                setShareModalUrl(null);
-              }}
-              className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-foreground/[0.06] transition-colors">
-              <div className={platform.color}><platform.icon /></div>
-              <span className="text-3xs text-foreground/40">{platform.name}</span>
-            </a>
+              <a key={platform.name} href={url} target={isMailto ? '_self' : '_blank'} rel={isMailto ? undefined : 'noopener noreferrer'}
+                onClick={() => {
+                  if (shareModalThreadId) track('thread_shared_social', { thread_id: shareModalThreadId, channel });
+                  setShareModalUrl(null);
+                }}
+                className="flex flex-col items-center gap-1.5 p-2.5 rounded-xl hover:bg-foreground/[0.06] transition-colors">
+                <div className={platform.color}><platform.icon /></div>
+                <span className="text-3xs text-foreground/40">{platform.name}</span>
+              </a>
             )
           })}
         </div>
@@ -1461,12 +1463,25 @@ const Index = () => {
               </div>
             ) : (
               <>
-                <ChatInput {...inputBarProps} placeholder="ask me anything" />
+                <div className="flex items-end justify-between w-full gap-3">
+                  {/* Left invisible spacer balances the right logo perfectly so the chat input remains centered */}
+                  <div className="w-12 sm:w-14 hidden sm:block invisible flex-shrink-0" aria-hidden="true" />
+
+                  <div className="flex-1 min-w-0 max-w-2xl mx-auto">
+                    <ChatInput {...inputBarProps} placeholder="ask me anything" className="w-full" />
+                  </div>
+
+                  {/* Right logo snaps to the corner nicely. Flex spacer causes chat input to shrink if needed, preventing overlap on narrow screens */}
+                  <div className="w-12 sm:w-14 hidden sm:flex flex-shrink-0 items-end justify-end mb-1">
+                    <WeddingEaseFloater isFixed={false} />
+                  </div>
+                </div>
                 <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="hidden" onChange={handleFileSelected} />
               </>
             )}
           </div>
         </main>
+
       </div>
     );
   }
@@ -1509,12 +1524,12 @@ const Index = () => {
 
               {/* Hero heading — tighter on mobile */}
               <h2 className="mt-12 font-headline text-lg sm:text-xl md:text-[1.3rem] text-soft mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
-  Hi!   <span className='text-primary/80'>I'm here to help...</span>
+                Hi!   <span className='text-primary/80'>I'm here to help...</span>
               </h2>
               {/* <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
                 Tell me your event, style or budget — I'll guide you step by step.
               </p> */}
-  <div className="glass-action-card hidden sm:flex items-center gap-3 rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
+              <div className="glass-action-card hidden sm:flex items-center gap-3 rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
                 <Sparkles className="w-5 h-5 text-primary/70 flex-shrink-0" />
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold text-soft">Not sure where to start?</p>
@@ -1563,11 +1578,11 @@ const Index = () => {
 
         {/* Bottom-anchored ChatInput — mirrors active chat layout so the landing
             and chat pages share one input position (no floating input in middle). */}
-        <div className="flex-shrink-0 px-3 sm:px-6 pb-3 sm:pb-4 pt-2 relative z-10">
-          <div className="max-w-3xl mx-auto w-full">
+        <div className="flex-shrink-0 px-3 sm:ps-6 pb-3 sm:pb-4 pt-2 relative z-10">
+          <div className=" mx-auto w-full">
             {/* Occasion chips — horizontal scroll. Leading reset button clears
                 the current occasion + mode selection back to the default state. */}
-            <div className="overflow-x-scroll scrollbar-hide mb-2 min-w-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="overflow-x-scroll scrollbar-hide  max-w-2xl object-center mb-2 min-w-0 m-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 px-1 pb-1 w-max">
                 {(() => {
                   const hasSelection = selectedOccasion !== null || selectedMode !== 'auto';
@@ -1605,7 +1620,15 @@ const Index = () => {
                 ))}
               </div>
             </div>
-            <ChatInput {...inputBarProps} placeholder="Ask me anything " />
+            <div className="flex items-end justify-between w-full gap-3">
+              <div className="w-12 sm:w-14 hidden sm:block invisible flex-shrink-0" aria-hidden="true" />
+              <div className="flex-1 min-w-0 max-w-3xl mx-auto">
+                <ChatInput {...inputBarProps} placeholder="Ask me anything " className="w-full" />
+              </div>
+              <div className="w-12 sm:w-14 hidden sm:flex flex-shrink-0 items-end justify-end mb-1">
+                <WeddingEaseFloater isFixed={false} />
+              </div>
+            </div>
           </div>
         </div>
 

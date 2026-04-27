@@ -35,9 +35,12 @@
     /* ━━ DARK PALETTE (source) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
     /* Surfaces */
-    --dark-background: 20 13% 3%;                /* #090807 */
-    --dark-foreground: 0 0% 100%;                /* white chat text */
-    --dark-card: 20 10% 6%;                      /* lifted dark glass */
+    --dark-background: 20 13% 3%;
+    /* #090807 */
+    --dark-foreground: 0 0% 100%;
+    /* white chat text */
+    --dark-card: 20 10% 6%;
+    /* lifted dark glass */
     --dark-card-foreground: 0 0% 100%;
     --dark-popover: 20 10% 6%;
     --dark-popover-foreground: 0 0% 100%;
@@ -45,25 +48,35 @@
     --dark-muted-foreground: 0 0% 85%;
 
     /* Brand — bronze */
-    --dark-primary: 22 25% 51%;                  /* #A17A63 */
+    --dark-primary: 22 25% 51%;
+    /* #A17A63 */
     --dark-primary-foreground: 0 0% 100%;
     --dark-primary-muted: 22 20% 65%;
-    --dark-primary-hover: 22 26% 43%;            /* #8A6651 */
-    --dark-primary-subtle: 22 26% 62%;           /* #B89382 */
-    --dark-primary-light: 21 31% 58%;            /* #B58A73 */
-    --dark-primary-bright: 31 59% 78%;           /* #E8C8A6 */
-    --dark-primary-container: 343 14% 80%;       /* #D6C1C7 */
+    --dark-primary-hover: 22 26% 43%;
+    /* #8A6651 */
+    --dark-primary-subtle: 22 26% 62%;
+    /* #B89382 */
+    --dark-primary-light: 21 31% 58%;
+    /* #B58A73 */
+    --dark-primary-bright: 31 59% 78%;
+    /* #E8C8A6 */
+    --dark-primary-container: 343 14% 80%;
+    /* #D6C1C7 */
 
     /* Secondary — warm rose */
-    --dark-secondary: 343 14% 80%;               /* #D6C1C7 */
+    --dark-secondary: 343 14% 80%;
+    /* #D6C1C7 */
     --dark-secondary-foreground: 20 13% 3%;
-    --dark-secondary-container: 347 24% 88%;     /* #E9DADD */
+    --dark-secondary-container: 347 24% 88%;
+    /* #E9DADD */
 
     /* Accent */
     --dark-accent: 22 25% 51%;
     --dark-accent-foreground: 0 0% 100%;
-    --dark-accent-gold: 36 52% 53%;              /* #C6944A */
-    --dark-accent-sage: 106 12% 66%;             /* #A2B29D */
+    --dark-accent-gold: 36 52% 53%;
+    /* #C6944A */
+    --dark-accent-sage: 106 12% 66%;
+    /* #A2B29D */
 
     /* Status */
     --dark-destructive: 0 74% 52%;
@@ -100,12 +113,14 @@
     --dark-tag-flowers-fg: 330 81% 76%;
 
     /* Form chrome */
-    --dark-border: 21 44% 26%;                   /* #603B25 */
+    --dark-border: 21 44% 26%;
+    /* #603B25 */
     --dark-input: 20 10% 10%;
     --dark-ring: 22 25% 51%;
 
     /* Sidebar — glass bronze panel */
-    --dark-sidebar-background: 23 60% 55%;       /* #D07A46 */
+    --dark-sidebar-background: 23 60% 55%;
+    /* #D07A46 */
     --dark-sidebar-foreground: 0 0% 100%;
     --dark-sidebar-primary: 22 25% 51%;
     --dark-sidebar-primary-foreground: 0 0% 100%;
@@ -125,45 +140,55 @@
     --dark-outline-variant: 20 10% 14%;
 
     /* Unique surfaces */
-    --dark-surface-note: 337 44% 7%;             /* #1A0A10 */
+    --dark-surface-note: 337 44% 7%;
+    /* #1A0A10 */
     --dark-surface-popover-alt: 0 0% 10%;
     --dark-surface-tooltip: 346 36% 12%;
     --dark-surface-toast: 336 61% 14%;
 
     /* Figma raw RGB values */
-    --dark-bronze: 161 122 99;                   /* #A17A63 */
+    --dark-bronze: 161 122 99;
+    /* #A17A63 */
     --dark-rose: 255 255 255;
     --dark-header-pink: 214 193 199;
-    --dark-sidebar-fill: 208 122 70;             /* #D07A46 */
-    --dark-sidebar-stroke: 96 59 37;             /* #603B25 */
-    --dark-grid-bg: 42 42 42;                    /* #2A2A2A — grid stroke */
+    --dark-sidebar-fill: 208 122 70;
+    /* #D07A46 */
+    --dark-sidebar-stroke: 96 59 37;
+    /* #603B25 */
+    --dark-grid-bg: 42 42 42;
+    /* #2A2A2A — grid stroke */
     --dark-glow-outer: 10 10 10;
 
     /* Mode button active backgrounds */
-    --dark-mode-auto-active: 30 10% 49%;         /* #8A7E72 */
-    --dark-mode-stylist-active: 46 65% 52%;      /* #D4AF37 */
-    --dark-mode-knowledge-active: 29 13% 37%;    /* #6B5E52 */
+    --dark-mode-auto-active: 30 10% 49%;
+    /* #8A7E72 */
+    --dark-mode-stylist-active: 46 65% 52%;
+    /* #D4AF37 */
+    --dark-mode-knowledge-active: 29 13% 37%;
+    /* #6B5E52 */
 
     /* Category palette */
-    --dark-cat-budget:         38 92% 50%;
-    --dark-cat-budget-fg:      38 92% 70%;
-    --dark-cat-budget-deep:    32 95% 44%;
-    --dark-cat-budget-darker:  26 90% 37%;
-    --dark-cat-timeline:       330 81% 60%;
-    --dark-cat-timeline-fg:    330 81% 75%;
-    --dark-cat-timeline-soft:  326 78% 95%;
-    --dark-cat-timeline-deep:  335 78% 42%;
-    --dark-cat-milestone:      271 91% 65%;
-    --dark-cat-milestone-fg:   271 91% 78%;
-    --dark-cat-planner:        23 60% 55%;
-    --dark-cat-planner-fg:     23 75% 72%;
-    --dark-cat-stylist:        343 14% 80%;
-    --dark-cat-knowledge:      21 44% 26%;
-    --dark-cat-auto:           22 25% 51%;
+    --dark-cat-budget: 38 92% 50%;
+    --dark-cat-budget-fg: 38 92% 70%;
+    --dark-cat-budget-deep: 32 95% 44%;
+    --dark-cat-budget-darker: 26 90% 37%;
+    --dark-cat-timeline: 330 81% 60%;
+    --dark-cat-timeline-fg: 330 81% 75%;
+    --dark-cat-timeline-soft: 326 78% 95%;
+    --dark-cat-timeline-deep: 335 78% 42%;
+    --dark-cat-milestone: 271 91% 65%;
+    --dark-cat-milestone-fg: 271 91% 78%;
+    --dark-cat-planner: 23 60% 55%;
+    --dark-cat-planner-fg: 23 75% 72%;
+    --dark-cat-stylist: 343 14% 80%;
+    --dark-cat-knowledge: 21 44% 26%;
+    --dark-cat-auto: 22 25% 51%;
 
     /* Overlays — lightbox/toolbar scrims (same in both themes, see rationale in .light) */
-    --dark-overlay-scrim: 0 0% 0%;               /* pure black backdrop */
-    --dark-overlay-surface: 0 0% 100%;           /* white-tint fill for buttons on scrim */
+    --dark-overlay-scrim: 0 0% 0%;
+    /* pure black backdrop */
+    --dark-overlay-surface: 0 0% 100%;
+    /* white-tint fill for buttons on scrim */
     --dark-overlay-border: 0 0% 100%;
     --dark-overlay-text: 0 0% 100%;
 
@@ -205,14 +230,18 @@
        No --dark-* tokens referenced below — fully independent. */
 
     /* Surfaces */
-    --light-background: white;              /* #FAF6F0 warm ivory */
-    --light-foreground: 21 41% 16%;              /* #3A2418 deep coffee */
+    --light-background: white;
+    /* #FAF6F0 warm ivory */
+    --light-foreground: 21 41% 16%;
+    /* #3A2418 deep coffee */
     --light-card: 0 0% 100%;
     --light-card-foreground: 21 41% 16%;
     --light-popover: 0 0% 100%;
     --light-popover-foreground: 21 41% 16%;
-    --light-muted: 33 53% 92%;                   /* #F5EDE1 */
-    --light-muted-foreground: 22 20% 45%;        /* #8B6F5C */
+    --light-muted: 33 53% 92%;
+    /* #F5EDE1 */
+    --light-muted-foreground: 22 20% 45%;
+    /* #8B6F5C */
 
     /* Brand */
     --light-primary: 22 25% 51%;
@@ -270,12 +299,14 @@
     --light-tag-flowers-fg: 330 75% 38%;
 
     /* Form chrome */
-    --light-border: 33 44% 85%;                  /* #E8DCC8 warm beige */
+    --light-border: 33 44% 85%;
+    /* #E8DCC8 warm beige */
     --light-input: 0 0% 100%;
     --light-ring: 22 25% 51%;
 
     /* Sidebar — light ivory glass */
-    --light-sidebar-background: 35 60% 94%;      /* #F8F2E8 */
+    --light-sidebar-background: 35 60% 94%;
+    /* #F8F2E8 */
     --light-sidebar-foreground: 21 41% 16%;
     --light-sidebar-primary: 22 25% 51%;
     --light-sidebar-primary-foreground: 0 0% 100%;
@@ -286,7 +317,8 @@
 
     /* Surface elevation */
     --light-surface: 37 49% 96%;
-    --light-surface-container: 40 100% 97%;      /* #FFF9F0 */
+    --light-surface-container: 40 100% 97%;
+    /* #FFF9F0 */
     --light-surface-container-low: 33 53% 92%;
     --light-surface-container-high: 0 0% 100%;
     --light-surface-container-highest: 0 0% 100%;
@@ -297,7 +329,8 @@
     /* Unique surfaces */
     --light-surface-note: 40 100% 97%;
     --light-surface-popover-alt: 0 0% 100%;
-    --light-surface-tooltip: 21 41% 16%;         /* inverse: dark chip in light UI */
+    --light-surface-tooltip: 21 41% 16%;
+    /* inverse: dark chip in light UI */
     --light-surface-toast: 21 41% 16%;
 
     /* Figma raw RGB values */
@@ -306,7 +339,8 @@
     --light-header-pink: 214 193 199;
     --light-sidebar-fill: 208 122 70;
     --light-sidebar-stroke: 96 59 37;
-    --light-grid-bg: 138 95 70;                  /* warm brown grid on ivory */
+    --light-grid-bg: 138 95 70;
+    /* warm brown grid on ivory */
     --light-glow-outer: 250 246 240;
 
     /* Mode button active backgrounds */
@@ -315,21 +349,21 @@
     --light-mode-knowledge-active: 29 13% 37%;
 
     /* Category palette — deeper variants for readability on cream */
-    --light-cat-budget:         38 92% 50%;
-    --light-cat-budget-fg:      32 95% 44%;
-    --light-cat-budget-deep:    32 95% 44%;
-    --light-cat-budget-darker:  26 90% 37%;
-    --light-cat-timeline:       330 81% 60%;
-    --light-cat-timeline-fg:    335 78% 42%;
-    --light-cat-timeline-soft:  326 78% 95%;
-    --light-cat-timeline-deep:  335 78% 42%;
-    --light-cat-milestone:      271 91% 58%;
-    --light-cat-milestone-fg:   271 91% 50%;
-    --light-cat-planner:        23 60% 50%;
-    --light-cat-planner-fg:     23 75% 42%;
-    --light-cat-stylist:        343 35% 65%;
-    --light-cat-knowledge:      21 44% 26%;
-    --light-cat-auto:           22 25% 51%;
+    --light-cat-budget: 38 92% 50%;
+    --light-cat-budget-fg: 32 95% 44%;
+    --light-cat-budget-deep: 32 95% 44%;
+    --light-cat-budget-darker: 26 90% 37%;
+    --light-cat-timeline: 330 81% 60%;
+    --light-cat-timeline-fg: 335 78% 42%;
+    --light-cat-timeline-soft: 326 78% 95%;
+    --light-cat-timeline-deep: 335 78% 42%;
+    --light-cat-milestone: 271 91% 58%;
+    --light-cat-milestone-fg: 271 91% 50%;
+    --light-cat-planner: 23 60% 50%;
+    --light-cat-planner-fg: 23 75% 42%;
+    --light-cat-stylist: 343 35% 65%;
+    --light-cat-knowledge: 21 44% 26%;
+    --light-cat-auto: 22 25% 51%;
 
     /* Overlays — lightbox/toolbar retain the cinema dark scrim in light mode.
        Kept in the light source palette for parity; values intentionally match. */
@@ -934,11 +968,25 @@
 
 /* Light-theme readability overrides: low-alpha foreground is too faint on ivory.
    Dark mode keeps the Tailwind-generated alpha; light mode bumps contrast. */
-.light .text-foreground\/45 { color: hsl(var(--foreground)); }
-.light .text-foreground\/40 { color: hsl(var(--foreground) / 0.75); }
-.light .text-foreground\/35 { color: hsl(var(--foreground) / 0.70); }
-.light .text-foreground\/30 { color: hsl(var(--foreground) / 0.65); }
-.light .text-foreground\/25 { color: hsl(var(--foreground) / 0.60); }
+.light .text-foreground\/45 {
+  color: hsl(var(--foreground));
+}
+
+.light .text-foreground\/40 {
+  color: hsl(var(--foreground) / 0.75);
+}
+
+.light .text-foreground\/35 {
+  color: hsl(var(--foreground) / 0.70);
+}
+
+.light .text-foreground\/30 {
+  color: hsl(var(--foreground) / 0.65);
+}
+
+.light .text-foreground\/25 {
+  color: hsl(var(--foreground) / 0.60);
+}
 
 /* Chat message text — darker coffee in light mode for readability.
    Applies to bot-message prose and user-message bubble when tagged. */

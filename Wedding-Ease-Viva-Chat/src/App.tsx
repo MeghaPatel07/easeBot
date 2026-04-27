@@ -12,6 +12,7 @@ import { CapHitBanner } from "@/components/pricing/CapHitBanner";
 import AnalyticsConsent from "@/components/AnalyticsConsent";
 import WeddingEaseFloater from "@/components/WeddingEaseFloater";
 import { useCanonical } from "@/hooks/useCanonical";
+import { useLocation } from "react-router-dom";
 
 /** Runs route-level side-effects that need router context. */
 function RouteEffects() {
@@ -32,6 +33,23 @@ const Help = lazy(() => import('./pages/Help'));
 const Login = lazy(() => import('./pages/Login'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
+/** Renders the floater only on non-chat pages */
+function GlobalFloater() {
+  const location = useLocation();
+  // Show the fixed floater only on specific content pages. On all chat/index 
+  // views, the floater is handled locally next to the input box.
+  const showGlobal = location.pathname.startsWith('/pricing') ||
+                     location.pathname.startsWith('/terms') ||
+                     location.pathname.startsWith('/privacy') ||
+                     location.pathname.startsWith('/checkout') ||
+                     location.pathname.startsWith('/payment') ||
+                     location.pathname.startsWith('/help') ||
+                     location.pathname.startsWith('/login');
+  
+  if (!showGlobal) return null;
+  return <WeddingEaseFloater />;
+}
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -43,11 +61,11 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <RouteEffects />
-          <CapHitBanner />
-          <AnalyticsConsent />
-          <WeddingEaseFloater />
+          <BrowserRouter>
+            <RouteEffects />
+            <GlobalFloater />
+            <CapHitBanner />
+            <AnalyticsConsent />
           <Suspense fallback={<LoadingScreen />}>
             <Routes>
               <Route path="/" element={<Index />} />
