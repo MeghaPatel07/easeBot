@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -72,7 +73,7 @@ function ImagePreview({
     return () => { document.body.style.overflow = '' }
   }, [])
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay-scrim/90 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
@@ -152,11 +153,10 @@ function ImagePreview({
               <button
                 key={i}
                 onClick={(e) => { e.stopPropagation(); setIndex(i); setScale(1) }}
-                className={`w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${
-                  i === index
-                    ? 'border-primary shadow-md shadow-primary/30'
-                    : 'border-foreground/20 opacity-60 hover:opacity-100'
-                }`}
+                className={`w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${i === index
+                  ? 'border-primary shadow-md shadow-primary/30'
+                  : 'border-foreground/20 opacity-60 hover:opacity-100'
+                  }`}
               >
                 <img src={url} alt={`Thumb ${i + 1}`} className="w-full h-full object-cover" />
               </button>
@@ -165,7 +165,8 @@ function ImagePreview({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -206,7 +207,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
   // Determine aspect ratio class
   const arClass = aspectRatio === '1024x1536' ? 'aspect-[2/3]'
     : aspectRatio === '1536x1024' ? 'aspect-[3/2]'
-    : 'aspect-square'
+      : 'aspect-square'
 
   // Single image
   if (imageUrls.length === 1) {
@@ -281,11 +282,10 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             <button
               key={i}
               onClick={() => setActiveIndex(i)}
-              className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                i === activeIndex
-                  ? 'border-primary shadow-md shadow-primary/20'
-                  : 'border-transparent opacity-60 hover:opacity-100'
-              }`}
+              className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${i === activeIndex
+                ? 'border-primary shadow-md shadow-primary/20'
+                : 'border-transparent opacity-60 hover:opacity-100'
+                }`}
             >
               <img src={url} alt={`Variant ${i + 1}`} className="w-full h-full object-cover" />
             </button>

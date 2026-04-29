@@ -243,8 +243,10 @@ function buildForceImageSuffix(force?: boolean): string {
 // follow-up turn can thread the actual URL into create_note. Tool results
 // from the prior turn are stripped from history, so without this the LLM
 // would hallucinate a save it can't perform.
+
+
 function buildLastImageContextSuffix(lastGeneratedImageUrl?: string | null): string {
-  if (!lastGeneratedImageUrl) return ''
+  if (!lastGeneratedImageUrl || lastGeneratedImageUrl.startsWith('data:')) return ''
   return `\nCONTEXT — LAST GENERATED IMAGE: The most recently generated image in this conversation is at URL: ${lastGeneratedImageUrl}\nIf the user asks to save "this image" / "that image" / "the image" to a note, pass this exact URL in create_note's image_urls parameter. Do NOT invent a different URL.`
 }
 
@@ -618,7 +620,16 @@ async function handleImageToolCall(
   // same turn (e.g. create_note with image_urls) can reference them. The
   // assistant receives the result string verbatim — it does not see the
   // `imageUrls` field on this object.
-  const urlsJson = JSON.stringify(imageUrls)
+  //
+  // IMPORTANT: For guest users imageUrls contains full data:image/png;base64,...
+  // strings (1–3 MB each). Embedding them verbatim in the tool result that is
+  // replayed in the second Azure call causes a context-length explosion
+  // (~1.5M tokens). Use short placeholder tokens in the LLM-facing result
+  // string — the actual base64 is already streamed to the frontend via SSE.
+  const urlsForLLM = imageUrls.map((u, i) =>
+    u.startsWith('data:') ? `[guest-image-${i + 1}]` : u
+  )
+  const urlsJson = JSON.stringify(urlsForLLM)
   return {
     result: `Image${imageUrls.length > 1 ? 's' : ''} generated successfully. ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''} created. image_urls=${urlsJson}`,
     action: {
@@ -1623,10 +1634,13 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     // Strip ![](url) echoes for urls already returned in imageUrls so the
     // client doesn't render them twice.
+    // Skip data: URIs — they are guest-user base64 blobs that can never appear
+    // verbatim in the LLM's text output, and trying to build a RegExp from them
+    // throws "Regular expression too large" in V8 (pattern too long).
     let textForClient = fullText
     if (imageUrls && imageUrls.length > 0 && textForClient) {
       for (const u of imageUrls) {
-        if (!u) continue
+        if (!u || u.startsWith('data:')) continue
         const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
       }
