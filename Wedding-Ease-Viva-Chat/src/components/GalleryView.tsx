@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { X, ChevronLeft, ChevronRight, Sparkles, Image, Loader2, Trash2, ZoomIn, ZoomOut, MessageSquarePlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -187,8 +188,7 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
         ))}
       </div>
 
-      {/* Full-screen preview */}
-      {currentImage && selectedIndex !== null && (
+      {currentImage && selectedIndex !== null && createPortal(
         <div
           className="fixed inset-0 z-[9999] bg-overlay-scrim/90 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200"
           onClick={() => { setSelectedIndex(null); setScale(1) }}
@@ -262,7 +262,8 @@ export default function GalleryView({ userId, filter, vibeId }: GalleryViewProps
               {selectedIndex + 1} of {images.length}
             </p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

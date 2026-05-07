@@ -159,6 +159,73 @@ const Index = () => {
   // Homepage-accessible feedback entry (DEV-B's FeedbackDialog). Guests allowed.
   const [homeFeedbackOpen, setHomeFeedbackOpen] = useState(false);
 
+  // ── Guest Mode limits ───────────────────────────────────────────────────
+  const GUEST_MESSAGE_LIMIT = 10;
+  const GUEST_IMAGE_LIMIT = 3;
+  // Initialize counts from localStorage so they persist across refreshes
+  const storedMsgCount = () => { try { return Number(localStorage.getItem('easebot-guest-msg-count')) || 0 } catch { return 0 } }
+  const storedImgCount = () => { try { return Number(localStorage.getItem('easebot-guest-img-count')) || 0 } catch { return 0 } }
+  const [guestMessageCount, setGuestMessageCount] = useState(storedMsgCount);
+  const [guestImageCount, setGuestImageCount] = useState(storedImgCount);
+  const guestMessageCountRef = useRef(guestMessageCount);
+  const guestImageCountRef = useRef(guestImageCount);
+
+  // Sync ref with state
+  useEffect(() => { guestMessageCountRef.current = guestMessageCount; }, [guestMessageCount]);
+  useEffect(() => { guestImageCountRef.current = guestImageCount; }, [guestImageCount]);
+
+  const guestBannerJSX = !user ? (
+    <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
+      <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-foreground/70 space-y-1.5">
+        <div className="flex items-center gap-1.5">
+          <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+          <span className="font-semibold text-foreground/80">Guest Mode</span>
+          <span className="text-foreground/40 mx-1">—</span>
+          <span>{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining</span>
+          <span className="text-foreground/30 hidden sm:inline">·</span>
+          <span className="hidden sm:inline">{Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} remaining</span>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1.5">
+              {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
+                <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-foreground/[0.12]'}`} />
+              ))}
+            </div>
+          </div>
+        </div>
+        {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-foreground/50 text-2xs">You've used all guest messages.</span>
+            <button
+              onClick={() => setShowSignUpModal(true)}
+              className="ml-auto px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
+            >
+              Sign up to continue chatting
+            </button>
+          </div>
+        ) : (
+          <div className="text-2xs text-foreground/40">
+            This chat won't be saved.{' '}
+            <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
+              Sign in to save your conversations.
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
+
+  const guestLimitIndicatorJSX = !user && guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
+    <div className="max-w-3xl mx-auto w-full text-center py-3 space-y-2">
+      <p className="text-xs text-foreground/50">You've reached the guest message limit.</p>
+      <button
+        onClick={() => setShowSignUpModal(true)}
+        className="px-5 py-2 rounded-full bg-gradient-to-br from-primary-subtle to-primary-hover text-foreground text-sm font-semibold hover:from-primary hover:to-cat-knowledge transition-all shadow-md shadow-primary/25"
+      >
+        Sign up to continue chatting
+      </button>
+    </div>
+  ) : null;
+
   // ── Sidebar view from URL ─────────────────────────────────────────────────
   const VALID_VIEWS = new Set<SidebarView>(['gallery', 'images', 'planner', 'liked', 'reminders', 'budget', 'shopping', 'saved-items', 'timeline', 'progress', 'notifications', 'collaborate', 'moodboard', 'notes']);
   const pathSegments = location.pathname.split('/').filter(Boolean);
@@ -302,19 +369,6 @@ const Index = () => {
 
   const handleRemoveImage = () => setAttachedImage(null);
 
-  // ── Guest experience state ──────────────────────────────────────────────
-  const GUEST_MESSAGE_LIMIT = 10;
-  const GUEST_IMAGE_LIMIT = 3;
-  // Initialize counts from sessionStorage so they persist across new chats
-  const storedMsgCount = () => { try { return Number(localStorage.getItem('easebot-guest-msg-count')) || 0 } catch { return 0 } }
-  const storedImgCount = () => { try { return Number(localStorage.getItem('easebot-guest-img-count')) || 0 } catch { return 0 } }
-  const [guestMessageCount, setGuestMessageCount] = useState(storedMsgCount);
-  const [guestImageCount, setGuestImageCount] = useState(storedImgCount);
-  // Ref mirrors guestMessageCount so the send-guard reads the freshest value,
-  // preventing two rapid clicks from both passing the limit check.
-  const guestMessageCountRef = useRef(guestMessageCount);
-  const guestImageCountRef = useRef(guestImageCount);
-
   // ── Guest message counting helper ─────────────────────────────────────────
   // Returns false if the guest has hit the limit (caller should abort).
   // Must be called by every path that sends a message when !user.
@@ -324,9 +378,10 @@ const Index = () => {
       track('guest_prompt_hit', { limit_kind: 'message', count: guestMessageCountRef.current });
       return false;
     }
-    guestMessageCountRef.current += 1;
-    setGuestMessageCount(guestMessageCountRef.current);
-    try { localStorage.setItem('easebot-guest-msg-count', String(guestMessageCountRef.current)) } catch { }
+    const nextCount = guestMessageCountRef.current + 1;
+    guestMessageCountRef.current = nextCount;
+    setGuestMessageCount(nextCount);
+    try { localStorage.setItem('easebot-guest-msg-count', String(nextCount)) } catch { }
     return true;
   };
 
@@ -463,6 +518,7 @@ const Index = () => {
         imgBase64 = parts[2];
       }
     }
+    if (!checkAndBumpGuestCount()) return;
     sendMessage(text, undefined, mode, langHint, imgBase64, imgMime);
     track('message_edited', { message_id: m.id, msg_len: text.length, has_image: !!imgBase64 });
     setInlineEditImage(null);
@@ -1332,46 +1388,7 @@ const Index = () => {
 
         <main className={`flex-1 min-w-0 flex flex-col relative overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
           {chatHeaderJSX}
-          {/* Guest banner with usage limits */}
-          {!user && (
-            <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
-              <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-foreground/70 space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                  <span className="font-semibold text-foreground/80">Guest Mode</span>
-                  <span className="text-foreground/40 mx-1">—</span>
-                  <span>{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining</span>
-                  <span className="text-foreground/30 hidden sm:inline">·</span>
-                  <span className="hidden sm:inline">{Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} remaining</span>
-                  <div className="ml-auto flex items-center gap-2">
-                    <div className="hidden sm:flex items-center gap-1.5">
-                      {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
-                        <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-foreground/[0.12]'}`} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="text-foreground/50 text-2xs">You've used all guest messages.</span>
-                    <button
-                      onClick={() => setShowSignUpModal(true)}
-                      className="ml-auto px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
-                    >
-                      Sign up to continue chatting
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-2xs text-foreground/40">
-                    This chat won't be saved.{' '}
-                    <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
-                      Sign in to save your conversations.
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {guestBannerJSX}
 
           <ChatMessages
             messages={messages}
@@ -1451,17 +1468,7 @@ const Index = () => {
 
           {/* Input Bar Area */}
           <div className="mt-auto px-3 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
-            {!user && guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
-              <div className="max-w-3xl mx-auto w-full text-center py-3 space-y-2">
-                <p className="text-xs text-foreground/50">You've reached the guest message limit.</p>
-                <button
-                  onClick={() => setShowSignUpModal(true)}
-                  className="px-5 py-2 rounded-full bg-gradient-to-br from-primary-subtle to-primary-hover text-foreground text-sm font-semibold hover:from-primary hover:to-cat-knowledge transition-all shadow-md shadow-primary/25"
-                >
-                  Sign up to continue chatting
-                </button>
-              </div>
-            ) : (
+            {guestLimitIndicatorJSX || (
               <>
                 <div className="flex items-end justify-between w-full gap-3">
                   {/* Left invisible spacer balances the right logo perfectly so the chat input remains centered */}
@@ -1498,6 +1505,7 @@ const Index = () => {
 
       <main className={`flex-1 flex flex-col relative overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
         {chatHeaderJSX}
+        {guestBannerJSX}
         {/* Landing content
             Mobile: top-aligned, tight spacing — everything must fit on a
             375×667 iPhone SE without scrolling. Desktop keeps the airy
@@ -1621,12 +1629,18 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-end justify-between w-full gap-3">
-              <div className="w-12 sm:w-14 hidden sm:block invisible flex-shrink-0" aria-hidden="true" />
-              <div className="flex-1 min-w-0 max-w-3xl mx-auto">
-                <ChatInput {...inputBarProps} placeholder="Ask me anything " className="w-full" />
-              </div>
-              <div className="w-12 sm:w-14 hidden sm:flex flex-shrink-0 items-end justify-end mb-1">
-                <WeddingEaseFloater isFixed={false} />
+              <div className="flex-1 min-w-0  mx-auto">
+                {guestLimitIndicatorJSX || (
+                  <div className="flex items-end justify-between w-full gap-3">
+                    <div className="w-12 sm:w-14 hidden sm:block invisible flex-shrink-0" aria-hidden="true" />
+                    <div className="flex-1 max-w-2xl min-w-0">
+                      <ChatInput {...inputBarProps} placeholder="Ask me anything " className="w-full" />
+                    </div>
+                    <div className="w-12 sm:w-14 hidden sm:flex flex-shrink-0 items-end justify-end mb-1">
+                      <WeddingEaseFloater isFixed={false} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

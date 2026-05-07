@@ -243,8 +243,10 @@ function buildForceImageSuffix(force?: boolean): string {
 // follow-up turn can thread the actual URL into create_note. Tool results
 // from the prior turn are stripped from history, so without this the LLM
 // would hallucinate a save it can't perform.
+
+
 function buildLastImageContextSuffix(lastGeneratedImageUrl?: string | null): string {
-  if (!lastGeneratedImageUrl) return ''
+  if (!lastGeneratedImageUrl || lastGeneratedImageUrl.startsWith('data:')) return ''
   return `\nCONTEXT — LAST GENERATED IMAGE: The most recently generated image in this conversation is at URL: ${lastGeneratedImageUrl}\nIf the user asks to save "this image" / "that image" / "the image" to a note, pass this exact URL in create_note's image_urls parameter. Do NOT invent a different URL.`
 }
 
@@ -385,7 +387,7 @@ async function getChatHistory(
   if (!threadId && providedHistory && providedHistory.length > 0) {
     const effectiveLimit = isGuest ? Math.min(historyLimit, 3) : historyLimit // Guest users get max 3 messages
     const limitedHistory = providedHistory.slice(-effectiveLimit)
-    
+
     // For guest users, also filter out very large messages that could cause context issues
     if (isGuest) {
       const filteredHistory = limitedHistory.map(msg => {
@@ -400,7 +402,7 @@ async function getChatHistory(
       })
       return filteredHistory
     }
-    
+
     return limitedHistory
   }
   if (threadId) {
@@ -644,7 +646,16 @@ async function handleImageToolCall(
   // same turn (e.g. create_note with image_urls) can reference them. The
   // assistant receives the result string verbatim — it does not see the
   // `imageUrls` field on this object.
-  const urlsJson = JSON.stringify(imageUrls)
+  //
+  // IMPORTANT: For guest users imageUrls contains full data:image/png;base64,...
+  // strings (1–3 MB each). Embedding them verbatim in the tool result that is
+  // replayed in the second Azure call causes a context-length explosion
+  // (~1.5M tokens). Use short placeholder tokens in the LLM-facing result
+  // string — the actual base64 is already streamed to the frontend via SSE.
+  const urlsForLLM = imageUrls.map((u, i) =>
+    u.startsWith('data:') ? `[guest-image-${i + 1}]` : u
+  )
+  const urlsJson = JSON.stringify(urlsForLLM)
   return {
     result: `Image${imageUrls.length > 1 ? 's' : ''} generated successfully. ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''} created. image_urls=${urlsJson}`,
     action: {
@@ -743,27 +754,27 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
 
     // Conversation summarization: compress older messages when context is too large
     let effectiveHistory = history
-    
+
     // Estimate tokens to prevent context length exceeded errors
     const estimateTokens = (text: string): number => {
       // Rough estimation: ~4 characters per token
       return Math.ceil(text.length / 4)
     }
-    
+
     const estimateHistoryTokens = (messages: typeof history): number => {
       return messages.reduce((total, msg) => {
         return total + estimateTokens(msg.content || '') + 10 // ~10 tokens per message structure
       }, 0)
     }
-    
+
     const systemPromptTokens = estimateTokens(systemPrompt)
     const historyTokens = estimateHistoryTokens(history)
     const estimatedTotalTokens = systemPromptTokens + historyTokens + 2000 // buffer for user message and response
-    
+
     // Trigger summarization if we're approaching the context limit (128k tokens)
     const CONTEXT_LIMIT = 128000
     const SUMMARIZATION_THRESHOLD = CONTEXT_LIMIT * 0.7 // 70% of limit
-    
+
     if (estimatedTotalTokens > SUMMARIZATION_THRESHOLD || history.length > 10) {
       try {
         console.log(`[chatController] Context management: estimated ${estimatedTotalTokens} tokens, triggering summarization`)
@@ -776,11 +787,11 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
           ...recentMessages,
         ]
         console.log(`[chatController] Summarization complete: reduced from ${history.length} to ${effectiveHistory.length} messages`)
-        
+
         // Re-estimate tokens after summarization
         const newHistoryTokens = estimateHistoryTokens(effectiveHistory)
         const newEstimatedTotal = systemPromptTokens + newHistoryTokens + 2000
-        
+
         // If still too large, apply aggressive truncation
         if (newEstimatedTotal > CONTEXT_LIMIT * 0.9) {
           console.warn(`[chatController] Still over limit after summarization (${newEstimatedTotal} tokens), applying aggressive truncation`)
@@ -1315,27 +1326,27 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     // Conversation summarization: compress older messages when context is too large
     let effectiveHistory = history
-    
+
     // Estimate tokens to prevent context length exceeded errors
     const estimateTokens = (text: string): number => {
       // Rough estimation: ~4 characters per token
       return Math.ceil(text.length / 4)
     }
-    
+
     const estimateHistoryTokens = (messages: typeof history): number => {
       return messages.reduce((total, msg) => {
         return total + estimateTokens(msg.content || '') + 10 // ~10 tokens per message structure
       }, 0)
     }
-    
+
     const systemPromptTokens = estimateTokens(systemPrompt)
     const historyTokens = estimateHistoryTokens(history)
     const estimatedTotalTokens = systemPromptTokens + historyTokens + 2000 // buffer for user message and response
-    
+
     // Trigger summarization if we're approaching the context limit (128k tokens)
     const CONTEXT_LIMIT = 128000
     const SUMMARIZATION_THRESHOLD = CONTEXT_LIMIT * 0.7 // 70% of limit
-    
+
     if (estimatedTotalTokens > SUMMARIZATION_THRESHOLD || history.length > 10) {
       try {
         console.log(`[chatController:stream] Context management: estimated ${estimatedTotalTokens} tokens, triggering summarization`)
@@ -1348,11 +1359,11 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
           ...recentMessages,
         ]
         console.log(`[chatController:stream] Summarization complete: reduced from ${history.length} to ${effectiveHistory.length} messages`)
-        
+
         // Re-estimate tokens after summarization
         const newHistoryTokens = estimateHistoryTokens(effectiveHistory)
         const newEstimatedTotal = systemPromptTokens + newHistoryTokens + 2000
-        
+
         // If still too large, apply aggressive truncation
         if (newEstimatedTotal > CONTEXT_LIMIT * 0.9) {
           console.warn(`[chatController:stream] Still over limit after summarization (${newEstimatedTotal} tokens), applying aggressive truncation`)
@@ -1764,9 +1775,15 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     // Strip ![](url) echoes for urls already returned in imageUrls so the
     // client doesn't render them twice.
+    // Skip data: URIs — they are guest-user base64 blobs that can never appear
+    // verbatim in the LLM's text output, and trying to build a RegExp from them
+    // throws "Regular expression too large" in V8 (pattern too long).
     let textForClient = fullText
     if (imageUrls && imageUrls.length > 0 && textForClient) {
       for (const u of imageUrls) {
+        if (!u || u.startsWith('data:')) continue
+        const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
         if (!u) continue
         // For base64 data URLs, use a simpler approach to avoid regex issues
         if (u.startsWith('data:image')) {
