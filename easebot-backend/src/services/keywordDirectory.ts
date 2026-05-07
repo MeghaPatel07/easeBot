@@ -70,6 +70,21 @@ export const KEYWORD_DIRECTORY: KeywordEntry[] = [
     algoliaQuery: 'lehenga',
     category: 'lehenga',
   },
+  {
+    triggers: ['red lengha', 'red lehenga', 'red bridal lehenga'],
+    algoliaQuery: 'red lehenga women bridal',
+    category: 'bridal',
+  },
+  {
+    triggers: ['lengha', 'lenga'], // Common misspellings
+    algoliaQuery: 'lehenga women',
+    category: 'lehenga',
+  },
+  {
+    triggers: ['women lengha', 'women lehenga', 'bridal lengha'],
+    algoliaQuery: 'women lehenga bridal',
+    category: 'bridal',
+  },
 
   // ── SAREE / SARI ─────────────────────────────────────────────────────────
   {
@@ -128,13 +143,14 @@ export const KEYWORD_DIRECTORY: KeywordEntry[] = [
 
   // ── SHERWANI / GROOM ─────────────────────────────────────────────────────
   {
-    triggers: ['groom sherwani', 'wedding sherwani', 'sherwani for groom'],
-    algoliaQuery: 'groom sherwani',
+    triggers: ['groom sherwani', 'wedding sherwani', 'sherwani for groom',
+               'men sherwani', 'groom outfit', 'groom wear'],
+    algoliaQuery: 'men sherwani groom',
     category: 'groom',
   },
   {
     triggers: ['sherwani'],
-    algoliaQuery: 'sherwani',
+    algoliaQuery: 'men sherwani',
     category: 'sherwani',
   },
   {
@@ -341,7 +357,7 @@ export const KEYWORD_DIRECTORY: KeywordEntry[] = [
 
   // ── COLOR / THEME ────────────────────────────────────────────────────────
   {
-    triggers: ['red lehenga', 'red bridal'],
+    triggers: ['red bridal', 'red wedding dress'],
     algoliaQuery: 'red bridal lehenga',
     category: 'color-red',
   },

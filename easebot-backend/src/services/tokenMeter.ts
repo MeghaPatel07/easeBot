@@ -60,7 +60,7 @@ const DAILY_CAPS: Record<Tier, number> = {
   promax: 800_000,
 }
 
-const GUEST_LIMITS: Record<string, number> = {
+export const GUEST_LIMITS: Record<string, number> = {
   chat: 10,
   image: 3,
   tts: 3,

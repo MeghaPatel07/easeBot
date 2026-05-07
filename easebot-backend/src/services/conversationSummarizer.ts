@@ -36,11 +36,43 @@ export async function summarizeConversation(
     systemPrompt += ` Respond to this summarization task in ${targetLanguage} (BCP-47). Preserve all proper nouns and numbers exactly.`
   }
 
+  // Context length management for summarizer
+  const estimateTokens = (text: string): number => {
+    if (!text) return 0
+    return Math.ceil(text.length / 4)
+  }
+
+  const systemPromptTokens = estimateTokens(systemPrompt)
+  const conversationTokens = estimateTokens(conversationText)
+  const totalTokens = systemPromptTokens + conversationTokens + 500 // Buffer for response
+  
+  const SUMMARIZER_LIMIT = 100000 // Conservative limit for summarizer
+  
+  let finalConversationText = conversationText
+  
+  if (totalTokens > SUMMARIZER_LIMIT) {
+    console.warn(`[conversationSummarizer] Input too large (${totalTokens} tokens), applying truncation`)
+    
+    // Truncate conversation to fit within limit
+    const availableTokens = SUMMARIZER_LIMIT - systemPromptTokens - 500
+    const maxTextLength = availableTokens * 4 // Convert back to characters
+    
+    if (maxTextLength > 0) {
+      // Keep the end of the conversation (most recent)
+      finalConversationText = conversationText.slice(-maxTextLength)
+      console.log(`[conversationSummarizer] Truncated conversation from ${conversationText.length} to ${finalConversationText.length} characters`)
+    } else {
+      // Fallback: very short summary
+      finalConversationText = 'Conversation is too long to summarize effectively. Please start a new conversation.'
+      console.warn(`[conversationSummarizer] Using fallback summary due to extreme length`)
+    }
+  }
+
   const completion = await client.chat.completions.create({
     model: process.env.AZURE_DEPLOYMENT_NAME!,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: conversationText },
+      { role: 'user', content: finalConversationText },
     ],
     max_tokens: 300,
     temperature: 0.3,

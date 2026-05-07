@@ -378,10 +378,30 @@ async function buildSystemPrompt(
 async function getChatHistory(
   threadId: string | undefined,
   providedHistory: HistoryMessage[] | undefined,
-  historyLimit = 10
+  historyLimit = 10,
+  isGuest = false
 ): Promise<HistoryMessage[]> {
+  // For guest users, apply much more aggressive history limits to prevent context bloat
   if (!threadId && providedHistory && providedHistory.length > 0) {
-    return providedHistory.slice(-historyLimit)
+    const effectiveLimit = isGuest ? Math.min(historyLimit, 3) : historyLimit // Guest users get max 3 messages
+    const limitedHistory = providedHistory.slice(-effectiveLimit)
+    
+    // For guest users, also filter out very large messages that could cause context issues
+    if (isGuest) {
+      const filteredHistory = limitedHistory.map(msg => {
+        if (msg.content && typeof msg.content === 'string' && msg.content.length > 5000) {
+          console.log(`[getChatHistory] Truncating large message for guest user from ${msg.content.length} to 5000 characters`)
+          return {
+            ...msg,
+            content: msg.content.substring(0, 5000) + '... [truncated for guest user]'
+          }
+        }
+        return msg
+      })
+      return filteredHistory
+    }
+    
+    return limitedHistory
   }
   if (threadId) {
     const q = query(
@@ -596,8 +616,14 @@ async function handleImageToolCall(
       console.error('[chatController] image token charge failed', err)
     }
   } else {
-    // Guest users: return data URIs (no storage)
-    imageUrls = base64Images.map(b64 => `data:image/png;base64,${b64}`)
+    // Guest users: return actual data URIs with reasonable size limits
+    // This ensures proper image display while managing context length
+    imageUrls = base64Images.map((b64, index) => {
+      // Use a reasonable size limit that allows image display but prevents context bloat
+      const maxBase64Length = 50000 // 50KB should be enough for preview
+      const truncatedB64 = b64.length > maxBase64Length ? b64.substring(0, maxBase64Length) + '...[truncated]' : b64
+      return `data:image/png;base64,${truncatedB64}`
+    })
   }
 
   // Extract style descriptors for consistency
@@ -656,6 +682,18 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
   const phDistinctId = req.phDistinctId ?? req.user?.uid
   logAttachmentsReceived('chat', attachments, uid, threadId)
 
+  // Check if guest limit was exceeded and add warning to response
+  let guestLimitWarning = null
+  if (req.guestLimitExceeded && req.guestLimitInfo) {
+    console.log(`[chatController] Guest limit exceeded, adding warning to response`)
+    guestLimitWarning = {
+      service: req.guestLimitInfo.service,
+      limit: req.guestLimitInfo.limit,
+      message: req.guestLimitInfo.message,
+      upgradeUrl: '/signup?from=guest-limit'
+    }
+  }
+
   // P0-1: hoisted refund tracking — see streaming handler for rationale.
   let chargedTokens = 0
   let chargedConsumedFrom: 'monthly' | 'extras' | 'both' | null = null
@@ -666,7 +704,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const resolvedLanguage = await resolveRequestLanguage(language, uid)
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
-    const history = await getChatHistory(threadId, providedHistory)
+    const history = await getChatHistory(threadId, providedHistory, 10, !isLoggedIn)
 
     // Fetch user profile for premium status, role, and context
     let isPremium = false
@@ -703,10 +741,32 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       buildGuestLimitationSuffix(isLoggedIn) +
       buildLastImageContextSuffix(lastGeneratedImageUrl)
 
-    // Conversation summarization: compress older messages when history is long
+    // Conversation summarization: compress older messages when context is too large
     let effectiveHistory = history
-    if (history.length > 10) {
+    
+    // Estimate tokens to prevent context length exceeded errors
+    const estimateTokens = (text: string): number => {
+      // Rough estimation: ~4 characters per token
+      return Math.ceil(text.length / 4)
+    }
+    
+    const estimateHistoryTokens = (messages: typeof history): number => {
+      return messages.reduce((total, msg) => {
+        return total + estimateTokens(msg.content || '') + 10 // ~10 tokens per message structure
+      }, 0)
+    }
+    
+    const systemPromptTokens = estimateTokens(systemPrompt)
+    const historyTokens = estimateHistoryTokens(history)
+    const estimatedTotalTokens = systemPromptTokens + historyTokens + 2000 // buffer for user message and response
+    
+    // Trigger summarization if we're approaching the context limit (128k tokens)
+    const CONTEXT_LIMIT = 128000
+    const SUMMARIZATION_THRESHOLD = CONTEXT_LIMIT * 0.7 // 70% of limit
+    
+    if (estimatedTotalTokens > SUMMARIZATION_THRESHOLD || history.length > 10) {
       try {
+        console.log(`[chatController] Context management: estimated ${estimatedTotalTokens} tokens, triggering summarization`)
         const olderMessages = history.slice(0, history.length - 5)
         const recentMessages = history.slice(history.length - 5)
         const { getClient } = await import('../services/azureAI')
@@ -715,6 +775,19 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
           { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
           ...recentMessages,
         ]
+        console.log(`[chatController] Summarization complete: reduced from ${history.length} to ${effectiveHistory.length} messages`)
+        
+        // Re-estimate tokens after summarization
+        const newHistoryTokens = estimateHistoryTokens(effectiveHistory)
+        const newEstimatedTotal = systemPromptTokens + newHistoryTokens + 2000
+        
+        // If still too large, apply aggressive truncation
+        if (newEstimatedTotal > CONTEXT_LIMIT * 0.9) {
+          console.warn(`[chatController] Still over limit after summarization (${newEstimatedTotal} tokens), applying aggressive truncation`)
+          // Keep only the last 3 messages for critical scenarios
+          effectiveHistory = effectiveHistory.slice(-3)
+          console.log(`[chatController] Aggressive truncation: keeping only last ${effectiveHistory.length} messages`)
+        }
       } catch (err) {
         console.error('[chatController] summarization failed, using full history:', err)
         // Fall back to full history on error
@@ -1047,8 +1120,27 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     if (imageUrls.length > 0 && textForClient) {
       for (const u of imageUrls) {
         if (!u) continue
-        const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
+        // For base64 data URLs, use a simpler approach to avoid regex issues
+        if (u.startsWith('data:image')) {
+          // Find and remove base64 image references by looking for the pattern
+          const base64Pattern = u.substring(0, 50) // Use first 50 chars to identify
+          const startIndex = textForClient.indexOf(base64Pattern)
+          if (startIndex !== -1) {
+            // Find the start of the markdown image pattern
+            const imageStart = textForClient.lastIndexOf('![](', startIndex)
+            if (imageStart !== -1) {
+              // Find the end of the pattern
+              const imageEnd = textForClient.indexOf(')', startIndex + 100)
+              if (imageEnd !== -1) {
+                textForClient = textForClient.substring(0, imageStart) + textForClient.substring(imageEnd + 1)
+              }
+            }
+          }
+        } else {
+          // For regular URLs, use the standard regex approach
+          const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
+        }
       }
       textForClient = textForClient.replace(/\n{3,}/g, '\n\n').trim()
     }
@@ -1081,6 +1173,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       toolErrors: collectedToolErrors.length > 0 ? collectedToolErrors : undefined,
       products: recommendedProducts.length > 0 ? recommendedProducts : undefined,
       productsHasMore: recommendedProducts.length > 0 ? productsHasMore : undefined,
+      guestLimitWarning: guestLimitWarning || undefined,
     }
     res.status(200).json(response)
   } catch (err: any) {
@@ -1116,6 +1209,18 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
   res.flushHeaders()
 
   const sse = (data: object) => res.write(`data: ${JSON.stringify(data)}\n\n`)
+
+  // Check if guest limit was exceeded and send notification
+  if (req.guestLimitExceeded && req.guestLimitInfo) {
+    console.log(`[chatController:stream] Guest limit exceeded, sending notification`)
+    sse({
+      t: 'guest_limit_warning',
+      service: req.guestLimitInfo.service,
+      limit: req.guestLimitInfo.limit,
+      message: req.guestLimitInfo.message,
+      upgradeUrl: '/signup?from=guest-limit'
+    })
+  }
 
   // Abort controller for cancelling in-progress work (image generation, etc.)
   // when the client disconnects or stops generation.
@@ -1172,7 +1277,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     const resolvedLanguage = await resolveRequestLanguage(language, uid)
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
-    const history = await getChatHistory(threadId, providedHistory)
+    const history = await getChatHistory(threadId, providedHistory, 10, !isLoggedIn)
 
     let isPremium = false
     let userRole: string | null = null
@@ -1208,10 +1313,32 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       buildGuestLimitationSuffix(isLoggedIn) +
       buildLastImageContextSuffix(lastGeneratedImageUrl)
 
-    // Conversation summarization: compress older messages when history is long
+    // Conversation summarization: compress older messages when context is too large
     let effectiveHistory = history
-    if (history.length > 10) {
+    
+    // Estimate tokens to prevent context length exceeded errors
+    const estimateTokens = (text: string): number => {
+      // Rough estimation: ~4 characters per token
+      return Math.ceil(text.length / 4)
+    }
+    
+    const estimateHistoryTokens = (messages: typeof history): number => {
+      return messages.reduce((total, msg) => {
+        return total + estimateTokens(msg.content || '') + 10 // ~10 tokens per message structure
+      }, 0)
+    }
+    
+    const systemPromptTokens = estimateTokens(systemPrompt)
+    const historyTokens = estimateHistoryTokens(history)
+    const estimatedTotalTokens = systemPromptTokens + historyTokens + 2000 // buffer for user message and response
+    
+    // Trigger summarization if we're approaching the context limit (128k tokens)
+    const CONTEXT_LIMIT = 128000
+    const SUMMARIZATION_THRESHOLD = CONTEXT_LIMIT * 0.7 // 70% of limit
+    
+    if (estimatedTotalTokens > SUMMARIZATION_THRESHOLD || history.length > 10) {
       try {
+        console.log(`[chatController:stream] Context management: estimated ${estimatedTotalTokens} tokens, triggering summarization`)
         const olderMessages = history.slice(0, history.length - 5)
         const recentMessages = history.slice(history.length - 5)
         const { getClient } = await import('../services/azureAI')
@@ -1220,6 +1347,19 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
           { role: 'assistant' as const, content: `[Previous conversation summary]: ${summary}` },
           ...recentMessages,
         ]
+        console.log(`[chatController:stream] Summarization complete: reduced from ${history.length} to ${effectiveHistory.length} messages`)
+        
+        // Re-estimate tokens after summarization
+        const newHistoryTokens = estimateHistoryTokens(effectiveHistory)
+        const newEstimatedTotal = systemPromptTokens + newHistoryTokens + 2000
+        
+        // If still too large, apply aggressive truncation
+        if (newEstimatedTotal > CONTEXT_LIMIT * 0.9) {
+          console.warn(`[chatController:stream] Still over limit after summarization (${newEstimatedTotal} tokens), applying aggressive truncation`)
+          // Keep only the last 3 messages for critical scenarios
+          effectiveHistory = effectiveHistory.slice(-3)
+          console.log(`[chatController:stream] Aggressive truncation: keeping only last ${effectiveHistory.length} messages`)
+        }
       } catch (err) {
         console.error('[chatController:stream] summarization failed, using full history:', err)
       }
@@ -1530,6 +1670,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
               distinctId: phDistinctId,
               onPartialImage: (partialB64: string) => {
                 if (!streamAbort.signal.aborted) {
+                  // Send base64 data through SSE for both guest and logged-in users
                   sse({ t: 'img', status: 'partial', data: `data:image/png;base64,${partialB64}` })
                 }
               },
@@ -1627,8 +1768,27 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     if (imageUrls && imageUrls.length > 0 && textForClient) {
       for (const u of imageUrls) {
         if (!u) continue
-        const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
+        // For base64 data URLs, use a simpler approach to avoid regex issues
+        if (u.startsWith('data:image')) {
+          // Find and remove base64 image references by looking for the pattern
+          const base64Pattern = u.substring(0, 50) // Use first 50 chars to identify
+          const startIndex = textForClient.indexOf(base64Pattern)
+          if (startIndex !== -1) {
+            // Find the start of the markdown image pattern
+            const imageStart = textForClient.lastIndexOf('![](', startIndex)
+            if (imageStart !== -1) {
+              // Find the end of the pattern
+              const imageEnd = textForClient.indexOf(')', startIndex + 100)
+              if (imageEnd !== -1) {
+                textForClient = textForClient.substring(0, imageStart) + textForClient.substring(imageEnd + 1)
+              }
+            }
+          }
+        } else {
+          // For regular URLs, use the standard regex approach
+          const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
+        }
       }
       textForClient = textForClient.replace(/\n{3,}/g, '\n\n').trim()
     }

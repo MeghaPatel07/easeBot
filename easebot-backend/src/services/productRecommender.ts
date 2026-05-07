@@ -135,10 +135,11 @@ export async function maybeRecommendProducts(
   if (explicit) {
     // Any turn, any mode (except planner/knowledge already gated out).
     shouldFetch = true
-  } else if (hasNoun && turnNumber >= 2 && stylistContext) {
-    // Concrete item on turn 2+ in stylist/auto context.
+  } else if (hasNoun && turnNumber >= 3 && stylistContext) {
+    // Concrete item on turn 3+ in stylist context - only if user is asking for products
+    // or if it's the first time mentioning a product type
     shouldFetch = true
-  } else if (softSignal && previousUserHasNoun && turnNumber >= 2 && stylistContext) {
+  } else if (softSignal && previousUserHasNoun && turnNumber >= 3 && stylistContext) {
     // User says "give me ideas/options/suggestions" and the context already
     // established a concrete item. Fetch using the inherited query.
     shouldFetch = true

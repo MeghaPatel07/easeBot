@@ -121,6 +121,13 @@ export interface ChatResponse {
   products?: ChatProductCard[]
   /** Whether more products are available on a follow-up "show more" turn. */
   productsHasMore?: boolean
+  /** Guest limit warning information when user exceeds guest limits. */
+  guestLimitWarning?: {
+    service: string
+    limit: number
+    message: string
+    upgradeUrl: string
+  }
 }
 
 export interface HistoryMessage {

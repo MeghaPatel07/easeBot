@@ -13,9 +13,24 @@ import type { Request, Response, NextFunction, RequestHandler } from 'express'
 import crypto from 'crypto'
 import {
   estimateCost,
+  GUEST_LIMITS,
   chargeTokens,
   getTier,
 } from '../services/tokenMeter'
+
+// Extend Request interface to include guest limit properties
+declare global {
+  namespace Express {
+    interface Request {
+      guestLimitExceeded?: boolean
+      guestLimitInfo?: {
+        service: string
+        limit: number
+        message: string
+      }
+    }
+  }
+}
 import type {
   Principal,
   Subject,
@@ -274,15 +289,20 @@ export function quotaCheck(service: Service): RequestHandler {
 
       // --- 4. Enforce -------------------------------------------------------
       if (principal.kind === 'guest' && estimate.wouldExceedGuestLimit) {
-        sendQuotaExceeded(res, principal, estimate, 'guest_limit_exceeded', null)
-        return
-      }
-      if (estimate.wouldExceedDaily) {
+        // For guest users, allow the request but attach a warning instead of blocking
+        console.log(`[quotaMiddleware] Guest limit reached for ${principal.id}, allowing with notification`)
+        req.guestLimitExceeded = true
+        req.guestLimitInfo = {
+          service: service,
+          limit: GUEST_LIMITS[service] || 0,
+          message: 'Guest limit reached. Sign up for a free account to continue chatting without limits.'
+        }
+        // Continue processing instead of blocking
+      } else if (estimate.wouldExceedDaily) {
         const resetAt = nextUtcMidnight(new Date())
         sendQuotaExceeded(res, principal, estimate, 'daily_cap_exceeded', resetAt.toISOString())
         return
-      }
-      if (estimate.wouldExceedMonthly) {
+      } else if (estimate.wouldExceedMonthly) {
         const end = nextUtcMonthStart(new Date())
         sendQuotaExceeded(res, principal, estimate, 'monthly_cap_exceeded', end.toISOString())
         return
