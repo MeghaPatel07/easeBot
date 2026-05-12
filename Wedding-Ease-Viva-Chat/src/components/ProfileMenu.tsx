@@ -218,7 +218,7 @@ export function ProfileMenu({
         <Sparkles className="mr-2 h-4 w-4" />
         <span>{tier === 'free' ? 'Upgrade plan' : 'Manage plan'}</span>
       </DropdownMenuItem>
-      <DropdownMenuItem
+      {/* <DropdownMenuItem
         className="cursor-pointer min-h-11"
         onSelect={() => {
           window.open('https://weddingease.ai', '_blank', 'noopener,noreferrer')
@@ -226,7 +226,7 @@ export function ProfileMenu({
       >
         <ExternalLink className="mr-2 h-4 w-4" />
         <span>Visit WeddingEase.ai</span>
-      </DropdownMenuItem>
+      </DropdownMenuItem> */}
       <DropdownMenuSub>
         <DropdownMenuSubTrigger className="cursor-pointer min-h-11">
           <HelpCircle className="mr-2 h-4 w-4" />

@@ -18,10 +18,11 @@ export default function WeddingEaseFloater({ isFixed = true, className = "" }: W
 
   return (
     <a
-      href={WEDDINGEASE_URL}
-      target="_blank"
+      // href={WEDDINGEASE_URL}
+      href="#"
+      // target="_blank"
       rel="noopener noreferrer"
-      onClick={handleClick}
+      // onClick={handleClick}
       aria-label="Open WeddingEase in a new tab"
       title="Visit WeddingEase"
       className={`hidden sm:block group cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 ${isFixed ? "fixed bottom-6 right-6 z-[60]" : "relative flex-shrink-0"
