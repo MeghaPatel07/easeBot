@@ -15,7 +15,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { upgradeSubscription } from '@/services/paymentService'
+import {
+  subscriptionUpgrade,
+  type SubscriptionUpgradeRequest,
+  type SubscriptionUpgradeResponse,
+} from '@/services/cloudFunctionsService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { cn } from '@/lib/utils'
 import { track } from '@/lib/analytics'
@@ -86,26 +90,35 @@ export function UpgradeFlow({
     setStep('loading')
     setError(null)
     try {
-      const res = await upgradeSubscription(cycle) as UpgradeResult
-      setResult(res)
+      const request: SubscriptionUpgradeRequest = {
+        newPlan: targetTier === 'promax' ? 'promax_monthly' : 'pro_monthly',
+        billingCycle: cycle,
+        clientRequestId: `upgrade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      }
 
-      if (res.freeUpgrade) {
+      const res = await subscriptionUpgrade(request) as UpgradeResult
+      setResult({
+        ...res,
+        freeUpgrade: res.creditApplied >= (res.credit?.chargeNowUsd ?? priceUsd),
+      })
+
+      if (res.creditApplied >= (res.credit?.chargeNowUsd ?? priceUsd)) {
         setStep('success')
       } else {
         setStep('preview')
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('409')) {
+    } catch (err: any) {
+      const msg = err?.message || String(err)
+      if (err?.code === 'permission_denied') {
         setError('Your current plan cannot be upgraded. Please check your subscription status.')
-      } else if (msg.includes('401')) {
+      } else if (err?.code === 'auth_required') {
         setError('Please sign in again to continue.')
       } else {
-        setError('Something went wrong. Please try again.')
+        setError(msg || 'Something went wrong. Please try again.')
       }
       setStep('error')
     }
-  }, [cycle])
+  }, [cycle, targetTier, priceUsd])
 
   const handleProceedToCheckout = useCallback(() => {
     if (!result) return

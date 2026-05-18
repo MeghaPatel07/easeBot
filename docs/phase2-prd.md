@@ -171,7 +171,7 @@ Replace all mock AI responses with a production-ready pipeline using Azure servi
 # functions/.env
 
 # Azure AI Foundry — GPT-4o
-AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
+AZURE_OPENAI_ENDPOINT_THEWEDDINGBOT=https://<resource>.openai.azure.com
 AZURE_OPENAI_API_KEY=
 AZURE_DEPLOYMENT_NAME=gpt-4o
 

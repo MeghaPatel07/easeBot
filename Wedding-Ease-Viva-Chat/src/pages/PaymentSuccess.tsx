@@ -4,7 +4,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
-import { verifyPayment } from '@/services/paymentService'
+import { paymentVerify } from '@/services/cloudFunctionsService'
 import { track } from '@/lib/analytics'
 
 interface VerifyResponse {
@@ -35,20 +35,42 @@ export default function PaymentSuccess() {
         if (!txnid) { setError('Missing transaction id.'); return }
         // Retry a few times — the webhook writes state='paid' asynchronously
         // and may not have landed by the time the browser hits this page.
-        let res: VerifyResponse | null = null
+        let verifyResult = null
         for (let attempt = 0; attempt < 5; attempt++) {
-          res = (await verifyPayment(txnid)) as VerifyResponse
-          if (res.state === 'paid' || res.state === 'failed') break
-          await new Promise((r) => setTimeout(r, 1000))
+          try {
+            verifyResult = await paymentVerify({
+              orderId: txnid,
+              payuTransactionId: txnid,
+            })
+            if (verifyResult.verified || verifyResult.status === 'failed') break
+          } catch (e: any) {
+            if (e?.code !== 'not_found' && attempt < 4) {
+              await new Promise((r) => setTimeout(r, 1000))
+              continue
+            }
+            throw e
+          }
         }
         // Force fresh token so any tier/claim change is visible.
         if (auth.currentUser) await auth.currentUser.getIdToken(true)
         // Invalidate the account query so BillingSettings picks up the new
         // tier/extras immediately when the user navigates back.
         await queryClient.invalidateQueries({ queryKey: ['account', 'me'] })
-        if (!cancelled && res) setInfo(res)
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
+        if (!cancelled && verifyResult) {
+          setInfo({
+            txnid,
+            state: verifyResult.verified ? 'paid' : 'failed',
+            plan: '',
+            cycle: '',
+            amountLocal: '',
+            currency: '',
+          })
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          const msg = err?.message || String(err)
+          setError(msg || 'Failed to verify payment')
+        }
       }
     }
 

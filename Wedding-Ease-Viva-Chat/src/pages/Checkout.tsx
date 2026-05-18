@@ -4,20 +4,22 @@ import { ArrowLeft } from 'lucide-react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import {
-  initiatePayment,
   autoSubmitToPayu,
-  type BillingAddressInput,
-  type BillingCycle,
-  type Plan,
 } from '@/services/paymentService'
+import {
+  paymentInitiate,
+  type BillingAddressInput,
+  type PaymentInitiateRequest,
+  type PaymentInitiateResponse,
+} from '@/services/cloudFunctionsService'
 import ExchangeRateService from '@/services/exchangeRateService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { cn } from '@/lib/utils'
 import { track } from '@/lib/analytics'
 
 interface CheckoutState {
-  plan: Plan | 'topup_2m'
-  cycle: BillingCycle | 'once'
+  plan: string
+  cycle: string
   currency: string
   isUpgrade?: boolean
   priceUsd: number
@@ -162,40 +164,52 @@ export default function Checkout() {
         amount: state.priceUsd,
         currency: state.currency,
       })
-      const firstname = fullName.trim().split(' ')[0] || 'Customer'
-      const init = await initiatePayment({
+
+      const request: PaymentInitiateRequest = {
         plan: state.plan,
-        cycle: state.cycle,
+        billingCycle: state.cycle,
         currency: state.currency,
-        firstname,
-        email: email.trim(),
-        billingAddress,
-        gstin: gstin ? gstin.toUpperCase() : undefined,
+        billingAddress: {
+          ...billingAddress,
+          email: email.trim(),
+          gstin: gstin ? gstin.toUpperCase() : undefined,
+        },
         isUpgrade: state.isUpgrade,
-      })
+      }
+
+      const init = await paymentInitiate(request)
+
       track('payu_redirect_started', {
-        order_id: init.txnid,
+        order_id: init.orderId,
         tier: state.plan,
         amount: state.priceUsd,
         currency: state.currency,
       })
       didSubmitRef.current = true
-      autoSubmitToPayu(init)
-    } catch (submitErr) {
-      const msg = submitErr instanceof Error ? submitErr.message : String(submitErr)
-      console.error('[Checkout] initiate failed', submitErr)
-      if (msg.includes('409') && msg.includes('already_subscribed')) {
-        navigate('/pricing', { state: { returnReason: 'already_subscribed' } })
-      } else if (msg.includes('409') && msg.includes('upgrade_requires_pro_tier')) {
-        setFormError('Upgrades are only available from the Pro tier.')
-      } else if (msg.includes('503') || msg.includes('rate_api_unavailable')) {
-        setFormError('Currency conversion is temporarily unavailable. Please try again.')
-      } else if (msg.includes('missing_billing_state')) {
-        setFormError('State is required for Indian addresses.')
-      } else if (msg.includes('invalid_gstin')) {
-        setFormError('GSTIN format is invalid.')
+
+      if (init.payuUrl) {
+        window.location.href = init.payuUrl
       } else {
-        setFormError('Could not start checkout. Please try again.')
+        autoSubmitToPayu(init as any)
+      }
+    } catch (submitErr: any) {
+      const msg = submitErr?.message || String(submitErr)
+      console.error('[Checkout] initiate failed', submitErr)
+
+      if (submitErr?.code === 'permission_denied') {
+        navigate('/pricing', { state: { returnReason: 'already_subscribed' } })
+      } else if (submitErr?.code === 'invalid_argument' && msg.includes('upgrade')) {
+        setFormError('Upgrades are only available from the Pro tier.')
+      } else if (submitErr?.code === 'unavailable' || msg.includes('rate_api')) {
+        setFormError('Currency conversion is temporarily unavailable. Please try again.')
+      } else if (msg.includes('state')) {
+        setFormError('State is required for Indian addresses.')
+      } else if (msg.includes('gstin')) {
+        setFormError('GSTIN format is invalid.')
+      } else if (submitErr?.code === 'auth_required') {
+        setFormError('Please log in to continue.')
+      } else {
+        setFormError(msg || 'Could not start checkout. Please try again.')
       }
       setSubmitting(false)
     }

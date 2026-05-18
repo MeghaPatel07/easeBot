@@ -159,7 +159,7 @@ Client saves user msg + AI response to Firestore via SDK
 ### 2.5 Functions `.env`
 ```bash
 # Azure AI Foundry — GPT-4o
-AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
+AZURE_OPENAI_ENDPOINT_THEWEDDINGBOT=https://<resource>.openai.azure.com
 AZURE_OPENAI_API_KEY=
 AZURE_DEPLOYMENT_NAME=gpt-4o
 

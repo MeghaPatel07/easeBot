@@ -7,6 +7,8 @@
 //
 // The Admin SDK bypasses Firestore security rules; per-user authorization MUST
 // be enforced in controllers via `req.user.uid`, never trusted from request bodies.
+import * as fs from 'fs'
+import * as path from 'path'
 import {
   initializeApp,
   cert,
@@ -22,28 +24,34 @@ function buildApp(): App {
   if (getApps().length > 0) return getApp()
 
   const projectId = process.env.FIREBASE_PROJECT_ID
+  const credentialsPath = path.resolve(__dirname, '../../../wedding-ease-dc99a-firebase-adminsdk-hp8cd-2136a8a0c3.json')
 
-  // 1. Inline JSON via env var
-  const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-  if (inlineJson && inlineJson.trim().length > 0) {
+  // 1. Load credentials from direct file path
+  if (fs.existsSync(credentialsPath)) {
     try {
-      const parsed = JSON.parse(inlineJson)
+      const credentialsJson = fs.readFileSync(credentialsPath, 'utf8')
+      const parsed = JSON.parse(credentialsJson)
       return initializeApp({
         credential: cert(parsed),
         projectId: parsed.project_id ?? projectId,
       })
     } catch (err) {
       console.error(
-        '[firebaseAdmin] Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON; falling back to applicationDefault().',
+        '[firebaseAdmin] Failed to load credentials from file path; falling back to applicationDefault().',
         err instanceof Error ? err.message : err,
       )
     }
+  } else {
+    console.warn(
+      '[firebaseAdmin] Credentials file not found at',
+      credentialsPath,
+    )
   }
 
-  // 2 + 3. GOOGLE_APPLICATION_CREDENTIALS file path is consumed by applicationDefault().
+  // 2. Fallback to GOOGLE_APPLICATION_CREDENTIALS env var
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     console.warn(
-      '[firebaseAdmin] No FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS set. ' +
+      '[firebaseAdmin] No GOOGLE_APPLICATION_CREDENTIALS set. ' +
         'Falling back to applicationDefault(). Admin operations will fail until credentials are provided.',
     )
   }

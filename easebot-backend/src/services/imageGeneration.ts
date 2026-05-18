@@ -12,7 +12,7 @@
  *   AZURE_GPT_IMAGE_15_DEPLOYMENT  – GPT-Image-1.5 deployment name
  *   AZURE_GPT_IMAGE_DEPLOYMENT     – GPT-Image-1 fallback deployment name
  *   AZURE_GPT_IMAGE_API_VERSION    – API version
- *   AZURE_OPENAI_ENDPOINT          – Azure endpoint for GPT-4o (vision)
+ *   AZURE_OPENAI_ENDPOINT_THEWEDDINGBOT          – Azure endpoint for GPT-4o (vision)
  *   AZURE_OPENAI_API_KEY           – Azure key for GPT-4o
  *   AZURE_DEPLOYMENT_NAME          – GPT-4o deployment name
  */
@@ -43,7 +43,7 @@ export type ImageClassification = 'text-to-image' | 'image-to-text' | 'image-to-
 // ── Env helpers ─────────────────────────────────────────────────────────────────
 
 function getImageConfig() {
-  const endpoint = (process.env.AZURE_IMAGE_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT || '').replace(/\/+$/, '')
+  const endpoint = (process.env.AZURE_IMAGE_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT_THEWEDDINGBOT || '').replace(/\/+$/, '')
   const apiKey = process.env.AZURE_IMAGE_API_KEY || process.env.AZURE_OPENAI_API_KEY
   const apiVersion = process.env.AZURE_GPT_IMAGE_API_VERSION ?? '2025-04-01-preview'
   const primaryDeployment = process.env.AZURE_GPT_IMAGE_15_DEPLOYMENT ?? 'gpt-image-1.5'
@@ -504,7 +504,7 @@ export async function analyzeImage(
   prompt?: string,
   detail: 'low' | 'high' | 'auto' = 'auto'
 ): Promise<string> {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT
+  const endpoint = process.env.AZURE_OPENAI_ENDPOINT_THEWEDDINGBOT
   const apiKey = process.env.AZURE_OPENAI_API_KEY
   const deployment = process.env.AZURE_DEPLOYMENT_NAME
 

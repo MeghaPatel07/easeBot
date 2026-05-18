@@ -620,7 +620,7 @@ The frontend `ChatMessages.tsx` can render progressive blur-to-sharp transitions
 
 ```env
 # ── Azure AI Foundry — GPT-4o (conversational + prompt architect + vision) ──
-AZURE_OPENAI_ENDPOINT=https://weddingease.openai.azure.com
+AZURE_OPENAI_ENDPOINT_THEWEDDINGBOT=https://weddingease.openai.azure.com
 AZURE_OPENAI_API_KEY=<existing>
 AZURE_DEPLOYMENT_NAME=gpt-4o
 

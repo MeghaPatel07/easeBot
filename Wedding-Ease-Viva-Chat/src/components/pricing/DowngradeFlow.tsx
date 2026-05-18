@@ -14,7 +14,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { downgradeSubscription, getCurrentSubscription } from '@/services/paymentService'
+import {
+  subscriptionDowngrade,
+  subscriptionCurrent,
+  type SubscriptionDowngradeRequest,
+  type SubscriptionDowngradeResponse,
+} from '@/services/cloudFunctionsService'
 import { track } from '@/lib/analytics'
 import type { PricingTier } from './PricingTierCard'
 
@@ -48,7 +53,7 @@ export function DowngradeFlow({
       setError(null)
       setPeriodEnd(null)
       track('downgrade_flow_opened', { from_tier: currentTier, to_tier: targetTier })
-      void getCurrentSubscription()
+      void subscriptionCurrent()
         .then((sub) => {
           if (sub.currentPeriodEnd) {
             setPeriodEnd(
@@ -68,18 +73,20 @@ export function DowngradeFlow({
     setStep('loading')
     setError(null)
     try {
-      const clientRequestId = `downgrade_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      await downgradeSubscription(clientRequestId)
+      const request: SubscriptionDowngradeRequest = {
+        clientRequestId: `downgrade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      }
+      await subscriptionDowngrade(request)
       track('downgrade_completed', { from_tier: currentTier, to_tier: targetTier })
       setStep('success')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('409')) {
+    } catch (err: any) {
+      if (err?.code === 'permission_denied') {
         setError('Your current plan cannot be downgraded. It may already be scheduled.')
-      } else if (msg.includes('401')) {
+      } else if (err?.code === 'auth_required') {
         setError('Please sign in again to continue.')
       } else {
-        setError('Something went wrong. Please try again.')
+        const msg = err?.message || String(err)
+        setError(msg || 'Something went wrong. Please try again.')
       }
       setStep('error')
     }

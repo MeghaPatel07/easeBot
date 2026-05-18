@@ -113,7 +113,7 @@ export async function generateImage(prompt: string): Promise<{ imageUrl: string 
   return post<{ imageUrl: string }>('/api/generate-image', { prompt })
 }
 
-// ── Streaming chat (SSE) ───────────────────────────────────────────────────────
+// ── Streaming chat (Cloud Functions with polling) ───────────────────────────────
 
 export interface StreamProductCard {
   uid: string
@@ -151,52 +151,58 @@ export async function* streamChatMessage(
   payload: ChatFunctionPayload,
   signal?: AbortSignal
 ): AsyncGenerator<StreamSSEEvent> {
-  const token = await getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Accept': 'text/event-stream',
+  // Import here to avoid circular dependencies
+  const { streamChatViaCloudFunctions } = await import('./cloudFunctionsService')
+
+  // Generate unique request ID for this chat request
+  const requestId =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+
+  // Convert ChatFunctionPayload to CloudFunctionsService format
+  const cfRequest = {
+    threadId: (payload as any).threadId ?? null,
+    message: payload.message,
+    mode: (payload as any).mode ?? 'assistant',
+    language: (payload as any).language,
+    audioBase64: (payload as any).audioBase64,
+    imageBase64: (payload as any).imageBase64,
+    imageMimeType: (payload as any).imageMimeType,
+    userPersonalization: (payload as any).userPersonalization,
+    attachments: (payload as any).attachments,
+    forceImageGeneration: (payload as any).forceImageGeneration,
+    skipImageGeneration: (payload as any).skipImageGeneration,
+    preferredAspectRatio: (payload as any).preferredAspectRatio,
+    vibeTitle: (payload as any).vibeTitle,
+    vibeDescriptors: (payload as any).vibeDescriptors,
+    styleMemory: (payload as any).styleMemory,
+    requestId,
   }
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${API_BASE}/api/chat/stream`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-    signal,
-  })
+  try {
+    // Use Cloud Functions with polling for streaming
+    for await (const update of streamChatViaCloudFunctions(cfRequest, signal, 400)) {
+      // Map cloud function updates to SSE event format
+      const event: StreamSSEEvent = {
+        ...update,
+      } as any
 
-  if (res.status === 402) {
-    const payload = (await res.json().catch(() => null)) as QuotaExceededPayload | null
-    if (payload) dispatchQuotaEvent(payload)
-    throw makeQuotaError(payload ?? {
-      error: 'quota_exceeded',
-      reason: 'daily_cap_exceeded',
-      message: 'Quota exceeded',
-      resetAt: null,
-      upgradeUrl: '/pricing',
-    })
-  }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error((err as any).error ?? `Stream failed: ${res.status}`)
-  }
-
-  const reader = res.body!.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop()!
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const raw = line.slice(6).trim()
-      if (!raw) continue
-      try { yield JSON.parse(raw) as StreamSSEEvent } catch { /* skip malformed */ }
+      yield event
     }
+  } catch (error: any) {
+    if (error.message?.includes('quota_exceeded') || error.code === 'quota_exceeded') {
+      const payload = error.details ?? {
+        error: 'quota_exceeded',
+        reason: 'unknown',
+        message: error.message || 'Quota exceeded',
+        resetAt: null,
+        upgradeUrl: '/pricing',
+      }
+      dispatchQuotaEvent(payload)
+      throw makeQuotaError(payload)
+    }
+    throw error
   }
 }
 
@@ -212,17 +218,12 @@ export async function* streamChatMessage(
  */
 export async function cancelChatRequest(requestId: string): Promise<void> {
   try {
-    const token = await getAuthToken()
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    await fetch(`${API_BASE}/api/chat/cancel`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ requestId }),
-      keepalive: true,  // allow the request to outlive the page if user navigates
-    })
+    // Import here to avoid circular dependencies
+    const { chatCancel } = await import('./cloudFunctionsService')
+    await chatCancel(requestId)
   } catch {
     // swallow — Stop should never be blocked by a failed cancel call
+    console.warn('[cancelChatRequest] Cancel request failed (expected for slow connections)')
   }
 }
 
