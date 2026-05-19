@@ -4,7 +4,7 @@ import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@
 import { QUOTA_EVENT, type QuotaExceededPayload } from '@/services/accountService'
 // CalendarEvent kept here transitionally — used in StreamDoneEvent below until backend drops the field.
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
 
 export interface ChatQuotaError extends Error {
   code: 'quota_exceeded'

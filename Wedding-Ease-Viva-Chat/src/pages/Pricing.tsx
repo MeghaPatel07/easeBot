@@ -5,7 +5,7 @@ import PricingTierCard, {
   type PricingTier,
 } from '@/components/pricing/PricingTierCard'
 import { UpgradeFlow } from '@/components/pricing/UpgradeFlow'
-import { DowngradeFlow } from '@/components/pricing/DowngradeFlow'
+// import { DowngradeFlow } from '@/components/pricing/DowngradeFlow' // TODO: disabled for now, only upgrades allowed
 import GeolocationService from '@/services/geolocationService'
 import ExchangeRateService from '@/services/exchangeRateService'
 import { formatCurrency } from '@/utils/currencyFormat'
@@ -295,7 +295,7 @@ export default function Pricing() {
 
   // Upgrade / Downgrade modal state
   const [upgradeOpen, setUpgradeOpen] = useState(false)
-  const [downgradeOpen, setDowngradeOpen] = useState(false)
+  // const [downgradeOpen, setDowngradeOpen] = useState(false) // TODO: disabled for now, only upgrades allowed
   const [flowTarget, setFlowTarget] = useState<PricingTier>('promax')
 
   const handleTopup = () => {
@@ -337,18 +337,19 @@ export default function Pricing() {
     const targetRank = TIER_RANK[tier]
     const isPaidUser = currentTier === 'pro' || currentTier === 'promax'
 
-    // Paid user → open upgrade or downgrade modal
+    // Paid user → open upgrade modal (downgrade disabled)
     if (isPaidUser && targetRank > currentRank) {
       setFlowTarget(tier)
       setUpgradeOpen(true)
       return
     }
 
-    if (isPaidUser && targetRank < currentRank) {
-      setFlowTarget(tier)
-      setDowngradeOpen(true)
-      return
-    }
+    // TODO: downgrade disabled for now, only upgrades allowed
+    // if (isPaidUser && targetRank < currentRank) {
+    //   setFlowTarget(tier)
+    //   setDowngradeOpen(true)
+    //   return
+    // }
 
     // Free/guest user → fresh purchase via checkout
     const row = TIERS.find((t) => t.tier === tier)
@@ -570,12 +571,13 @@ export default function Pricing() {
         rate={rate}
         priceUsd={upgradeTargetUsd}
       />
-      <DowngradeFlow
+      {/* TODO: DowngradeFlow disabled for now, only upgrades allowed */}
+      {/* <DowngradeFlow
         open={downgradeOpen}
         onOpenChange={setDowngradeOpen}
         currentTier={currentTier}
         targetTier={flowTarget}
-      />
+      /> */}
     </div>
   )
 }

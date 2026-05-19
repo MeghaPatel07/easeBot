@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, Check, Loader2 } from 'lucide-react'
 import {
   Dialog,
@@ -63,6 +64,7 @@ export function UpgradeFlow({
   priceUsd,
 }: UpgradeFlowProps) {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [step, setStep] = useState<Step>('confirm')
   const [result, setResult] = useState<UpgradeResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +92,7 @@ export function UpgradeFlow({
       setResult(res)
 
       if (res.freeUpgrade) {
+        await qc.refetchQueries({ queryKey: ['account', 'me'] })
         setStep('success')
       } else {
         setStep('preview')
@@ -105,7 +108,7 @@ export function UpgradeFlow({
       }
       setStep('error')
     }
-  }, [cycle])
+  }, [cycle, qc])
 
   const handleProceedToCheckout = useCallback(() => {
     if (!result) return
@@ -123,10 +126,11 @@ export function UpgradeFlow({
     })
   }, [result, targetTier, cycle, currency, priceUsd, navigate, onOpenChange])
 
-  const handleSuccessDone = useCallback(() => {
+  const handleSuccessDone = useCallback(async () => {
+    await qc.refetchQueries({ queryKey: ['account', 'me'] })
     onOpenChange(false)
     navigate('/', { state: { planChanged: targetTier } })
-  }, [navigate, onOpenChange, targetTier])
+  }, [navigate, onOpenChange, targetTier, qc])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

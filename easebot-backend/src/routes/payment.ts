@@ -2,13 +2,14 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import {
   initiate,
+  activatePlan,
   handleReturn,
   handleWebhook,
   verify,
 } from '../controllers/paymentController'
 import {
   upgrade,
-  downgrade,
+  // downgrade, // TODO: disabled for now, only upgrades allowed
   getCurrentSubscription,
 } from '../controllers/subscriptionController'
 
@@ -16,11 +17,12 @@ const router = Router()
 
 // Authenticated: user-initiated purchase + verify.
 router.post('/initiate', requireAuth, initiate)
+router.post('/activate-plan', requireAuth, activatePlan)
 router.get ('/verify',   requireAuth, verify)
 
 // Subscription mutations.
 router.post('/subscription/upgrade',   requireAuth, upgrade)
-router.post('/subscription/downgrade', requireAuth, downgrade)
+// router.post('/subscription/downgrade', requireAuth, downgrade) // TODO: disabled for now, only upgrades allowed
 router.get ('/subscription/current',   requireAuth, getCurrentSubscription)
 
 // Top-up alias — hits the standard initiate flow with plan=topup_2m.

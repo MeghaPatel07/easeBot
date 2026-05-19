@@ -12,7 +12,7 @@ import {
 import { db, auth } from '@/lib/firebase'
 import type { Note, Collaborator, NotePermission } from '@/types/notes'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
 
 async function authedFetch(path: string, init: RequestInit): Promise<Response> {
   const token = await auth.currentUser?.getIdToken()

@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
+import { useQueryClient } from '@tanstack/react-query'
 import { auth } from '@/lib/firebase'
 import {
   initiatePayment,
   autoSubmitToPayu,
+  isPaymentEnabled,
   type BillingAddressInput,
   type BillingCycle,
   type Plan,
@@ -53,6 +55,7 @@ const IN_STATES = [
 export default function Checkout() {
   const location = useLocation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const state = location.state as CheckoutState | null
 
   // Hooks must run unconditionally — early returns with hooks below would
@@ -139,6 +142,34 @@ export default function Checkout() {
     return null
   }
 
+  const activatePlanDirect = async (billingAddress: BillingAddressInput, firstname: string) => {
+    const user = auth.currentUser
+    if (!user) throw new Error('not_signed_in')
+    const token = await user.getIdToken()
+    const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
+    const res = await fetch(`${apiBase}/api/payment/activate-plan`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        plan: state.plan,
+        cycle: state.cycle,
+        firstname,
+        email: email.trim(),
+        billingAddress,
+        gstin: gstin ? gstin.toUpperCase() : undefined,
+        isUpgrade: state.isUpgrade,
+      }),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      throw new Error(`activate_failed:${res.status}:${text}`)
+    }
+    return res.json()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
@@ -163,27 +194,42 @@ export default function Checkout() {
         currency: state.currency,
       })
       const firstname = fullName.trim().split(' ')[0] || 'Customer'
-      const init = await initiatePayment({
-        plan: state.plan,
-        cycle: state.cycle,
-        currency: state.currency,
-        firstname,
-        email: email.trim(),
-        billingAddress,
-        gstin: gstin ? gstin.toUpperCase() : undefined,
-        isUpgrade: state.isUpgrade,
-      })
-      track('payu_redirect_started', {
-        order_id: init.txnid,
-        tier: state.plan,
-        amount: state.priceUsd,
-        currency: state.currency,
-      })
-      didSubmitRef.current = true
-      autoSubmitToPayu(init)
+
+      if (isPaymentEnabled()) {
+        const init = await initiatePayment({
+          plan: state.plan,
+          cycle: state.cycle,
+          currency: state.currency,
+          firstname,
+          email: email.trim(),
+          billingAddress,
+          gstin: gstin ? gstin.toUpperCase() : undefined,
+          isUpgrade: state.isUpgrade,
+        })
+        track('payu_redirect_started', {
+          order_id: init.txnid,
+          tier: state.plan,
+          amount: state.priceUsd,
+          currency: state.currency,
+        })
+        didSubmitRef.current = true
+        autoSubmitToPayu(init)
+      } else {
+        await activatePlanDirect(billingAddress, firstname)
+        track('plan_activated_direct', {
+          tier: state.plan,
+          cycle: state.cycle,
+          amount: state.priceUsd,
+          currency: state.currency,
+        })
+        didSubmitRef.current = true
+        // Refetch account data so the new plan is reflected immediately
+        await queryClient.refetchQueries({ queryKey: ['account', 'me'] })
+        navigate('/', { replace: true })
+      }
     } catch (submitErr) {
       const msg = submitErr instanceof Error ? submitErr.message : String(submitErr)
-      console.error('[Checkout] initiate failed', submitErr)
+      console.error('[Checkout] submission failed', submitErr)
       if (msg.includes('409') && msg.includes('already_subscribed')) {
         navigate('/pricing', { state: { returnReason: 'already_subscribed' } })
       } else if (msg.includes('409') && msg.includes('upgrade_requires_pro_tier')) {
@@ -194,8 +240,10 @@ export default function Checkout() {
         setFormError('State is required for Indian addresses.')
       } else if (msg.includes('invalid_gstin')) {
         setFormError('GSTIN format is invalid.')
+      } else if (msg.includes('activate_failed')) {
+        setFormError('Could not activate plan. Please try again.')
       } else {
-        setFormError('Could not start checkout. Please try again.')
+        setFormError('Could not complete checkout. Please try again.')
       }
       setSubmitting(false)
     }
@@ -376,12 +424,21 @@ export default function Checkout() {
               disabled={submitting}
               className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:w-auto transition-colors"
             >
-              {submitting ? 'Redirecting to PayU…' : `Pay ${priceDisplay}`}
+              {submitting ? (isPaymentEnabled() ? 'Redirecting to PayU…' : 'Activating plan…') : `${isPaymentEnabled() ? 'Pay' : 'Activate'} ${priceDisplay}`}
             </button>
             <p className="mt-3 text-2xs text-foreground/40">
-              You&apos;ll be redirected to PayU&apos;s secure sandbox. By continuing
-              you agree to the <Link to="/terms" className="underline">Terms</Link>{' '}
-              and <Link to="/privacy" className="underline">Privacy Policy</Link>.
+              {isPaymentEnabled() ? (
+                <>
+                  You&apos;ll be redirected to PayU&apos;s secure sandbox. By continuing
+                  you agree to the <Link to="/terms" className="underline">Terms</Link>{' '}
+                  and <Link to="/privacy" className="underline">Privacy Policy</Link>.
+                </>
+              ) : (
+                <>
+                  By continuing you agree to the <Link to="/terms" className="underline">Terms</Link>{' '}
+                  and <Link to="/privacy" className="underline">Privacy Policy</Link>.
+                </>
+              )}
             </p>
           </div>
           </form>

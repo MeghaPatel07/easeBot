@@ -128,31 +128,32 @@ export async function upgrade(
   }
 }
 
-export async function downgrade(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const uid = requireUid(req, res)
-    if (!uid) return
-    const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
-    if (typeof clientRequestId !== 'string' || clientRequestId.trim() === '') {
-      res.status(400).json({ error: 'missing_client_request_id' })
-      return
-    }
-    const sub = await readSubscription(uid)
-    const result = await applyTransition(uid, sub.state, sub.state, 'downgrade_schedule', {
-      clientRequestId,
-      targetPlan: 'pro',
-    })
-    if (result.applied) emit('subscription_downgrade', { uid, fromState: sub.state, toState: result.state })
-    res.status(200).json({ state: result.state, applied: result.applied })
-  } catch (err) {
-    console.error('[subscriptionController.downgrade]', err)
-    next(err)
-  }
-}
+// TODO: downgrade disabled for now, only upgrades allowed
+// export async function downgrade(
+//   req: Request,
+//   res: Response,
+//   next: NextFunction,
+// ): Promise<void> {
+//   try {
+//     const uid = requireUid(req, res)
+//     if (!uid) return
+//     const { clientRequestId } = (req.body ?? {}) as { clientRequestId?: string }
+//     if (typeof clientRequestId !== 'string' || clientRequestId.trim() === '') {
+//       res.status(400).json({ error: 'missing_client_request_id' })
+//       return
+//     }
+//     const sub = await readSubscription(uid)
+//     const result = await applyTransition(uid, sub.state, sub.state, 'downgrade_schedule', {
+//       clientRequestId,
+//       targetPlan: 'pro',
+//     })
+//     if (result.applied) emit('subscription_downgrade', { uid, fromState: sub.state, toState: result.state })
+//     res.status(200).json({ state: result.state, applied: result.applied })
+//   } catch (err) {
+//     console.error('[subscriptionController.downgrade]', err)
+//     next(err)
+//   }
+// }
 
 export async function getCurrentSubscription(
   req: Request,

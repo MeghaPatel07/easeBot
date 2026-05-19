@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles, Heart, MessageSquare, Calendar, Lightbulb, Globe,
   Lock, ArrowLeft, CheckSquare,
@@ -64,6 +65,7 @@ const Index = () => {
   const navigate = useNavigate();
   const { threadId: urlThreadId, checklistId: urlChecklistId, userId: urlUserId } = useParams<{ threadId: string; checklistId: string; userId: string }>();
   const location = useLocation();
+  const qc = useQueryClient();
   const { user, profile, signOut, loading: authLoading } = useAuth();
   const {
     messages, threads, activeThreadId, isTyping, allLikedMessages, reminders, lastToolActions,
@@ -72,6 +74,14 @@ const Index = () => {
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
     hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError,
   } = useChat();
+
+  // Refetch account query when returning from upgrade/checkout
+  useEffect(() => {
+    const state = location.state as { planChanged?: string } | null
+    if (state?.planChanged) {
+      qc.refetchQueries({ queryKey: ['account', 'me'] })
+    }
+  }, [location, qc])
 
   // ── Flash checkbox on AI mark_as_done ─────────────────────────────────────
   const [recentlyToggledItemIds, setRecentlyToggledItemIds] = useState<string[]>([]);

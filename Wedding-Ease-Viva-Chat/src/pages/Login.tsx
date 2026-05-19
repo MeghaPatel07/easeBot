@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError } from '@/services/authService'
 import { track } from '@/lib/analytics'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
 
 const GoogleIcon = () => (
   <svg className="h-4 w-4" viewBox="0 0 24 24">

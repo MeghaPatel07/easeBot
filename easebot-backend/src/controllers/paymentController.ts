@@ -549,6 +549,138 @@ export async function verify(
   }
 }
 
+// --- POST /api/payment/activate-plan (non-payment flow) ----------------------
+
+export async function activatePlan(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const uid = req.user?.uid
+    if (!uid) { res.status(401).json({ error: 'auth_required' }); return }
+
+    const { plan, cycle, gstin, firstname, email, isUpgrade, billingAddress } = (req.body ?? {}) as {
+      plan?: string; cycle?: string; gstin?: string
+      firstname?: string; email?: string; isUpgrade?: boolean
+      billingAddress?: {
+        name?: string; country?: string; state?: string
+        postalCode?: string; line1?: string; city?: string
+      }
+    }
+
+    const key = `${plan}:${cycle}`
+    const row = PRICES[key]
+    if (!row) { res.status(400).json({ error: 'invalid_plan_cycle' }); return }
+    if (!firstname || !email) { res.status(400).json({ error: 'missing_buyer_details' }); return }
+    if (gstin && !GSTIN_REGEX.test(gstin)) { res.status(400).json({ error: 'invalid_gstin' }); return }
+
+    if (row.plan !== 'topup_2m') {
+      if (!billingAddress || !billingAddress.country) {
+        res.status(400).json({ error: 'missing_billing_address' }); return
+      }
+      if (billingAddress.country.toUpperCase() === 'IN' && !billingAddress.state) {
+        res.status(400).json({ error: 'missing_billing_state' }); return
+      }
+    }
+
+    const sub = await readSubscription(uid)
+    if (row.plan === 'topup_2m') {
+      if (sub.plan === 'free' || sub.state === 'guest') {
+        res.status(409).json({ error: 'topup_requires_paid_tier' })
+        return
+      }
+    } else if (isUpgrade === true) {
+      if (row.plan !== 'promax') {
+        res.status(400).json({ error: 'upgrade_target_must_be_promax' }); return
+      }
+      if (sub.plan !== 'pro') {
+        res.status(409).json({ error: 'upgrade_requires_pro_tier', currentTier: sub.plan })
+        return
+      }
+    } else {
+      if (sub.state === 'guest') {
+        res.status(403).json({ error: 'guest_cannot_purchase', action: 'sign_up' })
+        return
+      }
+      if (sub.plan !== 'free') {
+        res.status(409).json({ error: 'already_subscribed', currentTier: sub.plan })
+        return
+      }
+    }
+
+    const txnid = `DIRECT-${Date.now()}-${uid.slice(0, 6)}`
+
+    try {
+      const cycle_typed = cycle as 'monthly' | 'annual' | 'once'
+      const plan_typed = plan as 'pro' | 'promax' | 'topup_2m'
+
+      if (plan_typed === 'topup_2m') {
+        await addExtras(uid, TOPUP_TOKENS, txnid)
+        emit('topup_purchased', { uid, txnid, tokens: TOPUP_TOKENS })
+      } else {
+        let trigger: 'upgrade' | 'renew_success' | 'purchase'
+        if (isUpgrade && plan_typed === 'promax' &&
+            (sub.state === 'pro_monthly' || sub.state === 'pro_annual' || sub.state === 'pro_cancel_scheduled')) {
+          trigger = 'upgrade'
+          emit('pro_upgrade_promax', { uid, txnid, fromState: sub.state })
+        } else if (
+          (sub.plan === plan_typed) &&
+          (sub.state === 'pro_monthly' || sub.state === 'pro_annual' ||
+           sub.state === 'promax_monthly' || sub.state === 'promax_annual')
+        ) {
+          trigger = 'renew_success'
+        } else {
+          trigger = 'purchase'
+          if (plan_typed === 'pro') emit('free_upgrade_pro', { uid, txnid })
+        }
+
+        const result = await applyTransition(uid, sub.state, sub.state, trigger, {
+          txnid,
+          plan: plan_typed,
+          billingCycle: cycle_typed === 'once' ? 'monthly' : cycle_typed,
+          amount: row.usd,
+          currency: 'USD',
+        })
+
+        if (!result.applied) {
+          res.status(409).json({ error: 'transition_failed', state: result.state })
+          return
+        }
+      }
+
+      emit('payment_success', { uid, txnid, plan: plan_typed, cycle: cycle_typed, method: 'direct' })
+      phCapture(uid, 'payment_succeeded', {
+        tier: plan_typed,
+        cycle: cycle_typed,
+        amount: row.usd,
+        method: 'direct',
+      })
+
+      res.status(200).json({
+        success: true,
+        txnid,
+        plan: plan_typed,
+        cycle: cycle_typed,
+      })
+    } catch (err) {
+      if (err instanceof InvalidTransitionError) {
+        console.error('[paymentController.activatePlan] transition conflict', err)
+        emit('payment.webhook.transition_conflict', {
+          txnid, uid, plan, error: err.message, method: 'direct',
+        })
+        res.status(409).json({ error: 'transition_conflict', details: err.message })
+        return
+      }
+      console.error('[paymentController.activatePlan] state machine transition failed', err)
+      throw err
+    }
+  } catch (err) {
+    console.error('[paymentController.activatePlan]', err)
+    next(err)
+  }
+}
+
 // --- Startup config check (P1) ----------------------------------------------
 
 /**

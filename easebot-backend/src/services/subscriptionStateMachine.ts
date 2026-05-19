@@ -319,8 +319,12 @@ function computeNext(
     }
 
     case 'downgrade_schedule': {
-      if (cur.state !== 'promax_monthly' && cur.state !== 'promax_annual') {
+      if (cur.state !== 'promax_monthly' && cur.state !== 'promax_annual' && cur.state !== 'promax_cancel_scheduled') {
         throw new InvalidTransitionError(cur.state, trigger)
+      }
+      // If already scheduled, this is a no-op reconfirmation
+      if (cur.state === 'promax_cancel_scheduled') {
+        return cur
       }
       return {
         ...cur,

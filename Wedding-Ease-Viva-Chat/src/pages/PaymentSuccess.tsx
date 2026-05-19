@@ -43,9 +43,8 @@ export default function PaymentSuccess() {
         }
         // Force fresh token so any tier/claim change is visible.
         if (auth.currentUser) await auth.currentUser.getIdToken(true)
-        // Invalidate the account query so BillingSettings picks up the new
-        // tier/extras immediately when the user navigates back.
-        await queryClient.invalidateQueries({ queryKey: ['account', 'me'] })
+        // Refetch the account query to pick up the updated plan immediately
+        await queryClient.refetchQueries({ queryKey: ['account', 'me'] })
         if (!cancelled && res) setInfo(res)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err))

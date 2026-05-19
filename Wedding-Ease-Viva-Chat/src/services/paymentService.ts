@@ -9,7 +9,11 @@
 
 import { auth } from '@/lib/firebase'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
+
+export function isPaymentEnabled(): boolean {
+  return import.meta.env.VITE_ENABLE_PAYMENT !== 'false'
+}
 
 async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const user = auth.currentUser
@@ -129,14 +133,15 @@ export async function upgradeSubscription(cycle: BillingCycle): Promise<unknown>
   return res.json()
 }
 
-export async function downgradeSubscription(clientRequestId: string): Promise<unknown> {
-  const res = await authFetch('/api/payment/subscription/downgrade', {
-    method: 'POST',
-    body: JSON.stringify({ clientRequestId }),
-  })
-  if (!res.ok) throw new Error(`downgrade_failed:${res.status}`)
-  return res.json()
-}
+// TODO: downgrade disabled for now, only upgrades allowed
+// export async function downgradeSubscription(clientRequestId: string): Promise<unknown> {
+//   const res = await authFetch('/api/payment/subscription/downgrade', {
+//     method: 'POST',
+//     body: JSON.stringify({ clientRequestId }),
+//   })
+//   if (!res.ok) throw new Error(`downgrade_failed:${res.status}`)
+//   return res.json()
+// }
 
 // ---- Invoices --------------------------------------------------------------
 

@@ -99,7 +99,7 @@ const TIER_RANK: Record<PricingTier | 'guest', number> = {
 function computeCta(
   tier: PricingTier,
   current: PricingTier | 'guest' | null | undefined,
-): { label: string; disabled: boolean; variant: 'filled' | 'outline' } {
+): { label: string; disabled: boolean; variant: 'filled' | 'outline'; hidden?: boolean } {
   if (!current || current === 'guest') {
     return {
       label: tier === 'free' ? 'Start free' : `Get ${TIER_META[tier].name}`,
@@ -115,7 +115,8 @@ function computeCta(
   if (targetRank > currentRank) {
     return { label: 'Upgrade', disabled: false, variant: 'filled' }
   }
-  return { label: 'Downgrade', disabled: false, variant: 'outline' }
+  // TODO: downgrade disabled for now, only upgrades allowed
+  return { label: 'Downgrade', disabled: true, variant: 'outline', hidden: true }
 }
 
 export function PricingTierCard({
@@ -200,22 +201,24 @@ export function PricingTierCard({
         ))}
       </ul>
 
-      <button
-        type="button"
-        onClick={() => !cta.disabled && onSelect?.(tier)}
-        disabled={cta.disabled}
-        aria-disabled={cta.disabled}
-        aria-label={`${cta.label} — ${meta.name}`}
-        className={cn(
-          'mt-6 inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/10',
-          cta.disabled && 'cursor-not-allowed opacity-60',
-          !cta.disabled && cta.variant === 'filled'
-            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-            : 'bg-foreground/[0.06] text-foreground/90 hover:bg-foreground/[0.1]',
-        )}
-      >
-        {cta.label}
-      </button>
+      {!cta.hidden && (
+        <button
+          type="button"
+          onClick={() => !cta.disabled && onSelect?.(tier)}
+          disabled={cta.disabled}
+          aria-disabled={cta.disabled}
+          aria-label={`${cta.label} — ${meta.name}`}
+          className={cn(
+            'mt-6 inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/10',
+            cta.disabled && 'cursor-not-allowed opacity-60',
+            !cta.disabled && cta.variant === 'filled'
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'bg-foreground/[0.06] text-foreground/90 hover:bg-foreground/[0.1]',
+          )}
+        >
+          {cta.label}
+        </button>
+      )}
 
       <p className="mt-3 text-3xs text-foreground/90">
         No refunds. Cancel anytime to stop renewal.
