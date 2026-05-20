@@ -2,9 +2,11 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
 const EFFECTIVE_DATE = 'April 13, 2026'
-const CONTACT_EMAIL = 'privacy@theweddingbot.ai'
+const CONTACT_EMAIL = 'theweddingease@gmail.com'
 const COMPANY_NAME = 'TheWeddingBot'
 const SERVICE_NAME = 'TheWeddingBot'
+const COMPANY_LEGAL_NAME = 'Subh Wedding Ease Private Limited'
+const COMPANY_PHONE = '+91 99250 74485'
 
 export default function PrivacyPolicy() {
   return (
@@ -404,8 +406,12 @@ export default function PrivacyPolicy() {
           </p>
         </article>
 
-        <footer className="mt-14 pt-8 border-t border-foreground/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-foreground/40">
-          <p>© {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.</p>
+        <footer className="mt-14 pt-8 border-t border-foreground/10 space-y-4 text-xs text-foreground/40">
+          <div className="flex flex-col gap-2">
+            <p>© {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.</p>
+            <p>{COMPANY_LEGAL_NAME}</p>
+            <p>Contact: <a href={`tel:${COMPANY_PHONE.replace(/\s/g, '')}`} className="hover:text-foreground/80">{COMPANY_PHONE}</a></p>
+          </div>
           <div className="flex gap-5">
             <Link to="/privacy" className="hover:text-foreground/80">Privacy Policy</Link>
             <Link to="/terms" className="hover:text-foreground/80">Terms of Service</Link>

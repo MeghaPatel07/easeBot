@@ -440,6 +440,9 @@ export default function Checkout() {
                 </>
               )}
             </p>
+            <p className="mt-4 text-2xs text-foreground/35">
+              Subh Wedding Ease Private Limited | Contact: <a href="tel:+919925074485" className="hover:text-foreground/50">+91 99250 74485</a> | <a href="mailto:theweddingease@gmail.com" className="hover:text-foreground/50">theweddingease@gmail.com</a>
+            </p>
           </div>
           </form>
         </div>

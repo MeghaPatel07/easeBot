@@ -240,7 +240,7 @@ https://theweddingbot.ai/settings/billing
 
 Refunds: Per our terms (§6.5), payments are non-refundable for partial cycles, unused tokens, or top-up packs.
 
-Need help? Reply to this email or write to support@theweddingbot.ai.
+Need help? Reply to this email or write to theweddingease@gmail.com.
 
 Thank you for planning with us,
 — TheWeddingBot team
@@ -276,7 +276,7 @@ This is a transactional receipt for a confirmed payment. Please retain it for yo
 
       <p style="margin:16px 0; color:#666; font-size:13px;"><strong>Refunds:</strong> Per our terms (§6.5), payments are non-refundable for partial cycles, unused tokens, or top-up packs.</p>
 
-      <p style="margin:16px 0; color:#666; font-size:13px;">Need help? Reply to this email or write to <a href="mailto:support@theweddingbot.ai" style="color:#8a5a2b;">support@theweddingbot.ai</a>.</p>
+      <p style="margin:16px 0; color:#666; font-size:13px;">Need help? Reply to this email or write to <a href="mailto:theweddingease@gmail.com" style="color:#8a5a2b;">theweddingease@gmail.com</a>.</p>
 
       <p style="margin:24px 0 4px 0; color:#888; font-size:13px;">Thank you for planning with us,</p>
       <p style="margin:0 0 24px 0; color:#888; font-size:13px;">— TheWeddingBot team</p>
