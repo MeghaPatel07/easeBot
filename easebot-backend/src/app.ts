@@ -102,6 +102,13 @@ const mountRoutes = (prefix: string): void => {
 mountRoutes('/api')
 mountRoutes('/api/v1')
 
+// JSON 404 for unknown API routes — keep the client error contract consistent
+// with the rest of /api/* (which returns JSON). Without this, Express falls
+// through to its default HTML error page and JSON consumers can't parse it.
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not Found', path: req.path })
+})
+
 // --- Global error handler (must be last) ---
 app.use(errorHandler)
 
