@@ -19,6 +19,8 @@ import { inputSanitizer } from './middleware/inputSanitizer'
 import { promptGuard } from './middleware/promptGuard'
 import { posthogContext } from './middleware/posthogContext'
 import { errorHandler } from './middleware/errorHandler'
+import { requireAuth } from './middleware/auth'
+import { quotaCheck } from './middleware/quotaMiddleware'
 
 const app = express()
 
@@ -96,7 +98,11 @@ const mountRoutes = (prefix: string): void => {
   app.use(`${prefix}/tts`, ttsRouter)
   app.use(`${prefix}/payment`, paymentRouter)
   app.use(`${prefix}/feedback`, feedbackRouter)
-  app.get(`${prefix}/speech-token`, getSpeechToken)
+  // /speech-token issues a 10-minute Azure Speech JWT. Each token is
+  // cost-bearing (paid STT minutes), so gate it like /transcribe — guest
+  // pass-through via requireAuth, then quotaCheck('stt') so each issuance
+  // counts against the caller's STT bucket. See BUG-BE-20260525-006.
+  app.get(`${prefix}/speech-token`, requireAuth, quotaCheck('stt'), getSpeechToken)
 }
 
 mountRoutes('/api')
