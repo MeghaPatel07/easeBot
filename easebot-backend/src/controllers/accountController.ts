@@ -226,6 +226,26 @@ function mergePlanBlock(data: Record<string, any> | undefined, subPlan?: string)
 // ---------------------------------------------------------------------------
 // GET /api/account/me
 // ---------------------------------------------------------------------------
+// BUG-BE-20260525-017: fields that must never appear in the /me response
+// even though they live on the user document. The OAuth token is a live
+// Google bearer used only server-side for Calendar API calls; an XSS that
+// can read /me would otherwise lift it directly. The password field is
+// vestigial (always empty in Firebase-Auth-managed accounts) but its
+// presence in the API shape is a bad signal to API consumers.
+const SENSITIVE_PROFILE_FIELDS = new Set<string>([
+  'googleCalendarToken',
+  'password',
+])
+
+function sanitizeProfileForResponse(profile: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(profile)) {
+    if (SENSITIVE_PROFILE_FIELDS.has(k)) continue
+    out[k] = v
+  }
+  return out
+}
+
 export async function handleGetMe(req: Request, res: Response): Promise<void> {
   const uid = req.user!.uid
   try {
@@ -233,14 +253,15 @@ export async function handleGetMe(req: Request, res: Response): Promise<void> {
       userRef(uid).get(),
       adminDb.doc(`users/${uid}/subscription/current`).get(),
     ])
-    const profile = snap.exists ? (snap.data() ?? {}) : {}
+    const rawProfile = snap.exists ? (snap.data() ?? {}) : {}
+    const profile = sanitizeProfileForResponse(rawProfile)
     const subPlan = subSnap.exists ? (subSnap.data()?.plan as string | undefined) : undefined
-    const planBlock = mergePlanBlock(profile, subPlan)
+    const planBlock = mergePlanBlock(rawProfile, subPlan)
     // Frontend expects plan as { tier: string }, not a flat string.
     const tier = planBlock.plan
     res.status(200).json({
       uid,
-      email: req.user?.email ?? profile.email ?? null,
+      email: req.user?.email ?? rawProfile.email ?? null,
       profile,
       plan: { tier, renewsAt: planBlock.planRenewsAt, trialEndsAt: planBlock.trialEndsAt },
       usage: planBlock.usage,
