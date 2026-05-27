@@ -250,7 +250,7 @@ export default function Checkout() {
   }
 
   const inputCls =
-    'min-h-11 w-full rounded-xl border-0 bg-[hsl(22.5deg_25.6%_50.98%/5%)] px-3 text-sm text-soft placeholder-foreground/30 focus:outline-none focus:ring-1 focus:ring-foreground/10 focus:bg-foreground/[0.06] transition-colors'
+    'min-h-11 w-full rounded-xl border-0 bg-[hsl(22.5deg_25.6%_50.98%/5%)] px-3 text-sm text-soft placeholder-foreground/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus:bg-foreground/[0.06] transition-colors'
 
   return (
     <div className="gradient-bg min-h-screen text-soft">
