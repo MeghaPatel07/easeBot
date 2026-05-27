@@ -47,6 +47,12 @@ export async function handleTranscribe(req: Request, res: Response): Promise<voi
     res.status(200).json({ text: result.text, detectedLanguage: result.detectedLanguageCode.split('-')[0] })
   } catch (err: any) {
     if (qc) await qc.reconcile({ skip: true }).catch(() => {})
+    // SECURITY (WE-20260527-209 / CWE-209): Always log the full server-side
+    // error (ffmpeg stderr, stack, etc.) but NEVER echo err.message to the
+    // client — ffmpeg embeds absolute temp paths like
+    // /var/folders/.../viva-input-<ts>.webm in its stderr which leaks the
+    // server's filesystem layout + process timing to anyone who can POST
+    // shaped audio. Respond with a stable, non-revealing payload instead.
     console.error('[transcribeController]', err)
     const phDistinctId = req.phDistinctId ?? req.user?.uid
     if (phDistinctId) {
@@ -58,6 +64,9 @@ export async function handleTranscribe(req: Request, res: Response): Promise<voi
         duration_s: durSec,
       })
     }
-    res.status(500).json({ error: err.message ?? 'Transcription failed' })
+    res.status(500).json({
+      error: 'Audio could not be processed',
+      code: 'TRANSCRIBE_FAILED',
+    })
   }
 }

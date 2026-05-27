@@ -59,6 +59,20 @@ function getConfig() {
 
 type FfmpegCommand = ReturnType<typeof ffmpeg>
 
+// Strip absolute filesystem paths from a string so they don't leak past the
+// service boundary. ffmpeg stderr embeds the temp file path it was handed
+// (e.g. "/var/folders/.../viva-input-<ts>.webm: Invalid data found ...") —
+// returning that verbatim to clients is CWE-209 (WE-20260527-209). The
+// controller-level guard already replaces err.message with a generic string,
+// but scrubbing here defends any other caller of transcribeAudio and keeps
+// the inner Error object safe for logging/event emission.
+function scrubPaths(message: string): string {
+  return message
+    .replace(/\/var\/folders\/[^\s:'"]+/g, '<tmp>')
+    .replace(/\/tmp\/[^\s:'"]+/g, '<tmp>')
+    .replace(/[A-Za-z]:\\[^\s:'"]+/g, '<tmp>') // Windows fallback
+}
+
 // Convert any audio format (WebM, OGG, etc.) to WAV PCM 16-bit 16kHz mono.
 // Returns both the promise and the command handle so callers can kill the
 // child process on timeout (otherwise ffmpeg keeps running after we bail).
@@ -74,7 +88,12 @@ function convertToWav(
       .audioCodec('pcm_s16le')
       .format('wav')
       .on('end', () => resolve())
-      .on('error', (err: Error) => reject(new Error(`Audio conversion failed: ${err.message}`)))
+      .on('error', (err: Error) => {
+        // Log the raw error (with paths) server-side for ops debugging.
+        console.error('[stt.convertToWav] ffmpeg failed:', err)
+        // Bubble a scrubbed message — paths removed.
+        reject(new Error(`Audio conversion failed: ${scrubPaths(err.message)}`))
+      })
     command.save(outputPath)
   })
   return { promise, command }
