@@ -48,9 +48,13 @@ export async function handleGenerateImage(req: Request, res: Response): Promise<
     // Image-to-image: user sent an image + edit/generation intent
     if (imageBase64 && prompt?.trim() && (isImageRequest(prompt) || isImageEditRequest(prompt))) {
       const imageUrl = await editImageGptImage1(imageBase64, prompt.trim(), '1024x1024', { distinctId: phDistinctId })
-      if (!imageUrl) {
+      // WE-20260527-227: Treat both `null` (typed failure) AND an empty
+      // array (legacy shape / future caller mistake) as failure. `[]` is
+      // truthy in JS — guarding only `!imageUrl` would charge tokens for
+      // a no-result.
+      if (!imageUrl || imageUrl.length === 0) {
         if (qc) await qc.reconcile({ skip: true })
-        res.status(502).json({ error: 'Image editing failed or service unavailable' })
+        res.status(502).json({ error: 'Image editing failed or refused', code: 'IMAGE_REFUSED' })
         return
       }
       // Azure call succeeded → enter the protected post-charge block.
@@ -103,9 +107,13 @@ export async function handleGenerateImage(req: Request, res: Response): Promise<
     }
 
     const imageUrl = await generateImageGptImage1(prompt.trim(), '1024x1024', 1, { distinctId: phDistinctId })
-    if (!imageUrl) {
+    // WE-20260527-227: Treat both `null` (typed failure) AND an empty
+    // array (legacy shape / future caller mistake) as failure. `[]` is
+    // truthy in JS — guarding only `!imageUrl` would charge tokens for
+    // a no-result and respond 200 with `{"imageUrl": []}`.
+    if (!imageUrl || imageUrl.length === 0) {
       if (qc) await qc.reconcile({ skip: true })
-      res.status(502).json({ error: 'Image generation failed or service unavailable' })
+      res.status(502).json({ error: 'Image generation failed or refused', code: 'IMAGE_REFUSED' })
       return
     }
     // Azure call succeeded → enter the protected post-charge block.

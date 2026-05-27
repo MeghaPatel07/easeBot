@@ -206,14 +206,23 @@ async function compressImage(b64: string): Promise<string> {
 /**
  * Generate images using Azure GPT-Image-1.5 (primary) with GPT-Image-1 fallback.
  * Supports negativePrompt appended to main prompt.
- * Returns array of raw base64 strings (no data URI prefix).
+ * Returns array of raw base64 strings (no data URI prefix) on success.
+ *
+ * Returns `null` on failure (missing creds, both deployments errored,
+ * content-policy refusal, or empty result). Callers MUST treat `null`
+ * as failure and skip token charge / refund any pre-charge.
+ *
+ * WE-20260527-227: Previously this returned `[]` on failure. `[]` is
+ * truthy in JS, so callers using `if (!imageUrl)` to detect failure
+ * silently charged users for no result. The nullable return type lets
+ * the TS compiler catch that mistake.
  */
 export async function generateImageGptImage1(
   prompt: string,
   size: ImageSize = '1024x1024',
   count: 1 | 2 | 3 = 1,
   options?: { negativePrompt?: string; onPartialImage?: (b64: string) => void; signal?: AbortSignal; distinctId?: string }
-): Promise<string[]> {
+): Promise<string[] | null> {
   const config = getImageConfig()
   const phStart = Date.now()
   if (!config.endpoint || !config.apiKey) {
@@ -221,7 +230,7 @@ export async function generateImageGptImage1(
     if (options?.distinctId) {
       phCapture(options.distinctId, 'image_generation_failed', { error_code: 'no_credentials' })
     }
-    return []
+    return null
   }
 
   // Append negative prompt to main prompt
@@ -277,7 +286,7 @@ export async function generateImageGptImage1(
         model: config.fallbackDeployment,
       })
     }
-    return []
+    return null
   }
 
   if (options?.distinctId) {
@@ -286,7 +295,7 @@ export async function generateImageGptImage1(
       model: config.fallbackDeployment,
     })
   }
-  return []
+  return null
 }
 
 async function callAzureImageGeneration(
@@ -347,13 +356,18 @@ async function callAzureImageGeneration(
 /**
  * Edit an image using Azure GPT-Image-1.5 (primary) with GPT-Image-1 fallback.
  * Uses input_fidelity: "high" for face preservation (89.96%).
+ *
+ * Returns array of raw base64 strings on success, `null` on failure
+ * (missing creds, all deployments errored, analyze+regenerate fallback
+ * also failed). See WE-20260527-227 — callers MUST treat `null` as
+ * failure and skip token charge.
  */
 export async function editImageGptImage1(
   imageBase64: string,
   prompt: string,
   size: ImageSize = '1024x1024',
   options?: { negativePrompt?: string; referenceImages?: string[]; signal?: AbortSignal; distinctId?: string }
-): Promise<string[]> {
+): Promise<string[] | null> {
   const config = getImageConfig()
   const phStart = Date.now()
   if (!config.endpoint || !config.apiKey) {
@@ -361,7 +375,7 @@ export async function editImageGptImage1(
     if (options?.distinctId) {
       phCapture(options.distinctId, 'image_generation_failed', { error_code: 'no_credentials' })
     }
-    return []
+    return null
   }
 
   let editPrompt = buildImageEditPrompt(prompt)
@@ -479,7 +493,7 @@ async function fallbackAnalyzeAndRegenerate(
   imageBase64: string,
   prompt: string,
   size: ImageSize
-): Promise<string[]> {
+): Promise<string[] | null> {
   try {
     const description = await analyzeImage(
       imageBase64,
@@ -492,7 +506,7 @@ async function fallbackAnalyzeAndRegenerate(
     return await generateImageGptImage1(combinedPrompt, size)
   } catch (err) {
     console.error('[imageGeneration] fallback analyze+regenerate error:', err)
-    return []
+    return null
   }
 }
 
