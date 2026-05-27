@@ -9,7 +9,12 @@ export const ChatRequestSchema = z.object({
   toneSettings: z.record(z.number().min(0).max(100)).optional(),
   language: z.string().max(10).optional(),
   history: z.array(z.object({
-    role: z.enum(['user', 'assistant', 'system']),
+    // SECURITY (WE-20260527-211 / CWE-1336): client-supplied history MUST NOT
+    // include 'system' messages. They would be spread verbatim into the LLM
+    // messages list after the legitimate system prompt and let an
+    // unauthenticated guest inject a fake system directive (prompt injection).
+    // See also defense-in-depth filter in chatController.getChatHistory.
+    role: z.enum(['user', 'assistant']),
     content: z.string(),
   })).optional(),
   // Vibe Mode — Images Hub payload
