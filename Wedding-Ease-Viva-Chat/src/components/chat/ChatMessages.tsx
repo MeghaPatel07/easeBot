@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { useTypewriter } from '@/hooks/useTypewriter';
 import {
   Send, Sparkles, Calendar, CheckSquare,
@@ -242,8 +242,54 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
     return null
   }, [isTyping, messages])
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Accessibility: screen-reader announcement of settled assistant replies.
+  //
+  // The visible chat content is rendered via <TypewriterMarkdown> which reveals
+  // characters gradually. Putting `aria-live` on the visible container would
+  // cause assistive tech to read every keystroke ("H… He… Hel… Hell…"),
+  // which is unusable. Instead we render a visually-hidden sidecar live region
+  // (role="status" aria-live="polite") that fires ONCE per assistant message,
+  // when the stream settles — i.e. when isTyping flips from true to false for
+  // the latest AI message. We also expose the message-list container as
+  // role="log" so SR users can navigate to / land on it as a region; its
+  // inner content is aria-hidden=false for normal reading, but aria-live is
+  // explicitly "off" on it (since we drive announcements from the sidecar).
+  // WCAG 4.1.3 (Status Messages, AA) + 1.3.1 (Info and Relationships, A).
+  const [announcement, setAnnouncement] = useState('');
+  const lastAnnouncedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isTyping) return; // wait until stream settles
+    if (messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.sender !== 'ai' || !last.text) return;
+    if (lastAnnouncedIdRef.current === last.id) return;
+    lastAnnouncedIdRef.current = last.id;
+    // Strip markdown syntax for a cleaner SR read.
+    const plain = last.text
+      .replace(/```[\s\S]*?```/g, ' code block ')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/!\[[^\]]*]\([^)]*\)/g, ' image ')
+      .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
+      .replace(/[#*_>~]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    setAnnouncement(`Assistant replied: ${plain}`);
+  }, [isTyping, messages]);
+
   return (
-    <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-6 space-y-6 noise-overlay relative">
+    <div
+      ref={scrollContainerRef}
+      role="log"
+      aria-label="Chat messages"
+      aria-live="off"
+      aria-relevant="additions"
+      className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 sm:px-6 py-6 space-y-6 noise-overlay relative"
+    >
+      {/* Screen-reader-only live region: fires once per settled assistant reply. */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
       {/* Load earlier messages */}
       {hasMoreMessages && (
         <div className="flex justify-center">
