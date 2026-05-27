@@ -1477,7 +1477,9 @@ const Index = () => {
           />
 
           {/* Input Bar Area */}
-          <div className="mt-auto px-3 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+          {/* `--analytics-consent-height` is set by <AnalyticsConsent /> while the
+              consent banner is visible so the input clears the banner card. */}
+          <div className="mt-auto px-3 sm:px-6 pt-1 flex-shrink-0 relative z-10" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-height, 0px))' }}>
             {guestLimitIndicatorJSX || (
               <>
                 <div className="flex items-end justify-between w-full gap-3">
@@ -1595,8 +1597,13 @@ const Index = () => {
         </div>
 
         {/* Bottom-anchored ChatInput — mirrors active chat layout so the landing
-            and chat pages share one input position (no floating input in middle). */}
-        <div className="flex-shrink-0 px-3 sm:ps-6 pb-3 sm:pb-4 pt-2 relative z-10">
+            and chat pages share one input position (no floating input in middle).
+            `--analytics-consent-height` is set by <AnalyticsConsent /> so the
+            input clears the consent banner card while it's visible. */}
+        <div
+          className="flex-shrink-0 px-3 sm:ps-6 pt-2 relative z-10"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-height, 0px))' }}
+        >
           <div className=" mx-auto w-full">
             {/* Occasion chips — horizontal scroll. Leading reset button clears
                 the current occasion + mode selection back to the default state. */}

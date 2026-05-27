@@ -869,6 +869,31 @@
     background-color: hsl(var(--background));
   }
 
+  /* Reserve scroll clearance for the AnalyticsConsent banner while it is
+     visible. <AnalyticsConsent /> sets `--analytics-consent-height` on <html>
+     (and clears it on dismiss). The fallback is `0px`, so all rules below
+     are no-ops once the banner is dismissed.
+
+     Scrollable content pages (Pricing, Help, Terms, Privacy, Login, Checkout,
+     PaymentSuccess, PaymentFailure, NotFound) all share the
+     `gradient-bg min-h-screen` root pattern. Targeting that combo gives the
+     bottom-most content a banner-height of breathing room so the last row of
+     a pricing card / FAQ / plan column is never hidden.
+
+     The chat shell (Index.tsx) intentionally uses `height: 100dvh` instead
+     of `min-h-screen`, so it is NOT matched here — Index applies the same
+     CSS var inline on its own chat-input wrapper instead, avoiding any extra
+     scroll past the fixed-height viewport. */
+  .gradient-bg.min-h-screen {
+    padding-bottom: var(--analytics-consent-height, 0px);
+  }
+
+  /* Opt-in utility for any future component that needs banner clearance
+     without modifying inline styles. */
+  .consent-bottom-clearance {
+    padding-bottom: var(--analytics-consent-height, 0px);
+  }
+
   @media (prefers-reduced-motion: reduce) {
 
     *,
