@@ -7,7 +7,7 @@ import {
   ReactNode,
 } from 'react'
 import { onAuthStateChanged, User, ConfirmationResult, RecaptchaVerifier } from 'firebase/auth'
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, onSnapshot, updateDoc, serverTimestamp, type Unsubscribe } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import type { UserProfile } from '@/types'
 import {
@@ -69,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const isHandlingAuth = useRef(false)
+  // WE-20260527-170: live subscription to users/{uid} so every consumer of
+  // useAuth().profile sees the same fan-out as useAccount() — no stale F5-only
+  // fields like name / email / voiceId / toneSettings / responseStyle.
+  const profileUnsubRef = useRef<Unsubscribe | null>(null)
 
   useEffect(() => {
     // Step 1 — sessionStorage check (authflow.md §9 — future Twilio/WhatsApp phone sessions)
@@ -88,36 +92,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Guard against race conditions during signup/Google OAuth
       if (isHandlingAuth.current) return
 
-      if (firebaseUser) {
-        const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+      // Tear down any prior profile listener — auth flipped to a different
+      // user or signed out, so the old subscription is no longer relevant.
+      profileUnsubRef.current?.()
+      profileUnsubRef.current = null
 
-        if (!profileSnap.exists()) {
-          setUser(null)
-          setProfile(null)
-        } else {
-          const profileData = profileSnap.data() as UserProfile
+      if (!firebaseUser) {
+        setUser(null)
+        setProfile(null)
+        setLoading(false)
+        return
+      }
 
-          // Sync Firebase emailVerified → Firestore
-          if (firebaseUser.emailVerified && !profileData.isVerified) {
-            await updateDoc(doc(db, 'users', firebaseUser.uid), {
-              isVerified: true,
-              isValidated: true,
-              verifiedAt: serverTimestamp(),
-            })
-            profileData.isVerified = true
-            profileData.isValidated = true
+      // Subscribe to the user doc so AuthContext.profile is realtime. Both
+      // useAuth() and useAccount() (which fans out via TanStack invalidation
+      // on mutation) now observe the same Firestore source of truth.
+      let firstSnapshot = true
+      profileUnsubRef.current = onSnapshot(
+        doc(db, 'users', firebaseUser.uid),
+        async (snap) => {
+          if (!snap.exists()) {
+            // Profile doc was deleted (admin tool, etc.) — drop the session.
+            setUser(null)
+            setProfile(null)
+            setLoading(false)
+            firstSnapshot = false
+            return
           }
 
-          if (!profileData.isVerified && !profileData.isValidated && !firebaseUser.emailVerified) {
-            // Not verified — sign out silently (authflow.md §9)
+          const profileData = snap.data() as UserProfile
+
+          // Sync Firebase emailVerified → Firestore once per session. This is
+          // a no-op on subsequent snapshots (the condition flips false after
+          // the Firestore write fans back through this same listener).
+          if (firebaseUser.emailVerified && !profileData.isVerified) {
+            try {
+              await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                isVerified: true,
+                isValidated: true,
+                verifiedAt: serverTimestamp(),
+              })
+              // Optimistic — the snapshot fan-out will confirm.
+              profileData.isVerified = true
+              profileData.isValidated = true
+            } catch (err) {
+              console.error('failed to sync emailVerified to Firestore', err)
+            }
+          }
+
+          // First snapshot only: gate sign-in on verification status. Later
+          // snapshots must NOT silently sign the user out (otherwise a
+          // pending Firestore write that momentarily lacks the flag would
+          // boot them mid-session).
+          if (
+            firstSnapshot &&
+            !profileData.isVerified &&
+            !profileData.isValidated &&
+            !firebaseUser.emailVerified
+          ) {
             await signOutUser(firebaseUser.uid)
             setUser(null)
             setProfile(null)
-          } else {
-            setUser(firebaseUser)
-            setProfile(profileData)
-            // PostHog: identify + super props. Safe to call on every auth change;
-            // posthog dedupes on same distinct_id + property set.
+            setLoading(false)
+            firstSnapshot = false
+            return
+          }
+
+          setUser(firebaseUser)
+          setProfile(profileData)
+          setLoading(false)
+
+          // PostHog: identify + super props on first snapshot only. posthog
+          // dedupes on the same distinct_id + property set, but emitting on
+          // every Firestore change would be noisy.
+          if (firstSnapshot) {
             const planTier = (profileData as { plan?: string }).plan ?? 'free'
             identify(firebaseUser.uid, {
               email: firebaseUser.email ?? undefined,
@@ -132,16 +180,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               route: typeof window !== 'undefined' ? window.location.pathname : undefined,
             })
           }
-        }
-      } else {
-        setUser(null)
-        setProfile(null)
-      }
 
-      setLoading(false)
+          firstSnapshot = false
+        },
+        (err) => {
+          // Don't blow away the existing profile on a transient listener
+          // error — just log; the next reconnect will resume.
+          console.error('AuthContext profile snapshot error', err)
+          setLoading(false)
+        },
+      )
     })
 
-    return unsubscribe
+    return () => {
+      // StrictMode double-mount safe: both onAuthStateChanged + the profile
+      // listener get cleaned up here, so the second mount starts fresh.
+      profileUnsubRef.current?.()
+      profileUnsubRef.current = null
+      unsubscribe()
+    }
   }, [])
 
   // ── Auth methods ─────────────────────────────────────────────────────────
@@ -204,6 +261,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = async () => {
     track('logout')
+    // Drop the profile snapshot before signing out so we don't get a stray
+    // permission-denied error from a listener that's still attached when
+    // Firestore rules re-evaluate sans auth (WE-20260527-170).
+    profileUnsubRef.current?.()
+    profileUnsubRef.current = null
     await signOutUser(user?.uid)
     setUser(null)
     setProfile(null)
