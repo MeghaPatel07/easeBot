@@ -39,6 +39,7 @@ import type { ChatPayload, ChatResponse, HistoryMessage, Mode, ToolAction, UserP
 import { buildPersonalizationSuffix } from '../utils/toneInjector'
 import { determineTargetLanguage, buildLanguageInstruction } from '../pipeline/languageInstruction'
 import { getCachedUserLanguage } from '../lib/userPrefsCache'
+import { isContentFilterError, getContentFilterRefusalText } from '../lib/contentFilterError'
 
 // Resolve the effective language for a chat request.
 // Priority (same as the STT controller to keep behavior consistent):
@@ -1114,6 +1115,24 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
         })
       }
     }
+    // WE-20260527-353: when the upstream content filter blocks the prompt,
+    // return a brand-agnostic canned refusal at HTTP 422 instead of bubbling
+    // the provider error string (which leaks "Azure OpenAI" + a Microsoft
+    // documentation URL and uses 500 for what is logically 422).
+    if (isContentFilterError(err)) {
+      const refusal = getContentFilterRefusalText()
+      res.status(422).json({
+        text: refusal,
+        audioUrl: null,
+        imageUrl: null,
+        toolActions: [],
+        mode: 'assistant',
+        detectedLanguage: 'en',
+        responseLanguage: 'en',
+        filtered: true,
+      })
+      return
+    }
     res.status(500).json({ error: err.message ?? 'Internal server error' })
   }
 }
@@ -1712,12 +1731,34 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       }
     }
     if (!res.writableEnded) {
-      sse({ t: 'e', msg: err.message ?? 'Internal server error' })
+      // WE-20260527-353: content-filter errors get the canned refusal via
+      // normal SSE chunks (`t:"c"`) + a `t:"d"` finalizer with filtered=true,
+      // instead of the raw provider message on `t:"e"`. Status stays 200
+      // because SSE headers are already flushed and the stream is recoverable
+      // from the client's point of view (it just renders the refusal text).
+      if (isContentFilterError(err)) {
+        const refusal = getContentFilterRefusalText()
+        sse({ t: 'c', v: refusal })
+        sse({
+          t: 'd',
+          text: refusal,
+          toolActions: [],
+          mode: 'assistant',
+          detectedLanguage: 'en',
+          responseLanguage: 'en',
+          audioUrl: null,
+          imageUrl: null,
+          imageUrls: [],
+          filtered: true,
+        })
+      } else {
+        sse({ t: 'e', msg: err.message ?? 'Internal server error' })
+      }
       res.end()
     }
     if (phDistinctId) {
       phCapture(phDistinctId, 'stream_errored', {
-        error_code: err?.code ?? err?.name ?? 'unknown',
+        error_code: isContentFilterError(err) ? 'content_filter' : (err?.code ?? err?.name ?? 'unknown'),
         latency_ms: Date.now() - phStart,
       })
     }
