@@ -1,0 +1,1 @@
+Schema accepts role: system. See schemas/chat.ts:12. History spreads into LLM messages at services/azureAI.ts:58 line 60.
