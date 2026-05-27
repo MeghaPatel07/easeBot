@@ -25,6 +25,12 @@ import remarkGfm from 'remark-gfm';
 import { modeConfig, markdownToHtml, type ModeOrAuto } from './constants';
 import easebotAvatar from '@/assets/images/easebot.png';
 import { track } from '@/lib/analytics';
+import { toast } from 'sonner';
+
+// Reject chat image attachments >10MB before reading to base64. Backend caps
+// at 10MB; guarding client-side saves the freeze of allocating a huge data URL
+// and prevents wasted upload bandwidth (WE-20260527-220).
+const MAX_CHAT_IMAGE_BYTES = 10 * 1024 * 1024;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -293,6 +299,16 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              if (!file.type.startsWith('image/')) {
+                                toast.error('Please choose an image file.');
+                                e.target.value = '';
+                                return;
+                              }
+                              if (file.size > MAX_CHAT_IMAGE_BYTES) {
+                                toast.error('Image too large — please use under 10MB.');
+                                e.target.value = '';
+                                return;
+                              }
                               const reader = new FileReader();
                               reader.onload = () => {
                                 if (typeof reader.result === 'string') {
@@ -319,6 +335,16 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              if (!file.type.startsWith('image/')) {
+                                toast.error('Please choose an image file.');
+                                e.target.value = '';
+                                return;
+                              }
+                              if (file.size > MAX_CHAT_IMAGE_BYTES) {
+                                toast.error('Image too large — please use under 10MB.');
+                                e.target.value = '';
+                                return;
+                              }
                               const reader = new FileReader();
                               reader.onload = () => {
                                 if (typeof reader.result === 'string') {
