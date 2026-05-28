@@ -293,6 +293,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              // WE-20260528-405: same 4MB cap as Index.tsx:368.
+                              // Inline-edit's Replace input was missed when
+                              // WE-20260527-220 landed; a 50MB pick balloons
+                              // React state + the message-edit payload.
+                              if (file.size > 4 * 1024 * 1024) {
+                                alert('Image must be under 4MB');
+                                e.target.value = '';
+                                return;
+                              }
                               const reader = new FileReader();
                               reader.onload = () => {
                                 if (typeof reader.result === 'string') {
@@ -319,6 +328,14 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              // WE-20260528-405: same 4MB cap as Index.tsx:368.
+                              // Inline-edit's Attach input was missed when
+                              // WE-20260527-220 landed.
+                              if (file.size > 4 * 1024 * 1024) {
+                                alert('Image must be under 4MB');
+                                e.target.value = '';
+                                return;
+                              }
                               const reader = new FileReader();
                               reader.onload = () => {
                                 if (typeof reader.result === 'string') {
