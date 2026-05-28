@@ -1,0 +1,66 @@
+# Sprint 3 brief adversarial item #2: "Free → Pro upgrade race — PayU webhook
+# arrives BEFORE user navigates to /payment/success; navigates BEFORE webhook"
+
+# === Case A: webhook arrives BEFORE user navigates back ===
+#
+# In dev (where PayU can't reach localhost) this is moot. In prod, PayU usually
+# does the user-redirect via /payment/return and the async webhook within
+# milliseconds. The handleReturn handler (paymentController.ts:406-472)
+# explicitly calls finalizePayment() and returns 302 → /payment/success?txnid=...
+# Both handleReturn and handleWebhook call the SAME finalizePayment, which is
+# idempotent (applyTransition + addExtras both have transactional dedupe).
+#
+# But the duplicate-state-check at finalizePayment:258-264 is non-transactional:
+#   const snap = await getDoc(ref)
+#   const currentState = String(stored.state ?? 'pending')
+#   if (currentState === 'paid' || currentState === 'failed') {
+#     return { kind: 'duplicate', state: currentState }
+#   }
+#
+# Two parallel handlers can both read state='pending', both proceed to the
+# applyTransition call, and both eventually write state='paid'. The second
+# write is wasted but safe because applyTransition uses runTransaction with
+# history_<transitionId> idempotency at the state-machine layer (verified at
+# subscriptionStateMachine.ts:437-459), and addExtras uses extrasTxns/{txnid}
+# inside a transaction (verified at tokenMeter.ts:649-720).
+#
+# Net: race is benign at state correctness BUT can throw an InvalidTransitionError
+# on the second runner if the first runner has already advanced the state past
+# the expected `_from` argument — handleReturn doesn't read `_from` correctly,
+# it passes sub.state at line 339. Hmm — passing sub.state as both _from and _to:
+#
+#     await applyTransition(uid, sub.state, sub.state, trigger, { ... })
+#
+# The state machine's applyTransition ignores _from and _to args (signature has
+# `_from` / `_to` with underscore prefix — they're unused). So no transition
+# conflict. Confirmed safe.
+
+# === Case B: user navigates BEFORE webhook ===
+#
+# This is what PaymentSuccess.tsx is designed for. Code at PaymentSuccess.tsx:38-47:
+#
+#   for (let attempt = 0; attempt < 5; attempt++) {
+#     res = (await verifyPayment(txnid)) as VerifyResponse
+#     if (res.state === 'paid' || res.state === 'failed') break
+#     await new Promise((r) => setTimeout(r, 1000))
+#   }
+#
+# **Bug**: 5 attempts × 1s = max 5 seconds. If the webhook or handleReturn
+# finalize takes longer than 5s (PayU sandbox commonly takes 5-15s in dev),
+# the user is left on a "Verifying your payment…" view with no further
+# polling. The /verify endpoint can return state='pending' indefinitely from
+# this user's perspective.
+#
+# No exponential backoff. No "click to retry" button. No socket / sse / push
+# notification to refresh when the webhook eventually arrives.
+#
+# Worst case: user closes the tab thinking the payment failed; the webhook
+# eventually finalizes successfully → user has the subscription but no UI
+# acknowledged it. Subsequent loads of /payment/success?txnid=X verify
+# correctly (because finalizePayment has now run), but the user has no link
+# preserved.
+
+# === Recommendation ===
+# 1. Increase to exponential backoff up to ~30s before giving up.
+# 2. Add "Refresh status" button when the final attempt still returns pending.
+# 3. Push notification via Firestore onSnapshot on payments/{txnid}.state.

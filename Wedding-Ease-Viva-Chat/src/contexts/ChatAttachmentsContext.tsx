@@ -129,7 +129,7 @@ export function useChatAttachments(): ChatAttachmentsContextValue {
   // No-op fallback. Intentionally silent in production; warn in dev so the
   // missing-provider case is discoverable.
   if (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) {
-    // eslint-disable-next-line no-console
+     
     console.warn(
       '[ChatAttachmentsContext] Provider not mounted yet. ' +
         'Attachments will be dropped until DEV-F wires <ChatAttachmentsProvider> at the app root.',

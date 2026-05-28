@@ -1,0 +1,19 @@
+=== Journey 6: Share flow — 3 msgs → share → copy link → incognito read-only ===
+
+STATIC ANALYSIS — Share flow:
+  1. User: send 3 msgs → chatService writes to chats/{tid}/messages (requires auth)
+  2. Click share → chatService.createSharedChat() snapshots messages + addDoc(sharedChats, {expiresAt: now+7d})
+  3. URL: ${origin}/share/${shareId}
+  4. Incognito → SharedChat.tsx calls getSharedChat(id) → getDoc(sharedChats/${id})
+     READ relies on Firestore Rules — must allow PUBLIC read on sharedChats.
+
+FRONTEND ROUTE — /share/:shareId → SharedChat.tsx (in App.tsx Routes):
+GET /share/test-shareid → HTTP 200 content-length=5747
+
+FINDINGS:
+  - createSharedChat persists ENTIRE message history (incl. images.imageUrls). If thread contains a guest's pre-auth message with PII (phone/email), it leaks into public-read collection.
+  - Share doc has only expiresAt (7d). No 'revoke' API surfaced anywhere — once shared, user cannot unshare before 7d.
+  - threadTitle is written via addDoc but never sanitized; if the thread title contains markdown/HTML, the SharedChat view may render unescaped.
+  - No throttling/CAPTCHA on /share/ enumeration. Firestore doc IDs from addDoc are 20-char alphanumeric — guessable enumeration is statistically hard, but no defense-in-depth.
+
+NOT TESTED end-to-end (no real shareId, would need Firebase write).

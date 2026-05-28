@@ -844,7 +844,7 @@ const Index = () => {
       setGuestImageCount(totalImgCount);
       try { localStorage.setItem('easebot-guest-img-count', String(totalImgCount)) } catch { }
     }
-  }, [user, messages]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, messages]);  
 
   // Persist guest messages to sessionStorage whenever they change
   useEffect(() => {

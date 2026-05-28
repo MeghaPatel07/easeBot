@@ -308,7 +308,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {tagPickerModal}
       {deleteConfirmModal}
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
-      <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-body ${isOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <aside aria-label="Chat history sidebar" className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-body ${isOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-primary/15 backdrop-blur-2xl bg-foreground/[0.04] overflow-hidden">
 
           {/* Top bar: close + search + new chat */}
@@ -557,7 +557,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </aside>
     </>
   );
 };

@@ -1114,7 +1114,32 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
         })
       }
     }
-    res.status(500).json({ error: err.message ?? 'Internal server error' })
+    // Azure OpenAI content-policy rejections surface as APIError with
+    // status 400 and a message starting with "400 The response was filtered ...".
+    // Map these to a clean client error instead of echoing Azure's raw
+    // diagnostic — the verbatim string leaks our upstream provider name and
+    // the 500 status mis-classifies a client-side prompt issue as a server
+    // bug. Also stop echoing arbitrary err.message in the generic case;
+    // log it server-side and return a generic 500.
+    const rawMsg = typeof err?.message === 'string' ? err.message : ''
+    const isContentFilter =
+      (err?.status === 400 || /^400\b/.test(rawMsg)) &&
+      (rawMsg.includes('content management policy') ||
+        rawMsg.includes('content_filter') ||
+        rawMsg.includes('response was filtered') ||
+        err?.code === 'content_filter')
+    if (isContentFilter) {
+      if (req.promptInjectionDetected) {
+        console.warn('[chatController] content filter triggered on flagged prompt-injection input')
+      }
+      res.status(400).json({
+        error: 'content_filtered',
+        message:
+          "Your message couldn't be processed. Please rephrase and try again.",
+      })
+      return
+    }
+    res.status(500).json({ error: 'Internal server error' })
   }
 }
 

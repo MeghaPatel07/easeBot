@@ -1,0 +1,5 @@
+$ grep -n "BroadcastChannel\|addEventListener.*storage\|onSnapshot" src/hooks/useChat.ts
+(no matches)
+
+$ grep -n "BroadcastChannel\|addEventListener.*storage" src/hooks/
+(no matches in hooks directory)

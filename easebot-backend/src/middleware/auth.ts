@@ -45,8 +45,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
     next()
   } catch (err) {
+    // BUG-BE-20260525-014: the previous `detail: message` field echoed the
+    // full Firebase Admin SDK error verbatim — including the firebase.google.com
+    // docs URL and JWT format hint — which discloses our upstream IdP and gives
+    // an attacker a roadmap. Keep the diagnostic in the server log; return a
+    // generic 401 to the client.
     const message = err instanceof Error ? err.message : 'token verification failed'
     console.warn('[requireAuth] token verification failed:', message)
-    res.status(401).json({ error: 'Invalid or expired token', detail: message })
+    res.status(401).json({ error: 'Invalid or expired token' })
   }
 }

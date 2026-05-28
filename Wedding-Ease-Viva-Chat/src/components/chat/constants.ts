@@ -99,7 +99,7 @@ export const getTagStyle = (tagName: string) =>
 // Markdown to HTML converter for rich text copying
 // ─────────────────────────────────────────────────────────────────────────────
 export const markdownToHtml = (markdown: string): string => {
-  let html = markdown
+  const html = markdown
     .split('\n\n')
     .map(block => {
       block = block
