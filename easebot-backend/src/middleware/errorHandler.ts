@@ -11,6 +11,8 @@ interface HttpError extends Error {
   status?: number;
   statusCode?: number;
   code?: string;
+  // body-parser sets `type` on parse failures, e.g. 'entity.parse.failed'.
+  type?: string;
 }
 
 /**
@@ -74,6 +76,13 @@ export function errorHandler(
     statusCode = 400;
     errorCode = 'VALIDATION_ERROR';
     errorMessage = 'Request validation failed';
+  } else if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && err.status === 400)) {
+    // Malformed JSON body from express.json(). Don't echo the raw parser
+    // diagnostic to the client — it leaks tokenizer detail without helping
+    // the caller fix anything actionable.
+    statusCode = 400;
+    errorCode = 'INVALID_JSON';
+    errorMessage = 'Invalid JSON body';
   } else if (err.status === 401 || err.statusCode === 401 || err.message?.toLowerCase().includes('unauthorized')) {
     statusCode = 401;
     errorCode = 'UNAUTHORIZED';
