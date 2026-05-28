@@ -837,7 +837,10 @@ export function useChat(): UseChatResult {
           errorText = "You've used this month's token pool. [Upgrade or top up](/pricing) to keep planning."
           kind = 'monthly'
         } else if (reason === 'guest_limit_exceeded') {
-          errorText = "You've reached the guest limit. [Sign up](/signup) for a free account to keep chatting."
+          // WE-20260528-102: /signup route never existed; clicking the link
+          // hit the NotFound page. Point at /pricing — it owns both the
+          // upgrade and the sign-up CTA, and is a real route in App.tsx.
+          errorText = "You've reached the guest limit. [Sign up](/pricing) for a free account to keep chatting."
           kind = 'guest'
         } else {
           errorText = err.message || 'Quota exceeded.'
