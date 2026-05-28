@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const ChatRequestSchema = z.object({
   message: z.string().min(1).max(10000),
   threadId: z.string().optional(),
-  mode: z.enum(['planner', 'styler', 'knowledge']).optional(),
+  mode: z.enum(['planner', 'stylist', 'knowledge']).optional(),
   imageData: z.string().optional(),
   imageMimeType: z.string().optional(),
   toneSettings: z.record(z.number().min(0).max(100)).optional(),
