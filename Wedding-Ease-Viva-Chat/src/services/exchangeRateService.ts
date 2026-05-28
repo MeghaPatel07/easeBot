@@ -56,7 +56,7 @@ export class ExchangeRateService {
         throw new Error('conversion_rate missing or not a number')
       }
       if (raw <= MIN_RATE || raw >= MAX_RATE) {
-        // eslint-disable-next-line no-console
+         
         console.warn(
           `[exchangeRateService] rejecting sanity-failing rate ${key}=${raw} (LH-33)`,
         )
@@ -65,7 +65,7 @@ export class ExchangeRateService {
       this.cache.set(key, { rate: raw, fetchedAt: Date.now() })
       return raw
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.warn(`[exchangeRateService] getRate(${key}) failed`, err)
       return 1.0
     }

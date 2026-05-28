@@ -59,7 +59,7 @@ export class GeolocationService {
       this.writeCache(result)
       return result
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.warn('[geolocationService] detect failed, using fallback', err)
       return FALLBACK
     }
