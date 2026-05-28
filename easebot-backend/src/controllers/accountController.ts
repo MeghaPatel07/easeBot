@@ -599,7 +599,15 @@ export async function handleUpdatePreferences(req: Request, res: Response): Prom
     prefUpdate['preferences.dataTrainingOptOut'] = body.dataTrainingOptOut
   }
 
-  if (Object.keys(prefUpdate).length === 0) return badRequest(res, 'No valid preferences supplied')
+  if (Object.keys(prefUpdate).length === 0) {
+    // BUG-BE-20260525-019: previous generic 'No valid preferences supplied'
+    // gave callers no clue what shape was expected. Surface the accepted
+    // top-level keys so the error is actionable.
+    return badRequest(
+      res,
+      'No valid preferences supplied. Accepted top-level keys: theme, density, language, notifications, dataTrainingOptOut. Send them flat, e.g. {"theme":"dark","language":"en"} — not {"preferences":{...}}.',
+    )
+  }
 
   try {
     // Ensure the doc exists first so update with dotted paths succeeds
