@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,7 +29,11 @@ import TimelineView from '@/components/TimelineView';
 import RemindersView from '@/components/RemindersView';
 import GalleryView from '@/components/GalleryView';
 import ImagesHub from '@/pages/ImagesHub';
-import NotesView from '@/components/notes/NotesView';
+// WE-20260528-304: lazy-load NotesView so its tiptap/prosemirror dependency
+// graph (the vendor-tiptap chunk, ~158 KB gz) only downloads when the user
+// actually navigates to the Notes view. Previously a static import here
+// forced vendor-tiptap onto every Index route, blowing the /chat LCP.
+const NotesView = lazy(() => import('@/components/notes/NotesView'));
 import ProgressDashboard from '@/components/ProgressDashboard';
 import NotificationPanel from '@/components/NotificationPanel';
 import InvitePartner from '@/components/InvitePartner';
@@ -1347,7 +1351,11 @@ const Index = () => {
 
   if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
-  if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
+  if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, (
+    <Suspense fallback={<div className="flex items-center justify-center py-20 text-foreground/40 text-sm">Loading notes…</div>}>
+      <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />
+    </Suspense>
+  ));
   if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-foreground/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
   // ── Coming soon views ─────────────────────────────────────────────────────
