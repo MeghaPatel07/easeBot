@@ -1057,7 +1057,13 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     let textForClient = finalText
     if (imageUrls.length > 0 && textForClient) {
       for (const u of imageUrls) {
-        if (!u) continue
+        // Skip empty + data: URIs. Inlining a 2 MB base64 PNG into the RegExp
+        // source explodes the V8 compiled pattern size and throws "Invalid
+        // regular expression", crashing the request handler. The streaming
+        // path at :1668 already guards this; the non-stream path (Vibe /
+        // forceImageGeneration) was never patched, producing a hard 500 for
+        // every Vibe image gen guest. See WE-20260528-101.
+        if (!u || u.startsWith('data:')) continue
         const esc = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
         textForClient = textForClient.replace(new RegExp(`!\\[[^\\]]*\\]\\(${esc}\\)`, 'g'), '')
       }
