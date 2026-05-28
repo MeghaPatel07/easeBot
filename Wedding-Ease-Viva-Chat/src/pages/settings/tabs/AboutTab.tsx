@@ -42,7 +42,7 @@ const LINKS: LinkItem[] = [
   {
     label: 'Help center',
     description: 'Email our team for guides, tutorials, and contact options.',
-    href: 'mailto:support@theweddingbot.ai',
+    href: 'mailto:theweddingease@gmail.com',
     Icon: LifeBuoy,
     external: true,
   },
@@ -109,6 +109,34 @@ export function AboutTab() {
           {LINKS.map((item) => (
             <LinkRow key={item.label} item={item} />
           ))}
+        </div>
+      </Card>
+
+      {/* Company Information */}
+      <Card className="p-6">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold">Company Details</h3>
+          <p className="mt-1 text-xs text-foreground/90">
+            Contact information and legal entity name.
+          </p>
+        </div>
+        <div className="space-y-3">
+          <div className="rounded-lg bg-foreground/[0.04] p-4">
+            <p className="text-xs font-medium text-foreground/60 mb-1">Legal Name</p>
+            <p className="text-sm text-foreground/90">Subh Wedding Ease Private Limited</p>
+          </div>
+          <div className="rounded-lg bg-foreground/[0.04] p-4">
+            <p className="text-xs font-medium text-foreground/60 mb-1">Phone</p>
+            <a href="tel:+919925074485" className="text-sm text-primary hover:underline">
+              +91 99250 74485
+            </a>
+          </div>
+          <div className="rounded-lg bg-foreground/[0.04] p-4">
+            <p className="text-xs font-medium text-foreground/60 mb-1">Email</p>
+            <a href="mailto:theweddingease@gmail.com" className="text-sm text-primary hover:underline">
+              theweddingease@gmail.com
+            </a>
+          </div>
         </div>
       </Card>
 

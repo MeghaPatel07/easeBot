@@ -554,8 +554,8 @@ export default function Pricing() {
           Base currency is USD. Local prices update every minute via
           exchangerate-api. Final checkout locks the rate server-side.
           Questions?{' '}
-          <a href="mailto:support@theweddingbot.ai" className="text-primary hover:underline">
-            support@theweddingbot.ai
+          <a href="mailto:theweddingease@gmail.com" className="text-primary hover:underline">
+            theweddingease@gmail.com
           </a>
         </p>
       </div>

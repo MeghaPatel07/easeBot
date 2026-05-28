@@ -203,6 +203,13 @@ export default function Help() {
           </p>
         </header>
 
+        {/* Company Info Notice */}
+        <div className="rounded-2xl bg-card/90 border border-border/50 shadow-card backdrop-blur-2xl p-6 md:p-8 mb-8">
+          <p className="text-sm text-foreground/75 mb-3"><strong>Company Details:</strong></p>
+          <p className="text-xs text-foreground/65 mb-2">Subh Wedding Ease Private Limited</p>
+          <p className="text-xs text-foreground/65">Contact: <a href="tel:+919925074485" className="text-primary hover:underline">+91 99250 74485</a> | <a href="mailto:theweddingease@gmail.com" className="text-primary hover:underline">theweddingease@gmail.com</a></p>
+        </div>
+
         {/* Tabs */}
         <Tabs defaultValue="faq" className="w-full">
           <TabsList className="w-full bg-[hsl(22.5deg_25.6%_50.98%/5%)] backdrop-blur-2xl border-0 rounded-xl h-12 p-1 mb-8">
