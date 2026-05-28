@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import {
   createThread,
   subscribeToThreads,
+  subscribeToMessages,
   addMessage,
   updateThreadTitle,
   deleteThread as deleteThreadDoc,
@@ -211,6 +212,43 @@ export function useChat(): UseChatResult {
     if (!user) { setThreads([]); return }
     return subscribeToThreads(user.uid, setThreads)
   }, [user?.uid])
+
+  // ── Firestore message subscription for the active thread ─────────────────
+  // Tab B was previously blind to messages written from tab A (WE-20260528-558):
+  // useChat held local-only message state and never opened an onSnapshot.
+  // We only ADD messages from Firestore that aren't already in local state — the
+  // streaming pipeline's optimistic inserts stay authoritative for in-flight chunks.
+  useEffect(() => {
+    if (!activeThreadId) return
+    return subscribeToMessages(activeThreadId, (firestoreMessages) => {
+      setMessages((prev) => {
+        const localIds = new Set(prev.map((m) => m.id))
+        const incoming = firestoreMessages.filter((fs) => !localIds.has(fs.id))
+        if (incoming.length === 0) return prev
+        const converted: Message[] = incoming.map((data) => ({
+          id: data.id,
+          text: data.content,
+          sender: data.role === 'user' ? 'user' : 'ai',
+          timestamp: data.timestamp?.toDate?.() ?? new Date(),
+          mode: data.mode,
+          liked: data.liked ?? false,
+          audioUrl: data.audioUrl ?? null,
+          imageUrl: data.imageUrl ?? null,
+          imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
+          imageDeleted: data.imageDeleted ?? false,
+          attachedImage: data.attachedImageUrl ?? undefined,
+          language: data.language || 'en',
+          checklistData: data.checklistData ?? null,
+          attachments: data.attachments && data.attachments.length > 0 ? data.attachments : undefined,
+          products: data.products && data.products.length > 0 ? data.products : undefined,
+          productsHasMore: data.productsHasMore ?? undefined,
+        } as Message))
+        return [...prev, ...converted].sort(
+          (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+        )
+      })
+    })
+  }, [activeThreadId])
 
   // ── Fetch all liked messages across all threads on login ──────────────────
   useEffect(() => {
