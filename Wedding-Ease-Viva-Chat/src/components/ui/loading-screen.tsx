@@ -24,10 +24,14 @@ const LoadingScreen: React.FC = () => {
           }}
         />
       </div>
-      <p
-        className="text-sm font-medium tracking-wide"
-        style={{ color: 'hsl(var(--primary))' }}
-      >
+      {/*
+        BUG-VIVA-20260525-301: --primary at hsl(22 25% 51%) on a white/ivory
+        background only reaches 3.83:1 — below WCAG 2 AA's 4.5:1 for normal
+        text. The loading copy is functional ("Loading...") rather than
+        brand-decorative; switching to text-foreground gets ~12:1 contrast.
+        The brand identity still reads via the dual spinner above.
+       */}
+      <p className="text-sm font-medium tracking-wide text-foreground">
         Loading TheWeddingBot...
       </p>
     </div>
