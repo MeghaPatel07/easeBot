@@ -14,7 +14,17 @@ import express, { type Request, type Response } from 'express'
 const router = express.Router()
 
 const UPSTREAM = process.env.POSTHOG_HOST ?? 'https://us.i.posthog.com'
-const ALLOWED_PATHS = /^\/(e|s|i|decide|flags|array\.js|static\/|batch|capture)/
+// PostHog SDK fetches:
+//   /e, /s, /i                    — event capture
+//   /decide, /flags               — feature-flag eval
+//   /array.js                     — legacy single-file SDK bundle
+//   /array/<api_key>/config.js    — per-project SDK config (newer SDKs)
+//   /static/...                   — additional bundle assets
+//   /batch, /capture              — batched capture
+// The trailing `array/` (with slash) covers the per-project config path. Without
+// it, dev-mode and prod both 404 on the project config request and the SDK
+// silently degrades to defaults.
+const ALLOWED_PATHS = /^\/(e|s|i|decide|flags|array\.js|array\/|static\/|batch|capture)/
 
 router.use(express.raw({ type: '*/*', limit: '5mb' }))
 
