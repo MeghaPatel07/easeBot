@@ -66,6 +66,18 @@ function sandboxBase(): string {
   return process.env.PAYU_BASE_URL || 'https://test.payu.in'
 }
 
+// FRONTEND_BASE_URL resolver — production REQUIRES it (enforced at boot by
+// validatePaymentConfig); in dev we fall back to the documented Vite port so
+// a fresh checkout doesn't 302 the browser to a dead host. See WE-20260528-004.
+const DEV_FRONTEND_FALLBACK = 'http://localhost:8081'
+
+function frontendBaseUrl(): string {
+  const v = process.env.FRONTEND_BASE_URL
+  if (v) return v
+  if (process.env.NODE_ENV !== 'production') return DEV_FRONTEND_FALLBACK
+  throw new Error('missing env: FRONTEND_BASE_URL')
+}
+
 function mintTxnid(): string {
   return `EB-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
 }
@@ -412,7 +424,7 @@ export async function handleReturn(
     const payload = (req.body ?? {}) as Record<string, string>
     const txnid = payload.txnid
     const expectedHash = payload.hash
-    const frontend = env('FRONTEND_BASE_URL')
+    const frontend = frontendBaseUrl()
     console.log('[paymentController.handleReturn] payload snapshot', {
       txnid,
       status: payload.status,
@@ -696,11 +708,22 @@ export function validatePaymentConfig(): void {
     'PAYU_FAILURE_URL',
     'EXCHANGE_RATE_API_KEY',
   ]
+  // FRONTEND_BASE_URL is required ONLY in production. In dev, the controller
+  // falls back to DEV_FRONTEND_FALLBACK so a fresh .env doesn't break payment.
+  if (process.env.NODE_ENV === 'production') {
+    required.push('FRONTEND_BASE_URL')
+  }
   const missing = required.filter((name) => !process.env[name])
   if (missing.length > 0) {
     console.error(
       `[easebot] Missing required payment config env vars: ${missing.join(', ')}`,
     )
     process.exit(1)
+  }
+  if (process.env.NODE_ENV !== 'production' && !process.env.FRONTEND_BASE_URL) {
+    console.warn(
+      `[easebot] FRONTEND_BASE_URL not set — falling back to ${DEV_FRONTEND_FALLBACK} ` +
+      `for PayU return redirects (dev only). Set it in .env to override.`,
+    )
   }
 }
