@@ -198,6 +198,7 @@ function PhoneInput({
         <Input
           type="tel"
           inputMode="tel"
+          autoComplete="tel"
           value={formattedNational}
           disabled={disabled}
           placeholder={placeholder}

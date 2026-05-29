@@ -598,6 +598,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                         onChange={e => setFpEmail(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleFpSendOtp()}
                         placeholder="Enter your mail"
+                        autoComplete="email"
                         className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                       />
                     </div>
@@ -641,6 +642,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           value={digit}
                           onChange={e => handleFpOtpChange(i, e.target.value)}
                           onKeyDown={e => handleFpOtpKeyDown(i, e)}
+                          autoComplete="one-time-code"
                           className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-foreground/20 bg-foreground/[0.06] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-foreground/[0.1] transition-all caret-primary"
                         />
                       ))}
@@ -698,6 +700,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           value={fpNewPassword}
                           onChange={e => setFpNewPassword(e.target.value)}
                           placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
+                          autoComplete="new-password"
                           className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                         />
                         <button
@@ -763,6 +766,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           onChange={e => setFpConfirmPassword(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleFpResetPassword()}
                           placeholder="Re-enter new password"
+                          autoComplete="new-password"
                           className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                         />
                         <button
@@ -827,6 +831,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                         value={resendPassword}
                         onChange={e => setResendPassword(e.target.value)}
                         placeholder="Enter your password"
+                        autoComplete="current-password"
                         className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                       />
                     </div>
@@ -876,6 +881,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                     value={linkPassword}
                     onChange={e => setLinkPassword(e.target.value)}
                     placeholder="Enter your password"
+                    autoComplete="current-password"
                     className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                   />
                 </div>
@@ -930,6 +936,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="Enter your mail"
+                      autoComplete="email"
                       className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                     />
                   </div>
@@ -941,6 +948,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                       onChange={e => setPassword(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleEmailSignIn()}
                       placeholder="Enter your password"
+                      autoComplete="current-password"
                       className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                     />
                     <div className="flex justify-end">
@@ -999,6 +1007,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                           onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           placeholder="6-digit code"
                           maxLength={6}
+                          autoComplete="one-time-code"
                           className="h-12 rounded-2xl bg-transparent border border-foreground/[0.12] text-center tracking-widest text-lg text-foreground/90"
                           onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
                         />
