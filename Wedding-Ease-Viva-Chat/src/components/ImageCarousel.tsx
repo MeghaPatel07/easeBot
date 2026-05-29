@@ -81,6 +81,7 @@ function ImagePreview({
       {/* Close button */}
       <button
         onClick={onClose}
+        aria-label="Close image preview"
         className="absolute top-4 right-4 z-10 h-10 w-10 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
       >
         <X className="h-5 w-5" />
@@ -90,6 +91,7 @@ function ImagePreview({
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-overlay-surface/10 rounded-full px-3 py-1.5 backdrop-blur-sm">
         <button
           onClick={(e) => { e.stopPropagation(); setScale(s => Math.max(s - 0.25, 0.5)) }}
+          aria-label="Zoom out"
           className="h-7 w-7 rounded-full hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
         >
           <ZoomOut className="h-4 w-4" />
@@ -97,6 +99,7 @@ function ImagePreview({
         <span className="text-overlay-text/70 text-xs min-w-[3rem] text-center">{Math.round(scale * 100)}%</span>
         <button
           onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(s + 0.25, 3)) }}
+          aria-label="Zoom in"
           className="h-7 w-7 rounded-full hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
         >
           <ZoomIn className="h-4 w-4" />
@@ -108,12 +111,14 @@ function ImagePreview({
         <>
           <button
             onClick={(e) => { e.stopPropagation(); prev() }}
+            aria-label="Previous image"
             className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); next() }}
+            aria-label="Next image"
             className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-overlay-surface/10 hover:bg-overlay-surface/20 text-overlay-text flex items-center justify-center transition-colors"
           >
             <ChevronRight className="h-6 w-6" />
@@ -153,6 +158,8 @@ function ImagePreview({
               <button
                 key={i}
                 onClick={(e) => { e.stopPropagation(); setIndex(i); setScale(1) }}
+                aria-label={`Show image ${i + 1}`}
+                aria-current={i === index ? 'true' : undefined}
                 className={`w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${i === index
                   ? 'border-primary shadow-md shadow-primary/30'
                   : 'border-foreground/20 opacity-60 hover:opacity-100'
@@ -263,12 +270,14 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             <>
               <button
                 onClick={() => setActiveIndex(i => (i - 1 + imageUrls.length) % imageUrls.length)}
+                aria-label="Previous variant"
                 className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text flex items-center justify-center backdrop-blur-sm transition-colors"
               >
                 <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" />
               </button>
               <button
                 onClick={() => setActiveIndex(i => (i + 1) % imageUrls.length)}
+                aria-label="Next variant"
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text flex items-center justify-center backdrop-blur-sm transition-colors"
               >
                 <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
@@ -282,6 +291,8 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
             <button
               key={i}
               onClick={() => setActiveIndex(i)}
+              aria-label={`Show variant ${i + 1}`}
+              aria-current={i === activeIndex ? 'true' : undefined}
               className={`w-11 h-11 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition-all ${i === activeIndex
                 ? 'border-primary shadow-md shadow-primary/20'
                 : 'border-transparent opacity-60 hover:opacity-100'
