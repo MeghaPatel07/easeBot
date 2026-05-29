@@ -32,7 +32,8 @@ const TIERS: TierPricing[] = [
   { tier: 'promax', monthlyUsd: 39, annualUsd: 299 },
 ]
 
-const CURRENCY_OPTIONS = ['USD', 'INR', 'GBP', 'EUR', 'AED', 'SGD', 'AUD', 'CAD'] as const
+// Listed alphabetically by ISO-4217 code for predictable scanning.
+const CURRENCY_OPTIONS = ['AED', 'AUD', 'CAD', 'EUR', 'GBP', 'INR', 'SGD', 'USD'] as const
 
 const TIER_LABEL: Record<'pro' | 'promax', string> = {
   pro: 'TheWeddingBot Pro',
@@ -162,12 +163,20 @@ const COMPARISON_DATA: ComparisonGroup[] = [
 function ComparisonCell({ value }: { value: CellValue }) {
   if (typeof value === 'boolean') {
     return value ? (
-      <Check className="mx-auto h-4 w-4 text-primary" />
+      <Check
+        aria-label="Included"
+        role="img"
+        className="mx-auto h-4 w-4 text-primary"
+      />
     ) : (
-      <XIcon className="mx-auto h-4 w-4 text-foreground/20" />
+      <XIcon
+        aria-label="Not included"
+        role="img"
+        className="mx-auto h-4 w-4 text-foreground/20"
+      />
     )
   }
-  return <span className="text-foreground/80">{value}</span>
+  return <span className="whitespace-nowrap text-foreground/80">{value.trim()}</span>
 }
 
 function ComparisonTable({ className }: { className?: string }) {
@@ -190,7 +199,7 @@ function ComparisonTable({ className }: { className?: string }) {
               <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-primary w-[140px]">
                 Pro
               </th>
-              <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-foreground/40 w-[160px]">
+              <th className="py-4 px-4 text-center text-xs font-medium uppercase tracking-wider text-foreground/40 w-[180px]">
                 Pro Max
               </th>
             </tr>
