@@ -78,6 +78,24 @@ function escapeSSML(text: string): string {
     .replace(/'/g, '&apos;')
 }
 
+/**
+ * Escape a value for safe embedding inside an SSML XML attribute (e.g. the
+ * `name` attribute of <voice>). The ttsController already validates voiceName
+ * against a strict allowlist (see schemas/tts.ts) so this should be a no-op
+ * in practice, but we escape here too as defense in depth — if a future
+ * caller ever bypasses the controller (e.g. another route reusing
+ * generateSpeech directly), the SSML parser must not be tricked into
+ * interpreting the value as additional XML.
+ */
+function escapeSSMLAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 export async function generateSpeech(options: TTSOptions): Promise<Buffer> {
   const key = process.env.AZURE_SPEECH_KEY
   const region = process.env.AZURE_SPEECH_REGION
@@ -98,8 +116,12 @@ export async function generateSpeech(options: TTSOptions): Promise<Buffer> {
   // TTS uses the correct language model for multilingual/non-English text
   // rather than trying to force-fit the text through an English phoneme set.
   const locale = LANG_LOCALE_MAP[language ?? 'en'] ?? LANG_LOCALE_MAP['en']
-  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}">
-  <voice name="${azureVoice}">
+  // WE-20260528-002: defense in depth — even though the controller's Zod
+  // schema rejects voiceName values that aren't on the allowlist, we still
+  // escape every interpolated attribute so a future caller (or refactor)
+  // cannot reintroduce the SSML injection bug.
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${escapeSSMLAttr(locale)}">
+  <voice name="${escapeSSMLAttr(azureVoice)}">
     ${escapeSSML(text)}
   </voice>
 </speak>`
