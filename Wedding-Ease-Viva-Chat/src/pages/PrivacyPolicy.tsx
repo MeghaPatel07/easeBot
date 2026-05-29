@@ -36,7 +36,7 @@ export default function PrivacyPolicy() {
           </p>
         </header>
 
-        <article className="prose prose-invert max-w-none prose-headings:font-headline prose-headings:text-foreground prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-3 prose-h3:text-lg prose-p:text-foreground/70 prose-p:leading-relaxed prose-li:text-foreground/70 prose-strong:text-foreground/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+        <article className="prose prose-invert max-w-prose prose-headings:font-headline prose-headings:text-foreground prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-3 prose-h3:text-lg prose-p:text-foreground/70 prose-p:leading-relaxed prose-li:text-foreground/70 prose-strong:text-foreground/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
           <p>
             This Privacy Policy explains how {COMPANY_NAME} (“we,” “us,” or
             “our”) collects, uses, shares, and protects your personal
@@ -75,6 +75,12 @@ export default function PrivacyPolicy() {
           </ul>
 
           <h2>2. Information We Collect</h2>
+          <p>
+            We collect information in three ways: details you give us directly,
+            details we gather automatically as you use the Service, and details
+            we receive from third parties such as identity providers. The
+            subsections below describe each category.
+          </p>
           <h3>a. Information you provide</h3>
           <ul>
             <li>
@@ -365,6 +371,12 @@ export default function PrivacyPolicy() {
           </p>
 
           <h2>12. Region-Specific Disclosures</h2>
+          <p>
+            Some regions grant additional rights or impose specific
+            requirements beyond those described above. The subsections below
+            outline disclosures that apply to users in the European Economic
+            Area / United Kingdom / Switzerland, California (USA), and India.
+          </p>
           <h3>European Economic Area, United Kingdom, and Switzerland</h3>
           <p>
             You have the rights described in Section 9 under the GDPR / UK

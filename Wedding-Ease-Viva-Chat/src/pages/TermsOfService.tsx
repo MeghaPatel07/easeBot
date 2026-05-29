@@ -36,7 +36,7 @@ export default function TermsOfService() {
           </p>
         </header>
 
-        <article className="prose prose-invert max-w-none prose-headings:font-headline prose-headings:text-foreground prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-3 prose-h3:text-lg prose-p:text-foreground/70 prose-p:leading-relaxed prose-li:text-foreground/70 prose-strong:text-foreground/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+        <article className="prose prose-invert max-w-prose prose-headings:font-headline prose-headings:text-foreground prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-3 prose-h3:text-lg prose-p:text-foreground/70 prose-p:leading-relaxed prose-li:text-foreground/70 prose-strong:text-foreground/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
           <p>
             Welcome to {SERVICE_NAME} (the “Service”), an AI-powered wedding
             planning assistant operated by {COMPANY_NAME} (“we,” “us,” or
