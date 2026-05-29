@@ -52,9 +52,13 @@ export default function SharedChat() {
   }
 
   return (
-    <div className="gradient-bg min-h-[100vh] min-h-[100dvh]">
-      {/* Header */}
-      <header className="sticky top-0 z-10 bg-foreground/80 backdrop-blur-md border-b px-5 py-3 flex items-center justify-between">
+    // WE-20260528-864: shared-print-surface marker is consumed by the
+    // @media print block in src/index.css to neutralise global decorative
+    // chrome (gradient pseudo-elements, fixed banners) when planners export
+    // the transcript to PDF.
+    <div className="shared-print-surface gradient-bg min-h-[100vh] min-h-[100dvh] print:bg-white">
+      {/* Header (hidden in print — the title is re-emitted as a print-only h1 below) */}
+      <header className="sticky top-0 z-10 bg-foreground/80 backdrop-blur-md border-b px-5 py-3 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
           <Link to="/" className="text-primary hover:text-primary/80 transition-colors">
             <ArrowLeft className="h-4 w-4" />
@@ -69,26 +73,38 @@ export default function SharedChat() {
         <span className="text-2xs text-foreground/40 bg-foreground/10 px-2 py-1 rounded-full uppercase tracking-wider font-medium">Read-only</span>
       </header>
 
+      {/* Print-only title block — gives the PDF a real document heading. */}
+      <div className="hidden print:block px-5 pt-6 pb-3 text-black">
+        <h1 className="text-xl font-bold mb-1">{data.threadTitle}</h1>
+        <p className="text-xs text-neutral-600">
+          Shared from TheWeddingBot &middot; {data.sharedAt.toLocaleDateString()}
+        </p>
+      </div>
+
       {/* Messages */}
-      <div className="max-w-2xl mx-auto px-5 py-6 space-y-5">
+      <div className="max-w-2xl mx-auto px-5 py-6 space-y-5 print:max-w-none print:px-0 print:py-2 print:space-y-3">
         {data.messages.map((msg, i) => {
           const carouselUrls = (msg.imageUrls && msg.imageUrls.length > 0)
             ? msg.imageUrls
             : (msg.imageUrl ? [msg.imageUrl] : [])
           return (
-            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} className={`flex print:break-inside-avoid ${msg.role === 'user' ? 'justify-end print:justify-start' : 'justify-start'}`}>
+              {/* Print-only sender label — keeps role legible without color contrast. */}
+              <span className="hidden print:inline-block print:mr-2 text-xs font-semibold text-black uppercase tracking-wider">
+                {msg.role === 'user' ? 'You:' : 'Bot:'}
+              </span>
               {msg.role === 'user' ? (
-                <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-secondary-foreground shadow-sm">
+                <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-secondary-foreground shadow-sm print:max-w-none print:rounded-md print:bg-white print:text-black print:shadow-none print:border print:border-neutral-300">
                   <p className="text-caption leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 </div>
               ) : (
-                <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg w-full">
+                <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg w-full print:max-w-none">
                   {msg.mode && (
-                    <span className="inline-block mb-1.5 text-3xs uppercase tracking-wider font-semibold text-primary/80 bg-primary/10 rounded-full px-2 py-0.5">
+                    <span className="inline-block mb-1.5 text-3xs uppercase tracking-wider font-semibold text-primary/80 bg-primary/10 rounded-full px-2 py-0.5 print:hidden">
                       {msg.mode}
                     </span>
                   )}
-                  <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-foreground/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-glass text-foreground/90 prose-headings:text-foreground/90 prose-strong:text-foreground/95 prose-li:text-foreground/85 prose-p:text-foreground/85 prose-a:text-primary prose-a:no-underline prose-img:my-1">
+                  <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-foreground/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-glass text-foreground/90 prose-headings:text-foreground/90 prose-strong:text-foreground/95 prose-li:text-foreground/85 prose-p:text-foreground/85 prose-a:text-primary prose-a:no-underline prose-img:my-1 print:bg-white print:text-black print:shadow-none print:border print:border-neutral-300 print:rounded-md print:p-3 print:backdrop-blur-none">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -218,12 +234,13 @@ export default function SharedChat() {
         })}
       </div>
 
-      {/* Footer */}
-      <div className="text-center py-8">
-        <p className="text-2xs text-foreground/40 uppercase tracking-[0.2em] font-medium">
+      {/* Footer — CTA link is hidden in print (planners share the PDF with clients
+          who shouldn't see a "sign up" prompt; tagline stays as document attribution). */}
+      <div className="text-center py-8 print:py-4">
+        <p className="text-2xs text-foreground/40 uppercase tracking-[0.2em] font-medium print:text-neutral-600">
           Shared from TheWeddingBot &mdash; Your Wedding AI Concierge
         </p>
-        <Link to="/" className="inline-block mt-2 text-xs text-primary hover:underline">
+        <Link to="/" className="inline-block mt-2 text-xs text-primary hover:underline print:hidden">
           Try TheWeddingBot for your wedding planning
         </Link>
       </div>
