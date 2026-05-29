@@ -206,6 +206,11 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
     setTitleValue(note?.title || '');
   }, [note?.id, note?.title]);
 
+  // WE-20260528-870: soft cap at 80 chars to prevent 200-char paste from
+  // overflowing the editor header / surfacing awkwardly in shared metadata.
+  // Pre-existing long titles are NOT migrated server-side — see ticket.
+  const TITLE_MAX = 80;
+
   const handleTitleBlur = () => {
     const trimmed = titleValue.trim();
     if (trimmed !== note?.title) onUpdateTitle(trimmed || 'Untitled');
@@ -267,19 +272,33 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
           <span className="text-xl p-1 flex-shrink-0">{note.icon || '📝'}</span>
         )}
 
-        {/* Title */}
+        {/* Title — WE-20260528-870: cap at 80 chars, truncate read-only fallback */}
         {readOnly ? (
-          <h1 className="text-xl font-headline text-foreground flex-1 truncate">{note.title || 'Untitled'}</h1>
+          <h1 className="flex-1 min-w-0 max-w-full text-xl font-headline text-foreground truncate">{note.title || 'Untitled'}</h1>
         ) : (
-          <input
-            ref={titleRef}
-            value={titleValue}
-            onChange={e => setTitleValue(e.target.value)}
-            onBlur={handleTitleBlur}
-            onKeyDown={handleTitleKeyDown}
-            placeholder="Untitled"
-            className="flex-1 text-xl font-headline text-foreground bg-transparent border-none outline-none placeholder-foreground/25 min-w-0"
-          />
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <input
+              ref={titleRef}
+              value={titleValue}
+              onChange={e => setTitleValue(e.target.value.slice(0, TITLE_MAX))}
+              onBlur={handleTitleBlur}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="Untitled"
+              maxLength={TITLE_MAX}
+              aria-label="Note title"
+              className="flex-1 text-xl font-headline text-foreground bg-transparent border-none outline-none placeholder-foreground/25 min-w-0 truncate"
+            />
+            {titleValue.length >= TITLE_MAX - 10 && (
+              <span
+                className={`text-[10px] tabular-nums flex-shrink-0 ${
+                  titleValue.length >= TITLE_MAX ? 'text-warning' : 'text-foreground/40'
+                }`}
+                aria-live="polite"
+              >
+                {titleValue.length}/{TITLE_MAX}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Read-only badge */}
