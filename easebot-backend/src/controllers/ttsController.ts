@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { generateSpeech } from '../services/azureTTS'
 import { capture as phCapture } from '../lib/posthog'
+import { TTSRequestSchema } from '../schemas/tts'
 
 // Detect non-Latin scripts and map to language codes.
 // This is the safety net: even if the frontend sends language='en' for Hindi text,
@@ -24,12 +25,19 @@ function detectScriptLanguage(text: string): string | null {
 }
 
 export async function handleTTS(req: Request, res: Response): Promise<void> {
-  const { text, voiceName, language } = req.body as { text: string; voiceName?: string; language?: string }
-
-  if (!text || typeof text !== 'string' || text.trim().length === 0) {
-    res.status(400).json({ error: 'text is required' })
+  // WE-20260528-002: validate body shape + voiceName against a strict
+  // allowlist BEFORE doing anything with it. Previously `voiceName` was read
+  // straight off req.body and interpolated into SSML, which let an attacker
+  // break out of the <voice name="..."> attribute and inject arbitrary SSML.
+  const parsed = TTSRequestSchema.safeParse(req.body)
+  if (!parsed.success) {
+    res.status(400).json({
+      error: 'Validation failed',
+      details: parsed.error.errors,
+    })
     return
   }
+  const { text, voiceName, language } = parsed.data
 
   // Strip markdown for cleaner speech
   const plainText = text
@@ -69,7 +77,11 @@ export async function handleTTS(req: Request, res: Response): Promise<void> {
     res.set('Cache-Control', 'no-store')
     res.send(wavBuffer)
   } catch (err: any) {
-    console.error('[ttsController]', err.message)
+    // WE-20260528-002 (mirrors WE-20260527-353 pattern): the previous handler
+    // echoed err.message back to the client, which leaked Azure SDK internals
+    // (websocket error codes, internal SSML parser node names, vendor URLs).
+    // Keep the diagnostic in the server log; return a generic 500.
+    console.error('[ttsController]', err?.message ?? err)
     const phDistinctId = req.phDistinctId ?? req.user?.uid
     if (phDistinctId) {
       phCapture(phDistinctId, 'tts_failed', {
@@ -77,6 +89,6 @@ export async function handleTTS(req: Request, res: Response): Promise<void> {
         error_code: err?.code ?? err?.name ?? 'unknown',
       })
     }
-    res.status(500).json({ error: err.message ?? 'TTS generation failed' })
+    res.status(500).json({ error: 'TTS generation failed' })
   }
 }
