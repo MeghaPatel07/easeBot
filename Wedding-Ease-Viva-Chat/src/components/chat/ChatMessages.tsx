@@ -97,6 +97,25 @@ export interface ChatMessagesProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Language helpers — WCAG 3.1.2 (Language of Parts, AA). The backend tags
+// each AI message with a BCP-47 `language` (e.g. "hi", "ar", "gu", "es"),
+// but the DOM wrapper used to ignore it, so screen readers kept reading
+// Hindi/Arabic/etc. with English phonemes (garbled). We now propagate
+// `lang=` onto the markdown wrapper div, and `dir="rtl"` for the small set
+// of RTL languages we expect to see (`dir="ltr"` for everything else, so
+// nested elements inherit a known direction rather than relying on UA
+// defaults from the parent <html dir>).
+// ─────────────────────────────────────────────────────────────────────────────
+const RTL_LANGUAGE_CODES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'yi', 'dv']);
+
+function isRtlLanguage(code?: string): boolean {
+  if (!code) return false;
+  // Accept full BCP-47 tags ("ar-EG", "he-IL") by checking only the primary subtag.
+  const primary = code.toLowerCase().split('-')[0];
+  return RTL_LANGUAGE_CODES.has(primary);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Typewriter markdown — reveals characters gradually during streaming,
 // then renders full text with markdown once streaming finishes.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -372,7 +391,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         userId={activeUserId}
                       />
                     )}
-                    <p className="text-[13px] leading-relaxed" data-ph-mask>{message.text}</p>
+                    {/* dir="auto" lets the browser pick LTR/RTL from the first
+                        strong character of the user's typed text — costs nothing
+                        for English and fixes Arabic/Hebrew display without
+                        needing a language detector on the user-typed path. */}
+                    <p className="text-[13px] leading-relaxed" data-ph-mask dir="auto">{message.text}</p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 mr-1">
                     <span className="text-3xs text-foreground/40 uppercase tracking-wider">
@@ -439,7 +462,12 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground" data-ph-mask>
+              <div
+                className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground"
+                data-ph-mask
+                lang={message.language || 'en'}
+                dir={isRtlLanguage(message.language) ? 'rtl' : 'ltr'}
+              >
                 <TypewriterMarkdown
                   text={message.text}
                   isStreaming={message.id === streamingMsgId}
