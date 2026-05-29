@@ -23,6 +23,20 @@ interface NotificationPanelProps {
       dueDate: string | null
     }>
   }>
+  /**
+   * Optional tier signal. When `true`, the empty-state CTA suggests inviting a
+   * collaborator (paid-tier feature) once the user has set up checklists.
+   * Defaults to `false` so the component remains backward-compatible.
+   */
+  isPremium?: boolean
+  /**
+   * Optional navigation callback used by the empty-state CTA buttons. When the
+   * user has no checklists / no due-dates / no collaborators, the CTA can jump
+   * them to the right sidebar view to fix it. Wired from Index.tsx using the
+   * existing `setSidebarView(...)`. If omitted, the CTA buttons are not
+   * rendered (graceful degradation).
+   */
+  onNavigate?: (view: 'planner' | 'collaborate') => void
 }
 
 // ── Time-ago helper ──────────────────────────────────────────────────────────
@@ -102,7 +116,7 @@ function TypeIcon({ type }: { type: AppNotification['type'] }) {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export default function NotificationPanel({ userId, checklists }: NotificationPanelProps) {
+export default function NotificationPanel({ userId, checklists, isPremium = false, onNavigate }: NotificationPanelProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
@@ -168,17 +182,65 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
   )
 
   // ── Empty state ──────────────────────────────────────────────────────────
+  //
+  // Notifications in this app are sourced from (1) checklist due-dates,
+  // (2) timeline events, (3) shared-with-me notes, (4) payment/billing events.
+  // A user with no checklists / no due-dates / no collaborators has no path
+  // to ever see a notification, so a generic "you'll see reminders here" is
+  // a dead-end promise. Branch the copy + CTA on the user's state so the
+  // empty state guides them to the action that will actually enable
+  // notifications. See WE-20260528-884.
 
   if (notifications.length === 0) {
+    const hasChecklists = checklists.length > 0
+    const hasAnyDueDate = checklists.some((cl) =>
+      cl.items.some((item) => item.dueDate !== null && item.dueDate !== '')
+    )
+
+    let title: string
+    let body: string
+    let ctaLabel: string | null = null
+    let ctaView: 'planner' | 'collaborate' | null = null
+
+    if (!hasChecklists) {
+      title = 'No notifications yet'
+      body = 'Create a checklist with due dates to get reminders here.'
+      ctaLabel = 'Create a checklist'
+      ctaView = 'planner'
+    } else if (!hasAnyDueDate) {
+      title = 'No reminders set'
+      body =
+        'Add due dates to your checklist items and they will show up here as reminders.'
+      ctaLabel = 'Open planner'
+      ctaView = 'planner'
+    } else if (isPremium) {
+      // User has checklists + due-dates but still no notifications — most
+      // likely all items are far in the future or already completed. Suggest
+      // the paid-tier upside (sharing notifications with a partner).
+      title = "You're all caught up"
+      body = 'Invite a partner so you both get notified about wedding deadlines.'
+      ctaLabel = 'Invite a partner'
+      ctaView = 'collaborate'
+    } else {
+      title = "You're all caught up"
+      body = "You'll see reminders for upcoming deadlines here."
+    }
+
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
         <div className="rounded-full bg-foreground/[0.06] p-4 mb-4">
           <Bell className="h-8 w-8 text-foreground/40" />
         </div>
-        <h3 className="text-lg font-semibold text-foreground/70 mb-1">No notifications</h3>
-        <p className="text-sm text-foreground/50 max-w-xs">
-          You'll see reminders for upcoming deadlines here
-        </p>
+        <h3 className="text-lg font-semibold text-foreground/70 mb-1">{title}</h3>
+        <p className="text-sm text-foreground/50 max-w-xs">{body}</p>
+        {ctaLabel && ctaView && onNavigate && (
+          <button
+            onClick={() => onNavigate(ctaView!)}
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            {ctaLabel}
+          </button>
+        )}
       </div>
     )
   }
