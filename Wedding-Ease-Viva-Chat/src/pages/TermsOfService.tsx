@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const EFFECTIVE_DATE = 'April 13, 2026'
 const CONTACT_EMAIL = 'theweddingease@gmail.com'
@@ -9,6 +10,7 @@ const COMPANY_LEGAL_NAME = 'Subh Wedding Ease Private Limited'
 const COMPANY_PHONE = '+91 99250 74485'
 
 export default function TermsOfService() {
+  usePageTitle('Terms of Service')
   return (
     <div className="gradient-bg min-h-screen text-foreground/85">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">

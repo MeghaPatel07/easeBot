@@ -2,8 +2,10 @@ import { useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { XCircle } from 'lucide-react'
 import { track } from '@/lib/analytics'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 export default function PaymentFailure() {
+  usePageTitle('Payment failed')
   const [params] = useSearchParams()
   const reason = params.get('reason') ?? 'unknown'
   const txnid = params.get('txnid') ?? ''
