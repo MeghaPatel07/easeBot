@@ -184,6 +184,39 @@ const Index = () => {
   useEffect(() => { guestMessageCountRef.current = guestMessageCount; }, [guestMessageCount]);
   useEffect(() => { guestImageCountRef.current = guestImageCount; }, [guestImageCount]);
 
+  // Cross-tab sync for guest quota counters (WE-20260528-990).
+  // The `storage` event fires in OTHER tabs (not the one that wrote) whenever
+  // localStorage changes. Without this, opening N tabs as a guest effectively
+  // multiplies the quota by N — each tab's in-memory state is independent.
+  // We re-read on every relevant key change and update React state so the
+  // banner / gating logic reflects the true cross-tab count.
+  useEffect(() => {
+    if (user) return; // signed-in users don't use the localStorage counters
+    const handler = (e: StorageEvent) => {
+      // null key fires on storage.clear() — re-sync everything in that case.
+      if (e.key === null || e.key === 'easebot-guest-msg-count') {
+        try {
+          const v = Number(localStorage.getItem('easebot-guest-msg-count')) || 0;
+          if (v !== guestMessageCountRef.current) {
+            guestMessageCountRef.current = v;
+            setGuestMessageCount(v);
+          }
+        } catch { /* ignore */ }
+      }
+      if (e.key === null || e.key === 'easebot-guest-img-count') {
+        try {
+          const v = Number(localStorage.getItem('easebot-guest-img-count')) || 0;
+          if (v !== guestImageCountRef.current) {
+            guestImageCountRef.current = v;
+            setGuestImageCount(v);
+          }
+        } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [user]);
+
   const guestBannerJSX = !user ? (
     <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
       <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-foreground/70 space-y-1.5">
@@ -382,13 +415,29 @@ const Index = () => {
   // ── Guest message counting helper ─────────────────────────────────────────
   // Returns false if the guest has hit the limit (caller should abort).
   // Must be called by every path that sends a message when !user.
+  // Cross-tab safety (WE-20260528-990): we read-modify-write against
+  // localStorage rather than trusting the in-memory ref, so a sibling tab
+  // that incremented since our last read is honored. The sub-ms race where
+  // two tabs read the same value and then both write +1 is acknowledged and
+  // accepted — atomicity would require BroadcastChannel/SharedWorker, which
+  // is out of scope (see BC-ARCH backlog).
   const checkAndBumpGuestCount = (): boolean => {
     if (user) return true;
-    if (guestMessageCountRef.current >= GUEST_MESSAGE_LIMIT) {
-      track('guest_prompt_hit', { limit_kind: 'message', count: guestMessageCountRef.current });
+    let current = guestMessageCountRef.current;
+    try {
+      const stored = Number(localStorage.getItem('easebot-guest-msg-count'));
+      if (Number.isFinite(stored) && stored > current) current = stored;
+    } catch { /* localStorage may be unavailable — fall back to ref */ }
+    if (current >= GUEST_MESSAGE_LIMIT) {
+      track('guest_prompt_hit', { limit_kind: 'message', count: current });
+      // Reconcile state so the UI banner reflects the true cross-tab count.
+      if (current !== guestMessageCountRef.current) {
+        guestMessageCountRef.current = current;
+        setGuestMessageCount(current);
+      }
       return false;
     }
-    const nextCount = guestMessageCountRef.current + 1;
+    const nextCount = current + 1;
     guestMessageCountRef.current = nextCount;
     setGuestMessageCount(nextCount);
     try { localStorage.setItem('easebot-guest-msg-count', String(nextCount)) } catch { }
@@ -837,11 +886,17 @@ const Index = () => {
   useEffect(() => {
     if (user) return;
     const imgCount = messages.filter(m => m.sender === 'ai' && (m.imageUrl || (m.imageUrls && m.imageUrls.length > 0))).length;
-    // Only ratchet up — never decrease the count (prevents reset when new chat clears messages)
-    const totalImgCount = Math.max(imgCount, guestImageCountRef.current);
+    // Only ratchet up — never decrease the count (prevents reset when new chat clears messages).
+    // Cross-tab safety (WE-20260528-990): consult localStorage too so we don't
+    // accidentally write a lower value than a sibling tab already persisted.
+    let stored = 0;
+    try { stored = Number(localStorage.getItem('easebot-guest-img-count')) || 0; } catch { /* ignore */ }
+    const totalImgCount = Math.max(imgCount, guestImageCountRef.current, stored);
     if (totalImgCount !== guestImageCountRef.current) {
       guestImageCountRef.current = totalImgCount;
       setGuestImageCount(totalImgCount);
+    }
+    if (totalImgCount !== stored) {
       try { localStorage.setItem('easebot-guest-img-count', String(totalImgCount)) } catch { }
     }
   }, [user, messages]);  
