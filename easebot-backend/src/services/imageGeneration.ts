@@ -29,6 +29,56 @@ import { capture as phCapture } from '../lib/posthog'
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const IMAGE_FORMAT = 'png'
 
+// WE-20260527-002: Per-attempt timeout for Azure image fetches. Without this,
+// a stalled Azure deployment causes fetch() to hang indefinitely until the
+// upstream SSE client (or proxy) aborts at ~110s, surfacing as the catch-all
+// "Something went wrong" error envelope. 60s gives Azure GPT-Image-1.5
+// generous headroom (typical generation: 15-30s, slow tail: 45-55s) while
+// still failing fast enough for the user to retry within the same chat turn.
+const AZURE_IMAGE_TIMEOUT_MS = 60_000
+
+/**
+ * Compose the caller's AbortSignal (if any) with a fresh per-attempt timeout
+ * signal so a stalled Azure fetch fails fast. Returns the combined signal +
+ * a cleanup function the caller MUST invoke after fetch settles to avoid
+ * leaking the timer.
+ *
+ * Why not just `AbortSignal.timeout(...)` alone: we still need to respect the
+ * SSE stream's cancellation (user clicked stop, client disconnected).
+ *
+ * Why not `AbortSignal.any([...])`: only landed in Node 20; we support older
+ * runtimes. Manual composition is portable.
+ */
+function withTimeoutSignal(
+  callerSignal: AbortSignal | undefined,
+  timeoutMs: number,
+): { signal: AbortSignal; cleanup: () => void } {
+  const controller = new AbortController()
+  const onCallerAbort = () => {
+    controller.abort((callerSignal as AbortSignal & { reason?: unknown })?.reason)
+  }
+  const timer = setTimeout(() => {
+    const err = new Error(`Azure image request timed out after ${timeoutMs}ms`)
+    err.name = 'TimeoutError'
+    controller.abort(err)
+  }, timeoutMs)
+
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      clearTimeout(timer)
+      controller.abort((callerSignal as AbortSignal & { reason?: unknown })?.reason)
+    } else {
+      callerSignal.addEventListener('abort', onCallerAbort, { once: true })
+    }
+  }
+
+  const cleanup = () => {
+    clearTimeout(timer)
+    callerSignal?.removeEventListener('abort', onCallerAbort)
+  }
+  return { signal: controller.signal, cleanup }
+}
+
 // ── Types ───────────────────────────────────────────────────────────────────────
 
 export type ImageSize = '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
@@ -310,17 +360,40 @@ async function callAzureImageGeneration(
     quality: 'high',
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
-    body: JSON.stringify(body),
-    signal,
-  })
+  // WE-20260527-002: compose timeout with caller's signal so a stalled Azure
+  // call fails in ≤60s instead of hanging until the upstream client aborts.
+  const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, AZURE_IMAGE_TIMEOUT_MS)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+      body: JSON.stringify(body),
+      signal: timedSignal,
+    })
+  } catch (err) {
+    // Distinguish timeout / abort so callers can route to the right fallback
+    // and surface a useful message instead of generic "fetch failed".
+    if ((err as Error)?.name === 'TimeoutError' || (timedSignal.aborted && !signal?.aborted)) {
+      const timeoutErr = new Error(`Azure image generation timed out after ${AZURE_IMAGE_TIMEOUT_MS}ms`)
+      timeoutErr.name = 'TimeoutError'
+      ;(timeoutErr as Error & { code?: string }).code = 'IMAGE_TIMEOUT'
+      throw timeoutErr
+    }
+    throw err
+  } finally {
+    cleanup()
+  }
 
   if (!res.ok) {
     const errBody = await res.text()
     console.error(`[imageGeneration] ${deployment} error ${res.status}: ${errBody}`)
-    throw new Error(`Image generation failed: ${res.status}`)
+    // Carry HTTP status on the Error so withRetry's default retryable() check
+    // sees 429/5xx and retries instead of giving up after one Azure hiccup.
+    const httpErr = new Error(`Image generation failed: ${res.status}`)
+    ;(httpErr as Error & { status?: number; code?: string }).status = res.status
+    ;(httpErr as Error & { status?: number; code?: string }).code = 'IMAGE_HTTP_ERROR'
+    throw httpErr
   }
 
   const data = await res.json()
@@ -453,17 +526,37 @@ async function callAzureImageEdit(
 
   // Note: multi-image compositing is only supported on the generations endpoint, not edits
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'api-key': apiKey },
-    body: formData,
-    signal,
-  })
+  // WE-20260527-002: same per-attempt timeout treatment as the generation
+  // path. Edit calls can be even slower than generation (full input image
+  // gets re-encoded) so the 60s budget is the same.
+  const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, AZURE_IMAGE_TIMEOUT_MS)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'api-key': apiKey },
+      body: formData,
+      signal: timedSignal,
+    })
+  } catch (err) {
+    if ((err as Error)?.name === 'TimeoutError' || (timedSignal.aborted && !signal?.aborted)) {
+      const timeoutErr = new Error(`Azure image edit timed out after ${AZURE_IMAGE_TIMEOUT_MS}ms`)
+      timeoutErr.name = 'TimeoutError'
+      ;(timeoutErr as Error & { code?: string }).code = 'IMAGE_TIMEOUT'
+      throw timeoutErr
+    }
+    throw err
+  } finally {
+    cleanup()
+  }
 
   if (!res.ok) {
     const errBody = await res.text()
     console.error(`[imageGeneration] ${deployment} edit error ${res.status}: ${errBody}`)
-    throw new Error(`Image edit failed: ${res.status}`)
+    const httpErr = new Error(`Image edit failed: ${res.status}`)
+    ;(httpErr as Error & { status?: number; code?: string }).status = res.status
+    ;(httpErr as Error & { status?: number; code?: string }).code = 'IMAGE_HTTP_ERROR'
+    throw httpErr
   }
 
   const data = await res.json()
