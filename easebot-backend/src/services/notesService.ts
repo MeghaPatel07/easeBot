@@ -73,7 +73,14 @@ export async function createNote(
     templateId: data?.templateId ?? null,
   }
   await setDoc(noteRef(id), noteData)
-  return { ...noteData, createdAt: null, updatedAt: null }
+  // BUG-BE-20260526-024: the persisted document has Firestore server
+  // timestamps; those resolve to placeholder sentinels at write time and
+  // can't be JSON-serialised, so the original code zeroed them in the
+  // response. That left the frontend without a sort key on freshly-created
+  // notes until it re-fetched. Return the local ISO timestamp instead —
+  // it's microseconds off from the server value but stable for client sort.
+  const nowIso = new Date().toISOString()
+  return { ...noteData, createdAt: nowIso, updatedAt: nowIso }
 }
 
 export async function getNote(noteId: string): Promise<any> {

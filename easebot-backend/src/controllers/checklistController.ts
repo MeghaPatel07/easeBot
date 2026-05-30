@@ -7,13 +7,28 @@ import {
 export async function handleCreateChecklist(req: Request, res: Response): Promise<void> {
   const uid = req.user?.uid
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
-  const { title, items } = req.body as { title: string; items: string[] }
+  const { title, items } = req.body as { title: string; items: unknown }
   if (!title || !Array.isArray(items)) { res.status(400).json({ error: 'title and items[] are required' }); return }
+  // BUG-BE-20260526-023: accept both items:['text'] and items:[{text:'text'}] —
+  // normalize to flat strings so the persisted item.text is a string, not a
+  // nested { text: '...' } object. Reject items that resolve to empty strings.
+  const normalized: string[] = []
+  for (const raw of items) {
+    let str: string | null = null
+    if (typeof raw === 'string') str = raw.trim()
+    else if (raw && typeof raw === 'object' && typeof (raw as { text?: unknown }).text === 'string') {
+      str = ((raw as { text: string }).text).trim()
+    }
+    if (str && str.length > 0) normalized.push(str)
+  }
+  if (normalized.length === 0) { res.status(400).json({ error: 'items[] must contain at least one non-empty string or {text:string}' }); return }
   try {
-    const checklist = await createChecklist(uid, title, items)
+    const checklist = await createChecklist(uid, title, normalized)
     res.status(201).json(checklist)
   } catch (err: any) {
-    res.status(500).json({ error: err.message })
+    // Don't echo arbitrary err.message — same pattern as BUG-BE-005/011/014
+    console.error('[handleCreateChecklist]', err)
+    res.status(500).json({ error: 'Failed to create checklist' })
   }
 }
 
