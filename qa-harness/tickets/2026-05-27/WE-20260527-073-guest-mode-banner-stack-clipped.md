@@ -12,8 +12,10 @@
 | **Path** | `Wedding-Ease-Viva-Chat/src/components/chat/GuestModeBanner.tsx` (or equivalent) |
 | **URL / Page** | `/` (guest) |
 | **Breakpoint** | `mobile` |
-| **Status** | `triaged` |
+| **Status** | `in_review` |
 | **Assigned** | `fix-frontend` |
+| **PR** | https://github.com/MeghaPatel07/easeBot/pull/96 |
+| **Progress** | `qa-harness/progress/WE-20260527-073/progress.html` |
 | **Related fix** | The bottom-half (consent banner contribution to mobile chrome) is addressed by `WE-20260527-050` PR (`fix-WE-20260527-050`). Top-banner stack itself still needs a tighter mobile layout — leaving this ticket open for the GuestModeBanner cleanup. |
 
 ## Description

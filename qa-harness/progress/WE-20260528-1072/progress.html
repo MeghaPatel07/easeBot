@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-1072 + WE-20260528-1079</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .ok { color: var(--ok); }
+    .err { color: var(--err); }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-1072 + WE-20260528-1079 · Help.tsx form a11y + recovery <span class="pill P1">P1</span> <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-1072</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-1072</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p><b>-1072 (P2 a11y)</b>: Help.tsx feedback form guest name/email inputs lack <code>autoComplete</code> attributes. WCAG 1.3.5 (Identify Input Purpose) + WCAG 2.2 3.3.7 (Redundant Entry) fail — browsers can&apos;t offer autofill, guests must re-type contact info every visit.</p>
+    <p><b>-1079 (P1 recovery)</b>: <code>Help.tsx:164</code> catch-all toast &quot;Something went wrong&quot; on submit failure offers no recovery path. Form state preserved in-memory but no retry affordance, no fallback contact email surfaced, no offline guidance. Ironic for the Help page itself.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 (session start)</div>
+        <div class="what">Read both tickets + Help.tsx end-to-end (379 lines).</div>
+        <div class="detail">Confirmed form structure: guest name (line 261) + guest email (line 270) Inputs lack autoComplete. Submit handler try/catch at 137-170; catch toast at 162-167 has no recovery action.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (diagnose)</div>
+        <div class="what">Verified Input component spreads props (line 6, 15 of input.tsx) — autoComplete prop will reach native &lt;input&gt;. Verified ToastAction exported from components/ui/toast.tsx (line 56-69) and useToast supports action prop (line 15 of use-toast.ts).</div>
+        <div class="detail">No new deps needed. Both fixes are purely additive to existing primitives.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (apply fix)</div>
+        <div class="what">Applied two fixes in Help.tsx:</div>
+        <div class="detail">
+          <b>-1072</b>: Added <code>autoComplete=&quot;name&quot;</code> to guestName Input + <code>autoComplete=&quot;email&quot;</code> to guestEmail Input. (No phone field exists on this form.)<br>
+          <b>-1079</b>: Refactored catch block to classify error (network offline, HTTP-coded firestore errors), produce specific recovery copy, embed ToastAction &quot;Try again&quot; that re-submits with preserved form state, and surface a mailto fallback in the toast body. Form state was already preserved on error (reset only on success) — no extra plumbing needed.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (typecheck)</div>
+        <div class="what">Ran <code>npx tsc --noEmit -p tsconfig.app.json</code>. Pass.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (commit + PR)</div>
+        <div class="what">Atomic commit on fix-WE-20260528-1072 branch; pushed; PR opened against Bug-Resolve-claude.</div>
+      </div>
+    </div>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">pass</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>Wedding-Ease-Viva-Chat/src/pages/Help.tsx</pre>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

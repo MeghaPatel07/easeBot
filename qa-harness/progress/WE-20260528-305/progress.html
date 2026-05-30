@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>WE-20260528-305 — PostHog initAnalytics blocks first render</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; }
+  h1 { font-size: 1.4rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem; }
+  ul { line-height: 1.6; }
+  li.done::marker { color: #16a34a; }
+  li.active { color: #d97706; font-weight: 600; }
+  code { background: #f3f4f6; padding: 0 0.25rem; border-radius: 3px; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #d1d5db; padding: 0.4rem 0.8rem; text-align: left; }
+  th { background: #f3f4f6; }
+  .delta-pos { color: #16a34a; font-weight: 600; }
+  .meta { color: #6b7280; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<h1>WE-20260528-305 — Defer PostHog init off the critical path</h1>
+<p class="meta">Repo: Wedding-Ease-Viva-Chat &middot; Branch: fix-WE-20260528-305 &middot; Base: Bug-Resolve-claude &middot; Status: in_review</p>
+
+<h2>Plan</h2>
+<ul>
+  <li class="done">Create worktree off origin/Bug-Resolve-claude</li>
+  <li class="done">Read main.tsx, App.tsx, lib/analytics.ts; map all caller sites</li>
+  <li class="done">Capture before metrics (bundle size + initial chunk graph)</li>
+  <li class="done">Refactor analytics.ts: lazy <code>posthog-js</code> import; expose async-safe API; queue track() calls before init</li>
+  <li class="done">Defer init via requestIdleCallback inside App.tsx; drop sync call from main.tsx</li>
+  <li class="done">Replace direct <code>posthog</code> re-export with a Proxy that resolves once loaded</li>
+  <li class="done">Build + verify vendor-posthog falls out of the initial graph</li>
+  <li class="done">tsc passes for our files (pre-existing errors in unrelated files unchanged)</li>
+  <li class="done">Commit + push + PR against Bug-Resolve-claude</li>
+</ul>
+
+<h2>Perf delta</h2>
+<table>
+  <tr><th>Metric</th><th>Before</th><th>After</th><th>Delta</th></tr>
+  <tr><td>posthog-js in initial modulepreload chain</td><td>yes (vendor-posthog 60.62 kB gz)</td><td>no</td><td class="delta-pos">moved off critical path</td></tr>
+  <tr><td>modulepreload chunks</td><td>9</td><td>8</td><td class="delta-pos">&minus;1</td></tr>
+  <tr><td>initial chain total (gzipped)</td><td>776.27 kB</td><td>717.17 kB</td><td class="delta-pos">&minus;59.10 kB (&minus;7.6%)</td></tr>
+  <tr><td>entry chunk (gzipped)</td><td>13.88 kB</td><td>14.76 kB</td><td>+0.88 kB (boot effect + proxy)</td></tr>
+  <tr><td>vendor-posthog chunk still emitted</td><td>yes</td><td>yes (185.92 kB / 61.98 kB gz, dynamic-loaded after first paint)</td><td>&mdash;</td></tr>
+  <tr><td>/ingest/* network requests</td><td>compete on bandwidth with main JS</td><td>fire after requestIdleCallback resolves</td><td class="delta-pos">no longer competing</td></tr>
+</table>
+
+<h2>Behavior preserved</h2>
+<ul>
+  <li>Early <code>track()</code> / <code>identify()</code> / <code>register()</code> calls are buffered (bounded queue, 200 entries each) and flushed when posthog.init() resolves.</li>
+  <li>Consent decision (<code>localStorage('ph_consent')</code>) is re-applied inside init, so user opt-out before SDK load is respected.</li>
+  <li><code>useFeatureFlag</code>'s <code>onFeatureFlags</code> subscriptions are buffered and resubscribed once PostHog loads; flag reads default to false until then.</li>
+  <li><code>startReplay</code> is queued pre-init and decided + started once PostHog loads.</li>
+</ul>
+</body>
+</html>

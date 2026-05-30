@@ -12,8 +12,10 @@
 | **Path** | `src/pages/TermsOfService.tsx`, `src/pages/PrivacyPolicy.tsx` |
 | **URL / Page** | `http://localhost:8081/terms`, `http://localhost:8081/privacy` |
 | **Breakpoint** | `desktop` (1280+) |
-| **Status** | `new` |
+| **Status** | `in_review` |
 | **Assigned** | fix-frontend |
+| **PR** | https://github.com/MeghaPatel07/easeBot/pull/102 |
+| **Progress** | `qa-harness/progress/WE-20260528-061-271/progress.html` |
 
 ## Description
 

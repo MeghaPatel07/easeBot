@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WE-20260528-1530 — translation withRetry perf tuning</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 920px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  h1 { font-size: 1.4rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 0.95rem; }
+  th { background: #f6f8fa; }
+  .done { color: #1a7f37; }
+  .pending { color: #9a6700; }
+  .delta { font-weight: 600; }
+  code { background: #f6f8fa; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>WE-20260528-1530 — translation <code>withRetry</code> tuning</h1>
+<p><strong>Branch:</strong> <code>fix-WE-20260528-1530</code> off <code>Bug-Resolve-claude</code></p>
+<p><strong>File:</strong> <code>easebot-backend/src/services/translation.ts</code></p>
+<p><strong>Severity:</strong> P2 — perf tail-latency on chat critical path</p>
+
+<h2>Root cause</h2>
+<p>Both <code>detectLanguage</code> and <code>translateText</code> wrap their fetch in
+<code>withRetry(fn, { maxRetries: 2, baseDelayMs: 500, maxDelayMs: 4000 })</code>. The chain
+under Azure 429 / 5xx blooms to ~8.5s tail. Because every non-English chat turn runs both
+inbound detect-and-translate AND outbound translate, the user sees up to ~17s of pure
+translator wait in the worst case.</p>
+
+<h2>Latency math</h2>
+<table>
+  <tr><th></th><th>Before <code>{2, 500, 4000}</code></th><th>After <code>{1, 200, 800}</code></th></tr>
+  <tr><td>Attempts on full failure</td><td>3 (initial + 2 retries)</td><td>2 (initial + 1 retry)</td></tr>
+  <tr><td>Sleep #1 (attempt 0 → 1)</td><td>500ms + jitter ≈ 500-650ms</td><td>200ms + jitter ≈ 200-260ms</td></tr>
+  <tr><td>Sleep #2 (attempt 1 → 2)</td><td>min(1000, 4000) + jitter ≈ 1000-1300ms</td><td>n/a</td></tr>
+  <tr><td>Backoff overhead worst case</td><td>~1.95s</td><td>~0.26s</td></tr>
+  <tr><td>Total tail (3× ~500ms API call + sleeps)</td><td class="delta">~3.45-8.5s</td><td class="delta">~1.0-1.5s</td></tr>
+  <tr><td>Critical-path tail per chat turn (inbound + outbound)</td><td class="delta">~7-17s</td><td class="delta">~2-3s</td></tr>
+</table>
+
+<h2>Why these specific knobs</h2>
+<ul>
+  <li><strong>maxRetries: 1</strong> — Azure translator 429s replenish per-second; one fast retry is sufficient.
+    More importantly, retries here multiply per-chat-turn: inbound and outbound each get their own retry budget,
+    so going from 2 → 1 means 4 → 2 max retries per message turn.</li>
+  <li><strong>baseDelayMs: 200</strong> — Translator rate-limit reset is sub-second; 200ms is enough delay to
+    let the next 1-second token bucket open without blocking the user perceptibly.</li>
+  <li><strong>maxDelayMs: 800</strong> — Caps the single retry sleep so a worst-case chain stays under ~1.5s end-to-end.</li>
+</ul>
+
+<h2>Why we don't strip retries entirely</h2>
+<p>Translator already sits behind <code>translatorCircuitBreaker</code> (failureThreshold: 3, windowMs: 60s,
+cooldownMs: 30s). Compounding: retries handle the transient single-request flakes, the breaker handles
+sustained outages. Both stay; only the retry envelope tightens. The fallback paths
+(<code>'en'</code> for detect, original text for translate) already gracefully degrade if the breaker trips.</p>
+
+<h2>Out of scope (separate tickets recommended)</h2>
+<ul>
+  <li>Per-thread cache of the detected user language (ticket suggestion #2).</li>
+  <li><code>Server-Timing</code> header surfacing (ticket suggestion #3).</li>
+</ul>
+
+<h2>Checklist</h2>
+<table>
+  <tr><th>Step</th><th>Status</th></tr>
+  <tr><td>Worktree created off <code>Bug-Resolve-claude</code></td><td class="done">done</td></tr>
+  <tr><td>Confirmed circuit breaker is already wired</td><td class="done">done</td></tr>
+  <tr><td>Retry envelope tuned in <code>translation.ts</code></td><td class="done">done</td></tr>
+  <tr><td><code>npx tsc --noEmit</code></td><td class="done">pass</td></tr>
+  <tr><td><code>npm run test:langfix</code></td><td class="done">pass</td></tr>
+  <tr><td>Commit + push</td><td class="done">done</td></tr>
+  <tr><td>PR opened against <code>Bug-Resolve-claude</code></td><td class="done">done</td></tr>
+</table>
+</body>
+</html>

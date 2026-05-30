@@ -1,0 +1,157 @@
+diff --git a/Wedding-Ease-Viva-Chat/src/components/auth/PhoneInput.tsx b/Wedding-Ease-Viva-Chat/src/components/auth/PhoneInput.tsx
+index ea9adeb..c9564f5 100644
+--- a/Wedding-Ease-Viva-Chat/src/components/auth/PhoneInput.tsx
++++ b/Wedding-Ease-Viva-Chat/src/components/auth/PhoneInput.tsx
+@@ -198,6 +198,7 @@ function PhoneInput({
+         <Input
+           type="tel"
+           inputMode="tel"
++          autoComplete="tel"
+           value={formattedNational}
+           disabled={disabled}
+           placeholder={placeholder}
+diff --git a/Wedding-Ease-Viva-Chat/src/components/auth/SignInModal.tsx b/Wedding-Ease-Viva-Chat/src/components/auth/SignInModal.tsx
+index 4f43de8..ebe41fe 100644
+--- a/Wedding-Ease-Viva-Chat/src/components/auth/SignInModal.tsx
++++ b/Wedding-Ease-Viva-Chat/src/components/auth/SignInModal.tsx
+@@ -598,6 +598,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                         onChange={e => setFpEmail(e.target.value)}
+                         onKeyDown={e => e.key === 'Enter' && handleFpSendOtp()}
+                         placeholder="Enter your mail"
++                        autoComplete="email"
+                         className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                       />
+                     </div>
+@@ -641,6 +642,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                           value={digit}
+                           onChange={e => handleFpOtpChange(i, e.target.value)}
+                           onKeyDown={e => handleFpOtpKeyDown(i, e)}
++                          autoComplete="one-time-code"
+                           className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-foreground/20 bg-foreground/[0.06] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-foreground/[0.1] transition-all caret-primary"
+                         />
+                       ))}
+@@ -698,6 +700,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                           value={fpNewPassword}
+                           onChange={e => setFpNewPassword(e.target.value)}
+                           placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
++                          autoComplete="new-password"
+                           className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                         />
+                         <button
+@@ -763,6 +766,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                           onChange={e => setFpConfirmPassword(e.target.value)}
+                           onKeyDown={e => e.key === 'Enter' && handleFpResetPassword()}
+                           placeholder="Re-enter new password"
++                          autoComplete="new-password"
+                           className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                         />
+                         <button
+@@ -827,6 +831,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                         value={resendPassword}
+                         onChange={e => setResendPassword(e.target.value)}
+                         placeholder="Enter your password"
++                        autoComplete="current-password"
+                         className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                       />
+                     </div>
+@@ -876,6 +881,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                     value={linkPassword}
+                     onChange={e => setLinkPassword(e.target.value)}
+                     placeholder="Enter your password"
++                    autoComplete="current-password"
+                     className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                   />
+                 </div>
+@@ -930,6 +936,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                       value={email}
+                       onChange={e => setEmail(e.target.value)}
+                       placeholder="Enter your mail"
++                      autoComplete="email"
+                       className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                     />
+                   </div>
+@@ -941,6 +948,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                       onChange={e => setPassword(e.target.value)}
+                       onKeyDown={e => e.key === 'Enter' && handleEmailSignIn()}
+                       placeholder="Enter your password"
++                      autoComplete="current-password"
+                       className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                     />
+                     <div className="flex justify-end">
+@@ -999,6 +1007,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
+                           onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                           placeholder="6-digit code"
+                           maxLength={6}
++                          autoComplete="one-time-code"
+                           className="h-12 rounded-2xl bg-transparent border border-foreground/[0.12] text-center tracking-widest text-lg text-foreground/90"
+                           onKeyDown={e => e.key === 'Enter' && handleVerifyOtp()}
+                         />
+diff --git a/Wedding-Ease-Viva-Chat/src/components/auth/SignUpModal.tsx b/Wedding-Ease-Viva-Chat/src/components/auth/SignUpModal.tsx
+index 32525e4..2abccd2 100644
+--- a/Wedding-Ease-Viva-Chat/src/components/auth/SignUpModal.tsx
++++ b/Wedding-Ease-Viva-Chat/src/components/auth/SignUpModal.tsx
+@@ -768,6 +768,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
+                       value={digit}
+                       onChange={e => handleVerifyOtpChange(i, e.target.value)}
+                       onKeyDown={e => handleVerifyOtpKeyDown(i, e)}
++                      autoComplete="one-time-code"
+                       className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-foreground/20 bg-foreground/[0.06] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-foreground/[0.1] transition-all caret-primary"
+                     />
+                   ))}
+@@ -867,13 +868,13 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
+                 <div className="space-y-4">
+                   <div className="space-y-2">
+                     <label className="text-xs text-foreground/50 ml-1">Full name</label>
+-                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
++                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Enter your name" autoComplete="name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                     {emailErrors.name && <p className="text-xs text-destructive">{emailErrors.name}</p>}
+                   </div>
+ 
+                   <div className="space-y-2">
+                     <label className="text-xs text-foreground/50 ml-1">Email</label>
+-                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
++                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="Enter your mail" autoComplete="email" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                     {emailErrors.email && <p className="text-xs text-destructive">{emailErrors.email}</p>}
+                   </div>
+ 
+@@ -897,6 +898,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
+                         value={emailForm.password}
+                         onChange={setEmailField('password')}
+                         placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
++                        autoComplete="new-password"
+                         className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
+                       />
+                       <button
+@@ -914,7 +916,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
+ 
+                   <div className="space-y-2">
+                     <label className="text-xs text-foreground/50 ml-1">Confirm password</label>
+-                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="Re-enter your password" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
++                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="Re-enter your password" autoComplete="new-password" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                     {emailErrors.confirmPassword && <p className="text-xs text-destructive">{emailErrors.confirmPassword}</p>}
+                   </div>
+ 
+@@ -957,13 +959,13 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
+                 <div className="space-y-4">
+                   <div className="space-y-2">
+                     <label className="text-xs text-foreground/50 ml-1">Full name</label>
+-                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
++                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Enter your name" autoComplete="name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                     {phoneErrors.name && <p className="text-xs text-destructive">{phoneErrors.name}</p>}
+                   </div>
+ 
+                   <div className="space-y-2">
+                     <label className="text-xs text-foreground/50 ml-1">Email (for recovery)</label>
+-                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
++                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="Enter your mail" autoComplete="email" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                     {phoneErrors.email && <p className="text-xs text-destructive">{phoneErrors.email}</p>}
+                   </div>
+ 
+@@ -1064,6 +1066,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
+                     onChange={e => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                     placeholder="6-digit code"
+                     maxLength={6}
++                    autoComplete="one-time-code"
+                     className="h-12 rounded-2xl bg-transparent border border-foreground/[0.12] text-center tracking-widest text-lg text-foreground/90"
+                     onKeyDown={e => e.key === 'Enter' && handlePhoneVerify()}
+                   />

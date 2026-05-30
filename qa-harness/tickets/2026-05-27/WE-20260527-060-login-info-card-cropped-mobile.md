@@ -12,8 +12,10 @@
 | **Path** | `Wedding-Ease-Viva-Chat/src/pages/Login.tsx` |
 | **URL / Page** | `/login` |
 | **Breakpoint** | `mobile` (375x812) |
-| **Status** | `triaged` |
+| **Status** | `in_review` |
 | **Assigned** | `fix-frontend` |
+| **PR** | https://github.com/MeghaPatel07/easeBot/pull/98 |
+| **Progress** | `qa-harness/progress/WE-20260527-060/progress.html` |
 | **Related fix** | Likely closed by `WE-20260527-050` PR (`fix-WE-20260527-050`). Login uses `gradient-bg min-h-screen`, so it now picks up `padding-bottom: var(--analytics-consent-height)` automatically and the "WHAT YOU GET" card scrolls clear of the consent banner. Re-verify after merge before closing. |
 
 ## Description

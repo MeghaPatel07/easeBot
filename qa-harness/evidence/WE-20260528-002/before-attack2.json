@@ -1,0 +1,1 @@
+{"error":"Azure TTS cancelled: Node [speak] with type [RootSpeak] should not contain node [prosody] with type [Others]. websocket error code: 1007"}

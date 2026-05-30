@@ -12,8 +12,10 @@
 | **Path** | `Wedding-Ease-Viva-Chat/src/pages/Login.tsx` (post-email step) |
 | **URL / Page** | `/login` after entering an email |
 | **Breakpoint** | `mobile`, `desktop` |
-| **Status** | `triaged` |
+| **Status** | `in_review` |
 | **Assigned** | `fix-frontend` |
+| **PR** | https://github.com/MeghaPatel07/easeBot/pull/98 |
+| **Progress** | `qa-harness/progress/WE-20260527-068/progress.html` |
 
 ## Description
 

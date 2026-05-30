@@ -12,8 +12,10 @@
 | **Path** | `Wedding-Ease-Viva-Chat/src/pages/Login.tsx` vs `Wedding-Ease-Viva-Chat/src/components/auth/SignInModal.tsx` (or wherever Settings invokes Sign In) |
 | **URL / Page** | `/login` vs `/?settings=*` → "Sign in" button |
 | **Breakpoint** | `all` |
-| **Status** | `triaged` |
+| **Status** | `in_review` |
 | **Assigned** | `fix-frontend` |
+| **PR** | https://github.com/MeghaPatel07/easeBot/pull/98 |
+| **Progress** | `qa-harness/progress/WE-20260527-070/progress.html` |
 
 ## Description
 
