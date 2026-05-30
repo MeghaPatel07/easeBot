@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx ts-node *)",
+      "Bash(npx tsx *)",
+      "Bash(npx eslint *)",
+      "Bash(npx vite *)",
+      "Bash(npx playwright *)",
+      "Bash(firebase *)",
+      "Bash(node *)",
+      "Bash(git *)"
+    ]
+  }
+}

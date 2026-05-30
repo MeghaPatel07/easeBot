@@ -191,7 +191,8 @@
       "Bash(awk 'NR>=1600 && NR<=1720' /Users/krish/Desktop/easebot/easebot-backend/src/controllers/chatController.ts)",
       "Bash(git log *)",
       "Bash(sips -g all \"/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/IMG_0721.png\")",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(netstat -ano)"
     ]
   },
   "enabledMcpjsonServers": [
