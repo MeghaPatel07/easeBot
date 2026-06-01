@@ -28,7 +28,7 @@ interface TierPricing {
 // Canonical prices from PRICING_PRD.md §4
 const TIERS: TierPricing[] = [
   { tier: 'free', monthlyUsd: 0, annualUsd: 0 },
-  { tier: 'pro', monthlyUsd: 10, annualUsd: 79, isRecommended: true },
+  { tier: 'pro', monthlyUsd: 14.99, annualUsd: 119, isRecommended: true },
   { tier: 'promax', monthlyUsd: 39, annualUsd: 299 },
 ]
 
@@ -50,7 +50,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How much does it cost to use?',
-    a: 'TheWeddingBot offers a free tier to get started. Pro ($10/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($39/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.',
+    a: 'TheWeddingBot offers a free tier to get started. Pro ($14.99/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($39/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.',
   },
   {
     q: 'Can I cancel my subscription anytime?',
