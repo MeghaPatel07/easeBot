@@ -1,0 +1,18 @@
+$ curl -sS -X OPTIONS http://localhost:3001/api/chat \
+    -H "Origin: http://evil.com" \
+    -H "Access-Control-Request-Method: POST" -i | head -20
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+Access-Control-Allow-Headers: Authorization,Content-Type
+Content-Length: 0
+
+$ grep -A10 "cors:" /Users/krish/Desktop/easebot/easebot-backend/src/app.ts | head -12
+app.use(
+  cors({
+    origin: '*',
+    credentials: false,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
+  }),
+)

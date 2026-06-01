@@ -1,0 +1,249 @@
+id: 1
+data: {"t":"c","v":"Saving"}
+
+id: 2
+data: {"t":"c","v":" check"}
+
+id: 3
+data: {"t":"c","v":"lists"}
+
+id: 4
+data: {"t":"c","v":" requires"}
+
+id: 5
+data: {"t":"c","v":" signing"}
+
+id: 6
+data: {"t":"c","v":" in"}
+
+id: 7
+data: {"t":"c","v":" to"}
+
+id: 8
+data: {"t":"c","v":" an"}
+
+id: 9
+data: {"t":"c","v":" account"}
+
+id: 10
+data: {"t":"c","v":"."}
+
+id: 11
+data: {"t":"c","v":" If"}
+
+id: 12
+data: {"t":"c","v":" you"}
+
+id: 13
+data: {"t":"c","v":"’d"}
+
+id: 14
+data: {"t":"c","v":" like"}
+
+id: 15
+data: {"t":"c","v":" to"}
+
+id: 16
+data: {"t":"c","v":" save"}
+
+id: 17
+data: {"t":"c","v":" this"}
+
+id: 18
+data: {"t":"c","v":","}
+
+id: 19
+data: {"t":"c","v":" you"}
+
+id: 20
+data: {"t":"c","v":" can"}
+
+id: 21
+data: {"t":"c","v":" sign"}
+
+id: 22
+data: {"t":"c","v":" in"}
+
+id: 23
+data: {"t":"c","v":" or"}
+
+id: 24
+data: {"t":"c","v":" create"}
+
+id: 25
+data: {"t":"c","v":" a"}
+
+id: 26
+data: {"t":"c","v":" free"}
+
+id: 27
+data: {"t":"c","v":" account"}
+
+id: 28
+data: {"t":"c","v":" to"}
+
+id: 29
+data: {"t":"c","v":" unlock"}
+
+id: 30
+data: {"t":"c","v":" that"}
+
+id: 31
+data: {"t":"c","v":" feature"}
+
+id: 32
+data: {"t":"c","v":"."}
+
+id: 33
+data: {"t":"c","v":" In"}
+
+id: 34
+data: {"t":"c","v":" the"}
+
+id: 35
+data: {"t":"c","v":" meantime"}
+
+id: 36
+data: {"t":"c","v":","}
+
+id: 37
+data: {"t":"c","v":" here"}
+
+id: 38
+data: {"t":"c","v":"’s"}
+
+id: 39
+data: {"t":"c","v":" your"}
+
+id: 40
+data: {"t":"c","v":" checklist"}
+
+id: 41
+data: {"t":"c","v":" for"}
+
+id: 42
+data: {"t":"c","v":" venue"}
+
+id: 43
+data: {"t":"c","v":" booking"}
+
+id: 44
+data: {"t":"c","v":":\n\n"}
+
+id: 45
+data: {"t":"c","v":"1"}
+
+id: 46
+data: {"t":"c","v":"."}
+
+id: 47
+data: {"t":"c","v":" Tour"}
+
+id: 48
+data: {"t":"c","v":" "}
+
+id: 49
+data: {"t":"c","v":"3"}
+
+id: 50
+data: {"t":"c","v":" venues"}
+
+id: 51
+data: {"t":"c","v":".\n"}
+
+id: 52
+data: {"t":"c","v":"2"}
+
+id: 53
+data: {"t":"c","v":"."}
+
+id: 54
+data: {"t":"c","v":" Request"}
+
+id: 55
+data: {"t":"c","v":" quotes"}
+
+id: 56
+data: {"t":"c","v":" from"}
+
+id: 57
+data: {"t":"c","v":" shortlisted"}
+
+id: 58
+data: {"t":"c","v":" venues"}
+
+id: 59
+data: {"t":"c","v":".\n"}
+
+id: 60
+data: {"t":"c","v":"3"}
+
+id: 61
+data: {"t":"c","v":"."}
+
+id: 62
+data: {"t":"c","v":" Review"}
+
+id: 63
+data: {"t":"c","v":" and"}
+
+id: 64
+data: {"t":"c","v":" sign"}
+
+id: 65
+data: {"t":"c","v":" the"}
+
+id: 66
+data: {"t":"c","v":" contract"}
+
+id: 67
+data: {"t":"c","v":" with"}
+
+id: 68
+data: {"t":"c","v":" your"}
+
+id: 69
+data: {"t":"c","v":" chosen"}
+
+id: 70
+data: {"t":"c","v":" venue"}
+
+id: 71
+data: {"t":"c","v":".\n\n"}
+
+id: 72
+data: {"t":"c","v":"Would"}
+
+id: 73
+data: {"t":"c","v":" you"}
+
+id: 74
+data: {"t":"c","v":" like"}
+
+id: 75
+data: {"t":"c","v":" help"}
+
+id: 76
+data: {"t":"c","v":" priorit"}
+
+id: 77
+data: {"t":"c","v":"izing"}
+
+id: 78
+data: {"t":"c","v":" or"}
+
+id: 79
+data: {"t":"c","v":" scheduling"}
+
+id: 80
+data: {"t":"c","v":" these"}
+
+id: 81
+data: {"t":"c","v":" steps"}
+
+id: 82
+data: {"t":"c","v":"?"}
+
+id: 83
+data: {"t":"d","text":"Saving checklists requires signing in to an account. If you’d like to save this, you can sign in or create a free account to unlock that feature. In the meantime, here’s your checklist for venue booking:\n\n1. Tour 3 venues.\n2. Request quotes from shortlisted venues.\n3. Review and sign the contract with your chosen venue.\n\nWould you like help prioritizing or scheduling these steps?","toolActions":[],"mode":"planner","detectedLanguage":"en","responseLanguage":"en","audioUrl":null,"imageUrl":null,"imageUrls":[],"products":[],"productsHasMore":false}
+

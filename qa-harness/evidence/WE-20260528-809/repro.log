@@ -1,0 +1,40 @@
+# Sprint 3 brief regression item: "PR #32 fixes WE-20260527-170 (AuthContext
+# onSnapshot) — branches not merged yet, but try to trigger the regression pattern."
+
+# Source: Wedding-Ease-Viva-Chat/src/contexts/AuthContext.tsx
+
+# 1. The import line still imports getDoc (NOT onSnapshot):
+$ grep "from 'firebase/firestore'" Wedding-Ease-Viva-Chat/src/contexts/AuthContext.tsx
+10: import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+
+# 2. All six profile fetches still use one-shot getDoc:
+$ grep -n "getDoc(doc" Wedding-Ease-Viva-Chat/src/contexts/AuthContext.tsx
+92:    const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))     ← initial auth hydration
+166:   const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))     ← Google sign-in
+181:   const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+250:   const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+264:   const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+279:   const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
+
+# 3. There is NO onSnapshot subscription on the users/{uid} doc anywhere in AuthContext:
+$ grep -n "onSnapshot" Wedding-Ease-Viva-Chat/src/contexts/AuthContext.tsx
+(no matches)
+
+# This is the exact state that WE-20260527-170 (resolution comment) said
+# would be fixed by adding `onSnapshot(doc(db,'users',uid))` so the
+# AuthContext.profile is realtime. The fix branch (fix-WE-20260527-170, commit
+# bb3d797) exists but has not been merged to main / Bug-Resolve-claude.
+
+# Regression trigger pattern (no live test needed — code is identical to pre-fix):
+#   - Tier upgrade webhook flips users/{uid}.tierMirror from 'free' to 'pro'.
+#   - useAccount() refetches and shows the new tier.
+#   - AuthContext.profile.tierMirror is still stale 'free' because getDoc only
+#     ran on initial sign-in.
+#   - useChat at hooks/useChat.ts:507 reads profile.toneSettings via AuthContext;
+#     stale tier flows into the chat request body alongside it.
+#   - Consumers like ChatSidebar (line 502) and Index.tsx (1349-1350) read
+#     useAuth().profile → stale UI for "you are on the Free plan" until the
+#     user does a hard refresh.
+
+# REGRESSION VERDICT: WE-20260527-170 fix is NOT in main. The branch needs
+# merge + dev backend restart before this is closed.

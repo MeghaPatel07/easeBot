@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Progress · WE-20260527-209</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background: #0c0c0e; color: #e4e4e7; margin: 0; padding: 2rem; line-height: 1.5; }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 .5rem; }
+  h2 { font-size: 1rem; color: #f97cb1; margin: 1.4rem 0 .4rem; }
+  .meta { color: #71717a; font-size: .85rem; }
+  .ok { color: #4ade80; }
+  .err { color: #f87171; }
+  pre { background: #0a0a0c; border: 1px solid #2a2a30; padding: .75rem; border-radius: 6px; overflow-x: auto; font-size: .85rem; }
+  code { background: #1a1a1f; padding: 1px 5px; border-radius: 3px; font-size: .85em; }
+  ul { padding-left: 1.2rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>WE-20260527-209 — /api/transcribe leaks server temp paths via ffmpeg stderr</h1>
+<div class="meta">Severity P1 · Category security/CWE-209 · Repo easebot-backend · Branch <code>fix-WE-20260527-209</code></div>
+
+<h2>Diagnosis</h2>
+<ul>
+<li><code>src/services/stt.ts:77</code> wrapped ffmpeg error as <code>new Error(`Audio conversion failed: ${err.message}`)</code> — ffmpeg's <code>err.message</code> embeds the absolute temp path (<code>/var/folders/.../viva-input-&lt;ts&gt;.webm</code>).</li>
+<li><code>src/controllers/transcribeController.ts:61</code> echoed <code>err.message</code> straight to the client: <code>res.status(500).json({ error: err.message ?? 'Transcription failed' })</code>.</li>
+<li>Composite leak: server filesystem layout + millisecond process timestamp + confirmation that ffmpeg is in use.</li>
+</ul>
+
+<h2>Fix</h2>
+<ul>
+<li><b>Controller</b>: replace dynamic <code>err.message</code> in the 500 response with a static <code>{ error: 'Audio could not be processed', code: 'TRANSCRIBE_FAILED' }</code>. Continue to <code>console.error</code> the full err for ops, and keep the PostHog <code>transcription_failed</code> capture intact (uses <code>err.code</code>/<code>err.name</code>, not message).</li>
+<li><b>STT service</b> (defense in depth): scrub absolute paths (POSIX <code>/var/folders/...</code>, <code>/tmp/...</code>, and Windows <code>C:\...</code>) from <code>err.message</code> before constructing the wrapped Error, replacing them with the literal <code>&lt;tmp&gt;</code>. Raw error still logged to <code>console.error</code> first.</li>
+</ul>
+
+<h2>Verification</h2>
+<ul>
+<li><b>tsc</b> — <span class="ok">clean</span> (<code>npx tsc --noEmit</code>)</li>
+<li><b>npm run test:all</b> — <span class="ok">pass</span> (phase1 cache + controller, phase2 phrases, langfix — 12+8+15 tests)</li>
+<li><b>Updated test</b> — <code>STT throws → 500 with scrubbed body</code> asserts no <code>/var/folders</code>, no <code>viva-input-</code>, no <code>Invalid data</code>, and exact body shape.</li>
+<li><b>Smoke run</b> via patched controller with the ticket's exact leaked string returns:
+<pre>{ "_status": 500, "error": "Audio could not be processed", "code": "TRANSCRIBE_FAILED" }</pre></li>
+</ul>
+
+<h2>Evidence</h2>
+<ul>
+<li><code>qa-harness/evidence/WE-20260527-209/before-response.json</code></li>
+<li><code>qa-harness/evidence/WE-20260527-209/after-response.json</code></li>
+<li><code>qa-harness/evidence/WE-20260527-209/server-side-log.txt</code></li>
+</ul>
+
+<h2>Status</h2>
+<p class="ok">in_review — PR open against <code>Bug-Resolve-claude</code>.</p>
+</div>
+</body>
+</html>

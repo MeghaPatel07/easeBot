@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-1091</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .ok { color: var(--ok); }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-1091 · SettingsModal voice-preview auto-play / race / cleanup <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-1091</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-1091</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      Voice preview in <code>SettingsModal.tsx</code> uses <code>new Audio(audioUrl); audio.play()</code>.
+      WCAG 1.4.2 requires audio that plays for &gt;3s to be under explicit user control.
+      Audit found three real issues to harden:
+    </p>
+    <ol>
+      <li><b>Race</b>: rapid clicks while previous <code>requestTTS</code> is in flight can cause an older audio to start playback after a newer one — the old audio reference is lost and cannot be stopped.</li>
+      <li><b>Cleanup</b>: on modal close we pause, but never revoke the blob <code>audioUrl</code> nor clear the <code>previewAudioRef</code>. On component unmount nothing runs. Background audio can linger.</li>
+      <li><b>Reduced motion</b>: <code>prefers-reduced-motion: reduce</code> hint is not respected (no functional change needed for that flag, but we document the click-only model so it is auditable).</li>
+    </ol>
+    <p>
+      The auto-play assertion in the ticket title is actually FALSE for SettingsModal — preview only fires on the speaker icon
+      click (line 282 <code>onClick=&#123;(e) =&gt; previewVoice(preset.id, e)&#125;</code>). There is no
+      <code>useEffect(() =&gt; audio.play())</code> and no <code>audio.autoplay = true</code>. The card click
+      only sets the selected voice via <code>setVoiceId</code>. So the fix is to harden the race + cleanup so
+      a stale request cannot start playback after the user has moved on.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 — read ticket + source</div>
+        <div class="what">Confirmed: voice preview is already gated behind explicit click on the speaker icon. No <code>useEffect</code> calls <code>audio.play()</code>. No <code>audio.autoplay</code>. Card click only updates state. So WCAG 1.4.2 is not violated at mount/open.</div>
+        <div class="detail">However: in-flight <code>requestTTS</code> race + missing URL revoke on close are real bugs called out in the ticket Expected section. Fix focuses on those.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — designed fix</div>
+        <div class="what">
+          Three concrete changes:
+          <ol>
+            <li>Track an in-flight request token (counter ref). After <code>await requestTTS</code> resolves, drop the result if the token no longer matches latest — and revoke the orphan URL immediately. Prevents stale audio from ever calling <code>.play()</code>.</li>
+            <li>On <code>open === false</code>: pause AND revoke any tracked URL AND null the ref AND bump the token to invalidate any in-flight request.</li>
+            <li>Add a component unmount cleanup effect that does the same.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — implemented fix</div>
+        <div class="what">Patched <code>src/components/SettingsModal.tsx</code>. Added <code>previewTokenRef</code>, <code>previewUrlRef</code>, stop helper, and unmount cleanup effect.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — verified</div>
+        <div class="what"><code>npx tsc --noEmit -p tsconfig.app.json</code> passed. No type errors.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Diff: see git log on branch <code>fix-WE-20260528-1091</code>.</li>
+      <li>No screenshots — fix is internal state/race handling, no visual change.</li>
+      <li>Manual a11y test plan: open settings &rarr; voice tab &rarr; click preview on Voice A &rarr; while loading, click preview on Voice B &rarr; only Voice B should play. Close modal mid-preview &rarr; audio must stop immediately.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/components/SettingsModal.tsx | ~30 lines net</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: see ticket file for link once pushed.</p>
+
+    <footer>Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)</footer>
+  </div>
+</body>
+</html>

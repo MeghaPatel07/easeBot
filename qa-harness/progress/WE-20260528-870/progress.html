@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-870</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-870 - Note + checklist title length unbounded; 200-char titles overflow header <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-870</code> (base: Bug-Resolve-claude) ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-870</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      Note + checklist title inputs lack <code>maxLength</code> caps. A user can paste a 200-char title that:
+    </p>
+    <ul>
+      <li>Renders fine in the sidebar (line-clamp-1)</li>
+      <li>Overflows the note-editor header (no truncate)</li>
+      <li>Renders awkwardly in shared link metadata</li>
+    </ul>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Worktree created at <code>worktrees/fix-WE-20260528-870</code> on <code>fix-WE-20260528-870</code> branch off <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Audited every title-input site across notes + checklist + planner.</div>
+        <div class="detail">
+          Sites identified:
+          <ul>
+            <li><code>NotesSidebar.tsx</code> L234-245: rename-note inline input (no cap)</li>
+            <li><code>NotesSidebar.tsx</code> L493-504: rename-folder inline input (no cap)</li>
+            <li><code>NotesSidebar.tsx</code> L569-578: new-folder Input (no cap)</li>
+            <li><code>NoteHeader.tsx</code> L274-282: note-editor header title input (no cap, no truncate)</li>
+            <li><code>PlannerView.tsx</code> L327-334: new-checklist title Input in create dialog (no cap)</li>
+            <li><code>ChecklistDetail.tsx</code>: only the item-text edit input (L362-373) — no title-edit UI in this file; checklist title is read-only render at L238. <strong>Per ticket scope</strong>, no checklist-title edit input exists currently; covered the creation path in PlannerView.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Confirmed PR #64 (sibling agent for -896) only touches <code>ShoppingListView.tsx</code> — no merge-conflict concern for ChecklistDetail.tsx.</div>
+      </div>
+    </div>
+
+    <h2>Fixes applied</h2>
+    <ul>
+      <li><strong>NoteHeader.tsx (note-editor header title input)</strong>: added <code>maxLength={80}</code> + defensive <code>setTitleValue(value.slice(0, 80))</code> in onChange. Added <code>truncate max-w-full</code> on the read-only h1 fallback. Added small live counter (e.g. "72/80") visible once user is within 10 chars of the cap.</li>
+      <li><strong>NotesSidebar.tsx (rename-note inline input)</strong>: added <code>maxLength={80}</code> + defensive slice in onChange.</li>
+      <li><strong>NotesSidebar.tsx (rename-folder inline input)</strong>: added <code>maxLength={80}</code> + defensive slice (folder names share the same legibility surface).</li>
+      <li><strong>NotesSidebar.tsx (new-folder Input)</strong>: added <code>maxLength={80}</code> + defensive slice.</li>
+      <li><strong>PlannerView.tsx (new-checklist title Input)</strong>: added <code>maxLength={80}</code> + defensive slice.</li>
+    </ul>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Source audit + diff (see <code>git diff</code> below).</li>
+      <li>No browser repro screenshots — visual P3 issue with deterministic, code-reviewable fix.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">see PR body — pre-existing functions/ ESLint config crash noted, our files clean</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/components/PlannerView.tsx
+src/components/notes/NoteHeader.tsx
+src/components/notes/NotesSidebar.tsx</pre>
+
+    <h2>PR</h2>
+    <p>See PR URL on the branch <code>fix-WE-20260528-870</code> against <code>Bug-Resolve-claude</code>.</p>
+
+    <footer>
+      Generated by fix-frontend - Easebot QA Harness - Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

@@ -45,19 +45,27 @@ export async function handleSendOtp(req: Request, res: Response): Promise<void> 
   }
   const normalized = email.trim().toLowerCase()
 
+  // WE-20260527-1002: keep this response opaque. We must NOT let a caller
+  // distinguish "no such account" from "account exists but uses Google" from
+  // "code sent" — all three return the same 200 + generic body. Anything else
+  // is an account-enumeration / provider-disclosure oracle.
+  const OPAQUE_OK = { message: 'If an account exists, a code has been sent.' }
+
   try {
     let userRecord
     try {
       userRecord = await adminAuth.getUserByEmail(normalized)
     } catch {
       // Don't reveal whether the email exists.
-      res.status(200).json({ message: 'If an account exists, a code has been sent.' })
+      res.status(200).json(OPAQUE_OK)
       return
     }
 
     const hasPassword = userRecord.providerData.some(p => p.providerId === 'password')
     if (!hasPassword) {
-      res.status(400).json({ error: 'This account uses Google sign-in. Please sign in with Google.' })
+      // Google-only account: silently skip sending an OTP but return the SAME
+      // opaque 200 so the response is indistinguishable from the success path.
+      res.status(200).json(OPAQUE_OK)
       return
     }
 
@@ -74,7 +82,7 @@ export async function handleSendOtp(req: Request, res: Response): Promise<void> 
     })
 
     await sendOtpEmail(normalized, otp)
-    res.status(200).json({ message: 'If an account exists, a code has been sent.' })
+    res.status(200).json(OPAQUE_OK)
   } catch (err) {
     console.error('[authController] handleSendOtp error:', err instanceof Error ? err.message : err)
     res.status(500).json({ error: 'Failed to process request. Please try again.' })

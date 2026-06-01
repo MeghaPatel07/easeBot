@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Progress · WE-20260527-220</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; background: #0c0c0e; color: #e4e4e7; line-height: 1.5; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid #2a2a30; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; color: #f97cb1; margin: 1.5rem 0 0.5rem; }
+    .meta { color: #71717a; font-size: 0.85rem; }
+    .entry { padding: 0.4rem 0; border-left: 2px solid #2a2a30; padding-left: 1rem; margin: 0.25rem 0; }
+    .ok { color: #4ade80; } .err { color: #f87171; }
+    code { background: #0a0a0c; padding: 0 0.25rem; border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>WE-20260527-220 — Chat image-attach has no client-side file size cap</h1>
+    <div class="meta"><b>Agent:</b> fix-frontend &nbsp;|&nbsp; <b>Branch:</b> fix-WE-20260527-220 &nbsp;|&nbsp; <b>Severity:</b> P1</div>
+  </header>
+
+  <h2>Diagnosis</h2>
+  <div class="entry">Two <code>&lt;input type="file" accept="image/*"&gt;</code> inputs in <code>src/components/chat/ChatMessages.tsx</code> at lines 289 and 315 feed <code>FileReader.readAsDataURL(file)</code> with no <code>file.size</code> guard. Codebase already uses 8MB cap in Vibe Composer and 10MB in Notes — chat-attach was the odd one out. Toast is via <code>sonner</code> (matches <code>AttachmentPicker.tsx</code>).</div>
+
+  <h2>Fix</h2>
+  <div class="entry">Added <code>MAX_CHAT_IMAGE_BYTES = 10 * 1024 * 1024</code> module-level const. Both input onChange handlers now: (1) verify <code>file.type.startsWith('image/')</code>; (2) reject if <code>file.size &gt; MAX_CHAT_IMAGE_BYTES</code> with <code>toast.error('Image too large — please use under 10MB.')</code>; (3) clear <code>e.target.value</code> on reject so re-picking the same file still fires onChange. Matches backend's post-WE-202 10MB cap (zero round-trips wasted).</div>
+
+  <h2>Tests</h2>
+  <div class="entry ok">tsc --noEmit: clean (0 errors)</div>
+  <div class="entry ok">eslint on ChatMessages.tsx: 8 pre-existing <code>any</code> errors on lines 112, 113, 474, 479, 508, 527, 606, 609 — none touched by this change, out of scope.</div>
+  <div class="entry ok">git diff --stat: 1 file changed, 26 insertions(+)</div>
+
+  <h2>Status</h2>
+  <div class="entry">in_review — PR opened against <code>Bug-Resolve-claude</code>.</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "ticket": "WE-20260528-305",
+  "branch": "fix-WE-20260528-305",
+  "base": "Bug-Resolve-claude",
+  "build_at": "2026-05-29",
+  "method": "vite build (production) — chunk graph analysis",
+  "chunk_graph": {
+    "entry": "assets/index-CFMj3kT7.js (42.20 kB / 14.76 kB gz, +0.88 kB gz vs before — adds AnalyticsBoot effect + queue/proxy code)",
+    "modulepreload_initial_chain": [
+      "vendor-react-nj-5CZd8.js (146.54 kB / 47.58 kB gz)",
+      "vendor-DqJL847i.js (397.41 kB / 136.39 kB gz)",
+      "vendor-pdf-10J_mlQh.js (574.70 kB / 173.04 kB gz)",
+      "vendor-tiptap-BzRqVSZ4.js (457.76 kB / 138.01 kB gz)",
+      "vendor-radix-D0BWXkKe.js (122.09 kB / 35.43 kB gz)",
+      "vendor-lucide-BXT1kQbJ.js (53.79 kB / 9.90 kB gz)",
+      "vendor-firebase-CssYNPO6.js (541.53 kB / 126.03 kB gz)",
+      "vendor-phone-D3mC5Ha-.js (155.91 kB / 36.03 kB gz)"
+    ],
+    "posthog_in_initial_chain": false,
+    "vendor_posthog_chunk_still_exists": true,
+    "vendor_posthog_chunk_size": "185.92 kB / 61.98 kB gz",
+    "vendor_posthog_loaded_via": "dynamic import in AnalyticsBoot useEffect inside requestIdleCallback after first paint",
+    "initial_chain_total_raw_kb": 2492.93,
+    "initial_chain_total_gz_kb": 717.17,
+    "posthog_references_in_entry_chunk": "1 (chunk URL string for dynamic import — no PostHog runtime inlined)"
+  },
+  "perf_delta": {
+    "initial_chain_gz_kb_before": 776.27,
+    "initial_chain_gz_kb_after": 717.17,
+    "initial_chain_gz_kb_saved": 59.10,
+    "percent_saved_on_initial_chain": "7.6%",
+    "modulepreload_chunks_before": 9,
+    "modulepreload_chunks_after": 8,
+    "ingest_network_requests_before": "/ingest/array/.../config.js + /ingest/config?ip=0 + /ingest/flags fire during initial JS download (compete on bandwidth)",
+    "ingest_network_requests_after": "fire only after requestIdleCallback resolves — i.e. after first paint and main bundle execution"
+  },
+  "behavior_changes": {
+    "early_event_capture": "track() / identify() / register() etc. called before init are now queued in-memory and flushed when posthog.init() resolves — events in the first ~500 ms of page load will still appear in PostHog",
+    "consent_replay": "AnalyticsConsent's localStorage('ph_consent') decision is re-applied inside initAnalytics so PostHog respects the user's choice even though opt_in/opt_out_capturing fired before the SDK loaded",
+    "feature_flags": "useFeatureFlag's onFeatureFlags subscription is buffered pre-init and resubscribed once PostHog loads — flag values may resolve a few hundred ms later than before",
+    "session_replay": "startReplay queued pre-init and decided + started once PostHog loads"
+  },
+  "expected_user_visible_impact": {
+    "LCP": "improves — fewer bytes competing on main JS chain, fewer /ingest requests competing on bandwidth during initial paint",
+    "FCP": "improves — same reason; especially noticeable on throttled 3G/4G",
+    "TBT": "improves — posthog-js init code no longer parses + runs synchronously on main thread before render",
+    "analytics_funnels": "no event loss expected; first events delayed by ~one idle frame (typically <50ms after first paint)"
+  },
+  "tsc_pre_existing_errors": "tsc emits 26 pre-existing errors in unrelated files (ChatInput.tsx voice state machine, ChatMessages.tsx Message.calendarAdded, DowngradeFlow.tsx, ProfileMenu/AccountTab plan-tier widening, WeddingEaseFloater + Index + Checkout EventName strings not in our union). None touch analytics.ts / main.tsx / App.tsx.",
+  "lint": "npx eslint crashes globally on the @typescript-eslint/no-unused-expressions rule loader (pre-existing; ticket notes to skip)."
+}

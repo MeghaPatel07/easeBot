@@ -232,6 +232,23 @@ export async function handleDisablePublicLink(req: Request, res: Response): Prom
   }
 }
 
+// WE-20260527-1003: the public /share/:shareId payload must not leak owner /
+// collaborator PII. A public link is unauthenticated and indexable, so anyone
+// with the URL gets the response. Strip every field that identifies a real
+// person or the note's private sharing graph; return only what the public
+// reader needs to render the note.
+export function scrubSharedNote(note: Record<string, any>): Record<string, any> {
+  const {
+    ownerEmail: _ownerEmail,
+    lastEditedBy: _lastEditedBy,
+    ownerId: _ownerId,
+    collaborators: _collaborators,
+    collaboratorEmails: _collaboratorEmails,
+    ...safe
+  } = note
+  return safe
+}
+
 export async function handleGetSharedNote(req: Request, res: Response): Promise<void> {
   const { shareId } = req.params
   try {
@@ -239,9 +256,14 @@ export async function handleGetSharedNote(req: Request, res: Response): Promise<
     if (!note.publicAccess?.enabled) {
       res.status(404).json({ error: 'Shared note not found' }); return
     }
-    res.status(200).json(note)
+    res.status(200).json(scrubSharedNote(note))
   } catch (err: any) {
-    res.status(err.message === 'Shared note not found' ? 404 : 500).json({ error: err.message })
+    // Don't echo internal error text to an unauthenticated caller.
+    if (err?.message === 'Shared note not found') {
+      res.status(404).json({ error: 'Shared note not found' }); return
+    }
+    console.error('[notesController] handleGetSharedNote error:', err instanceof Error ? err.message : err)
+    res.status(500).json({ error: 'Failed to load shared note' })
   }
 }
 

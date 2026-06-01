@@ -1,0 +1,55 @@
+# Sprint 3 brief adversarial item #6: "Settings persistence corner cases — set
+# tone slider to 50, change another setting, navigate away, come back —
+# does the slider snap back or stay at 50?"
+
+# Source: Wedding-Ease-Viva-Chat/src/components/SettingsModal.tsx:94-106
+
+useEffect(() => {
+  if (open) {
+    setNickname(profile?.nickname ?? '')
+    setVoiceId(profile?.voiceId ?? '')
+    setToneSettings(profile?.toneSettings ?? DEFAULT_TONE)   // ← REWRITES local state from profile
+    setSaveState('idle')
+    setActiveTab('identity')
+  } else {
+    ...
+  }
+}, [open, profile])    // ← runs whenever `profile` mutates from anywhere
+
+# Three failure modes:
+
+# 1. Modal-still-open profile mutation
+#    User opens Settings → moves "Warm" slider from 33 → 50 (NOT yet saved).
+#    Meanwhile, useAccount() refetches profile (e.g. tier_change event from
+#    PaymentSuccess refetchQueries on 'account', 'me') OR another tab saves
+#    a different field via the SDK direct write path → AuthContext profile
+#    state mutates → this useEffect re-runs with [open, profile] →
+#    setToneSettings(profile?.toneSettings ?? DEFAULT_TONE) RESETS slider to 33.
+#    User's mid-edit value is silently discarded.
+
+# 2. Modal-close-without-save
+#    User opens, moves slider to 50, closes WITHOUT saving (clicks outside).
+#    Reopens. useEffect runs (open: true), profile.toneSettings is still 33 →
+#    slider snaps to 33. EXPECTED behavior — but no "discard changes?" prompt.
+
+# 3. Per-tab divergence + DEFAULT_TONE fallback
+#    First time user opens settings, profile.toneSettings is undefined →
+#    DEFAULT_TONE is shown. User moves slider. Modal closes without save.
+#    Next open: same DEFAULT_TONE (since profile still has no toneSettings).
+#    Looks correct, but the issue is the same `?? DEFAULT_TONE` runs every
+#    time `[open, profile]` changes — there is no concept of "this is what
+#    the user is currently editing vs what's saved".
+
+# Frontend SettingsModal does NOT subscribe to local "dirty" state. There is
+# no isDirty flag. There is no onClose confirmation. State is purely
+# derived from profile + local-set.
+
+# AI Behavior tab (separate from modal — pages/settings/tabs/AiBehaviorTab.tsx)
+# has the same pattern:
+$ grep -n "useState.*tone\|useMemo.*tone" Wedding-Ease-Viva-Chat/src/pages/settings/tabs/AiBehaviorTab.tsx
+105: () => profile?.toneSettings ?? DEFAULT_TONE,
+106: [profile?.toneSettings],
+
+# That's a useMemo so it WILL re-derive when profile changes — same snap-back
+# risk if profile mutates from another source while the user is mid-edit.
+

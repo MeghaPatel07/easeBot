@@ -1,0 +1,179 @@
+diff --git a/easebot-backend/src/controllers/chatController.ts b/easebot-backend/src/controllers/chatController.ts
+index 6437307..3fc38fd 100644
+--- a/easebot-backend/src/controllers/chatController.ts
++++ b/easebot-backend/src/controllers/chatController.ts
+@@ -492,10 +492,15 @@ async function handleImageToolCall(
+ 
+   let base64Images: string[] = []
+ 
++  // WE-20260527-227: editImageGptImage1 / generateImageGptImage1 now
++  // return `string[] | null` (null on failure). The post-call
++  // `base64Images.length === 0` check below already routes failure
++  // through the cancelled/failed branches, so we coalesce null → []
++  // here to preserve that flow.
+   if (opts.imageBase64) {
+     const sourceSize = await detectImageAspectRatio(opts.imageBase64)
+     console.log(`[chatController] User attached image → edit mode | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
+-    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images, signal: opts.signal, distinctId: opts.distinctId })
++    base64Images = (await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images, signal: opts.signal, distinctId: opts.distinctId })) ?? []
+   } else if (imgAction === 'edit' && opts.lastGeneratedImageUrl) {
+     try {
+       console.log('[chatController] Iterative edit → fetching previous image from URL')
+@@ -504,14 +509,14 @@ async function handleImageToolCall(
+       const sourceBase64 = imgBuf.toString('base64')
+       const sourceSize = await detectImageAspectRatio(sourceBase64)
+       console.log(`[chatController] Iterative edit | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
+-      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt, signal: opts.signal, distinctId: opts.distinctId })
++      base64Images = (await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt, signal: opts.signal, distinctId: opts.distinctId })) ?? []
+     } catch (fetchErr) {
+       if ((fetchErr as Error).name === 'AbortError') throw fetchErr
+       console.error('[chatController] Failed to fetch lastGeneratedImageUrl, falling back to generate:', fetchErr)
+-      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })
++      base64Images = (await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })) ?? []
+     }
+   } else {
+-    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })
++    base64Images = (await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })) ?? []
+   }
+ 
+   // Track which size was actually used for storage metadata
+diff --git a/easebot-backend/src/controllers/imageController.ts b/easebot-backend/src/controllers/imageController.ts
+index d16ec3a..7189b71 100644
+--- a/easebot-backend/src/controllers/imageController.ts
++++ b/easebot-backend/src/controllers/imageController.ts
+@@ -48,9 +48,13 @@ export async function handleGenerateImage(req: Request, res: Response): Promise<
+     // Image-to-image: user sent an image + edit/generation intent
+     if (imageBase64 && prompt?.trim() && (isImageRequest(prompt) || isImageEditRequest(prompt))) {
+       const imageUrl = await editImageGptImage1(imageBase64, prompt.trim(), '1024x1024', { distinctId: phDistinctId })
+-      if (!imageUrl) {
++      // WE-20260527-227: Treat both `null` (typed failure) AND an empty
++      // array (legacy shape / future caller mistake) as failure. `[]` is
++      // truthy in JS — guarding only `!imageUrl` would charge tokens for
++      // a no-result.
++      if (!imageUrl || imageUrl.length === 0) {
+         if (qc) await qc.reconcile({ skip: true })
+-        res.status(502).json({ error: 'Image editing failed or service unavailable' })
++        res.status(502).json({ error: 'Image editing failed or refused', code: 'IMAGE_REFUSED' })
+         return
+       }
+       // Azure call succeeded → enter the protected post-charge block.
+@@ -103,9 +107,13 @@ export async function handleGenerateImage(req: Request, res: Response): Promise<
+     }
+ 
+     const imageUrl = await generateImageGptImage1(prompt.trim(), '1024x1024', 1, { distinctId: phDistinctId })
+-    if (!imageUrl) {
++    // WE-20260527-227: Treat both `null` (typed failure) AND an empty
++    // array (legacy shape / future caller mistake) as failure. `[]` is
++    // truthy in JS — guarding only `!imageUrl` would charge tokens for
++    // a no-result and respond 200 with `{"imageUrl": []}`.
++    if (!imageUrl || imageUrl.length === 0) {
+       if (qc) await qc.reconcile({ skip: true })
+-      res.status(502).json({ error: 'Image generation failed or service unavailable' })
++      res.status(502).json({ error: 'Image generation failed or refused', code: 'IMAGE_REFUSED' })
+       return
+     }
+     // Azure call succeeded → enter the protected post-charge block.
+diff --git a/easebot-backend/src/services/imageGeneration.ts b/easebot-backend/src/services/imageGeneration.ts
+index 643f419..1872088 100644
+--- a/easebot-backend/src/services/imageGeneration.ts
++++ b/easebot-backend/src/services/imageGeneration.ts
+@@ -206,14 +206,23 @@ async function compressImage(b64: string): Promise<string> {
+ /**
+  * Generate images using Azure GPT-Image-1.5 (primary) with GPT-Image-1 fallback.
+  * Supports negativePrompt appended to main prompt.
+- * Returns array of raw base64 strings (no data URI prefix).
++ * Returns array of raw base64 strings (no data URI prefix) on success.
++ *
++ * Returns `null` on failure (missing creds, both deployments errored,
++ * content-policy refusal, or empty result). Callers MUST treat `null`
++ * as failure and skip token charge / refund any pre-charge.
++ *
++ * WE-20260527-227: Previously this returned `[]` on failure. `[]` is
++ * truthy in JS, so callers using `if (!imageUrl)` to detect failure
++ * silently charged users for no result. The nullable return type lets
++ * the TS compiler catch that mistake.
+  */
+ export async function generateImageGptImage1(
+   prompt: string,
+   size: ImageSize = '1024x1024',
+   count: 1 | 2 | 3 = 1,
+   options?: { negativePrompt?: string; onPartialImage?: (b64: string) => void; signal?: AbortSignal; distinctId?: string }
+-): Promise<string[]> {
++): Promise<string[] | null> {
+   const config = getImageConfig()
+   const phStart = Date.now()
+   if (!config.endpoint || !config.apiKey) {
+@@ -221,7 +230,7 @@ export async function generateImageGptImage1(
+     if (options?.distinctId) {
+       phCapture(options.distinctId, 'image_generation_failed', { error_code: 'no_credentials' })
+     }
+-    return []
++    return null
+   }
+ 
+   // Append negative prompt to main prompt
+@@ -277,7 +286,7 @@ export async function generateImageGptImage1(
+         model: config.fallbackDeployment,
+       })
+     }
+-    return []
++    return null
+   }
+ 
+   if (options?.distinctId) {
+@@ -286,7 +295,7 @@ export async function generateImageGptImage1(
+       model: config.fallbackDeployment,
+     })
+   }
+-  return []
++  return null
+ }
+ 
+ async function callAzureImageGeneration(
+@@ -347,13 +356,18 @@ async function callAzureImageGeneration(
+ /**
+  * Edit an image using Azure GPT-Image-1.5 (primary) with GPT-Image-1 fallback.
+  * Uses input_fidelity: "high" for face preservation (89.96%).
++ *
++ * Returns array of raw base64 strings on success, `null` on failure
++ * (missing creds, all deployments errored, analyze+regenerate fallback
++ * also failed). See WE-20260527-227 — callers MUST treat `null` as
++ * failure and skip token charge.
+  */
+ export async function editImageGptImage1(
+   imageBase64: string,
+   prompt: string,
+   size: ImageSize = '1024x1024',
+   options?: { negativePrompt?: string; referenceImages?: string[]; signal?: AbortSignal; distinctId?: string }
+-): Promise<string[]> {
++): Promise<string[] | null> {
+   const config = getImageConfig()
+   const phStart = Date.now()
+   if (!config.endpoint || !config.apiKey) {
+@@ -361,7 +375,7 @@ export async function editImageGptImage1(
+     if (options?.distinctId) {
+       phCapture(options.distinctId, 'image_generation_failed', { error_code: 'no_credentials' })
+     }
+-    return []
++    return null
+   }
+ 
+   let editPrompt = buildImageEditPrompt(prompt)
+@@ -479,7 +493,7 @@ async function fallbackAnalyzeAndRegenerate(
+   imageBase64: string,
+   prompt: string,
+   size: ImageSize
+-): Promise<string[]> {
++): Promise<string[] | null> {
+   try {
+     const description = await analyzeImage(
+       imageBase64,
+@@ -492,7 +506,7 @@ async function fallbackAnalyzeAndRegenerate(
+     return await generateImageGptImage1(combinedPrompt, size)
+   } catch (err) {
+     console.error('[imageGeneration] fallback analyze+regenerate error:', err)
+-    return []
++    return null
+   }
+ }
+ 

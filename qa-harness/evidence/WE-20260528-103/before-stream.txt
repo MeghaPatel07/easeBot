@@ -1,0 +1,7 @@
+=== Stream-endpoint mode validation BEFORE FIX ===
+
+Found /stream route:
+  router.post('/stream', requireAuth, chatBurstRateLimiter, quotaCheck('chat'), (req: Request, res: Response) => {
+
+  -> validateBody(ChatRequestSchema) is MISSING.  Stream endpoint accepts any mode value silently.
+  -> Per ticket evidence: POST /api/chat/stream {mode:"stylist-typo"} returns 200 with mode:"planner" in `d` event.

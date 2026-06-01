@@ -1,0 +1,47 @@
+# BEFORE FIX — evidence for WE-20260528-004
+# Captured: 2026-05-29
+
+## .env.example default
+
+$ grep FRONTEND_BASE_URL easebot-backend/.env.example
+FRONTEND_BASE_URL=http://localhost:8080
+
+## Controller logic
+
+easebot-backend/src/controllers/paymentController.ts:415
+  const frontend = env('FRONTEND_BASE_URL')   // throws if unset
+
+env() helper (line 59-63):
+  function env(name: string): string {
+    const v = process.env[name]
+    if (!v) throw new Error(`missing env: ${name}`)
+    return v
+  }
+
+## Curl reproduction (simulated — dev backend needs PayU/Firebase secrets to boot)
+
+Assuming a dev who copied .env.example as-is:
+  FRONTEND_BASE_URL=http://localhost:8080
+
+$ curl -sS -X POST http://localhost:3001/api/payment/return \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'status=success&txnid=test' -i | grep -i location
+
+HTTP/1.1 302 Found
+Location: http://localhost:8080/payment/failure?reason=bad_payload
+              ^^^^ DEAD URL — Vite dev runs on :8081
+
+$ curl -I http://localhost:8080
+curl: (7) Failed to connect to localhost port 8080 after 0 ms: Connection refused
+
+## Impact
+
+Every developer who copies .env.example verbatim is broken on payment day-1:
+  - Successful PayU sandbox txn → browser redirected to dead :8080 host
+  - Failed PayU sandbox txn → same dead :8080 host
+  - No frontend success/failure page reachable
+
+Production was unaffected only if the deploy env sets FRONTEND_BASE_URL
+explicitly. If a deploy ever forgot to set it, env() would throw in the
+handler → 500, but startup still proceeded because validatePaymentConfig()
+did not list FRONTEND_BASE_URL as required.

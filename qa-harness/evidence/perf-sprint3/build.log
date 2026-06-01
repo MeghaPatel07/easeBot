@@ -1,0 +1,55 @@
+
+> vite_react_shadcn_ts@0.0.1 build
+> vite build
+
+vite v5.4.10 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 19 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2712 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                  5.59 kB │ gzip:   1.85 kB
+dist/assets/Wedding ease-C0dLlMF6.png           24.86 kB
+dist/assets/easebot-D6BiD7YY.png               225.94 kB
+dist/assets/logo-j_ScG-E3.png                  302.92 kB
+dist/assets/index-BFm3j64I.css                 189.30 kB │ gzip:  28.19 kB
+dist/assets/check-CGuyPQef.js                    0.29 kB │ gzip:   0.24 kB
+dist/assets/loader-circle-B6hclT6N.js            0.31 kB │ gzip:   0.26 kB
+dist/assets/arrow-left-CJEr09OQ.js               0.33 kB │ gzip:   0.27 kB
+dist/assets/circle-check-CgImwev8.js             0.34 kB │ gzip:   0.27 kB
+dist/assets/message-square-Bs_-iCZt.js           0.35 kB │ gzip:   0.27 kB
+dist/assets/circle-x-Do1_I_fy.js                 0.37 kB │ gzip:   0.28 kB
+dist/assets/plus-cmuY856_.js                     0.56 kB │ gzip:   0.27 kB
+dist/assets/NotFound-Dc2Kf83X.js                 0.65 kB │ gzip:   0.39 kB
+dist/assets/sparkles-BOlchDha.js                 0.68 kB │ gzip:   0.40 kB
+dist/assets/paymentService-BhEuK_mf.js           1.31 kB │ gzip:   0.68 kB
+dist/assets/button-Ej_NKO3e.js                   1.41 kB │ gzip:   0.76 kB
+dist/assets/PaymentFailure-xa0DymK6.js           1.57 kB │ gzip:   0.71 kB
+dist/assets/heart-C5b0w5zd.js                    1.72 kB │ gzip:   0.63 kB
+dist/assets/exchangeRateService-BhbTQd6F.js      1.76 kB │ gzip:   0.96 kB
+dist/assets/PaymentSuccess-CcjZxDVP.js           2.46 kB │ gzip:   1.19 kB
+dist/assets/SharedNote-1PhLeCnj.js               5.30 kB │ gzip:   1.59 kB
+dist/assets/SharedChat-tiOvnxUZ.js               6.89 kB │ gzip:   2.35 kB
+dist/assets/Checkout-oBwTcM7O.js                 9.83 kB │ gzip:   3.68 kB
+dist/assets/TermsOfService-kLt_GGUy.js          12.88 kB │ gzip:   5.22 kB
+dist/assets/PrivacyPolicy-BGIJiPLV.js           16.20 kB │ gzip:   5.42 kB
+dist/assets/index-CXkKhX7l.js                   16.39 kB │ gzip:   6.17 kB
+dist/assets/Login-IFz6MxuA.js                   16.70 kB │ gzip:   4.53 kB
+dist/assets/Help-BRIgYE9_.js                    17.74 kB │ gzip:   6.35 kB
+dist/assets/useAccount-CQg3Ux5x.js              21.62 kB │ gzip:   7.58 kB
+dist/assets/purify.es-B5CD4DQe.js               22.90 kB │ gzip:   8.84 kB
+dist/assets/Pricing-DMGJiae6.js                 26.37 kB │ gzip:   8.16 kB
+dist/assets/label-C4GOgx3a.js                   30.11 kB │ gzip:  10.31 kB
+dist/assets/index.es-C6h7hE8f.js               151.28 kB │ gzip:  51.87 kB
+dist/assets/chatService-2FdnCHng.js            161.73 kB │ gzip:  49.13 kB
+dist/assets/NoteEditor-D1BRRvzy.js             513.09 kB │ gzip: 157.90 kB
+dist/assets/index-BFQDlZeM.js                1,196.48 kB │ gzip: 331.01 kB
+dist/assets/Index-BI9zObHt.js                1,316.92 kB │ gzip: 354.70 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.05s
