@@ -377,24 +377,58 @@ async function buildSystemPrompt(
   }
 }
 
+/**
+ * WE-20260601-100: drop the duplicated current-turn user message from
+ * Firestore-recalled history.
+ *
+ * For logged-in users the frontend persists this turn's user message to
+ * Firestore BEFORE kicking off the (stream) request, so the last-N messages
+ * recalled by threadId include the very message we're about to answer. The
+ * LLM call appends that same message again as the live turn, so without this
+ * the model sees the current user line twice (and on turn 1 the entire
+ * "history" is a pure duplicate). History must contain only PRIOR turns, so we
+ * drop the trailing recalled message when it is the current user message.
+ *
+ * Pure + exported for unit testing. `recalled` must be in chronological
+ * (oldest → newest) order.
+ */
+export function dropDuplicateCurrentTurn(
+  recalled: HistoryMessage[],
+  currentUserMessage: string | undefined,
+): HistoryMessage[] {
+  const trimmed = currentUserMessage?.trim()
+  if (!trimmed) return recalled
+  const last = recalled[recalled.length - 1]
+  if (last && last.role === 'user' && last.content.trim() === trimmed) {
+    return recalled.slice(0, recalled.length - 1)
+  }
+  return recalled
+}
+
 async function getChatHistory(
   threadId: string | undefined,
   providedHistory: HistoryMessage[] | undefined,
-  historyLimit = 10
+  historyLimit = 10,
+  // WE-20260601-100: the raw current-turn user message — see dropDuplicateCurrentTurn.
+  currentUserMessage?: string,
 ): Promise<HistoryMessage[]> {
   if (!threadId && providedHistory && providedHistory.length > 0) {
     return providedHistory.slice(-historyLimit)
   }
   if (threadId) {
+    // Fetch one extra so that, after dropping the duplicated current-turn user
+    // message, we still return up to `historyLimit` prior turns.
     const q = query(
       collection(db, 'chats', threadId, 'messages'),
       orderBy('timestamp', 'desc'),
-      limit(historyLimit)
+      limit(historyLimit + 1)
     )
     const snap = await getDocs(q)
-    return snap.docs
+    const recalled = snap.docs
       .reverse()
       .map(d => ({ role: d.data().role as 'user' | 'assistant', content: d.data().content as string }))
+
+    return dropDuplicateCurrentTurn(recalled, currentUserMessage).slice(-historyLimit)
   }
   return []
 }
@@ -677,7 +711,10 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const resolvedLanguage = await resolveRequestLanguage(language, uid)
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
-    const history = await getChatHistory(threadId, providedHistory)
+    // WE-20260601-100: pass the raw current-turn user message so getChatHistory
+    // can drop it from Firestore-recalled history (the frontend persists it
+    // before streaming, so it would otherwise be sent to the LLM twice).
+    const history = await getChatHistory(threadId, providedHistory, 10, message)
 
     // Fetch user profile for premium status, role, and context
     let isPremium = false
@@ -1208,7 +1245,10 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     const resolvedLanguage = await resolveRequestLanguage(language, uid)
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
-    const history = await getChatHistory(threadId, providedHistory)
+    // WE-20260601-100: pass the raw current-turn user message so getChatHistory
+    // can drop it from Firestore-recalled history (the frontend persists it
+    // before streaming, so it would otherwise be sent to the LLM twice).
+    const history = await getChatHistory(threadId, providedHistory, 10, message)
 
     let isPremium = false
     let userRole: string | null = null
