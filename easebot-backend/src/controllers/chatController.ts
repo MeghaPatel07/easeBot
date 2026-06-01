@@ -1062,8 +1062,13 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
         pendingToolCalls = []
 
         const allowMoreTools = round < MAX_TOOL_ROUNDS - 1
+        // WE-20260601-450: use effectiveHistory (the summarized/effective view
+        // the first pass used at line ~825) — NOT the raw full `history`. The
+        // streaming handler already does this (streamCallAzureAIWithToolResults
+        // at line ~1629). Sending raw history here caused intra-turn trajectory
+        // incoherence and defeated summarization on tool-using turns.
         const nextResult = await callAzureAIWithToolResults(
-          history,
+          effectiveHistory,
           userMessageForLLM,
           systemPrompt,
           priorRounds,
