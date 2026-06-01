@@ -67,6 +67,9 @@ export interface ChatMessagesProps {
   onToggleLike: (messageId: string) => void;
   onRegenerateMessage: (m: Message) => void;
   onContinueGenerating: () => void;
+  // WE-20260601-300/303: retry the last recoverable failed send (offline /
+  // timeout / no-stream / rate-limited). Optional so existing callers compile.
+  onRetryFailedSend?: () => void;
   onToneModifier: (modifier: string) => void;
   onConvertToTable: (message: Message) => void;
   onSaveProduct: (title: string, url: string, imageUrl: string) => void;
@@ -124,7 +127,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   inlineEditId, inlineEditText, inlineEditImage, onStartInlineEdit, onCancelInlineEdit, onSubmitInlineEdit, onInlineEditTextChange, onInlineEditImageChange, onInlineEditImageRemove,
   getBranchInfo, onSwitchBranch,
   onLoadMoreMessages, onCopyMessage, onDownloadMessage, onToggleLike, onRegenerateMessage,
-  onContinueGenerating, onToneModifier, onConvertToTable, onSaveProduct,
+  onContinueGenerating, onRetryFailedSend, onToneModifier, onConvertToTable, onSaveProduct,
   likedProductIds, onToggleProductLike,
   onShareProduct, onRequestMoreProducts,
   onOpenPlanner, onShowSignIn, onDeleteImage,
@@ -578,6 +581,18 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   }}
                 />
               </div>
+              {/* WE-20260601-300/303: recoverable send-failure retry affordance.
+                  Shown on offline / timeout / no-stream / rate-limited bubbles. */}
+              {message.retryKind && onRetryFailedSend && !isTyping && (
+                <button
+                  type="button"
+                  onClick={onRetryFailedSend}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-foreground/15 bg-foreground/[0.04] px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry
+                </button>
+              )}
               {message.attachments && message.attachments.length > 0 && (
                 <div className="mt-2">
                   <MessageAttachmentChips
