@@ -22,6 +22,7 @@ import { ImageCarousel } from '@/components/ImageCarousel';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Link } from 'react-router-dom';
 import { modeConfig, markdownToHtml, type ModeOrAuto } from './constants';
 import easebotAvatar from '@/assets/images/easebot.png';
 import { track } from '@/lib/analytics';
@@ -445,11 +446,27 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   isStreaming={message.id === streamingMsgId}
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    a: ({ href, children }: any) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors">
-                        {children}
-                      </a>
-                    ),
+                    a: ({ href, children }: any) => {
+                      // WE-20260601-201: internal app routes (e.g. /pricing,
+                      // /signup emitted by the quota-error bubbles) must navigate
+                      // in-place via the SPA router so session/chat state is
+                      // preserved — NOT open in a cold new tab. Only true external
+                      // links keep target="_blank".
+                      const linkClass = 'text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors';
+                      const isInternal = typeof href === 'string' && href.startsWith('/') && !href.startsWith('//');
+                      if (isInternal) {
+                        return (
+                          <Link to={href} className={linkClass}>
+                            {children}
+                          </Link>
+                        );
+                      }
+                      return (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className={linkClass}>
+                          {children}
+                        </a>
+                      );
+                    },
                     img: ({ src, alt }: any) => {
                       // Skip known-bad / hallucinated image hosts. The LLM
                       // sometimes emits markdown pointing to cdn.openai.com
