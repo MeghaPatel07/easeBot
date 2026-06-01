@@ -1,6 +1,16 @@
 import { AzureOpenAI } from 'openai'
 import type { ChatCompletionTool, ChatCompletionMessageParam, ChatCompletionContentPart } from 'openai/resources/chat/completions'
+import type { ChatCompletion, ChatCompletionChunk } from 'openai/resources/chat/completions'
+import type { Stream } from 'openai/streaming'
 import type { HistoryMessage } from '../types'
+import { llmCircuitBreaker, CircuitBreakerError } from './circuitBreaker'
+
+// User-facing degraded message used when the LLM circuit breaker is OPEN — i.e.
+// Azure OpenAI has been failing repeatedly and we fast-fail to avoid piling more
+// load onto an already-degraded provider (WE-20260601-453). Mirrors the graceful
+// fallback the translator path returns on CircuitBreakerError.
+const LLM_DEGRADED_MESSAGE =
+  "I'm having trouble reaching the assistant right now. Please try again in a moment."
 
 // ── Mode-specific temperature map ──────────────────────────────────────────────
 export const MODE_TEMPERATURES: Record<string, number> = {
@@ -61,13 +71,27 @@ export async function callAzureAI(
     { role: 'user', content: userContent },
   ]
 
-  const completion = await client.chat.completions.create({
-    model: process.env.AZURE_DEPLOYMENT_NAME!,
-    messages,
-    max_tokens: 4096,
-    temperature,
-    ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
-  })
+  let completion: ChatCompletion
+  try {
+    // Fast-fail through the LLM circuit breaker: if Azure OpenAI has been
+    // flapping, the breaker is OPEN and this rejects immediately instead of
+    // issuing yet another upstream call that hangs/fails (WE-20260601-453).
+    completion = await llmCircuitBreaker.execute(() =>
+      client.chat.completions.create({
+        model: process.env.AZURE_DEPLOYMENT_NAME!,
+        messages,
+        max_tokens: 4096,
+        temperature,
+        ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
+      })
+    )
+  } catch (err) {
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[azureAI] ${err.message} — returning degraded chat response`)
+      return { text: LLM_DEGRADED_MESSAGE, toolCalls: [], usage: null }
+    }
+    throw err
+  }
 
   const message = completion.choices[0]?.message
   const toolCalls = (message?.tool_calls ?? []).map(tc => ({
@@ -118,15 +142,32 @@ export async function* streamCallAzureAI(
     { role: 'user', content: userContent },
   ]
 
-  const stream = await client.chat.completions.create({
-    model: process.env.AZURE_DEPLOYMENT_NAME!,
-    messages,
-    max_tokens: 4096,
-    temperature,
-    stream: true,
-    stream_options: { include_usage: true },
-    ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
-  })
+  // Establish the stream through the LLM circuit breaker. The breaker wraps the
+  // connection-establishing create() — the point at which an Azure OpenAI outage
+  // manifests as a hang/error. When OPEN we fast-fail with a degraded message
+  // instead of opening yet another doomed upstream connection (WE-20260601-453).
+  let stream: Stream<ChatCompletionChunk>
+  try {
+    stream = await llmCircuitBreaker.execute(() =>
+      client.chat.completions.create({
+        model: process.env.AZURE_DEPLOYMENT_NAME!,
+        messages,
+        max_tokens: 4096,
+        temperature,
+        stream: true,
+        stream_options: { include_usage: true },
+        ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
+      })
+    )
+  } catch (err) {
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[azureAI] ${err.message} — streaming degraded chat response`)
+      yield { type: 'chunk', text: LLM_DEGRADED_MESSAGE }
+      yield { type: 'done', toolCalls: [], usage: null }
+      return
+    }
+    throw err
+  }
 
   const tcMap: Record<number, { id: string; name: string; arguments: string }> = {}
   let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
@@ -199,15 +240,28 @@ export async function* streamCallAzureAIWithToolResults(
     }
   }
 
-  const stream = await client.chat.completions.create({
-    model: process.env.AZURE_DEPLOYMENT_NAME!,
-    messages,
-    max_tokens: 4096,
-    temperature,
-    stream: true,
-    stream_options: { include_usage: true },
-    ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
-  })
+  let stream: Stream<ChatCompletionChunk>
+  try {
+    stream = await llmCircuitBreaker.execute(() =>
+      client.chat.completions.create({
+        model: process.env.AZURE_DEPLOYMENT_NAME!,
+        messages,
+        max_tokens: 4096,
+        temperature,
+        stream: true,
+        stream_options: { include_usage: true },
+        ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
+      })
+    )
+  } catch (err) {
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[azureAI] ${err.message} — streaming degraded tool-result response`)
+      yield { type: 'chunk', text: LLM_DEGRADED_MESSAGE }
+      yield { type: 'done', toolCalls: [], usage: null }
+      return
+    }
+    throw err
+  }
 
   const tcMap: Record<number, { id: string; name: string; arguments: string }> = {}
   let streamUsage: { promptTokens: number; completionTokens: number; totalTokens: number } | null = null
@@ -277,13 +331,24 @@ export async function callAzureAIWithToolResults(
     }
   }
 
-  const completion = await client.chat.completions.create({
-    model: process.env.AZURE_DEPLOYMENT_NAME!,
-    messages,
-    max_tokens: 4096,
-    temperature,
-    ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
-  })
+  let completion: ChatCompletion
+  try {
+    completion = await llmCircuitBreaker.execute(() =>
+      client.chat.completions.create({
+        model: process.env.AZURE_DEPLOYMENT_NAME!,
+        messages,
+        max_tokens: 4096,
+        temperature,
+        ...(tools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
+      })
+    )
+  } catch (err) {
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[azureAI] ${err.message} — returning degraded tool-result response`)
+      return { text: LLM_DEGRADED_MESSAGE, toolCalls: [], usage: null }
+    }
+    throw err
+  }
 
   const message = completion.choices[0]?.message
   const toolCalls = (message?.tool_calls ?? []).map(tc => ({

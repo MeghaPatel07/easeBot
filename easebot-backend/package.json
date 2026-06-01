@@ -13,6 +13,14 @@
     "test:phase2:phrases": "ts-node --transpile-only src/services/__tests__/sttPhraseList.test.ts",
     "test:phase2": "npm run test:phase2:phrases",
     "test:langfix": "ts-node --transpile-only src/pipeline/__tests__/inbound.test.ts",
+    "test:security:auth": "ts-node --transpile-only src/middleware/__tests__/authGuard.test.ts",
+    "test:security:errors": "ts-node --transpile-only src/middleware/__tests__/errorEnvelope.test.ts",
+    "test:security:controllers": "ts-node --transpile-only src/controllers/__tests__/securityHardening.test.ts",
+    "test:security": "npm run test:security:auth && npm run test:security:errors && npm run test:security:controllers",
+    "test:all": "npm run test:phase1 && npm run test:phase2 && npm run test:langfix && npm run test:security"
+    "test:phase3:breaker": "ts-node --transpile-only src/services/__tests__/circuitBreaker.test.ts",
+    "test:phase3": "npm run test:phase3:breaker",
+    "test:all": "npm run test:phase1 && npm run test:phase2 && npm run test:langfix && npm run test:phase3"
     "test:chathistory": "ts-node --transpile-only src/controllers/__tests__/chatHistory.test.ts",
     "test:toolpasshistory": "ts-node --transpile-only src/controllers/__tests__/toolPassHistory.test.ts",
     "test:all": "npm run test:phase1 && npm run test:phase2 && npm run test:langfix && npm run test:chathistory && npm run test:toolpasshistory"
