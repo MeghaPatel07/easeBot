@@ -1,0 +1,22 @@
+=== Journey 4: Login → 5 messages → planner → checklist save → mark done ===
+
+BACKEND PROBE: 5 planner messages (no auth) — backend should still respond per WE-20260527-204
+msg #1 (mode=planner) → HTTP 200
+msg #2 (mode=planner) → HTTP 200
+msg #3 (mode=planner) → HTTP 200
+msg #4 (mode=planner) → HTTP 200
+msg #5 (mode=planner) → HTTP 200
+
+Now check: planner LLM tool 'create_checklist' requires uid (plannerTools.ts:221-226). For unauth callers, returns blocked='no_auth' and string 'Please sign in to save checklists'.
+
+EXERCISE create_checklist via chat (no auth, so should refuse):
+data: {"t":"d","text":"Saving checklists requires signing in to an account. If you’d like to save this, you can sign in or create a free account to unlock that feature. In the meantime, here’s your checklist for venue booking:\n\n1. Tour 3 venues.\n2. Request quotes from shortlisted venues.\n3. Review and sign the contract with your chosen venue.\n\nWould you like help prioritizing or scheduling these steps?","toolActions":[],"mode":"planner","detectedLanguage":"en","responseLanguage":"en","audioUrl":null,"imageUrl":null,"imageUrls":[],"products":[],"productsHasMore":false}
+
+
+REQUIRES_AUTH endpoint POST /api/checklists:
+POST /api/checklists (no token) → 401
+
+Two write paths exist:
+  (1) frontend service /checklistService.ts → Firestore SDK direct: users/{uid}/checklists/{id}
+  (2) backend route /api/checklists → controller → Firestore Admin SDK
+  These two paths produce different validation, different audit trail, different rate limits — drift risk.

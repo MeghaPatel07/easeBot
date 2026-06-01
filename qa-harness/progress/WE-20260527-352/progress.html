@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260527-352 / WE-20260527-360</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    .ok { color: var(--ok); }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260527-352 + WE-20260527-360 · modeRouter: cultural-item terms route to knowledge + 'what is' intent boost
+        <span class="pill P2">P2</span><span class="pill P3">P3</span>
+      </h1>
+      <div class="meta">
+        <b>Repo</b>: easebot-backend ·
+        <b>Agent</b>: fix-backend-api ·
+        <b>Branch</b>: <code>fix-WE-20260527-352</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260527-352</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      <b>WE-20260527-352 (P2):</b> modeRouter classified "What is the meaning of the mangalsutra in Hindu weddings?" as
+      <code>stylist</code> because "mangalsutra" matched the jewellery regex while the knowledge regex tied/lost on score.
+      Model responded with styling-advice voice instead of cultural significance.
+    </p>
+    <p>
+      <b>WE-20260527-360 (P3):</b> When knowledge keywords competed with planner keywords on a single message
+      (e.g. "what is the mangni ceremony schedule"), planner won the tie. Result: the user's clear knowledge intent
+      ("what is &hellip;") got planner-style numbered checklist output instead of cultural explanation.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 13:00:00</div>
+        <div class="what">Created worktree <code>worktrees/fix-WE-20260527-352</code> off <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 13:01:00</div>
+        <div class="what">Read <code>easebot-backend/src/modeRouter.ts</code> end-to-end. Confirmed keyword-regex classifier with tied-score fallback to <code>assistant</code>.</div>
+        <div class="detail">therapist + consultant remain commented out per CLAUDE.md guardrail.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 13:05:00</div>
+        <div class="what">Added knowledge-domain cultural-item regex (mangalsutra, mangni, varmala, jaimala, sindoor, kumkum, mehndi, haldi, sangeet, baraat, vidaai, kanyadaan, saptapadi, etc.).</div>
+        <div class="detail">Stylist entry for mangalsutra retained (it IS jewellery) — knowledge now also scores it.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 13:08:00</div>
+        <div class="what">Added KNOWLEDGE_INTENT_BOOST_PATTERNS + KNOWLEDGE_INTENT_WEIGHT=3. When "what is" / "tell me about" / "meaning of" / "significance of" / "explain" / etc. appear, knowledge gets +3 per stem.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 13:12:00</div>
+        <div class="what">Wrote <code>src/__tests__/modeRouter.test.ts</code> — 15 cases covering both fixes + regression of existing stylist/planner behavior.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 13:15:00</div>
+        <div class="what"><span class="ok">15/15 new modeRouter tests pass.</span> <span class="ok">55/55 existing backend tests still pass.</span> <span class="ok">tsc --noEmit clean (0 errors).</span></div>
+      </div>
+    </div>
+
+    <h2>Keyword additions</h2>
+    <table>
+      <thead><tr><th>Mode</th><th>Term group</th><th>New terms</th></tr></thead>
+      <tbody>
+        <tr><td>knowledge</td><td>Cultural items (jewellery / kumkum / etc.)</td><td>mangalsutra, mangni, varmala, jaimala, sindoor, sindur, kumkum, sehra, kalash, nath, bichiya</td></tr>
+        <tr><td>knowledge</td><td>Ceremonies / rituals</td><td>mehndi/mehendi/henna, haldi, sangeet, baraat, baraati, vidaai/bidaai, kanyadaan/kanyadan, saptapadi, saat phere, pheras/phera, gathbandhan, aarti, pooja/puja, mandap, mangal phera, chooda/chuda, kaleere/kaleera, sindoor daan, ganesh pujan, hast melap, ring ceremony, engagement ceremony, tilak, roka</td></tr>
+        <tr><td>knowledge (intent boost)</td><td>Query stems (+3 weight each)</td><td>"what is", "what are", "tell me about", "meaning of", "significance of", "why do/is/are", "explain", "define", "(history|tradition|origin|cultural) (of|behind)"</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Unit (new)</td><td><code>ts-node src/__tests__/modeRouter.test.ts</code></td><td class="ok">15 passed / 0 failed</td></tr>
+        <tr><td>Unit (existing)</td><td><code>npm run test:all</code> (phase1 + phase2 + langfix)</td><td class="ok">55 passed / 0 failed</td></tr>
+        <tr><td>Type</td><td><code>npx tsc --noEmit</code></td><td class="ok">0 errors</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Test output: <code>qa-harness/evidence/WE-20260527-352/test-output.txt</code></li>
+      <li>Test output (dup for -360): <code>qa-harness/evidence/WE-20260527-360/test-output.txt</code></li>
+    </ul>
+
+    <h2>Files changed</h2>
+    <pre>easebot-backend/src/modeRouter.ts                | edited (intent boost + cultural-item regex)
+easebot-backend/src/__tests__/modeRouter.test.ts | new (15 tests)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/99">https://github.com/MeghaPatel07/easeBot/pull/99</a></p>
+
+    <footer>
+      Generated by fix-backend-api &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

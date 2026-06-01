@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-888</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.BLOCKED { background: rgba(248,113,113,0.2); color: #f87171; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-888 · CheckoutModal phone-cap maxLength=15 truncates international phone numbers
+        <span class="pill P1">P1</span>
+        <span class="pill BLOCKED">BLOCKED</span>
+      </h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-888</code> (off <code>Bug-Resolve-claude</code>) &middot;
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-888</code>
+      </div>
+    </header>
+
+    <h2>Bug summary (as filed)</h2>
+    <p>
+      Ticket claims both checkout phone inputs use <code>maxLength={15}</code> at
+      <code>src/components/pricing/CheckoutModal.tsx:129</code> and
+      <code>src/pages/Checkout.tsx:414</code>, truncating international phone numbers
+      (UAE <code>+971 50 123 4567</code>, UK <code>+44 20 7946 0958</code>, etc.) and blocking PayU payment.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+
+      <div class="entry ok">
+        <div class="time">2026-05-29 setup</div>
+        <div class="what">Created isolated worktree <code>worktrees/fix-WE-20260528-888</code> on new branch <code>fix-WE-20260528-888</code> tracking <code>origin/Bug-Resolve-claude</code>.</div>
+        <div class="detail">No conflicts on checkout. Worktree clean.</div>
+      </div>
+
+      <div class="entry warn">
+        <div class="time">2026-05-29 diagnose-1</div>
+        <div class="what">Read both files at the cited line numbers — but the <code>maxLength={15}</code> caps are on the <strong>GSTIN field</strong>, not a phone field.</div>
+        <div class="detail">
+          <code>CheckoutModal.tsx:129</code> → <code>Input id=&quot;checkout-gstin&quot;</code> with help text &quot;Enter a valid 15-character GSTIN&quot;.<br>
+          <code>Checkout.tsx:414</code> → labelled &quot;GSTIN (optional — Indian businesses only)&quot;, validated by <code>GSTIN_REGEX</code> at line 29 (<code>/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/</code>).<br>
+          GSTIN is <strong>exactly 15 chars by Indian tax law</strong>; bumping it to 20 would allow malformed input past the cap that the regex still rejects, but that&#39;s a misleading change.
+        </div>
+      </div>
+
+      <div class="entry warn">
+        <div class="time">2026-05-29 diagnose-2</div>
+        <div class="what">There is no phone input anywhere in <code>CheckoutModal.tsx</code> or <code>Checkout.tsx</code>.</div>
+        <div class="detail">
+          Form fields in <code>Checkout.tsx</code>: fullName, email, country, stateName, city, postalCode, line1, gstin.<br>
+          Form fields in <code>CheckoutModal.tsx</code>: companyName, gstin, address.<br>
+          <code>grep -i &quot;phone&quot; src/components/pricing/ src/pages/Checkout.tsx</code> → 0 matches.
+        </div>
+      </div>
+
+      <div class="entry warn">
+        <div class="time">2026-05-29 diagnose-3</div>
+        <div class="what">PayU initiation payload does not include a phone number client-side.</div>
+        <div class="detail">
+          <code>src/services/paymentService.ts</code>:<br>
+          <code>BillingAddressInput</code> = { name, country, state, city, postalCode, line1 } — no phone field.<br>
+          <code>InitiatePaymentRequest</code> = { plan, cycle, currency, firstname, email, gstin, isUpgrade, billingAddress } — no phone field.<br>
+          So the &quot;PayU rejects truncated phone&quot; failure mode described in the ticket cannot be reproduced from these files.
+        </div>
+      </div>
+
+      <div class="entry ok">
+        <div class="time">2026-05-29 diagnose-4</div>
+        <div class="what">A working dynamic-maxLength PhoneInput already exists at <code>src/components/auth/PhoneInput.tsx</code> (line 158-208).</div>
+        <div class="detail">
+          It walks <code>validatePhoneNumberLength</code> per country and adds +6 for formatter spacing. That component is wired into the auth flow, not the checkout flow.
+        </div>
+      </div>
+
+      <div class="entry err">
+        <div class="time">2026-05-29 conclusion</div>
+        <div class="what">Status set to <code>blocked</code>. Ticket is misfiled — the cited lines reference GSTIN, not phone.</div>
+        <div class="detail">
+          The fix the user/triager described (bump maxLength to 20 + strip non-digits before PayU submit) cannot be applied to a non-existent phone field, and applying it to the GSTIN field would either (a) be misleading or (b) weaken the GSTIN validator&#39;s legibility for downstream invoice generation.
+          <br><br>
+          <strong>Possible real bugs this ticket could be split into:</strong>
+          <ol>
+            <li><em>Missing phone field</em> — PayU&#39;s server-side integration may need a phone for fraud-check; checkout form should add a phone input (suggest reusing <code>PhoneInput.tsx</code> from auth) and extending <code>BillingAddressInput</code>/<code>InitiatePaymentRequest</code> to forward it. <strong>Big change — needs scoping with Krish.</strong></li>
+            <li><em>GSTIN field maxLength is fine</em> — keep at 15 to match the regex spec.</li>
+          </ol>
+          Returning to Krish for decision. Not pushing a misleading patch.
+        </div>
+      </div>
+
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Code reads only. No screenshots needed — the bug as described is not present on the cited lines.</li>
+      <li>Files inspected: <code>src/components/pricing/CheckoutModal.tsx</code>, <code>src/pages/Checkout.tsx</code>, <code>src/services/paymentService.ts</code>, <code>src/components/auth/PhoneInput.tsx</code></li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Static (grep)</td><td><code>grep -rn maxLength src/</code></td><td>only 2 maxLength=15 hits, both on GSTIN inputs</td></tr>
+        <tr><td>Static (grep)</td><td><code>grep -i phone src/components/pricing/ src/pages/Checkout.tsx</code></td><td>0 matches</td></tr>
+        <tr><td>Schema audit</td><td>read <code>paymentService.ts</code> types</td><td>no phone field in PayU request</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>(none — ticket blocked, no code change pushed)</pre>
+
+    <h2>PR</h2>
+    <p>Not opened — ticket is blocked pending Krish&#39;s scoping decision.</p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

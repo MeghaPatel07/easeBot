@@ -1,0 +1,10 @@
+=== ChatRequestSchema validation AFTER FIX ===
+
+  mode='planner'    → OK
+  mode='stylist'    → OK
+  mode='styler'     → REJECTED: mode: Invalid enum value. Expected 'planner' | 'stylist' | 'knowledge' | 'assistant', received 'styler'
+  mode='knowledge'  → OK
+  mode='assistant'  → OK
+  mode='image'      → REJECTED: mode: Invalid enum value. Expected 'planner' | 'stylist' | 'knowledge' | 'assistant', received 'image'
+  mode='bogus'      → REJECTED: mode: Invalid enum value. Expected 'planner' | 'stylist' | 'knowledge' | 'assistant', received 'bogus'
+  mode=(omitted)    → OK

@@ -1,0 +1,144 @@
+id: 1
+data: {"t":"c","v":"That"}
+
+id: 2
+data: {"t":"c","v":"’s"}
+
+id: 3
+data: {"t":"c","v":" a"}
+
+id: 4
+data: {"t":"c","v":" lot"}
+
+id: 5
+data: {"t":"c","v":" of"}
+
+id: 6
+data: {"t":"c","v":" wedding"}
+
+id: 7
+data: {"t":"c","v":" energy"}
+
+id: 8
+data: {"t":"c","v":"!"}
+
+id: 9
+data: {"t":"c","v":" Sounds"}
+
+id: 10
+data: {"t":"c","v":" like"}
+
+id: 11
+data: {"t":"c","v":" you're"}
+
+id: 12
+data: {"t":"c","v":" either"}
+
+id: 13
+data: {"t":"c","v":" super"}
+
+id: 14
+data: {"t":"c","v":" excited"}
+
+id: 15
+data: {"t":"c","v":" or"}
+
+id: 16
+data: {"t":"c","v":" feeling"}
+
+id: 17
+data: {"t":"c","v":" a"}
+
+id: 18
+data: {"t":"c","v":" bit"}
+
+id: 19
+data: {"t":"c","v":" overwhelmed"}
+
+id: 20
+data: {"t":"c","v":".\n\n"}
+
+id: 21
+data: {"t":"c","v":"Let"}
+
+id: 22
+data: {"t":"c","v":"’s"}
+
+id: 23
+data: {"t":"c","v":" focus"}
+
+id: 24
+data: {"t":"c","v":" that"}
+
+id: 25
+data: {"t":"c","v":" energy"}
+
+id: 26
+data: {"t":"c","v":"—"}
+
+id: 27
+data: {"t":"c","v":"what"}
+
+id: 28
+data: {"t":"c","v":" part"}
+
+id: 29
+data: {"t":"c","v":" of"}
+
+id: 30
+data: {"t":"c","v":" your"}
+
+id: 31
+data: {"t":"c","v":" wedding"}
+
+id: 32
+data: {"t":"c","v":" are"}
+
+id: 33
+data: {"t":"c","v":" you"}
+
+id: 34
+data: {"t":"c","v":" thinking"}
+
+id: 35
+data: {"t":"c","v":" about"}
+
+id: 36
+data: {"t":"c","v":" right"}
+
+id: 37
+data: {"t":"c","v":" now"}
+
+id: 38
+data: {"t":"c","v":"?"}
+
+id: 39
+data: {"t":"c","v":" Venue"}
+
+id: 40
+data: {"t":"c","v":","}
+
+id: 41
+data: {"t":"c","v":" outfits"}
+
+id: 42
+data: {"t":"c","v":","}
+
+id: 43
+data: {"t":"c","v":" or"}
+
+id: 44
+data: {"t":"c","v":" maybe"}
+
+id: 45
+data: {"t":"c","v":" something"}
+
+id: 46
+data: {"t":"c","v":" else"}
+
+id: 47
+data: {"t":"c","v":"?"}
+
+id: 48
+data: {"t":"d","text":"That’s a lot of wedding energy! Sounds like you're either super excited or feeling a bit overwhelmed.\n\nLet’s focus that energy—what part of your wedding are you thinking about right now? Venue, outfits, or maybe something else?","toolActions":[],"mode":"assistant","detectedLanguage":"en","responseLanguage":"en","audioUrl":null,"imageUrl":null,"imageUrls":[],"products":[],"productsHasMore":false}
+

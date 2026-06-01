@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-302</title>
+  <style>
+    :root {
+      --bg: #0c0c0e; --panel: #16161a; --border: #2a2a30;
+      --text: #e4e4e7; --muted: #71717a; --accent: #f97cb1;
+      --ok: #4ade80; --warn: #facc15; --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-302 · Vite vendor chunk 324KB gzipped vs 200KB target <span class="pill P1">P1</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-performance ·
+        <b>Branch</b>: <code>fix-WE-20260528-302</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-302</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>Vite build emits a single mega-vendor chunk because manualChunks was originally absent. An interim fix (PR #24, BUG-VIVA-20260525-303) added grouping but introduced a CIRCULAR CHUNK warning (vendor-react -> vendor -> vendor-react) because the bare <code>react</code> package and <code>@tanstack/react-query</code> still fell into the catch-all <code>vendor</code> chunk. This PR fixes the missing patterns and refines the grouping per ticket spec.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 (init)</div>
+        <div class="what">Worktree created off origin/Bug-Resolve-claude. Found existing manualChunks config (from PR #24/BUG-303).</div>
+        <div class="detail">Existing config has a circular chunk warning because <code>react</code> and <code>@tanstack/react-query</code> drop into the catch-all vendor chunk; vendor-react then depends on vendor (a true cycle).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (build-before)</div>
+        <div class="what">Captured before-build sizes. Build emitted: <code>Circular chunk: vendor-react -> vendor -> vendor-react</code>.</div>
+        <div class="detail">Top: Index-BCX-pEGT.js 583KB / 142KB gz; vendor-pdf 574KB / 173KB gz; vendor-firebase 541KB / 126KB gz; vendor-tiptap 457KB / 138KB gz; vendor (catch-all) 397KB / 136KB gz.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (fix-applied)</div>
+        <div class="what">Rewrote <code>manualChunks</code> with anchored <code>/node_modules/&lt;pkg&gt;/</code> matchers and the 6 spec'd groups (react/tiptap/firebase/radix/posthog/tanstack-vendor). Also pulled react transitives (loose-envify, js-tokens, object-assign, use-sync-external-store, @remix-run/router) into react-vendor.</div>
+        <div class="detail">Circular-chunk warning is gone. New <code>tanstack-vendor</code> chunk extracted from catch-all. Catch-all <code>vendor</code> dropped 397KB &rarr; 339KB (&minus;58KB, &minus;15%).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (validation)</div>
+        <div class="what">Type-check: only pre-existing TS errors (per ticket guidance, not chasing). Lint: pre-existing eslint config bug (not introduced here). Vite build: clean — no chunk warnings, no &gt;500KB warnings (threshold 700KB).</div>
+        <div class="detail">Preview server starts on :8081 and serves react-vendor (166KB raw) + firebase-vendor (542KB raw) chunks correctly.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before bundle sizes: <code>qa-harness/evidence/WE-20260528-302/bundle-before.txt</code></li>
+      <li>After bundle sizes: <code>qa-harness/evidence/WE-20260528-302/bundle-after.txt</code></li>
+      <li>Build log before: <code>qa-harness/evidence/WE-20260528-302/build-before.log</code></li>
+      <li>Build log after: <code>qa-harness/evidence/WE-20260528-302/build-after.log</code></li>
+    </ul>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/52">https://github.com/MeghaPatel07/easeBot/pull/52</a></p>
+
+    <footer>
+      Generated by fix-performance &middot; Easebot QA Harness
+    </footer>
+  </div>
+</body>
+</html>

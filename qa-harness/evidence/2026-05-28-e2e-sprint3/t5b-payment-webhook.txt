@@ -1,0 +1,26 @@
+HTTP/1.1 429 Too Many Requests
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+Access-Control-Allow-Origin: *
+RateLimit-Policy: 30;w=60
+RateLimit-Limit: 30
+RateLimit-Remaining: 0
+RateLimit-Reset: 5
+Retry-After: 5
+Content-Type: application/json; charset=utf-8
+Content-Length: 54
+ETag: W/"36-cWO26bZ/16AluRpH7qktaFB4Umk"
+Date: Thu, 28 May 2026 09:20:54 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"Too many requests, please try again later."}

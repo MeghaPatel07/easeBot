@@ -1,0 +1,72 @@
+[
+  {
+    "turn": 1,
+    "q": "Hi I'm Priya, my wedding is on December 15th 2026",
+    "mode": "assistant",
+    "status": "200",
+    "a": "Hi Priya, how exciting to know your wedding date is set! December weddings have such a magical vibe, and you\u2019ve got plenty of time to plan everything beautifully.  \n\nHave you thought about the overall style or theme you'd like for your big day yet?"
+  },
+  {
+    "turn": 2,
+    "q": "Help me with a checklist for the next 3 months",
+    "mode": "planner",
+    "status": "200",
+    "a": "With your wedding on December 15th, you're about 6.5 months away \u2014 this is a great time to focus on the foundational pieces. Here's a checklist for the next three months (May\u2013August):\n\n### May\u2013June (Now)\n1. **Finalize Budget**: Set your overall budget and allocate amounts for key categories (venue, catering, attire, etc.).\n2. **Book Venue**: Secure your ceremony and reception venues if not already done.\n3. **Hire Key Vendors**: Book your photographer, videographer, and caterer (these tend to book up early).\n4. **Start Guest List**: Draft your guest list and gather addresses.\n5. **Engage a Wedding Planner (if needed)**: If you're considering one, now's the time to hire.\n\n### July\n1. **Choose Your Theme/Style**: Decide on colors, decor, and overall vibe (traditional, modern, rustic, etc.).\n2. **Shop for Attire**: Start shopping for your wedding outfit and finalize by the end of July.\n3. **Book Entertainment**: Lock in your DJ, band, or other performers.\n4. **Research Florists**: Shortlist and book a florist for your decor and bouquet needs.\n5. **Engage Hair & Makeup Artists**: Book trials and finalize your artist.\n\n### August\n1. **Send Save-the-Dates**: If you're sending them, aim to have these out by mid-August.\n2. **Plan Pre-Wedding Events**: Start organizing your engagement party, bridal shower, or other celebrations.\n3. **Finalize Catering Menu**: Work with your caterer to plan the menu.\n4. **Book Transportation**: Arrange for wedding day transportation for yourself and guests, if needed.\n\nWould you like me to break this down further or adjust it for anything specific?"
+  },
+  {
+    "turn": 3,
+    "q": "Which vendors should I prioritize?",
+    "mode": "assistant",
+    "status": "200",
+    "a": "It\u2019s smart to prioritize vendors that tend to book up quickly, especially for a December wedding when it\u2019s a popular season. Here\u2019s where I\u2019d focus:\n\n1. **Venue**: Your venue sets the tone for everything else, so locking this in should be your top priority.  \n2. **Photographer/Videographer**: Talented professionals in this category are highly sought after, and their schedules fill fast.  \n3. **Catering**: If your venue doesn\u2019t include catering, securing a caterer early ensures you\u2019ll have someone you trust for the big day.  \n\nOnce these are set, you can move on to florists, decorators, and entertainment in the next round.  \n\nDo you already have a venue or any vendors in mind?"
+  },
+  {
+    "turn": 4,
+    "q": "What was my name again?",
+    "mode": "assistant",
+    "status": "200",
+    "a": "Your name is Priya! It\u2019s lovely to be planning your wedding together. Should we dive into any specific vendor or detail next?"
+  },
+  {
+    "turn": 5,
+    "q": "What's my wedding date?",
+    "mode": "assistant",
+    "status": "200",
+    "a": "Your wedding date is December 15th, 2026! It's such a memorable time of year. Would you like help refining any details for this timeframe?"
+  },
+  {
+    "turn": 6,
+    "q": "Add 'book florist' to my plan",
+    "mode": "planner",
+    "status": "200",
+    "a": "Since you're not signed in, I can't save this directly to a planner for you. But adding \"book florist\" fits perfectly into your July tasks. You can aim to research and finalize a florist by the end of that month.  \n\nWould you like tips on choosing the right florist or ideas for floral arrangements?"
+  },
+  {
+    "turn": 7,
+    "q": "How many months until my wedding from today?",
+    "mode": "assistant",
+    "status": "200",
+    "a": "Your wedding on December 15th, 2026, is about **38 months away**. This gives you plenty of time to plan everything at a relaxed pace!  \n\nWould you like guidance on what tasks to prioritize this far out?"
+  },
+  {
+    "turn": 8,
+    "q": "Should I worry about the venue first?",
+    "mode": "assistant",
+    "status": "200",
+    "a": "Yes, the venue should be your first priority. It sets the tone for your wedding and dictates availability for other vendors, as many base their schedules on the venue booking. Popular venues, especially for December, can book out years in advance, so starting now ensures you secure your dream location.  \n\nDo you already have a type of venue or location in mind?"
+  },
+  {
+    "turn": 9,
+    "q": "Save this conversation as a checklist",
+    "mode": "planner",
+    "status": "200",
+    "a": "Since you're not signed in, I can't save checklists for you. But here's a quick summary of what we've discussed so far:  \n\n1. **Venue**: Prioritize booking your venue as soon as possible.  \n2. **Florist**: Plan to finalize a florist by July.  \n3. **Wedding Date**: December 15th, 2026, gives you a comfortable timeline.  \n\nYou can jot this down or sign in to save it for easy reference. Would you like to explore venue options next?"
+  },
+  {
+    "turn": 10,
+    "q": "What did I tell you about myself in the first message?",
+    "mode": "assistant",
+    "status": "200",
+    "a": "You didn't share anything personal about yourself in the first message\u2014just a question about your wedding date. Would you like to tell me a bit about your vision or plans so far?"
+  }
+]

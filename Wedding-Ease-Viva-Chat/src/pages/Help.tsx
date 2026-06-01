@@ -173,7 +173,7 @@ export default function Help() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="gradient-bg min-h-screen text-foreground/90/85 font-body">
+    <div className="gradient-bg min-h-screen text-foreground/85 font-body">
       {/* Background blurs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -185,7 +185,7 @@ export default function Help() {
         <Link
           to="/"
           aria-label="Back to TheWeddingBot home"
-          className="inline-flex items-center gap-2 text-sm text-foreground/90 hover:text-foreground/90/90 transition mb-8"
+          className="inline-flex items-center gap-2 text-sm text-foreground/90 hover:text-foreground transition mb-8"
         >
           <ArrowLeft className="h-4 w-4" /> Back to TheWeddingBot
         </Link>
@@ -237,7 +237,7 @@ export default function Help() {
                     value={`faq-${i}`}
                     className="border-border/40"
                   >
-                    <AccordionTrigger className="text-left text-foreground/90/90 hover:text-primary hover:no-underline py-5 text-[15px]">
+                    <AccordionTrigger className="text-left text-foreground/90 hover:text-primary hover:no-underline py-5 text-[15px]">
                       {item.q}
                     </AccordionTrigger>
                     <AccordionContent className="text-foreground/90 leading-relaxed text-sm">
@@ -262,7 +262,7 @@ export default function Help() {
                         value={guestName}
                         onChange={(e) => setGuestName(e.target.value)}
                         placeholder="Jane Doe"
-                        className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
+                        className="border-0 text-foreground/90 placeholder:text-foreground/50"
                       />
                     </div>
                     <div className="space-y-2">
@@ -272,7 +272,7 @@ export default function Help() {
                         value={guestEmail}
                         onChange={(e) => setGuestEmail(e.target.value)}
                         placeholder="jane@example.com"
-                        className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
+                        className="border-0 text-foreground/90 placeholder:text-foreground/50"
                       />
                     </div>
                   </div>
@@ -285,7 +285,7 @@ export default function Help() {
                     value={category}
                     onValueChange={(v) => setCategory(v as TicketCategory)}
                   >
-                    <SelectTrigger className="border-0 text-foreground/90/90">
+                    <SelectTrigger className="border-0 text-foreground/90">
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -305,7 +305,7 @@ export default function Help() {
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="Brief summary of your issue or idea"
-                    className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
+                    className="border-0 text-foreground/90 placeholder:text-foreground/50"
                   />
                 </div>
 
@@ -317,7 +317,7 @@ export default function Help() {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Tell us more (at least 20 characters)..."
                     rows={5}
-                    className="border-0 text-foreground/90/90 placeholder:text-foreground/50 resize-none"
+                    className="border-0 text-foreground/90 placeholder:text-foreground/50 resize-none"
                   />
                   <p className="text-xs text-foreground/50">
                     {description.trim().length}/20 characters minimum

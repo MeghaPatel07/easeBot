@@ -4,6 +4,7 @@
  * Output format Riff24Khz16BitMonoPcm yields a fully-formed WAV file (RIFF header included).
  */
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
+import { speechCircuitBreaker } from './circuitBreaker'
 
 export interface TTSOptions {
   text: string
@@ -104,25 +105,32 @@ export async function generateSpeech(options: TTSOptions): Promise<Buffer> {
   </voice>
 </speak>`
 
-  return new Promise<Buffer>((resolve, reject) => {
-    synthesizer.speakSsmlAsync(
-      ssml,
-      (result) => {
-        try {
-          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
-            resolve(Buffer.from(result.audioData))
-          } else {
-            const details = sdk.CancellationDetails.fromResult(result as any)
-            reject(new Error(`Azure TTS cancelled: ${details.errorDetails || details.reason}`))
+  // Fast-fail through speechCircuitBreaker: when Azure Speech has been failing
+  // repeatedly the breaker is OPEN and this throws CircuitBreakerError
+  // immediately instead of opening another synthesizer that hangs/fails
+  // (WE-20260601-453). The breaker error propagates to the TTS controller,
+  // which already maps thrown errors to a clean failure response.
+  return speechCircuitBreaker.execute(() =>
+    new Promise<Buffer>((resolve, reject) => {
+      synthesizer.speakSsmlAsync(
+        ssml,
+        (result) => {
+          try {
+            if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+              resolve(Buffer.from(result.audioData))
+            } else {
+              const details = sdk.CancellationDetails.fromResult(result as any)
+              reject(new Error(`Azure TTS cancelled: ${details.errorDetails || details.reason}`))
+            }
+          } finally {
+            synthesizer.close()
           }
-        } finally {
+        },
+        (err) => {
           synthesizer.close()
+          reject(new Error(`Azure TTS error: ${err}`))
         }
-      },
-      (err) => {
-        synthesizer.close()
-        reject(new Error(`Azure TTS error: ${err}`))
-      }
-    )
-  })
+      )
+    })
+  )
 }

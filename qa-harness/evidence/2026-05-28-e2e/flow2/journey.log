@@ -1,0 +1,25 @@
+=== Journey 2: Guest cap (10 msgs → 11th hits cap → upgrade CTA) ===
+
+Backend guest enforcement check (per WE-20260527-204): /api/chat accepts unauthenticated requests.
+
+guest msg #1  → backend HTTP 429  (no auth header sent)
+guest msg #2  → backend HTTP 429  (no auth header sent)
+guest msg #3  → backend HTTP 429  (no auth header sent)
+guest msg #4  → backend HTTP 429  (no auth header sent)
+guest msg #5  → backend HTTP 429  (no auth header sent)
+guest msg #6  → backend HTTP 429  (no auth header sent)
+guest msg #7  → backend HTTP 429  (no auth header sent)
+guest msg #8  → backend HTTP 429  (no auth header sent)
+guest msg #9  → backend HTTP 429  (no auth header sent)
+guest msg #10  → backend HTTP 429  (no auth header sent)
+guest msg #11  → backend HTTP 429  (no auth header sent)
+
+=== Findings ===
+Backend never gates on count → all 11 messages succeed → cap is enforced ONLY in client localStorage 'easebot-guest-msg-count'.
+If user clears localStorage / opens incognito, cap resets to 0 (no server-side bookkeeping).
+
+=== Sign-up CTA copy in useChat.ts ===
+/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/hooks/useChat.ts:        } else if (reason === 'guest_limit_exceeded') {
+/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/hooks/useChat.ts:          errorText = "You've reached the guest limit. [Sign up](/signup) for a free account to keep chatting."
+/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/pages/Index.tsx:              Sign up to continue chatting
+/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/pages/Index.tsx:        Sign up to continue chatting

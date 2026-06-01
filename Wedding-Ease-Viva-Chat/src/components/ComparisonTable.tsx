@@ -224,23 +224,44 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
         <table className="w-full border-collapse text-left min-w-[400px]">
           <thead>
             <tr className="bg-background">
-              {headers.map((header, colIdx) => (
-                <th
-                  key={colIdx}
-                  onClick={() => handleSort(colIdx)}
-                  className="px-2 sm:px-3 py-2 text-xs font-semibold text-foreground/70 cursor-pointer select-none whitespace-nowrap"
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {header}
-                    {sortCol === colIdx &&
-                      (sortAsc ? (
-                        <ArrowUp className="w-3 h-3 text-primary" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3 text-primary" />
-                      ))}
-                  </span>
-                </th>
-              ))}
+              {headers.map((header, colIdx) => {
+                const isSorted = sortCol === colIdx;
+                return (
+                  <th
+                    key={colIdx}
+                    scope="col"
+                    aria-sort={
+                      isSorted
+                        ? sortAsc
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
+                    className="px-2 sm:px-3 py-2 text-xs font-semibold text-foreground/70 select-none whitespace-nowrap"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSort(colIdx)}
+                      aria-label={`Sort by ${header}${
+                        isSorted
+                          ? sortAsc
+                            ? ", currently ascending"
+                            : ", currently descending"
+                          : ""
+                      }`}
+                      className="inline-flex items-center gap-1 cursor-pointer rounded-sm hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    >
+                      {header}
+                      {isSorted &&
+                        (sortAsc ? (
+                          <ArrowUp className="w-3 h-3 text-primary" aria-hidden="true" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3 text-primary" aria-hidden="true" />
+                        ))}
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>

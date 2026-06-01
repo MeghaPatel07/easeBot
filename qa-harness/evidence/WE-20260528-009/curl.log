@@ -1,0 +1,6 @@
+$ python3 -c "import json; print(json.dumps({'message':'x'*100000}))" \
+    | curl -sS -X POST http://localhost:3001/api/chat -H "Content-Type: application/json" -d @- --max-time 15 -i | tail -3
+{"error":"Validation failed","details":[{"code":"too_big","maximum":10000,"type":"string","inclusive":true,"exact":false,"message":"String must contain at most 10000 character(s)","path":["message"]}]}
+
+$ grep "maxLength" Wedding-Ease-Viva-Chat/src/components/chat/ChatInput.tsx
+(no match)

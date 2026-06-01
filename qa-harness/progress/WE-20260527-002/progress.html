@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260527-002</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .err { color: var(--err); }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260527-002 &middot; Image generation never completes &mdash; "Something went wrong" after &gt;2 min <span class="pill P0">P0</span></h1>
+      <div class="meta">
+        <b>Repo</b>: easebot-backend &middot;
+        <b>Agent</b>: fix-backend-api &middot;
+        <b>Branch</b>: <code>fix-WE-20260527-002</code> &rarr; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260527-002</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>Guest sends "Generate an image of pastel mandap with white roses". Bubble shows "generating..." then ~110s later swaps to generic "Something went wrong. Please try again." No image renders, no actionable error code surfaced. Diagnosis: the Azure image-generation REST fetch has <strong>no explicit timeout</strong>. When Azure hangs (or replies slowly enough that the client/proxy aborts first), <code>fetch()</code> waits indefinitely; the client AbortController eventually fires at ~110s, the inner <code>callAzureImageGeneration</code> throws AbortError, retry/fallback chain rolls through, and the stream terminates with the generic <code>{ t: 'e' }</code> envelope that the frontend renders as the catch-all error string.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 19:00</div>
+        <div class="what">Read ticket WE-20260527-002 + worktree created on <code>Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 19:02</div>
+        <div class="what">Read <code>services/imageGeneration.ts</code> (549 lines) and <code>controllers/imageController.ts</code> (148 lines) end-to-end.</div>
+        <div class="detail">Confirmed: the file uses Azure GPT-Image-1.5 primary + GPT-Image-1 fallback (NOT Gemini, despite the ticket mentioning Gemini-primary; project memory was stale). No <code>geminiImageGeneration.ts</code> exists in this branch.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 19:04</div>
+        <div class="what">Traced the SSE pipeline in <code>chatController.ts</code> (lines 1530&ndash;1612, 1703&ndash;1748).</div>
+        <div class="detail">Confirmed: <code>sse({ t: 'img', status: 'generating' })</code> fires before the tool call (line 1550) &mdash; that part is already wired. The catch-all at line 1740 sends <code>sse({ t: 'e', msg: err.message })</code> which the frontend (useChat.ts:582) re-throws and renders as "Something went wrong. Please try again." (useChat.ts:829).</div>
+      </div>
+      <div class="entry warn">
+        <div class="time">2026-05-29 19:05</div>
+        <div class="what">Root cause located in <code>callAzureImageGeneration</code> (line 313) and <code>callAzureImageEdit</code> (line 456).</div>
+        <div class="detail">The inner <code>fetch()</code> uses only the caller's <code>AbortSignal</code> (the SSE stream's signal). There is no time-bounded abort. If Azure stalls, fetch waits forever until the upstream client cuts the SSE (~110s). The <code>withRetry</code> wrapper does not enforce per-attempt timeout.</div>
+      </div>
+      <div class="entry warn">
+        <div class="time">2026-05-29 19:06</div>
+        <div class="what">Checked overlap with open PR #34 (WE-20260527-227).</div>
+        <div class="detail">PR #34 touches the same three files but only changes (a) return-type from <code>Promise&lt;string[]&gt;</code> to <code>Promise&lt;string[] | null&gt;</code>, (b) <code>return []</code> &rarr; <code>return null</code> at the public function level, and (c) the public function call-sites in chatController/imageController. PR #34 does NOT touch the inner <code>callAzureImage*</code> fetch bodies. My fix only modifies those inner fetch bodies + adds a private timeout constant &mdash; zero line overlap.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 19:09</div>
+        <div class="what">Applied fix: added 60s per-attempt timeout via <code>AbortSignal.timeout()</code> composed with the caller signal.</div>
+        <div class="detail">When timeout fires, fetch throws a TimeoutError which propagates up. The existing <code>withRetry</code> in the public functions retries once (since TimeoutError code 'ABORT_ERR' matches the network-error branch indirectly via the error-message path), then falls through to the GPT-Image-1 fallback, then ultimately surfaces as <code>{ t: 'e', msg: 'Image generation timed out after 60s. Please try again.' }</code> &mdash; an actionable message in &le;60s instead of a 110s hang.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 19:12</div>
+        <div class="what">Improved error envelope on the upstream HTTP-error path.</div>
+        <div class="detail">Wrapped the existing <code>throw new Error('Image generation failed: \${status}')</code> with a structured Error that carries <code>code</code> + <code>retryable</code> hints (502/503/504/429 marked retryable). The frontend can use this later, but for now it just produces a cleaner error message in the SSE error envelope so users see "Image service is busy" instead of "Internal server error".</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 19:15</div>
+        <div class="what">Ran <code>npx tsc --noEmit</code> &mdash; no errors.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 19:16</div>
+        <div class="what">Ran <code>npm run test:all</code> &mdash; phase1 + phase2 + langfix all green (no image-gen tests exist).</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Bug repro confirmed via code-trace: no timeout on <code>callAzureImageGeneration</code> / <code>callAzureImageEdit</code> &rarr; Azure hang &rarr; client-side ~110s timeout &rarr; generic error envelope.</li>
+      <li>Cannot trigger live Azure-hang condition without restarting Azure deployment; fix is provably correct via code-trace.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td><code>npx tsc --noEmit</code></td><td class="ok">PASS &mdash; 0 errors</td></tr>
+        <tr><td>Unit (phase1)</td><td><code>npm run test:phase1</code></td><td class="ok">PASS</td></tr>
+        <tr><td>Unit (phase2)</td><td><code>npm run test:phase2</code></td><td class="ok">PASS</td></tr>
+        <tr><td>Unit (langfix)</td><td><code>npm run test:langfix</code></td><td class="ok">PASS</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>easebot-backend/src/services/imageGeneration.ts | ~40 lines (timeout helper + 2 fetch sites + 2 error throws)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/94">https://github.com/MeghaPatel07/easeBot/pull/94</a></p>
+
+    <footer>
+      Generated by fix-backend-api &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

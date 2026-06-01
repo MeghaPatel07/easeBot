@@ -45,6 +45,7 @@ import {
   deleteChecklistItem,
 } from '@/services/checklistService'
 import { deleteTimelineEvent } from '@/services/timelineEventsService'
+import { ChecklistLimitError } from '@/services/checklistLimits'
 import type { ReminderDoc, TimelineEvent } from '@/types'
 import { track } from '@/lib/analytics'
 
@@ -238,7 +239,11 @@ export default function TimelineView({
     }
     setSubmitting(true)
     try {
-      const created = await createChecklist(userId, trimmedText, [trimmedText])
+      // A timeline "task" is a single-item checklist — so it must respect the
+      // same free-tier checklist cap as the planner UI and the AI tool. The
+      // service enforces it (keyed on resolved tier); we surface the upgrade
+      // message on a cap hit instead of a generic failure (WE-20260601-103).
+      const created = await createChecklist(userId, trimmedText, [trimmedText], profile)
       const firstItem = created.items[0]
       if (firstItem) {
         await updateItemDueDate(userId, created.id, firstItem.id, taskDueDate)
@@ -250,7 +255,9 @@ export default function TimelineView({
       // via Firestore onSnapshot subscriptions in the parent.
       void onRefresh()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create task'
+      const msg = err instanceof ChecklistLimitError
+        ? err.message
+        : err instanceof Error ? err.message : 'Failed to create task'
       toast.error(msg)
     } finally {
       setSubmitting(false)

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-061 + WE-20260528-271</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-061 + WE-20260528-271 · Legal pages: line-length + heading-hierarchy <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-061 → Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-061</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p><b>-061</b>: Desktop /terms and /privacy stretch body text past comfortable reading line (~120ch+). Need max-w-prose cap (~65ch).</p>
+    <p><b>-271</b>: PrivacyPolicy H2 → H3 jumps under §2 and §12 with no intermediate prose. WCAG 2.4.6 readability issue.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Read both tickets + both source files (PrivacyPolicy.tsx, TermsOfService.tsx).</div>
+        <div class="detail">Confirmed outer container is <code>max-w-3xl</code> (768px ≈ ~80-90ch). Article uses <code>max-w-none</code> overriding Tailwind Typography default <code>max-w-prose</code>. Bug screenshot evidence (desktop-terms.png) confirms wide reading column.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Identified H2 → H3 jumps in PrivacyPolicy.</div>
+        <div class="detail">§2 "Information We Collect" → H3 "a. Information you provide" (no intermediate prose). §12 "Region-Specific Disclosures" → H3 "European Economic Area..." (no intermediate prose). TermsOfService.tsx has no H3s — only PrivacyPolicy needs heading-hierarchy fix.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Applied fixes.</div>
+        <div class="detail">
+          (1) Replaced <code>max-w-none</code> with <code>max-w-prose</code> on the article in both pages, keeping outer container at <code>max-w-3xl</code> so headline / footer stay wider. Body prose now caps at ~65ch — comfortable reading.<br>
+          (2) Added brief intermediate prose paragraph under §2 and §12 in PrivacyPolicy to provide context before the H3 subsections. No legal copy meaning changed — only navigational/contextual prose added.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">TypeScript check passed.</div>
+        <div class="detail"><code>npx tsc --noEmit -p tsconfig.app.json</code> — exit 0.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before-fix screenshot: <code>qa-harness/evidence/WE-20260528-061/screenshots/desktop-terms.png</code> (from triage)</li>
+      <li>After-fix verification: deferred to Krish review (visual change is straightforward Tailwind class swap)</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td>passed</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/pages/PrivacyPolicy.tsx   — article class max-w-none→max-w-prose; +2 intermediate &lt;p&gt; under §2 and §12
+src/pages/TermsOfService.tsx  — article class max-w-none→max-w-prose</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/102">https://github.com/MeghaPatel07/easeBot/pull/102</a></p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

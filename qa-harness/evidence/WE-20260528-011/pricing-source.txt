@@ -1,0 +1,18 @@
+File: Wedding-Ease-Viva-Chat/src/pages/Pricing.tsx (lines 30-32 + 53)
+
+const PRICING_DATA: PricingRow[] = [
+  { tier: 'free', monthlyUsd: 0, annualUsd: 0 },
+  { tier: 'pro', monthlyUsd: 10, annualUsd: 79, isRecommended: true },
+  { tier: 'promax', monthlyUsd: 39, annualUsd: 299 },
+]
+
+FAQ entry at line 53:
+"TheWeddingBot offers a free tier to get started. Pro ($10/mo) adds more
+tokens, image generation, and advanced planning tools. Pro Max ($39/mo)..."
+
+Locked memory: /Users/krish/.claude/projects/-Users-krish-Desktop-easebot/memory/project_pricing_rollout.md
+  §6 Tier caps (hardcoded, PRD §4):
+   - guest: 10 chat + 3 image per session (counters, not tokens)
+   - free: 50k/day + 300k/mo
+   - pro: 300k/day + 3M/mo ($14.99/mo or $119/yr)   ← truth
+   - promax: 800k/day + 8M/mo ($39/mo or $299/yr)   ← matches FE

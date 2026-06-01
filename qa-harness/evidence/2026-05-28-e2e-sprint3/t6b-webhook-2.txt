@@ -1,0 +1,25 @@
+HTTP/1.1 400 Bad Request
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+Access-Control-Allow-Origin: *
+RateLimit-Policy: 30;w=60
+RateLimit-Limit: 30
+RateLimit-Remaining: 28
+RateLimit-Reset: 60
+Content-Type: application/json; charset=utf-8
+Content-Length: 25
+ETag: W/"19-0NGzPg6jvETK83AV/F97i6Kvkbc"
+Date: Thu, 28 May 2026 09:24:52 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"hash_mismatch"}
