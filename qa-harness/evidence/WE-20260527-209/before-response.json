@@ -1,0 +1,6 @@
+{
+  "_note": "Pre-fix response from the production controller (reproduced from ticket repro + code path read of src/controllers/transcribeController.ts line 61 BEFORE fix).",
+  "_repro": "curl -X POST http://localhost:8787/api/transcribe -H 'Content-Type: application/json' -d '{\"audioBase64\":\"not-base64-garbage!!\"}'",
+  "_status": 500,
+  "error": "Audio conversion failed: ffmpeg exited with code 1: /var/folders/gd/p3q5gbvd1cl4gn1p8j1t9c4r0000gn/T/viva-input-1779875900921.webm: Invalid data found when processing input\n"
+}

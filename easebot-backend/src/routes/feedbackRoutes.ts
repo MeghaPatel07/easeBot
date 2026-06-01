@@ -1,14 +1,14 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthOrGuest } from '../middleware/auth'
 import { handleCreateFeedback } from '../controllers/feedbackController'
 
-// Feedback can be submitted by guests (no token required). The shared
-// `requireAuth` middleware is a guest-pass-through: it attaches `req.user`
-// when a valid Bearer token is present, and otherwise lets the request
-// proceed with `req.user === undefined`. The global `apiRateLimiter`
-// (mounted on /api/ in app.ts) already throttles this route at 30 req/min/IP.
+// Feedback can be submitted by guests, but anonymous callers must still carry a
+// valid guest session (X-Guest-Id). `requireAuthOrGuest` admits a valid user OR
+// a valid guest session, attaches `req.user` for authenticated callers, and
+// rejects invalid tokens / fully-anonymous callers (WE-20260527-202). The global
+// `apiRateLimiter` (mounted on /api/ in app.ts) additionally throttles this route.
 const router = Router()
 
-router.post('/', requireAuth, handleCreateFeedback)
+router.post('/', requireAuthOrGuest, handleCreateFeedback)
 
 export default router

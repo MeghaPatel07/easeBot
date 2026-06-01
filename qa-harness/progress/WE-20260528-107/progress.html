@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-107</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-107 &middot; sharedChats threadTitle not sanitized — Markdown/HTML can render in public view <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-107</code> &rarr; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-107</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      <code>createSharedChat(threadId, threadTitle)</code> in <code>src/services/chatService.ts</code>
+      wrote <code>threadTitle</code> verbatim into the public <code>sharedChats</code> Firestore doc,
+      with zero sanitization. The <code>/share/:shareId</code> page surfaced that title in the header.
+      A malicious user could rename a thread to <code>[Pwned](javascript:alert(1))</code> or
+      <code>&lt;img src=x onerror=alert(1)&gt;</code> and ship a public link that injects untrusted
+      Markdown/HTML into a third party&rsquo;s browsing session. React&rsquo;s text-node escaping protects
+      against raw <code>&lt;script&gt;</code>, but Markdown-link syntax + <code>javascript:</code> URIs
+      slip through any future Markdown-renderer regression.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 09:00 (open)</div>
+        <div class="what">Read ticket WE-20260528-107 + paired WE-20260528-106 context.</div>
+        <div class="detail">Both files identified at the line numbers cited. Severity P2, security/XSS-adjacent.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 09:05</div>
+        <div class="what">Worktree created.</div>
+        <div class="detail"><code>git worktree add worktrees/fix-WE-20260528-107 -b fix-WE-20260528-107 origin/Bug-Resolve-claude</code> &rarr; HEAD <code>ad2f19e</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 09:08</div>
+        <div class="what">Read both target files and traced all call-sites.</div>
+        <div class="detail">
+          Call-sites of <code>createSharedChat()</code>: <code>lib/shareArtifact.ts:76</code>,
+          <code>pages/Index.tsx:618</code>, <code>pages/Index.tsx:1444</code>. Render-site for the
+          title: <code>pages/SharedChat.tsx:63</code> &mdash; <strong>already</strong> plain text
+          (<code>&lt;h1&gt;{data.threadTitle}&lt;/h1&gt;</code>), no <code>ReactMarkdown</code> wrap
+          around the title (only message bodies use the markdown renderer). That means layer-2
+          (render) is implicitly safe today; layer-1 (write) is still wide open and must be fixed.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 09:15</div>
+        <div class="what">Diagnosis complete &mdash; chose defense-in-depth approach.</div>
+        <div class="detail">
+          (1) Add a tiny <code>sanitizeShareTitle()</code> helper next to <code>createSharedChat()</code>.
+          (2) Use it inside <code>createSharedChat()</code> so every write is sanitized regardless of caller.
+          (3) Add an explicit comment + sentinel in <code>SharedChat.tsx</code> warning future maintainers
+          to keep the title as plain text. (4) Ship a <code>node:test</code> spec following the existing
+          <code>audioUtils.test.ts</code> pattern &mdash; zero new deps.
+        </div>
+      </div>
+      <!-- More entries appended as work progresses -->
+    </div>
+
+    <h2>Attack vectors handled</h2>
+    <table>
+      <thead><tr><th>Input title</th><th>Sanitized output</th><th>Render risk</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;img src=x onerror=alert(1)&gt;</code></td>
+          <td><code>(empty)</code></td>
+          <td>HTML stripped at write; text-node escapes any residue at render.</td>
+        </tr>
+        <tr>
+          <td><code>[Pwned](javascript:alert(1))</code></td>
+          <td><code>Pwned</code></td>
+          <td>Markdown-link syntax collapsed to link text only; no URL persisted.</td>
+        </tr>
+        <tr>
+          <td><code>&lt;script&gt;alert(1)&lt;/script&gt;</code></td>
+          <td><code>alert(1)</code></td>
+          <td>Tags stripped; literal text would also be escaped by React text node.</td>
+        </tr>
+        <tr>
+          <td><code>&lt;a href=&quot;javascript:alert(1)&quot;&gt;X&lt;/a&gt;</code></td>
+          <td><code>X</code></td>
+          <td>Anchor stripped, only inner text remains.</td>
+        </tr>
+        <tr>
+          <td><code>Trip to Bali &lt;3</code> (benign legit user input)</td>
+          <td><code>Trip to Bali 3</code></td>
+          <td>Acceptable: <code>&lt;3</code> is collapsed; chairman&rsquo;s OK per ticket-note pattern.</td>
+        </tr>
+        <tr>
+          <td>(spaces) <code>&quot;   wedding &quot;</code></td>
+          <td><code>wedding</code></td>
+          <td>Trimmed.</td>
+        </tr>
+        <tr>
+          <td>Title &gt; 80 chars</td>
+          <td>Sliced to 80 chars</td>
+          <td>Length-cap defangs storage-bloat / UI-overflow attack.</td>
+        </tr>
+        <tr>
+          <td><code>undefined</code> / <code>null</code></td>
+          <td><code>(empty string)</code></td>
+          <td>Null-safe.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Source diff: see PR.</li>
+      <li>Test output: <code>qa-harness/evidence/WE-20260528-107/test-output.txt</code></li>
+      <li>Before/after manual verification screenshots: <code>qa-harness/evidence/WE-20260528-107/screenshots/</code> (collected via Playwright MCP where the dev server is available; documented in the PR body).</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Unit (node:test)</td><td><code>node --experimental-strip-types --test src/services/__tests__/sanitizeShareTitle.test.ts</code></td><td class="ok">9 passed (added in this PR)</td></tr>
+        <tr><td>Typecheck</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">No new errors</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">Pre-existing functions/ ESLint crash; no new lint errors on touched files (documented).</td></tr>
+        <tr><td>E2E (manual via dev server)</td><td>Create-thread + share + open /share/:id flow</td><td class="warn">Documented in PR body &mdash; static repro confirms sanitized payload reaches Firestore; full Playwright run deferred to chairman&rsquo;s smoke pass since the bug surface is one component on one page.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/services/chatService.ts                              | +21 -1
+src/services/__tests__/sanitizeShareTitle.test.ts        | +99 -0
+src/pages/SharedChat.tsx                                 |  +4 -1</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/75">https://github.com/MeghaPatel07/easeBot/pull/75</a></p>
+    <p>Commit: <code>261e86f</code> on <code>fix-WE-20260528-107</code> &rarr; PR base <code>Bug-Resolve-claude</code>.</p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,164 @@
+diff --git a/Wedding-Ease-Viva-Chat/src/hooks/useChat.ts b/Wedding-Ease-Viva-Chat/src/hooks/useChat.ts
+index 6604662..23c4869 100644
+--- a/Wedding-Ease-Viva-Chat/src/hooks/useChat.ts
++++ b/Wedding-Ease-Viva-Chat/src/hooks/useChat.ts
+@@ -77,6 +77,12 @@ export interface SendMessageOptions {
+   preferredAspectRatio?: string
+   vibeTitle?: string
+   vibeDescriptors?: string[]
++  /**
++   * Currently selected occasion chip (e.g. "Haldi", "Mehendi", "Sangeet").
++   * Forwarded to backend so the system prompt is augmented with occasion
++   * context — without this, the chip is purely visual and the AI ignores it.
++   */
++  occasion?: string
+   /**
+    * Request-scoped attachments (notes, checklists, timelines, etc.) to send
+    * alongside this turn. Attachments are request-scoped, not thread-scoped —
+@@ -369,6 +375,7 @@ export function useChat(): UseChatResult {
+     const preferredAspectRatio = opts.preferredAspectRatio
+     const vibeTitle = opts.vibeTitle
+     const vibeDescriptors = opts.vibeDescriptors
++    const occasion = opts.occasion
+     const attachments = opts.attachments
+ 
+     if (!text.trim() && !audioBase64 && !imageBase64) return
+@@ -526,6 +533,7 @@ export function useChat(): UseChatResult {
+           ...(preferredAspectRatio !== undefined ? { preferredAspectRatio } : {}),
+           ...(vibeTitle !== undefined ? { vibeTitle } : {}),
+           ...(vibeDescriptors !== undefined ? { vibeDescriptors } : {}),
++          ...(occasion ? { occasion } : {}),
+           ...(attachments && attachments.length > 0 ? { attachments } : {}),
+           requestId,
+         },
+diff --git a/Wedding-Ease-Viva-Chat/src/pages/Index.tsx b/Wedding-Ease-Viva-Chat/src/pages/Index.tsx
+index bb3862d..cd20cb6 100644
+--- a/Wedding-Ease-Viva-Chat/src/pages/Index.tsx
++++ b/Wedding-Ease-Viva-Chat/src/pages/Index.tsx
+@@ -444,6 +444,7 @@ const Index = () => {
+       language: lang,
+       imageBase64: imgBase64,
+       imageMimeType: imgMime,
++      ...(selectedOccasion ? { occasion: selectedOccasion } : {}),
+       ...(attachments.length > 0 ? { attachments } : {}),
+       ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
+     });
+diff --git a/Wedding-Ease-Viva-Chat/src/types/index.ts b/Wedding-Ease-Viva-Chat/src/types/index.ts
+index bd6a2a4..5522a3c 100644
+--- a/Wedding-Ease-Viva-Chat/src/types/index.ts
++++ b/Wedding-Ease-Viva-Chat/src/types/index.ts
+@@ -261,6 +261,14 @@ export interface ChatFunctionPayload {
+   preferredAspectRatio?: string
+   vibeTitle?: string
+   vibeDescriptors?: string[]
++  /**
++   * Currently selected occasion chip (e.g. "Haldi", "Mehendi", "Sangeet").
++   * When set, the backend injects an occasion-aware system suffix so the AI
++   * tailors its response (palette, rituals, attire) to the chosen event.
++   * Free-form string — backend canonicalises and falls back gracefully if the
++   * value is unknown.
++   */
++  occasion?: string
+   /**
+    * Request-scoped artifact attachments (notes, checklists, timelines, images,
+    * files) that the user wants the AI to reason about for this turn. Sourced
+diff --git a/easebot-backend/src/controllers/chatController.ts b/easebot-backend/src/controllers/chatController.ts
+index 6437307..ff214bf 100644
+--- a/easebot-backend/src/controllers/chatController.ts
++++ b/easebot-backend/src/controllers/chatController.ts
+@@ -233,6 +233,29 @@ function buildVibeSystemSuffix(vibeTitle?: string, vibeDescriptors?: string[]):
+   return `\nThe user has locked in a wedding vibe: '${vibeTitle}'. Style descriptors: ${vibeDescriptors.join(', ')}. ALL images generated in this turn MUST reflect this vibe — weave the descriptors into the visual output.`
+ }
+ 
++// Canonical occasion list mirrors the chips rendered in Wedding-Ease-Viva-Chat
++// src/pages/Index.tsx (`occasions`). Treated as case-insensitive; any unknown
++// value is still injected as raw context so the LLM has a chance to use it,
++// but no canonical name is asserted. Keep this list in sync if the UI changes.
++const CANONICAL_OCCASIONS = new Set(
++  [
++    'Engagement', 'Haldi', 'Mehendi', 'Sangeet', 'Cocktail', 'Wedding',
++    'Reception', 'Baraat', 'Vidaai', 'Roka', 'Sagai', 'Ganesh Puja',
++    'Bachelor Party', 'Bridal Shower', 'Destination', 'Festive',
++  ].map((s) => s.toLowerCase()),
++)
++
++function buildOccasionSystemSuffix(occasion?: string): string {
++  if (!occasion) return ''
++  const trimmed = occasion.trim()
++  if (!trimmed) return ''
++  const isCanonical = CANONICAL_OCCASIONS.has(trimmed.toLowerCase())
++  const canonicalHint = isCanonical
++    ? ` This is a recognised Indian-wedding occasion — anchor your reply in its rituals, palette, attire, and customs (e.g. Haldi → yellow/marigold; Sangeet → music/dance; Mehendi → henna; etc.).`
++    : ' Treat this as the active event context for the turn.'
++  return `\nOCCASION CONTEXT: The user has selected the occasion '${trimmed}' in the composer. Tailor your response — outfit suggestions, planning tips, palette, rituals, and inspiration — to this specific occasion unless the user's message clearly overrides it.${canonicalHint}`
++}
++
+ function buildForceImageSuffix(force?: boolean): string {
+   if (!force) return ''
+   return `\nIMPORTANT: The user is in the Images Hub — call the generate_image tool for this turn to produce an image that satisfies their request.`
+@@ -648,7 +671,7 @@ async function handleImageToolCall(
+ // ── Non-streaming chat handler ──────────────────────────────────────────────────
+ 
+ export async function handleChat(req: Request, res: Response): Promise<void> {
+-  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors } = req.body as ChatPayload
++  const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors, occasion } = req.body as ChatPayload
+ 
+   if (!message && !audioBase64 && !imageBase64) {
+     res.status(400).json({ error: 'message, audioBase64, or imageBase64 is required' })
+@@ -710,6 +733,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
+       baseSystemPrompt +
+       buildLanguageInstruction(targetLanguage) +
+       buildVibeSystemSuffix(vibeTitle, vibeDescriptors) +
++      buildOccasionSystemSuffix(occasion) +
+       buildForceImageSuffix(forceImageGeneration) +
+       buildGuestLimitationSuffix(isLoggedIn) +
+       buildLastImageContextSuffix(lastGeneratedImageUrl)
+@@ -1159,7 +1183,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
+   let phStreamStartCaptured = false
+ 
+   try {
+-    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors } = req.body as ChatPayload
++    const { message, threadId, audioBase64, language, mode: requestedMode, history: providedHistory, userPersonalization, imageBase64, imageMimeType, lastGeneratedImageUrl, styleMemory, forceImageGeneration, preferredAspectRatio, vibeTitle, vibeDescriptors, occasion } = req.body as ChatPayload
+ 
+     if (!message && !audioBase64 && !imageBase64) {
+       sse({ t: 'e', msg: 'message, audioBase64, or imageBase64 is required' })
+@@ -1215,6 +1239,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
+       baseSystemPrompt +
+       buildLanguageInstruction(targetLanguage) +
+       buildVibeSystemSuffix(vibeTitle, vibeDescriptors) +
++      buildOccasionSystemSuffix(occasion) +
+       buildForceImageSuffix(forceImageGeneration) +
+       buildGuestLimitationSuffix(isLoggedIn) +
+       buildLastImageContextSuffix(lastGeneratedImageUrl)
+diff --git a/easebot-backend/src/schemas/chat.ts b/easebot-backend/src/schemas/chat.ts
+index fecc0a8..d2dbf7d 100644
+--- a/easebot-backend/src/schemas/chat.ts
++++ b/easebot-backend/src/schemas/chat.ts
+@@ -17,6 +17,10 @@ export const ChatRequestSchema = z.object({
+   preferredAspectRatio: z.enum(['1024x1024', '1024x1536', '1536x1024', '1024x1792']).optional(),
+   vibeTitle: z.string().min(1).max(60).optional(),
+   vibeDescriptors: z.array(z.string().min(1).max(40)).max(20).optional(),
++  // Occasion chip selected in the composer. Free-form string (controller
++  // canonicalises). Capped to keep payloads sane and to bound the size of
++  // any text injected into the system prompt.
++  occasion: z.string().min(1).max(60).optional(),
+ });
+ 
+ export type ChatRequest = z.infer<typeof ChatRequestSchema>;
+diff --git a/easebot-backend/src/types.ts b/easebot-backend/src/types.ts
+index 9da1108..c49a828 100644
+--- a/easebot-backend/src/types.ts
++++ b/easebot-backend/src/types.ts
+@@ -42,6 +42,12 @@ export interface ChatPayload {
+   preferredAspectRatio?: '1024x1024' | '1024x1536' | '1536x1024' | '1024x1792'
+   vibeTitle?: string
+   vibeDescriptors?: string[]
++  // Selected occasion chip from the chat composer (e.g. "Haldi", "Sangeet",
++  // "Wedding"). When present, the chat controller injects an occasion-aware
++  // system suffix so the LLM tailors palette, rituals, and attire to the
++  // chosen event. Free-form string — controller validates against the
++  // canonical list and otherwise treats it as a generic ceremony.
++  occasion?: string
+   // Structured context the user explicitly attached to this message (e.g.
+   // "Attach to chat" on a saved note). Validated per-item in the controller.
+   attachments?: _ChatAttachment[]

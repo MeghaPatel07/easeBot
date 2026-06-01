@@ -190,7 +190,11 @@
       "Bash(awk 'NR>=1079 && NR<=1110 {print NR\": \"$0} /^export async function handleChatStream/,/^export /' /Users/krish/Desktop/easebot/easebot-backend/src/controllers/chatController.ts)",
       "Bash(awk 'NR>=1600 && NR<=1720' /Users/krish/Desktop/easebot/easebot-backend/src/controllers/chatController.ts)",
       "Bash(git log *)",
-      "Bash(sips -g all \"/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/IMG_0721.png\")"
+      "Bash(sips -g all \"/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/IMG_0721.png\")",
+      "Bash(python3 -c ' *)",
+      "Bash(awk '/export function resolveAlgoliaQuery/,/^}/' src/services/keywordDirectory.ts)",
+      "Bash(grep -rniE \"products?\\\\.slice|PRODUCTS_PER|\\\\.slice\\\\\\(0, ?[34]\\\\\\)|productsHasMore|product.{0,12}carousel|ProductCard|ProductCarousel\" --include=\"*.ts\" --include=\"*.tsx\" src)",
+      "Bash(echo \"---tsc-done rc=$?---\")"
     ]
   }
 }

@@ -244,7 +244,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
         {!readOnly ? (
           <Popover>
             <PopoverTrigger asChild>
-              <button className="text-xl hover:bg-foreground/10 rounded-lg p-1 transition-colors flex-shrink-0" title="Change icon">
+              <button className="text-xl hover:bg-foreground/10 rounded-lg p-1 transition-colors flex-shrink-0" title="Change icon" aria-label="Change note icon">
                 {note.icon || '📝'}
               </button>
             </PopoverTrigger>
@@ -301,6 +301,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                   type="button"
                   onClick={() => editor.chain().focus().undo().run()}
                   disabled={!editor.can().undo()}
+                  aria-label="Undo"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <Undo2 className="h-3.5 w-3.5" />
@@ -317,6 +318,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                   type="button"
                   onClick={() => editor.chain().focus().redo().run()}
                   disabled={!editor.can().redo()}
+                  aria-label="Redo"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <Redo2 className="h-3.5 w-3.5" />
@@ -341,6 +343,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                       console.error('Copy failed:', err);
                     }
                   }}
+                  aria-label="Copy selection"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors"
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -367,6 +370,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                       console.error('Cut failed:', err);
                     }
                   }}
+                  aria-label="Cut selection"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors"
                 >
                   <Scissors className="h-3.5 w-3.5" />
@@ -390,6 +394,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                       console.error('Paste failed:', err);
                     }
                   }}
+                  aria-label="Paste"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors"
                 >
                   <ClipboardPaste className="h-3.5 w-3.5" />
@@ -479,11 +484,12 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
               <Button
                 onClick={onToggleComments}
                 variant="ghost"
+                aria-label={`Comments${(commentsCount ?? 0) > 0 ? `, ${commentsCount} new` : ''}`}
                 className="h-8 w-8 rounded-lg hover:bg-foreground/10 text-foreground/50 p-0 relative"
               >
                 <MessageSquare className="h-3.5 w-3.5" />
                 {(commentsCount ?? 0) > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-medium px-1">
+                  <span aria-hidden="true" className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-medium px-1">
                     {commentsCount}
                   </span>
                 )}
@@ -530,7 +536,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
         {/* More menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 rounded-lg hover:bg-foreground/10 text-foreground/50 p-0">
+            <Button variant="ghost" aria-label="More note actions" className="h-8 w-8 rounded-lg hover:bg-foreground/10 text-foreground/50 p-0">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

@@ -1,0 +1,14 @@
+$ curl -N -X POST http://localhost:3001/api/chat/stream -H "Content-Type: application/json" -d '{"message":"hi"}'
+
+id: 1
+data: {"t":"c","v":"Hi"}
+
+id: 2
+data: {"t":"c","v":" there"}
+
+id: 3
+data: {"t":"c","v":"!"}
+
+id: 4
+data: {"t":"c","v":" Planning"}
+...

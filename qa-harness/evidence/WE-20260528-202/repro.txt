@@ -1,0 +1,19 @@
+=== requireAuth IS OPTIONAL — verified on main 2026-05-28 ===
+
+middleware (auth.ts:21-27):
+  if (!authHeader?.startsWith('Bearer ')) {
+    next()    ← guest pass-through
+    return
+  }
+
+Test 1: POST /api/chat without Authorization
+  HTTP 200, full LLM response
+
+Test 2: POST /api/tts without Authorization
+  HTTP 200, raw WAV audio bytes (Azure TTS billed to the project)
+
+Test 3: POST /api/account/delete without Authorization
+  HTTP 401 — this route correctly checks req.user inside handler
+
+Pattern: chat/tts/transcribe rely on middleware to enforce auth.
+The middleware doesn't enforce. Quota acts as soft cap but uses X-Guest-Id (caller-controlled).

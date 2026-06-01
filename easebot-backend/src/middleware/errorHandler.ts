@@ -2,7 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 
 interface ErrorResponse {
+  // `error` is the legacy field the frontend reads (functionsService etc.).
+  // `message` is the WE-20260527-1010 canonical envelope field. We emit BOTH,
+  // identical, so the shape stays consistent for existing consumers while new
+  // ones can rely on { code, message }.
   error: string;
+  message: string;
   code: string;
   requestId?: string;
 }
@@ -102,11 +107,18 @@ export function errorHandler(
   } else {
     statusCode = err.status ?? err.statusCode ?? 500;
     errorCode = err.code ?? 'INTERNAL_ERROR';
-    errorMessage = isProduction ? 'An internal error occurred' : (err.message || 'An internal error occurred');
+    // WE-20260527-1010: NEVER echo raw err.message for server errors (5xx) —
+    // it leaks stack hints, dependency names, SQL/Firestore fragments, etc.
+    // The full diagnostic is already logged server-side above. This applies in
+    // ALL environments (not just production) so a mis-set NODE_ENV can't turn
+    // into a disclosure bug. Known 4xx branches above keep their actionable,
+    // already-sanitised messages.
+    errorMessage = statusCode >= 500 ? 'An internal error occurred' : (err.message || 'Request failed');
   }
 
   const response: ErrorResponse = {
     error: errorMessage,
+    message: errorMessage,
     code: errorCode,
   };
 

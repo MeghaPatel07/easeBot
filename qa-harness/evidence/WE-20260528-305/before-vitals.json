@@ -1,0 +1,33 @@
+{
+  "ticket": "WE-20260528-305",
+  "branch": "fix-WE-20260528-305",
+  "base": "Bug-Resolve-claude",
+  "build_at": "2026-05-29",
+  "method": "vite build (production) — chunk graph analysis",
+  "notes": "Lighthouse / DevTools MCP traces not used as the primary measure: dev server requires backend on :3001 and the /ingest proxy makes cold-cache traces noisy with backend warm-up. Instead we measure the deterministic thing — what ends up in the initial chunk graph (modulepreload chain) emitted by Vite. The ticket itself is about a chunk graph problem.",
+  "chunk_graph": {
+    "entry": "assets/index-BIrFBi5o.js (39.77 kB / 13.88 kB gz)",
+    "modulepreload_initial_chain": [
+      "vendor-react-nj-5CZd8.js (146.54 kB / 47.58 kB gz)",
+      "vendor-DqJL847i.js (397.41 kB / 136.39 kB gz)",
+      "vendor-pdf-10J_mlQh.js (574.70 kB / 173.04 kB gz)",
+      "vendor-tiptap-BzRqVSZ4.js (457.76 kB / 138.01 kB gz)",
+      "vendor-radix-D0BWXkKe.js (122.09 kB / 35.43 kB gz)",
+      "vendor-lucide-BXT1kQbJ.js (53.79 kB / 9.90 kB gz)",
+      "vendor-firebase-CssYNPO6.js (541.53 kB / 126.03 kB gz)",
+      "vendor-phone-D3mC5Ha-.js (155.91 kB / 36.03 kB gz)",
+      "vendor-posthog-CHP4ijfT.js (182.44 kB / 60.62 kB gz)"
+    ],
+    "posthog_in_initial_chain": true,
+    "vendor_posthog_raw_kb": 182.44,
+    "vendor_posthog_gz_kb": 60.62,
+    "initial_chain_total_raw_kb": 2671.94,
+    "initial_chain_total_gz_kb": 776.27
+  },
+  "expected_after": {
+    "posthog_in_initial_chain": false,
+    "vendor_posthog_chunk_still_exists": true,
+    "vendor_posthog_loads_via": "dynamic import inside requestIdleCallback after first paint",
+    "initial_chain_total_gz_kb_target": "715.65 (-60.62)"
+  }
+}

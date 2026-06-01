@@ -1,0 +1,3 @@
+Test: POST /api/chat/stream with Last-Event-ID: 1 header.
+Observed: server begins a fresh response from id:1 (not from id:2 as the header would imply).
+Server logs: "[chat:sse] Client reconnecting with Last-Event-ID: 1" but no replay behaviour.

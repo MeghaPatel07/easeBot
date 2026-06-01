@@ -1,0 +1,7 @@
+Input size: 5701 KB (2400x2400 noisy JPEG)
+metadata: 0ms
+upscale 2x: 240ms
+webp q=90: 882ms (4408 KB)
+jpeg mozjpeg q=92: 2171ms (4268 KB)
+pipeline upscale+webp: 7975ms (12365 KB)
+compress cascade 4: 6416ms

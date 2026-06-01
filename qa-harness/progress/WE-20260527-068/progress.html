@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260527-060 / 068 / 070</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260527-060 / 068 / 070 · Login.tsx rollup fix <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260527-060</code> (PRs into <code>Bug-Resolve-claude</code>) ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260527-060</code>
+      </div>
+    </header>
+
+    <h2>Bug summaries (all touch <code>src/pages/Login.tsx</code>)</h2>
+    <ul>
+      <li><b>-060</b>: "WHAT YOU GET" benefits card pushed below the fold on mobile (consent banner + form push it). Most of the bullets are obscured by the fixed consent banner.</li>
+      <li><b>-068</b>: After entering any email, the next step shows "Welcome Back" + password — even for brand-new emails. No email-existence branch.</li>
+      <li><b>-070</b>: Two divergent sign-in surfaces (Login page + SettingsModal) with similar copy. PR #84 owns SettingsModal; we differentiate Login.tsx copy here so the two surfaces don't compete.</li>
+    </ul>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 (worktree set up)</div>
+        <div class="what">Created worktree <code>worktrees/fix-WE-20260527-060</code> on branch <code>fix-WE-20260527-060</code> tracking <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Read all three tickets and full <code>src/pages/Login.tsx</code>.</div>
+        <div class="detail">Confirmed: only <code>Login.tsx</code> needs modification per direction. <code>fetchSignInMethodsForEmail</code> already imported in <code>src/services/authService.ts</code>; will reuse the firebase/auth SDK directly in Login.tsx to keep blast radius small.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Applied -060 fix: mobile benefits card now hidden by default (<code>hidden lg:block</code>) and an inline accordion (<code>&lt;details&gt;</code>) is shown only below <code>lg</code>.</div>
+        <div class="detail">Mobile users see a small "What you get" disclosure they can expand instead of a full card that gets eaten by the consent banner.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Applied -068 fix: on "Continue With Email" we call <code>fetchSignInMethodsForEmail(auth, email)</code> and branch on the result. <code>password</code> → existing-user "Welcome back" + password step; <code>google.com</code>-only → prompt to use Google; no methods → "No account found. Create one?" with link to <code>/</code>.</div>
+        <div class="detail">Network errors fall through to the password step so a flaky preflight never blocks sign-in.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Applied -070 fix: differentiated Login.tsx copy. Hero is now "Welcome to TheWeddingBot" with sub "Sign in or create an account..." — first-time landing tone. SettingsModal (untouched here) keeps its "Let's continue your story" mid-session copy.</div>
+      </div>
+    </div>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">0 errors</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/pages/Login.tsx (only)</pre>
+
+    <h2>PR</h2>
+    <p>See PR linked from ticket metadata.</p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260601-355</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: #0c0c0e; color: #e4e4e7; line-height: 1.6; }
+    .container { max-width: 760px; margin: 0 auto; padding: 2rem 1.5rem; }
+    h1 { font-size: 1.4rem; }
+    a { color: #f97cb1; }
+    code { background: #0a0a0c; border: 1px solid #2a2a30; border-radius: 6px; padding: 0.1rem 0.35rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WE-20260601-355 &mdash; SharedChat header contrast collapse</h1>
+    <p>
+      This ticket was fixed in the same PR as <code>WE-20260601-150</code> (both are malformed-className / contrast
+      issues on Tailwind <code>foreground</code> tokens). The full audit trail, test results, and JIT/CSS-emission
+      evidence live in the combined progress report:
+    </p>
+    <p>
+      &rarr; <a href="../WE-20260601-150/progress.html"><code>qa-harness/progress/WE-20260601-150/progress.html</code></a>
+    </p>
+    <p>
+      Summary of the -355 fix: the public SharedChat header background was changed from
+      <code>bg-foreground/80</code> to <code>bg-card-elevated/90</code> with an explicit
+      <code>border-foreground/[0.08]</code>; the title from <code>text-foreground/80</code> to full
+      <code>text-foreground</code>; metadata from <code>text-foreground/40</code> to <code>text-muted-foreground</code>;
+      and the read-only pill from <code>text-foreground/40 bg-foreground/10</code> to
+      <code>text-muted-foreground bg-foreground/[0.06]</code>. card-elevated pairs with foreground in both themes, so
+      the title and metadata now clear WCAG-AA contrast.
+    </p>
+  </div>
+</body>
+</html>
