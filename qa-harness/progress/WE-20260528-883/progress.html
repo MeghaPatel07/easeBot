@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-883 / 889 / 898 (toast bundle)</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    td.ok { color: var(--ok); }
+    td.warn { color: var(--warn); }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-883 / 889 / 898 · Toast bundle: slide direction + break-words + viewport max-h <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-883</code> (PR base: <code>Bug-Resolve-claude</code>) ·
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-883</code>
+      </div>
+    </header>
+
+    <h2>Bundle rationale</h2>
+    <p>Three tickets all touch <code>src/components/ui/toast.tsx</code> at adjacent lines (17 viewport, 26 variants, 107 description). Bundled into one PR to avoid serial merge conflicts on the same file.</p>
+
+    <h2>Bug summaries</h2>
+    <ul>
+      <li><b>WE-20260528-883 (P3)</b>: Toast <code>data-state=open</code> slide-in direction inconsistent between mobile (<code>slide-in-from-top-full</code>) and desktop (<code>slide-in-from-bottom-full</code>). Desktop viewport is anchored bottom-right but motion comes from bottom edge — also off-screen on landscape iPad.</li>
+      <li><b>WE-20260528-889 (P2)</b>: <code>ToastDescription</code> has no <code>break-words</code>. Long backend errors (500+ chars / stack traces) overflow and get clipped by parent <code>overflow-hidden</code> with no ellipsis or scroll.</li>
+      <li><b>WE-20260528-898 (P2)</b>: <code>ToastViewport</code> uses <code>max-h-screen</code> on mobile. With 10+ stacked toasts the stack fills the entire viewport with no internal scroll affordance — oldest toasts unreachable.</li>
+    </ul>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 setup</div>
+        <div class="what">Created worktree from <code>origin/Bug-Resolve-claude</code> and branch <code>fix-WE-20260528-883</code>.</div>
+        <div class="detail">Confirmed no other open PR touches <code>toast.tsx</code> — clean to bundle 3 tickets.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 read</div>
+        <div class="what">Read <code>src/components/ui/toast.tsx</code> end-to-end + <code>toaster.tsx</code> + <code>App.tsx</code> usage.</div>
+        <div class="detail">Confirmed: viewport positioned <code>top-0</code> on mobile, <code>bottom-0 right-0</code> on sm+. Description sub-component has no wrap rules. Motion direction inconsistent across breakpoints.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 fix-883</div>
+        <div class="what">Slide direction: changed <code>data-[state=open]:sm:slide-in-from-bottom-full</code> → <code>data-[state=open]:sm:slide-in-from-right-full</code>.</div>
+        <div class="detail">Mobile (viewport at top): slides from top — unchanged. Desktop/tablet (viewport at bottom-right): now slides from right, matching the anchor edge naturally. Consistent <em>relative</em> motion across breakpoints (always from the edge the viewport docks to).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 fix-889</div>
+        <div class="what">Added <code>break-words [overflow-wrap:anywhere] max-h-32 overflow-y-auto</code> to <code>ToastDescription</code>.</div>
+        <div class="detail">Long backend error messages now wrap inside the toast and scroll internally if they exceed 8rem (~128px) tall, instead of clipping.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 fix-898</div>
+        <div class="what">Viewport: replaced <code>max-h-screen</code> with <code>max-h-[50vh] overflow-y-auto gap-2</code>.</div>
+        <div class="detail">Cap the stack at half the viewport height with internal scroll. Added <code>gap-2</code> for breathing room between stacked toasts. Honors the swipe-to-dismiss behavior of Radix Toast root.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 verify</div>
+        <div class="what">Type-check: <code>npx tsc --noEmit -p tsconfig.app.json</code> — no errors in <code>toast.tsx</code>.</div>
+        <div class="detail">Pre-existing errors in <code>ChatInput.tsx</code>, <code>ProfileMenu.tsx</code>, <code>Index.tsx</code>, <code>AccountTab.tsx</code> etc. unrelated to this change.</div>
+      </div>
+    </div>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type-check (file scope)</td><td><code>npx tsc --noEmit -p tsconfig.app.json | grep toast</code></td><td class="ok">No errors in toast.tsx</td></tr>
+        <tr><td>Lint (file)</td><td><code>npx eslint src/components/ui/toast.tsx</code></td><td class="warn">ESLint config has pre-existing rule-loader bug (allowShortCircuit) — affects all files, not specific to this change</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/components/ui/toast.tsx | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)</pre>
+
+    <h2>Tickets</h2>
+    <ul>
+      <li><code>qa-harness/tickets/2026-05-28/WE-20260528-883.md</code> · slide direction</li>
+      <li><code>qa-harness/tickets/2026-05-28/WE-20260528-889.md</code> · description break-words</li>
+      <li><code>qa-harness/tickets/2026-05-28/WE-20260528-898.md</code> · viewport max-h</li>
+    </ul>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

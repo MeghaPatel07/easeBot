@@ -1,0 +1,61 @@
+# AFTER FIX — evidence for WE-20260528-004
+# Captured: 2026-05-29
+
+## Changes
+- easebot-backend/.env.example: FRONTEND_BASE_URL default flipped 8080 → 8081
+  with explanatory comment about Vite dev port + prod-required-ness.
+- easebot-backend/src/controllers/paymentController.ts:
+    + frontendBaseUrl() helper: env → dev fallback (:8081) → throw in prod.
+    + handleReturn() switched from env('FRONTEND_BASE_URL') to frontendBaseUrl().
+    + validatePaymentConfig() adds FRONTEND_BASE_URL to required list when
+      NODE_ENV=production; logs a one-line warning in dev if unset.
+
+## Live verification (standalone harness, ephemeral port)
+
+Harness mounts a replica of the patched resolver + handleReturn's early
+"bad_payload" redirect branch on a tiny Express app, fires POSTs, captures
+the 302 Location header. Source: qa-harness/evidence/.../verify-source.mjs.
+
+[dev, FRONTEND_BASE_URL unset (NEW fallback)]
+  -> Location: http://localhost:8081/payment/failure?reason=bad_payload
+
+[dev, FRONTEND_BASE_URL=http://localhost:8081 (explicit)]
+  -> Location: http://localhost:8081/payment/failure?reason=bad_payload
+
+[dev, FRONTEND_BASE_URL=http://localhost:8080 (legacy override still honored)]
+  -> Location: http://localhost:8080/payment/failure?reason=bad_payload
+
+[prod, FRONTEND_BASE_URL=https://app.example.com]
+  -> Location: https://app.example.com/payment/failure?reason=bad_payload
+
+[prod, FRONTEND_BASE_URL unset]
+  -> throws: missing env: FRONTEND_BASE_URL (validatePaymentConfig also exits at boot)
+
+## Behaviour matrix
+
+| NODE_ENV    | FRONTEND_BASE_URL set? | Result                                              |
+|-------------|------------------------|-----------------------------------------------------|
+| development | no                     | falls back to http://localhost:8081 (no crash)      |
+| development | yes (any URL)          | uses env value verbatim                             |
+| production  | no                     | validatePaymentConfig() exits process at boot       |
+| production  | yes                    | uses env value verbatim                             |
+
+## Tests
+
+$ npx tsc --noEmit
+(no output — clean)
+
+$ npm run test:all
+phase1:cache       -> 13 pass / 0 fail
+phase1:controller  -> 12 pass / 0 fail
+phase2:phrases     -> 15 pass / 0 fail
+langfix:inbound    -> 15 pass / 0 fail
+TOTAL: 55 / 55 pass
+
+## Production impact (zero, if env was set)
+
+If an existing prod deploy already set FRONTEND_BASE_URL explicitly (as it
+should, and as the .env.example comment now states), behavior is identical
+to before this patch. The patch's prod-side change is purely defensive:
+boot now fails fast if the env is missing, instead of waiting for the first
+PayU return to crash mid-flight.

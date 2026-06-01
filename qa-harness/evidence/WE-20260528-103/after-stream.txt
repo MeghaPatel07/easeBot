@@ -1,0 +1,6 @@
+=== Stream-endpoint mode validation AFTER FIX ===
+
+Found /stream route:
+  router.post('/stream', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), (req: Request, res: Response) => {
+
+  -> validateBody(ChatRequestSchema) is present.  OK

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-860</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-860 · Sonner toaster hard-coded theme="dark" ignores useTheme() <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-860</code> -> <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-860</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      <code>src/components/ui/sonner.tsx</code> reads <code>theme</code> from
+      <code>useTheme()</code> on line 7 but then passes a literal <code>"dark"</code>
+      to the underlying <code>&lt;Sonner&gt;</code> component on line 11. The hook
+      return value is unused, so toasts always render dark even in light mode —
+      visibly clashing with the cream/light palette on <code>/chat</code>.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Read ticket WE-20260528-860 + located affected file <code>src/components/ui/sonner.tsx</code>.</div>
+        <div class="detail">Confirmed root cause matches ticket: line 11 hard-codes <code>theme="dark"</code> while line 7 destructures <code>theme</code> from <code>useTheme()</code> and never uses it. Classic shadcn copy-paste error.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Created worktree <code>worktrees/fix-WE-20260528-860</code> off <code>origin/Bug-Resolve-claude</code> on new branch <code>fix-WE-20260528-860</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Applied 1-line fix: <code>theme="dark"</code> -> <code>theme={theme as ToasterProps["theme"]}</code>.</div>
+        <div class="detail">Smallest possible change. Hook return value is now actually consumed.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Ran <code>npx tsc --noEmit -p tsconfig.app.json</code> — clean.</div>
+      </div>
+      <div class="entry warn">
+        <div class="time">2026-05-29</div>
+        <div class="what">Ran <code>npm run lint</code> — note pre-existing functions/ ESLint config crash (out of scope).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Committed + pushed + opened PR against <code>Bug-Resolve-claude</code>.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Source diff: 1 file, 1 line. See <code>git diff</code> in PR.</li>
+      <li>Ticket: <code>qa-harness/tickets/2026-05-28/WE-20260528-860.md</code></li>
+      <li>P3 visual bug — no screenshot needed; static code change verifiable via diff.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed (no diagnostics)</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">pre-existing functions/ ESLint crash (not introduced by this change)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/components/ui/sonner.tsx | 2 +-
+1 file changed, 1 insertion(+), 1 deletion(-)</pre>
+
+    <h2>PR</h2>
+    <p>See ticket file for the final PR URL.</p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

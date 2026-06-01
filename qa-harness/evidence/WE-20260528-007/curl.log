@@ -1,0 +1,12 @@
+$ curl -sS -X POST http://localhost:3001/api/chat -H "Content-Type: application/json" -d '{"message":"hi","mode":"chat"}'
+{"error":"Validation failed","details":[{"received":"chat","code":"invalid_enum_value","options":["planner","styler","knowledge"],"path":["mode"],"message":"Invalid enum value. Expected 'planner' | 'styler' | 'knowledge', received 'chat'"}]}
+
+$ curl -sS -X POST http://localhost:3001/api/chat -H "Content-Type: application/json" -d '{"message":"hi","mode":"image"}'
+{"error":"Validation failed","details":[{"received":"image","code":"invalid_enum_value","options":["planner","styler","knowledge"],"path":["mode"],"message":"Invalid enum value. Expected 'planner' | 'styler' | 'knowledge', received 'image'"}]}
+
+$ curl -sS -X POST http://localhost:3001/api/chat -H "Content-Type: application/json" -d '{"message":"hi","mode":"planner"}'
+{"text":"Hi there! ...","mode":"planner",...}  # ACCEPTED
+
+$ grep -A2 "Active modes" /Users/krish/Desktop/easebot/CLAUDE.md
+## Active modes
+Three AI modes live in `easebot-backend/src/pipeline/` — therapist + consultant modes are commented out, only `chat`/`planner`/`image` are wired.

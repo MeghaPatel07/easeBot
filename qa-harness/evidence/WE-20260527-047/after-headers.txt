@@ -1,0 +1,37 @@
+
+========================================
+apiRateLimiter (30/min) (hammering until 429…)
+========================================
+HTTP/1.1 429
+content-type: application/json; charset=utf-8
+ratelimit: limit=30, remaining=0, reset=60
+ratelimit-policy: 30;w=60
+retry-after: 60
+
+Body:
+{"error":"rate_limited","retry_after":60,"limit":30,"window_seconds":60,"scope":"api"}
+
+========================================
+imageRateLimiter (5/min) (hammering until 429…)
+========================================
+HTTP/1.1 429
+content-type: application/json; charset=utf-8
+ratelimit: limit=5, remaining=0, reset=60
+ratelimit-policy: 5;w=60
+retry-after: 60
+
+Body:
+{"error":"rate_limited","retry_after":60,"limit":5,"window_seconds":60,"scope":"image"}
+
+========================================
+chatBurstRateLimiter (10/10s, per-uid|guest-fp) (hammering until 429…)
+========================================
+{"kind":"obs","event":"chat_burst_flag","ts":"2026-05-29T13:41:50.857Z","key":"g:e51a151e7b2c0d43","path":"/probe"}
+HTTP/1.1 429
+content-type: application/json; charset=utf-8
+ratelimit: limit=10, remaining=0, reset=10
+ratelimit-policy: 10;w=10
+retry-after: 10
+
+Body:
+{"error":"rate_limited","retry_after":10,"limit":10,"window_seconds":10,"scope":"chat_burst","code":"chat_burst_limit"}

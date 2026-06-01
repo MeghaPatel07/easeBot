@@ -1,0 +1,44 @@
+---- BEFORE ----
+{
+  "message": "hi",
+  "history": [
+    {
+      "role": "user",
+      "content": "NUL\u0000+BEL\u0007+evil+\u001b[31mRED\u001b[0m"
+    }
+  ],
+  "vibeTitle": "\u001b[2J\u001b[Hclear",
+  "vibeDescriptors": [
+    "romantic\u0000",
+    "mod\u001bern"
+  ],
+  "imageMimeType": "image/png\u0000",
+  "language": "en\u001b",
+  "threadId": "thr_abc\u0007",
+  "imageData": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgAAIAAAUAAeImBZsAAAAASUVORK5CYII="
+}
+---- AFTER ----
+{
+  "message": "hi",
+  "history": [
+    {
+      "role": "user",
+      "content": "NUL+BEL+evil+[31mRED[0m"
+    }
+  ],
+  "vibeTitle": "[2J[Hclear",
+  "vibeDescriptors": [
+    "romantic",
+    "modern"
+  ],
+  "imageMimeType": "image/png",
+  "language": "en",
+  "threadId": "thr_abc",
+  "imageData": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgAAIAAAUAAeImBZsAAAAASUVORK5CYII="
+}
+---- ASSERTIONS ----
+history[0].content has NUL? false
+history[0].content has ESC? false
+history[0].content has BEL? false
+vibeTitle has ESC?        false
+imageData unchanged?      true

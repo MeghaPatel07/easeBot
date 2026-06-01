@@ -1,0 +1,204 @@
+{
+  "home": {
+    "url": "/",
+    "violationsCount": 2,
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": 2,
+        "firstTarget": [
+          ".hover\\:text-foreground\\/80"
+        ],
+        "firstHtml": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "help": "All page content should be contained by landmarks",
+        "nodes": 2,
+        "firstTarget": [
+          "p[data-component-line=\"564\"]"
+        ],
+        "firstHtml": "<p data-lov-id=\"src/components/chat/ChatSidebar.tsx:564:18\" data-lov-name=\"p\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"564\" data-component-file=\"ChatSidebar.tsx\" "
+      }
+    ]
+  },
+  "pricing": {
+    "url": "/pricing",
+    "violationsCount": 3,
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": 1,
+        "firstTarget": [
+          "button[data-component-line=\"78\"]"
+        ],
+        "firstHtml": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+      },
+      {
+        "id": "link-in-text-block",
+        "impact": "serious",
+        "help": "Links must be distinguishable without relying on color",
+        "nodes": 1,
+        "firstTarget": [
+          ".hover\\:underline"
+        ],
+        "firstHtml": "<a data-lov-id=\"src/pages/Pricing.tsx:576:10\" data-lov-name=\"a\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"576\" data-component-file=\"Pricing.tsx\" data-component-name=\"a\" data-com"
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "help": "All page content should be contained by landmarks",
+        "nodes": 5,
+        "firstTarget": [
+          ".hidden"
+        ],
+        "firstHtml": "<a data-lov-id=\"src/components/WeddingEaseFloater.tsx:39:4\" data-lov-name=\"a\" data-component-path=\"src/components/WeddingEaseFloater.tsx\" data-component-line=\"39\" data-component-file=\"WeddingEaseFloat"
+      }
+    ]
+  },
+  "terms": {
+    "url": "/terms",
+    "violationsCount": 2,
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": 2,
+        "firstTarget": [
+          "button[data-component-line=\"72\"]"
+        ],
+        "firstHtml": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "help": "All page content should be contained by landmarks",
+        "nodes": 3,
+        "firstTarget": [
+          ".hidden"
+        ],
+        "firstHtml": "<a data-lov-id=\"src/components/WeddingEaseFloater.tsx:39:4\" data-lov-name=\"a\" data-component-path=\"src/components/WeddingEaseFloater.tsx\" data-component-line=\"39\" data-component-file=\"WeddingEaseFloat"
+      }
+    ]
+  },
+  "privacy": {
+    "url": "/privacy",
+    "violationsCount": 2,
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": 2,
+        "firstTarget": [
+          "button[data-component-line=\"72\"]"
+        ],
+        "firstHtml": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "help": "All page content should be contained by landmarks",
+        "nodes": 3,
+        "firstTarget": [
+          ".hidden"
+        ],
+        "firstHtml": "<a data-lov-id=\"src/components/WeddingEaseFloater.tsx:39:4\" data-lov-name=\"a\" data-component-path=\"src/components/WeddingEaseFloater.tsx\" data-component-line=\"39\" data-component-file=\"WeddingEaseFloat"
+      }
+    ]
+  },
+  "help": {
+    "url": "/help",
+    "violationsCount": 3,
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": 2,
+        "firstTarget": [
+          ".text-foreground\\/50"
+        ],
+        "firstHtml": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+      },
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "help": "Heading levels should only increase by one",
+        "nodes": 1,
+        "firstTarget": [
+          ".border-b.border-border\\/40[data-lov-id=\"src/pages/Help.tsx:254:16\"]:nth-child(1) > h3"
+        ],
+        "firstHtml": "<h3 data-orientation=\"vertical\" data-state=\"closed\" data-lov-id=\"src/components/ui/accordion.tsx:44:0\" data-lov-name=\"AccordionPrimitive.Header\" data-component-path=\"src/components/ui/accordion.tsx\" d"
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "help": "All page content should be contained by landmarks",
+        "nodes": 5,
+        "firstTarget": [
+          ".hidden"
+        ],
+        "firstHtml": "<a data-lov-id=\"src/components/WeddingEaseFloater.tsx:39:4\" data-lov-name=\"a\" data-component-path=\"src/components/WeddingEaseFloater.tsx\" data-component-line=\"39\" data-component-file=\"WeddingEaseFloat"
+      }
+    ]
+  },
+  "login": {
+    "url": "/login",
+    "violationsCount": 2,
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": 2,
+        "firstTarget": [
+          "button[data-component-line=\"72\"]"
+        ],
+        "firstHtml": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "help": "All page content should be contained by landmarks",
+        "nodes": 12,
+        "firstTarget": [
+          ".hidden"
+        ],
+        "firstHtml": "<a data-lov-id=\"src/components/WeddingEaseFloater.tsx:39:4\" data-lov-name=\"a\" data-component-path=\"src/components/WeddingEaseFloater.tsx\" data-component-line=\"39\" data-component-file=\"WeddingEaseFloat"
+      }
+    ]
+  },
+  "notfound": {
+    "url": "/this-page-does-not-exist",
+    "violationsCount": 2,
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "nodes": 2,
+        "firstTarget": [
+          ".text-foreground\\/50"
+        ],
+        "firstHtml": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+      },
+      {
+        "id": "region",
+        "impact": "moderate",
+        "help": "All page content should be contained by landmarks",
+        "nodes": 1,
+        "firstTarget": [
+          ".gradient-bg"
+        ],
+        "firstHtml": "<div data-lov-id=\"src/pages/NotFound.tsx:34:4\" data-lov-name=\"div\" data-component-path=\"src/pages/NotFound.tsx\" data-component-line=\"34\" data-component-file=\"NotFound.tsx\" data-component-name=\"div\" da"
+      }
+    ]
+  }
+}

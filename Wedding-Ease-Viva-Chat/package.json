@@ -9,7 +9,9 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:audio": "node --experimental-strip-types --test src/services/__tests__/audioUtils.test.ts"
+    "test:audio": "node --experimental-strip-types --test src/services/__tests__/audioUtils.test.ts",
+    "test:checklist-limits": "node --experimental-strip-types --test src/services/__tests__/checklistLimits.test.ts"
+    "test:chat-errors": "node --experimental-strip-types --test src/lib/__tests__/chatSendErrors.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

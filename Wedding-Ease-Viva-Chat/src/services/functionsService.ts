@@ -2,9 +2,35 @@ import { httpsCallable } from 'firebase/functions'
 import { auth, functions } from '@/lib/firebase'
 import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@/types'
 import { QUOTA_EVENT, type QuotaExceededPayload } from '@/services/accountService'
+import {
+  OfflineError,
+  NoStreamError,
+  HttpStatusError,
+  StreamTimeoutError,
+  StreamWatchdog,
+  parseRetryAfterMs,
+} from '@/lib/chatSendErrors'
 // CalendarEvent kept here transitionally — used in StreamDoneEvent below until backend drops the field.
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
+
+// Stream watchdog tuning (WE-20260601-303). The backend streams SSE; if no
+// chunk arrives within IDLE_MS the connection is treated as stalled and aborted
+// so the UI can surface a recoverable "response stalled" state instead of
+// hanging on the typing skeleton forever. OVERALL_MS is a hard ceiling for the
+// whole response (long image-gen turns can legitimately run for tens of
+// seconds, so it is generous).
+const STREAM_IDLE_TIMEOUT_MS = 45_000
+const STREAM_OVERALL_TIMEOUT_MS = 180_000
+
+// WE-20260601-300: a pre-flight guard so an offline send fails fast with a
+// typed OfflineError instead of waiting for fetch to reject with an opaque
+// TypeError that the old generic catch couldn't distinguish.
+function assertOnline(): void {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new OfflineError()
+  }
+}
 
 export interface ChatQuotaError extends Error {
   code: 'quota_exceeded'
@@ -38,6 +64,7 @@ async function getAuthToken(): Promise<string | null> {
 }
 
 async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  assertOnline()
   const token = await getAuthToken()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -62,7 +89,11 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error((err as any).error ?? `Request failed: ${res.status}`)
+    const msg = (err as any).error ?? `Request failed: ${res.status}`
+    // WE-20260601-300/301/302: preserve the HTTP status so the send-error
+    // taxonomy can split 429 (rate-limited) and 400/413 (too-long) out of the
+    // generic error bucket.
+    throw new HttpStatusError(res.status, msg, parseRetryAfterMs(res.headers.get('Retry-After')))
   }
   return res.json()
 }
@@ -151,6 +182,7 @@ export async function* streamChatMessage(
   payload: ChatFunctionPayload,
   signal?: AbortSignal
 ): AsyncGenerator<StreamSSEEvent> {
+  assertOnline()
   const token = await getAuthToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -158,14 +190,30 @@ export async function* streamChatMessage(
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${API_BASE}/api/chat/stream`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-    signal,
-  })
+  // WE-20260601-303: a watchdog that trips when the stream stalls. It chains
+  // the caller's `signal` (Stop button) into its own AbortController so either
+  // source aborts the fetch. `watchdog.timedOut` tells a watchdog abort apart
+  // from a user Stop, so we can throw StreamTimeoutError instead of the
+  // AbortError the user-Stop path expects.
+  const watchdog = new StreamWatchdog(STREAM_IDLE_TIMEOUT_MS, STREAM_OVERALL_TIMEOUT_MS, signal)
+
+  let res: Response
+  try {
+    watchdog.armIdle()
+    res = await fetch(`${API_BASE}/api/chat/stream`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: watchdog.signal,
+    })
+  } catch (err) {
+    watchdog.clear()
+    if (watchdog.timedOut) throw new StreamTimeoutError()
+    throw err
+  }
 
   if (res.status === 402) {
+    watchdog.clear()
     const payload = (await res.json().catch(() => null)) as QuotaExceededPayload | null
     if (payload) dispatchQuotaEvent(payload)
     throw makeQuotaError(payload ?? {
@@ -177,26 +225,51 @@ export async function* streamChatMessage(
     })
   }
   if (!res.ok) {
+    watchdog.clear()
     const err = await res.json().catch(() => ({}))
-    throw new Error((err as any).error ?? `Stream failed: ${res.status}`)
+    const msg = (err as any).error ?? `Stream failed: ${res.status}`
+    throw new HttpStatusError(res.status, msg, parseRetryAfterMs(res.headers.get('Retry-After')))
   }
 
-  const reader = res.body!.getReader()
+  // WE-20260601-304-adjacent: a 200 with no readable body is a malformed stream.
+  // Surface it as a typed NoStreamError rather than crashing on `res.body!`.
+  if (!res.body) {
+    watchdog.clear()
+    throw new NoStreamError()
+  }
+
+  const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop()!
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const raw = line.slice(6).trim()
-      if (!raw) continue
-      try { yield JSON.parse(raw) as StreamSSEEvent } catch { /* skip malformed */ }
+  try {
+    while (true) {
+      let chunk: ReadableStreamReadResult<Uint8Array>
+      try {
+        chunk = await reader.read()
+      } catch (err) {
+        // The watchdog (idle/overall) aborted a stalled read → timeout.
+        if (watchdog.timedOut) throw new StreamTimeoutError()
+        throw err
+      }
+      const { done, value } = chunk
+      if (done) break
+      // A chunk arrived → reset the idle watchdog.
+      watchdog.armIdle()
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop()!
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const raw = line.slice(6).trim()
+        if (!raw) continue
+        try { yield JSON.parse(raw) as StreamSSEEvent } catch { /* skip malformed */ }
+      }
     }
+  } finally {
+    // Always release the timers + user-abort listener, whether the stream
+    // completed, threw, or the consumer broke out of the for-await loop early.
+    watchdog.clear()
   }
 }
 
