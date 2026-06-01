@@ -1,0 +1,6 @@
+{
+  "tests": [
+    {"input": "What is the meaning of the mangalsutra in Hindu weddings?", "got_mode": "stylist", "expected_mode": "knowledge", "evidence": "stylist regex matches `mangalsutra` (Indian jewellery list); knowledge regex matches `what is`,`meaning`. Stylist scored higher due to two coverage hits."},
+    {"input": "Explain the meaning of haldi ceremony", "got_mode": "knowledge", "expected_mode": "knowledge", "evidence": "haldi is not in stylist regex; knowledge wins."}
+  ]
+}

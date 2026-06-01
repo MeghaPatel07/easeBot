@@ -1,0 +1,25 @@
+=== Test 1: BE unreachable port ===
+
+HTTP=000 time=0.000300
+=== Test 2: BE returns 500 (force malformed body) ===
+HTTP/1.1 400 Bad Request
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+=== Test 3: BE 404 ===
+HTTP/1.1 404 Not Found
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN

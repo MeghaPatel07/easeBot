@@ -4,6 +4,7 @@ import type { ActiveVibe } from '@/types'
 import { VIBE_PRESETS } from '@/data/vibePresets'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { GlossaryText } from './GlossaryText'
 
 interface VibeDNAStripProps {
   vibe: ActiveVibe
@@ -78,7 +79,11 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
       </div>
 
       {vibe.subtitle && (
-        <p className="mt-1 text-sm text-foreground/90">{vibe.subtitle}</p>
+        <p className="mt-1 text-sm text-foreground/90">
+          {/* Specialist terms keep their wording but gain a focusable, screen-
+              reader-reachable definition tooltip (WCAG 3.1.3 Unusual Words). */}
+          <GlossaryText text={vibe.subtitle} />
+        </p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -93,7 +98,9 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
             key={d}
             className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-foreground/90 sm:text-sm"
           >
-            {d}
+            {/* Chip already holds a remove button, so define terms inline via a
+                native <dfn title> to avoid stacking focus stops in each chip. */}
+            <GlossaryText text={d} inline />
             <button
               type="button"
               onClick={() => handleRemove(d)}

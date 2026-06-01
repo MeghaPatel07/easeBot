@@ -1,0 +1,11 @@
+$ curl -sS -X POST http://localhost:3001/api/chat/cancel -H "Content-Type: application/json" -d '{"requestId":"xyz"}' -i
+HTTP/1.1 200 OK
+RateLimit-Policy: 30;w=60
+RateLimit-Limit: 30
+RateLimit-Remaining: 27
+(empty body)
+
+$ curl -sS -X POST http://localhost:3001/api/chat/cancel -H "Content-Type: application/json" -d '{}' -i
+HTTP/1.1 400 Bad Request
+Content-Type: application/json; charset=utf-8
+{"error":"requestId is required"}

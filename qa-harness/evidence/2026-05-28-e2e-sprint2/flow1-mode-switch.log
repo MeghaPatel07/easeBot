@@ -1,0 +1,139 @@
+=== Step 1: chat mode message ===
+guest=qa-test-mode-501-1779949244 thread=qa-thread-501-1779949244
+id: 1
+data: {"t":"c","v":"Oh"}
+
+id: 2
+data: {"t":"c","v":","}
+
+id: 3
+data: {"t":"c","v":" that's"}
+
+id: 4
+data: {"t":"c","v":" such"}
+
+id: 5
+data: {"t":"c","v":" a"}
+
+id: 6
+data: {"t":"c","v":" sweet"}
+
+id: 7
+data: {"t":"c","v":" question"}
+
+id: 8
+data: {"t":"c","v":"!"}
+
+id: 9
+data: {"t":"c","v":" I"}
+
+id: 10
+data: {"t":"c","v":" love"}
+
+id: 11
+data: {"t":"c","v":" timeless"}
+
+id: 12
+data: {"t":"c","v":" palettes"}
+
+id: 13
+data: {"t":"c","v":" like"}
+
+id: 14
+data: {"t":"c","v":" soft"}
+
+id: 15
+data: {"t":"c","v":" blush"}
+
+id: 16
+data: {"t":"c","v":" and"}
+
+id: 17
+data: {"t":"c","v":" gold"}
+=== Step 2: SAME thread, planner mode follow-up ===
+id: 1
+data: {"t":"c","v":"You're"}
+
+id: 2
+data: {"t":"c","v":" planning"}
+
+id: 3
+data: {"t":"c","v":" with"}
+
+id: 4
+data: {"t":"c","v":" six"}
+
+id: 5
+data: {"t":"c","v":" months"}
+
+id: 6
+data: {"t":"c","v":" to"}
+
+id: 7
+data: {"t":"c","v":" go"}
+
+id: 8
+data: {"t":"c","v":" —"}
+
+id: 9
+data: {"t":"c","v":" that's"}
+
+id: 10
+data: {"t":"c","v":" a"}
+
+id: 11
+data: {"t":"c","v":" great"}
+
+id: 12
+data: {"t":"c","v":" window"}
+
+id: 13
+data: {"t":"c","v":" to"}
+
+id: 14
+data: {"t":"c","v":" get"}
+
+id: 15
+data: {"t":"c","v":" everything"}
+
+id: 16
+data: {"t":"c","v":" organized"}
+
+id: 17
+data: {"t":"c","v":"!"}
+
+id: 18
+data: {"t":"c","v":" Here's"}
+
+id: 19
+data: {"t":"c","v":" a"}
+
+id: 20
+data: {"t":"c","v":" streamlined"}
+
+id: 21
+data: {"t":"c","v":" timeline"}
+
+id: 22
+data: {"t":"c","v":" to"}
+
+id: 23
+data: {"t":"c","v":" guide"}
+
+id: 24
+data: {"t":"c","v":" you"}
+
+id: 25
+data: {"t":"c","v":":\n\n"}
+
+id: 26
+data: {"t":"c","v":"###"}
+
+id: 27
+data: {"t":"c","v":" "}
+=== Step 3: switch to image, same thread ===
+id: 1
+data: {"t":"img","status":"generating"}
+
+: heartbeat
+

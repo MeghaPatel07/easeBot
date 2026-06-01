@@ -1,0 +1,49 @@
+
+> vite_react_shadcn_ts@0.0.1 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 19 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2712 modules transformed.
+Circular chunk: vendor-react -> vendor -> vendor-react. Please adjust the manual chunk logic for these chunks.
+rendering chunks...
+computing gzip size...
+dist/index.html                                6.33 kB │ gzip:   2.00 kB
+dist/assets/Wedding ease-C0dLlMF6.png         24.86 kB
+dist/assets/easebot-D6BiD7YY.png             225.94 kB
+dist/assets/logo-j_ScG-E3.png                302.92 kB
+dist/assets/index-7sfRtics.css               189.54 kB │ gzip:  28.25 kB
+dist/assets/NotFound-DUns_ewd.js               0.69 kB │ gzip:   0.40 kB
+dist/assets/button-CpSasTrt.js                 1.24 kB │ gzip:   0.63 kB
+dist/assets/paymentService-DKSgasWJ.js         1.31 kB │ gzip:   0.68 kB
+dist/assets/exchangeRateService-BhbTQd6F.js    1.76 kB │ gzip:   0.96 kB
+dist/assets/PaymentFailure-BMnJtc4a.js         1.87 kB │ gzip:   0.83 kB
+dist/assets/PaymentSuccess-CacDdc2i.js         2.75 kB │ gzip:   1.30 kB
+dist/assets/useAccount-xPY5TA50.js             3.44 kB │ gzip:   1.47 kB
+dist/assets/label-GqjMF7s4.js                  4.41 kB │ gzip:   1.44 kB
+dist/assets/chatService-DtbX-VE4.js            5.25 kB │ gzip:   2.00 kB
+dist/assets/SharedNote-BNZKulRo.js             5.46 kB │ gzip:   1.65 kB
+dist/assets/SharedChat-BoMyqmQR.js             7.15 kB │ gzip:   2.45 kB
+dist/assets/Checkout-C53qZeuU.js              10.12 kB │ gzip:   3.79 kB
+dist/assets/Help-CeX9loAO.js                  12.23 kB │ gzip:   4.44 kB
+dist/assets/TermsOfService-UxBD0_Br.js        12.92 kB │ gzip:   5.24 kB
+dist/assets/PrivacyPolicy-qRc9uYAj.js         16.25 kB │ gzip:   5.43 kB
+dist/assets/Login-cBMlXFLl.js                 16.80 kB │ gzip:   4.56 kB
+dist/assets/Pricing-BSAqEK41.js               26.53 kB │ gzip:   8.21 kB
+dist/assets/NoteEditor-D8xN3KO8.js            35.25 kB │ gzip:  10.65 kB
+dist/assets/index-BIrFBi5o.js                 39.77 kB │ gzip:  13.88 kB
+dist/assets/vendor-lucide-BXT1kQbJ.js         53.79 kB │ gzip:   9.90 kB
+dist/assets/vendor-markdown-ps_LR0AO.js      108.27 kB │ gzip:  30.73 kB
+dist/assets/vendor-radix-D0BWXkKe.js         122.09 kB │ gzip:  35.43 kB
+dist/assets/vendor-react-nj-5CZd8.js         146.54 kB │ gzip:  47.58 kB
+dist/assets/vendor-phone-D3mC5Ha-.js         155.91 kB │ gzip:  36.03 kB
+dist/assets/vendor-posthog-CHP4ijfT.js       182.44 kB │ gzip:  60.62 kB
+dist/assets/vendor-DqJL847i.js               397.41 kB │ gzip: 136.39 kB
+dist/assets/vendor-tiptap-BzRqVSZ4.js        457.76 kB │ gzip: 138.01 kB
+dist/assets/vendor-firebase-CssYNPO6.js      541.53 kB │ gzip: 126.03 kB
+dist/assets/vendor-pdf-10J_mlQh.js           574.70 kB │ gzip: 173.04 kB
+dist/assets/Index-BCX-pEGT.js                583.64 kB │ gzip: 142.08 kB
+✓ built in 6.41s

@@ -1,0 +1,16 @@
+$ curl -sS http://localhost:3001/api/checklists -i
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8
+Content-Length: 156
+
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Error</title></head>
+<body><pre>Cannot GET /api/checklists</pre></body></html>
+
+$ curl -sS http://localhost:3001/api/notfound -i
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8
+
+$ curl -sS http://localhost:3001/totally-fake-path -i
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8

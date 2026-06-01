@@ -1,0 +1,20 @@
+BEFORE FIX — markup excerpt (ChatMessages.tsx, AI message wrapper at line 442)
+=================================================================================
+
+<div className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none ..." data-ph-mask>
+  <TypewriterMarkdown
+    text={message.text}
+    isStreaming={message.id === streamingMsgId}
+    remarkPlugins={[remarkGfm]}
+    components={{ ... }}
+  />
+</div>
+
+Observations:
+- No `lang=` attribute anywhere in the DOM tree for chat content.
+- No `dir=` attribute — Arabic / Hebrew / Persian / Urdu render LTR.
+- `grep "lang=" src/` returns zero hits in source. Only `<html lang="en">` in index.html.
+
+WCAG violations:
+- 3.1.2 Language of Parts (AA) — fails on every Hindi/Arabic/Gujarati/etc. response.
+- Screen readers use the page-level English voice on all dynamic content.

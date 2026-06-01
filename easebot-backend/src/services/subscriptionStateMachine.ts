@@ -54,7 +54,7 @@ const PERIOD_DAYS: Record<'monthly' | 'annual' | '6mo', number> = {
 }
 
 const PLAN_USD: Record<'pro' | 'promax', { monthly: number; annual: number }> = {
-  pro: { monthly: 10, annual: 79 },
+  pro: { monthly: 14.99, annual: 119 },
   promax: { monthly: 39, annual: 299 },
 }
 

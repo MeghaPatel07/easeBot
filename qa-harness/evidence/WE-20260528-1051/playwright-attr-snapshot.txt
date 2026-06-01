@@ -1,0 +1,45 @@
+navigating -> http://localhost:8080/
+
+=== SignInModal · default (email tab) (2 inputs) ===
+┌─────────┬────────────┬───────────────────────┬────────────────────┬───────────┐
+│ (index) │ type       │ placeholder           │ autocomplete       │ maxLength │
+├─────────┼────────────┼───────────────────────┼────────────────────┼───────────┤
+│ 0       │ 'email'    │ 'Enter your mail'     │ 'email'            │ ''        │
+│ 1       │ 'password' │ 'Enter your password' │ 'current-password' │ ''        │
+└─────────┴────────────┴───────────────────────┴────────────────────┴───────────┘
+
+=== SignInModal · phone tab (pre-OTP) (1 inputs) ===
+┌─────────┬───────┬───────────────┬──────────────┬───────────┐
+│ (index) │ type  │ placeholder   │ autocomplete │ maxLength │
+├─────────┼───────┼───────────────┼──────────────┼───────────┤
+│ 0       │ 'tel' │ '98765 43210' │ 'tel'        │ '19'      │
+└─────────┴───────┴───────────────┴──────────────┴───────────┘
+
+=== SignInModal · forgot-password step 1 (email) (1 inputs) ===
+┌─────────┬─────────┬───────────────────┬──────────────┬───────────┐
+│ (index) │ type    │ placeholder       │ autocomplete │ maxLength │
+├─────────┼─────────┼───────────────────┼──────────────┼───────────┤
+│ 0       │ 'email' │ 'Enter your mail' │ 'email'      │ ''        │
+└─────────┴─────────┴───────────────────┴──────────────┴───────────┘
+
+=== SignUpModal · email tab (5 inputs) ===
+┌─────────┬────────────┬──────────────────────────┬────────────────┬───────────┐
+│ (index) │ type       │ placeholder              │ autocomplete   │ maxLength │
+├─────────┼────────────┼──────────────────────────┼────────────────┼───────────┤
+│ 0       │ 'text'     │ 'Enter your name'        │ 'name'         │ ''        │
+│ 1       │ 'email'    │ 'Enter your mail'        │ 'email'        │ ''        │
+│ 2       │ 'tel'      │ '98765 43210'            │ 'tel'          │ '19'      │
+│ 3       │ 'password' │ 'Min 10 characters'      │ 'new-password' │ ''        │
+│ 4       │ 'password' │ 'Re-enter your password' │ 'new-password' │ ''        │
+└─────────┴────────────┴──────────────────────────┴────────────────┴───────────┘
+
+=== SignUpModal · phone tab (3 inputs) ===
+┌─────────┬─────────┬───────────────────┬──────────────┬───────────┐
+│ (index) │ type    │ placeholder       │ autocomplete │ maxLength │
+├─────────┼─────────┼───────────────────┼──────────────┼───────────┤
+│ 0       │ 'text'  │ 'Enter your name' │ 'name'       │ ''        │
+│ 1       │ 'email' │ 'Enter your mail' │ 'email'      │ ''        │
+│ 2       │ 'tel'   │ '98765 43210'     │ 'tel'        │ '19'      │
+└─────────┴─────────┴───────────────────┴──────────────┴───────────┘
+
+done

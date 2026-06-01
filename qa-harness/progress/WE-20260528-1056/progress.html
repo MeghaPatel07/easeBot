@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-1056</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-1056 · Per-message lang + dir attributes for non-English chat content <span class="pill P1">P1</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-1056 -> Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-1056</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      App declares <code>&lt;html lang="en"&gt;</code> permanently in <code>index.html</code>.
+      The chat backend correctly detects/returns a BCP-47 <code>language</code> per message
+      (Hindi, Gujarati, Arabic, Spanish, French, etc.), but the AI message <code>&lt;div&gt;</code>
+      wrapping <code>message.content</code> never gets a corresponding <code>lang=</code>
+      attribute. Result: NVDA / VoiceOver read Hindi or Arabic text using English phonemes
+      — garbled, incomprehensible. WCAG 3.1.2 Language of Parts (AA) failure. Arabic
+      also renders LTR — visually + audibly jarring.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 10:00:00</div>
+        <div class="what">Read ticket, created worktree from origin/Bug-Resolve-claude.</div>
+        <div class="detail">Branch <code>fix-WE-20260528-1056</code> at <code>worktrees/fix-WE-20260528-1056</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 10:05:00</div>
+        <div class="what">Diagnosed: <code>Message.language</code> already on the interface at <code>useChat.ts:52</code>. Pipeline already sets it (lines 433, 486, 518, 968, 1001). The DOM consumer in <code>ChatMessages.tsx</code> simply ignored it.</div>
+        <div class="detail">Grep for <code>lang=</code> in <code>src/</code> confirmed zero hits — only <code>index.html</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 10:08:00</div>
+        <div class="what">Implemented minimal fix in <code>ChatMessages.tsx</code> only — added <code>isRtlLanguage()</code> helper + <code>lang</code> + <code>dir</code> on the markdown wrapper div for AI messages.</div>
+        <div class="detail">No changes to <code>useChat.ts</code> (read-only per ticket). No changes to <code>index.html</code> — page-level <code>&lt;html lang&gt;</code> swap requires per-conversation tracking and falls outside the scope of this WCAG 3.1.2 ticket (3.1.1 is a separate optional follow-up). The per-message <code>lang=</code> is what makes screen readers switch phoneme tables, which is the bug.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Source diff: <code>git diff Bug-Resolve-claude...fix-WE-20260528-1056</code></li>
+      <li>Before-fix snapshot: <code>qa-harness/evidence/WE-20260528-1056/screenshots/before-no-lang-attr.txt</code> (markup excerpt — no <code>lang=</code> on any chat div, only on <code>&lt;html&gt;</code>)</li>
+      <li>After-fix snapshot: <code>qa-harness/evidence/WE-20260528-1056/screenshots/after-with-lang-attr.txt</code> (markup excerpt — chat div carries <code>lang="hi"</code> / <code>dir="ltr"</code>, etc.)</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>TypeScript</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed (no new errors)</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">pre-existing config crash in functions/ — does NOT touch ChatMessages.tsx</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/components/chat/ChatMessages.tsx | 17 +++++++++++++++--
+1 file changed, 15 insertions(+), 2 deletions(-)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/58">https://github.com/MeghaPatel07/easeBot/pull/58</a></p>
+    <p>Base: <code>Bug-Resolve-claude</code> · Head: <code>fix-WE-20260528-1056</code> · Commit: <code>323b8c7</code></p>
+
+    <footer>
+      Generated by fix-frontend agent · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

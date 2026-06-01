@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useQueryClient } from '@tanstack/react-query';
@@ -20,19 +20,27 @@ import { useChatAttachments, type ChatAttachment } from '@/contexts/ChatAttachme
 import { useVoice } from '@/hooks/useVoice';
 import { updatePreferredLanguage } from '@/services/authService';
 import { searchAllMessages, createSharedChat, type SearchResult } from '@/services/chatService';
-import PlannerView from '@/components/PlannerView';
-import ChecklistDetail from '@/components/ChecklistDetail';
-import BudgetDashboard from '@/components/BudgetDashboard';
-import ShoppingListView from '@/components/ShoppingListView';
-import SavedItemsView from '@/components/SavedItemsView';
-import TimelineView from '@/components/TimelineView';
-import RemindersView from '@/components/RemindersView';
-import GalleryView from '@/components/GalleryView';
-import ImagesHub from '@/pages/ImagesHub';
-import NotesView from '@/components/notes/NotesView';
-import ProgressDashboard from '@/components/ProgressDashboard';
-import NotificationPanel from '@/components/NotificationPanel';
-import InvitePartner from '@/components/InvitePartner';
+// WE-20260528-303 + WE-20260528-304 (merged in perf/sprint-bundle):
+// Index.tsx is rendered by every primary route, so static imports of these
+// heavy view modules forced their JS onto every route (Lighthouse measured
+// ~250 KB / 72% unused on /chat). React.lazy + Suspense splits each view into
+// its own chunk that only downloads when the user navigates to that sidebar
+// view. NotesView (304) additionally detaches the vendor-tiptap chunk
+// (~138 KB gz) from the /chat eager load — it now downloads only on the Notes
+// view. The wrapping Suspense boundaries live in mainAreaShell / the Planner
+// shell below.
+const PlannerView = lazy(() => import('@/components/PlannerView'));
+const ChecklistDetail = lazy(() => import('@/components/ChecklistDetail'));
+const BudgetDashboard = lazy(() => import('@/components/BudgetDashboard'));
+const ShoppingListView = lazy(() => import('@/components/ShoppingListView'));
+const SavedItemsView = lazy(() => import('@/components/SavedItemsView'));
+const TimelineView = lazy(() => import('@/components/TimelineView'));
+const RemindersView = lazy(() => import('@/components/RemindersView'));
+const ImagesHub = lazy(() => import('@/pages/ImagesHub'));
+const NotesView = lazy(() => import('@/components/notes/NotesView'));
+const ProgressDashboard = lazy(() => import('@/components/ProgressDashboard'));
+const NotificationPanel = lazy(() => import('@/components/NotificationPanel'));
+const InvitePartner = lazy(() => import('@/components/InvitePartner'));
 import FeedbackDialog from '@/components/FeedbackDialog';
 // Legacy SettingsModal is no longer rendered (Sprint 4, Hana — Marcus QA M-8).
 // SettingsShell is the canonical surface. The file is intentionally not deleted
@@ -70,7 +78,7 @@ const Index = () => {
   const {
     messages, threads, activeThreadId, isTyping, allLikedMessages, reminders, lastToolActions,
     likedProducts, likedProductIds, toggleProductLike,
-    sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
+    sendMessage, stopGeneration, retryLastFailedSend, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
     hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError,
   } = useChat();
@@ -1192,13 +1200,15 @@ const Index = () => {
             <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2"><CheckSquare className="h-4 w-4 text-primary" />Planner</h2>
           </div>
           <div className="flex-1 overflow-hidden p-4">
-            <ChecklistDetail
-              userId={user.uid}
-              checklistId={selectedChecklistId}
-              favourites={profile?.favourites ?? []}
-              recentlyToggledItemIds={recentlyToggledItemIds}
-              onClose={() => setSelectedChecklistId(null)}
-            />
+            <Suspense fallback={<div className="flex items-center justify-center py-20 text-foreground/40 text-sm">Loading…</div>}>
+              <ChecklistDetail
+                userId={user.uid}
+                checklistId={selectedChecklistId}
+                favourites={profile?.favourites ?? []}
+                recentlyToggledItemIds={recentlyToggledItemIds}
+                onClose={() => setSelectedChecklistId(null)}
+              />
+            </Suspense>
           </div>
         </main>
       </div>
@@ -1223,7 +1233,12 @@ const Index = () => {
           <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2">{icon}{title}</h2>
         </div>
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-5">
-          <div className=" mx-auto w-full">{children}</div>
+          <div className=" mx-auto w-full">
+            {/* WE-20260528-303: Suspense boundary for lazy view chunks. */}
+            <Suspense fallback={<div className="flex items-center justify-center py-20 text-foreground/40 text-sm">Loading…</div>}>
+              {children}
+            </Suspense>
+          </div>
         </div>
       </main>
     </div>
@@ -1347,6 +1362,8 @@ const Index = () => {
 
   if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
+  // NotesView is lazy (WE-20260528-304); mainAreaShell already provides the
+  // Suspense boundary around children, so no inner Suspense is needed here.
   if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
   if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-foreground/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
@@ -1429,6 +1446,7 @@ const Index = () => {
             onToggleLike={toggleLike}
             onRegenerateMessage={handleRegenerateMessage}
             onContinueGenerating={handleContinueGenerating}
+            onRetryFailedSend={retryLastFailedSend}
             onToneModifier={handleToneModifier}
             onConvertToTable={handleConvertToTable}
             onSaveProduct={handleSaveProduct}
