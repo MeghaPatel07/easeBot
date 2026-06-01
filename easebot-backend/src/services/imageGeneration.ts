@@ -31,11 +31,15 @@ const IMAGE_FORMAT = 'png'
 
 // WE-20260527-002: Per-attempt timeout for Azure image fetches. Without this,
 // a stalled Azure deployment causes fetch() to hang indefinitely until the
-// upstream SSE client (or proxy) aborts at ~110s, surfacing as the catch-all
-// "Something went wrong" error envelope. 60s gives Azure GPT-Image-1.5
-// generous headroom (typical generation: 15-30s, slow tail: 45-55s) while
-// still failing fast enough for the user to retry within the same chat turn.
-const AZURE_IMAGE_TIMEOUT_MS = 60_000
+// upstream SSE client (or proxy) aborts, surfacing as the catch-all
+// "Something went wrong" error envelope. 7 minutes gives Azure GPT-Image-1.5
+// generous headroom for slow generations/edits before we fail and let the
+// fallback chain run.
+// NOTE: this only actually fires if the upstream proxy / load-balancer keeps
+// the SSE connection open at least this long. If a shorter platform timeout
+// cuts the stream first, raise that limit to match — otherwise the user is back
+// to the generic "Something went wrong" envelope this fix was meant to remove.
+const AZURE_IMAGE_TIMEOUT_MS = 420_000 // 7 minutes
 
 /**
  * Compose the caller's AbortSignal (if any) with a fresh per-attempt timeout
@@ -361,7 +365,7 @@ async function callAzureImageGeneration(
   }
 
   // WE-20260527-002: compose timeout with caller's signal so a stalled Azure
-  // call fails in ≤60s instead of hanging until the upstream client aborts.
+  // call fails in ≤7min instead of hanging until the upstream client aborts.
   const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, AZURE_IMAGE_TIMEOUT_MS)
   let res: Response
   try {
@@ -528,7 +532,7 @@ async function callAzureImageEdit(
 
   // WE-20260527-002: same per-attempt timeout treatment as the generation
   // path. Edit calls can be even slower than generation (full input image
-  // gets re-encoded) so the 60s budget is the same.
+  // gets re-encoded) so the 7-minute budget is the same.
   const { signal: timedSignal, cleanup } = withTimeoutSignal(signal, AZURE_IMAGE_TIMEOUT_MS)
   let res: Response
   try {
