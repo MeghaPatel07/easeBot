@@ -29,7 +29,7 @@ export function CapHitBanner({ className }: { className?: string }) {
     >
       <div className="mx-auto flex max-w-4xl items-start gap-3">
         <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 flex-shrink-0" />
-        <div className="flex-1 text-foreground/90/90">
+        <div className="flex-1 text-foreground/90">
           <p className="font-medium text-destructive">{payload.message}</p>
           {payload.resetAt && (
             <p className="text-xs text-foreground/90">
