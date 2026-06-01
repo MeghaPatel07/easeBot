@@ -6,6 +6,7 @@ import ffmpeg from 'fluent-ffmpeg'
 import ffmpegStatic from 'ffmpeg-static'
 import { emit } from '../lib/observability'
 import { getPhrasesForLocales } from './sttPhraseList'
+import { speechCircuitBreaker } from './circuitBreaker'
 
 // Point fluent-ffmpeg to the bundled static binary
 if (ffmpegStatic) ffmpeg.setFfmpegPath(ffmpegStatic)
@@ -243,7 +244,24 @@ export async function transcribeAudio(
     const azureStart = Date.now()
     let result: STTResult
     try {
-      result = await withRetry(azureCall, 1, retryCounter)
+      // Fast-fail through speechCircuitBreaker on sustained Azure Speech outages
+      // (WE-20260601-453). User-input errors (NoMatch / bad audio) are NOT a
+      // provider-health signal, so we hand them back through a sentinel that the
+      // breaker treats as a "success" — then rethrow them to the caller. Only
+      // genuine transport/service failures count toward opening the breaker.
+      const USER_INPUT = Symbol('stt-user-input-error')
+      const outcome = await speechCircuitBreaker.execute<STTResult | { [USER_INPUT]: unknown }>(async () => {
+        try {
+          return await withRetry(azureCall, 1, retryCounter)
+        } catch (err) {
+          if (isUserInputError(err)) return { [USER_INPUT]: err }
+          throw err
+        }
+      })
+      if (outcome && typeof outcome === 'object' && USER_INPUT in outcome) {
+        throw (outcome as { [USER_INPUT]: unknown })[USER_INPUT]
+      }
+      result = outcome as STTResult
     } finally {
       azureMs = Date.now() - azureStart
       console.timeEnd('stt.azure')

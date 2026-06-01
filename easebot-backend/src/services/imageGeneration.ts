@@ -23,6 +23,7 @@ import sharp from 'sharp'
 import type { HistoryMessage } from '../types'
 import { withRetry } from '../utils/retry'
 import { capture as phCapture } from '../lib/posthog'
+import { imageCircuitBreaker, llmCircuitBreaker, CircuitBreakerError } from './circuitBreaker'
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 
@@ -232,10 +233,13 @@ export async function generateImageGptImage1(
 
   // Try GPT-Image-1.5 primary
   try {
-    const images = await withRetry(
+    // Fast-fail through imageCircuitBreaker: a sustained Azure image-gen outage
+    // trips the breaker so subsequent calls reject immediately instead of each
+    // re-issuing a doomed upstream request (WE-20260601-453).
+    const images = await imageCircuitBreaker.execute(() => withRetry(
       () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, fullPrompt, size, count, options?.onPartialImage, options?.signal),
       { maxRetries: 1, baseDelayMs: 1000, maxDelayMs: 5000 }
-    )
+    ))
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1.5 generated ${images.length} image(s)`)
       if (options?.distinctId) {
@@ -249,15 +253,24 @@ export async function generateImageGptImage1(
     }
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
+    // Breaker OPEN — skip the fallback (it routes through the same open breaker)
+    // and degrade gracefully with an empty result the callers already handle.
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[imageGeneration] ${err.message} — skipping fallback, returning empty`)
+      if (options?.distinctId) {
+        phCapture(options.distinctId, 'image_generation_failed', { error_code: 'circuit_open' })
+      }
+      return []
+    }
     console.warn('[imageGeneration] GPT-Image-1.5 failed, trying fallback:', err instanceof Error ? err.message : err)
   }
 
   // Fallback to GPT-Image-1
   try {
-    const images = await withRetry(
+    const images = await imageCircuitBreaker.execute(() => withRetry(
       () => callAzureImageGeneration(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, fullPrompt, size, count, undefined, options?.signal),
       { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
-    )
+    ))
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1 fallback generated ${images.length} image(s)`)
       if (options?.distinctId) {
@@ -371,10 +384,10 @@ export async function editImageGptImage1(
 
   // Try GPT-Image-1.5 primary
   try {
-    const images = await withRetry(
+    const images = await imageCircuitBreaker.execute(() => withRetry(
       () => callAzureImageEdit(config.endpoint, config.apiKey!, config.primaryDeployment, config.apiVersion, imageBase64, editPrompt, size, true, options?.referenceImages, options?.signal),
       { maxRetries: 1, baseDelayMs: 1000, maxDelayMs: 5000 }
-    )
+    ))
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1.5 edited ${images.length} image(s)`)
       if (options?.distinctId) {
@@ -388,15 +401,24 @@ export async function editImageGptImage1(
     }
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
+    // Breaker OPEN — skip both the fallback edit AND the expensive
+    // analyze+regenerate last resort; degrade with an empty result.
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[imageGeneration] ${err.message} — skipping edit fallback, returning empty`)
+      if (options?.distinctId) {
+        phCapture(options.distinctId, 'image_generation_failed', { error_code: 'circuit_open' })
+      }
+      return []
+    }
     console.warn('[imageGeneration] GPT-Image-1.5 edit failed, trying fallback:', err instanceof Error ? err.message : err)
   }
 
   // Fallback to GPT-Image-1
   try {
-    const images = await withRetry(
+    const images = await imageCircuitBreaker.execute(() => withRetry(
       () => callAzureImageEdit(config.endpoint, config.apiKey!, config.fallbackDeployment, config.apiVersion, imageBase64, editPrompt, size, false, undefined, options?.signal),
       { maxRetries: 1, baseDelayMs: 2000, maxDelayMs: 8000 }
-    )
+    ))
     if (images.length > 0) {
       console.log(`[imageGeneration] GPT-Image-1 fallback edited ${images.length} image(s)`)
       if (options?.distinctId) {
@@ -526,23 +548,33 @@ Be concise — max 3-4 sentences. Skip unrelated details.`
 
   const userPrompt = prompt?.trim() || 'Describe this wedding-related image briefly.'
 
-  const completion = await client.chat.completions.create({
-    model: deployment,
-    messages: [
-      { role: 'system', content: IMAGE_ANALYSIS_SYSTEM },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: userPrompt },
-          { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}`, detail } },
+  // Vision runs on the GPT-4o chat endpoint, so it shares the LLM breaker.
+  try {
+    const completion = await llmCircuitBreaker.execute(() =>
+      client.chat.completions.create({
+        model: deployment,
+        messages: [
+          { role: 'system', content: IMAGE_ANALYSIS_SYSTEM },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: userPrompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}`, detail } },
+            ],
+          },
         ],
-      },
-    ],
-    max_tokens: 500,
-    temperature: 0.5,
-  })
-
-  return completion.choices[0]?.message?.content ?? 'Unable to analyze the image.'
+        max_tokens: 500,
+        temperature: 0.5,
+      })
+    )
+    return completion.choices[0]?.message?.content ?? 'Unable to analyze the image.'
+  } catch (err) {
+    if (err instanceof CircuitBreakerError) {
+      console.warn(`[imageGeneration] ${err.message} — vision analysis unavailable`)
+      return 'Image analysis is temporarily unavailable. Please try again in a moment.'
+    }
+    throw err
+  }
 }
 
 // ── Legacy export ───────────────────────────────────────────────────────────────
