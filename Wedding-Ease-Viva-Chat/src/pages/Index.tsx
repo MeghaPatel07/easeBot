@@ -193,41 +193,37 @@ const Index = () => {
   useEffect(() => { guestImageCountRef.current = guestImageCount; }, [guestImageCount]);
 
   const guestBannerJSX = !user ? (
-    <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
-      <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-foreground/70 space-y-1.5">
-        <div className="flex items-center gap-1.5">
+    <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-2 sm:pt-3">
+      <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-1.5 sm:py-2.5 text-xs text-foreground/70">
+        <div className="flex items-center gap-1.5 min-w-0">
           <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-          <span className="font-semibold text-foreground/80">Guest Mode</span>
-          <span className="text-foreground/40 mx-1">—</span>
-          <span>{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining</span>
-          <span className="text-foreground/30 hidden sm:inline">·</span>
-          <span className="hidden sm:inline">{Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} remaining</span>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5">
-              {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
-                <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-foreground/[0.12]'}`} />
-              ))}
-            </div>
+          <span className="font-semibold text-foreground/80 flex-shrink-0">Guest</span>
+          <span className="text-foreground/40 flex-shrink-0">·</span>
+          <span className="truncate">
+            <span className="sm:hidden">{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} left · chats won't save</span>
+            <span className="hidden sm:inline">{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining · {Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} · chats won't save</span>
+          </span>
+          <div className="hidden sm:flex items-center gap-1.5 ml-2 flex-shrink-0">
+            {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
+              <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-foreground/[0.12]'}`} />
+            ))}
           </div>
-        </div>
-        {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-foreground/50 text-2xs">You've used all guest messages.</span>
+          {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
             <button
               onClick={() => setShowSignUpModal(true)}
-              className="ml-auto px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
+              className="ml-auto flex-shrink-0 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
             >
-              Sign up to continue chatting
+              Sign up
             </button>
-          </div>
-        ) : (
-          <div className="text-2xs text-foreground/40">
-            This chat won't be saved.{' '}
-            <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
-              Sign in to save your conversations.
+          ) : (
+            <button
+              onClick={() => setShowSignInModal(true)}
+              className="ml-auto flex-shrink-0 font-semibold text-primary underline underline-offset-2"
+            >
+              Sign in
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   ) : null;
