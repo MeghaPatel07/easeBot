@@ -1,0 +1,85 @@
+TAP version 13
+# Subtest: WE-20260527-352: "what is the meaning of the mangalsutra" classifies as knowledge
+ok 1 - WE-20260527-352: "what is the meaning of the mangalsutra" classifies as knowledge
+  ---
+  duration_ms: 1.59375
+  ...
+# Subtest: WE-20260527-352: "tell me about haldi ceremony" classifies as knowledge
+ok 2 - WE-20260527-352: "tell me about haldi ceremony" classifies as knowledge
+  ---
+  duration_ms: 0.865792
+  ...
+# Subtest: WE-20260527-352: "what is sindoor" classifies as knowledge
+ok 3 - WE-20260527-352: "what is sindoor" classifies as knowledge
+  ---
+  duration_ms: 0.056333
+  ...
+# Subtest: WE-20260527-352: "meaning of varmala" classifies as knowledge
+ok 4 - WE-20260527-352: "meaning of varmala" classifies as knowledge
+  ---
+  duration_ms: 0.13975
+  ...
+# Subtest: WE-20260527-352: "significance of mangni" classifies as knowledge
+ok 5 - WE-20260527-352: "significance of mangni" classifies as knowledge
+  ---
+  duration_ms: 0.053792
+  ...
+# Subtest: WE-20260527-352: pure styling query about a lehenga still routes to stylist
+ok 6 - WE-20260527-352: pure styling query about a lehenga still routes to stylist
+  ---
+  duration_ms: 0.895625
+  ...
+# Subtest: WE-20260527-360: "what is the mangni ceremony schedule" prefers knowledge over planner
+ok 7 - WE-20260527-360: "what is the mangni ceremony schedule" prefers knowledge over planner
+  ---
+  duration_ms: 0.046417
+  ...
+# Subtest: WE-20260527-360: "tell me about the wedding planning timeline tradition" prefers knowledge
+ok 8 - WE-20260527-360: "tell me about the wedding planning timeline tradition" prefers knowledge
+  ---
+  duration_ms: 0.093958
+  ...
+# Subtest: WE-20260527-360: "meaning of booking a mandap" prefers knowledge
+ok 9 - WE-20260527-360: "meaning of booking a mandap" prefers knowledge
+  ---
+  duration_ms: 0.148625
+  ...
+# Subtest: WE-20260527-360: pure planner query without knowledge intent stays planner
+ok 10 - WE-20260527-360: pure planner query without knowledge intent stays planner
+  ---
+  duration_ms: 0.124875
+  ...
+# Subtest: WE-20260527-360: "when should I book the venue" stays planner
+ok 11 - WE-20260527-360: "when should I book the venue" stays planner
+  ---
+  duration_ms: 0.052125
+  ...
+# Subtest: Existing: pure stylist query routes to stylist
+ok 12 - Existing: pure stylist query routes to stylist
+  ---
+  duration_ms: 0.043417
+  ...
+# Subtest: Existing: pure planner query routes to planner
+ok 13 - Existing: pure planner query routes to planner
+  ---
+  duration_ms: 0.040292
+  ...
+# Subtest: Existing: pure knowledge query routes to knowledge
+ok 14 - Existing: pure knowledge query routes to knowledge
+  ---
+  duration_ms: 0.082833
+  ...
+# Subtest: Existing: empty / unrelated text falls back to assistant
+ok 15 - Existing: empty / unrelated text falls back to assistant
+  ---
+  duration_ms: 0.044792
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12.640625

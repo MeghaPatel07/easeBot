@@ -1,0 +1,61 @@
+AFTER FIX — markup excerpt (ChatMessages.tsx)
+=================================================================================
+
+User bubble (handles RTL text typed by the user via auto-detection):
+
+  <p className="text-[13px] leading-relaxed" data-ph-mask dir="auto">{message.text}</p>
+
+AI message wrapper (carries the backend-detected BCP-47 language + matching direction):
+
+  <div
+    className="chat-msg-text mb-1 w-full prose prose-sm prose-invert ..."
+    data-ph-mask
+    lang={message.language || 'en'}
+    dir={isRtlLanguage(message.language) ? 'rtl' : 'ltr'}
+  >
+    <TypewriterMarkdown ... />
+  </div>
+
+Helper added at top of file:
+
+  const RTL_LANGUAGE_CODES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'yi', 'dv']);
+
+  function isRtlLanguage(code?: string): boolean {
+    if (!code) return false;
+    const primary = code.toLowerCase().split('-')[0];
+    return RTL_LANGUAGE_CODES.has(primary);
+  }
+
+Resulting DOM (example, AI Hindi reply):
+
+  <div class="chat-msg-text ..." data-ph-mask lang="hi" dir="ltr">
+    <p>नमस्ते! मैं आपकी शादी की योजना में कैसे मदद कर सकती हूँ?</p>
+  </div>
+
+Resulting DOM (example, AI Arabic reply):
+
+  <div class="chat-msg-text ..." data-ph-mask lang="ar" dir="rtl">
+    <p>مرحبا! كيف يمكنني مساعدتك في تخطيط حفل زفافك؟</p>
+  </div>
+
+Resulting DOM (English, unchanged behavior — gets explicit lang="en" / dir="ltr"):
+
+  <div class="chat-msg-text ..." data-ph-mask lang="en" dir="ltr">
+    <p>Hi! How can I help you plan your wedding?</p>
+  </div>
+
+Behavior change:
+- NVDA / VoiceOver / JAWS now read the Hindi response with Hindi phonemes
+  (assuming the user's screen reader has a Hindi voice installed; if not,
+  it falls back to its language switcher per its own settings — which is
+  the expected WCAG-compliant behavior).
+- Arabic responses now render right-to-left visually, and the screen
+  reader treats them as Arabic for both phoneme + reading-order purposes.
+- Existing English chats are unaffected aside from the (already implicit)
+  inherited "en" being made explicit.
+
+WCAG compliance:
+- 3.1.2 Language of Parts (AA) — PASS for every AI message.
+- 3.1.1 Language of Page (A) — still PASS via existing `<html lang="en">`.
+  Page-level `lang` swap on conversation language is deferred (out of scope
+  for this ticket — see PR body for rationale).

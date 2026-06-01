@@ -1,0 +1,73 @@
+# Sprint 3 brief adversarial item #1: "Auth race conditions — sign up + immediately
+# try chat before email-verify completes; log out while a stream is in flight;
+# refresh token expiry mid-session"
+
+# === Focus: log out while a stream is in flight ===
+
+# Source: Wedding-Ease-Viva-Chat/src/contexts/AuthContext.tsx:205-212
+
+const handleSignOut = async () => {
+  track('logout')
+  await signOutUser(user?.uid)    // ← Firebase signOut
+  setUser(null)
+  setProfile(null)
+  reset()
+  register({ is_authenticated: false })
+}
+
+# AuthContext exposes signOut. The chat hook holds an AbortController in
+# useChat.ts:203 — abortControllerRef — but only aborts it from the explicit
+# user-driven "Stop generation" button (useChat.ts:939-943):
+#
+#   const stopGeneration = useCallback(() => {
+#     const id = activeRequestIdRef.current
+#     abortControllerRef.current?.abort()
+#     if (id) void cancelChatRequest(id)
+#   }, [])
+#
+# **There is no useEffect / cleanup that aborts the stream when `user` becomes null.**
+#
+# Sequence:
+#   t=0    User sends a long planner message; backend opens a streaming response
+#          and starts writing to users/{uidA}/threads/{tid}/messages/{mid}.
+#   t=2s   User clicks Logout → handleSignOut runs → setUser(null).
+#   t=2.1s onAuthStateChanged fires → AuthContext re-renders.
+#   t=3s   Stream keeps yielding tokens because abortControllerRef was never
+#          aborted. The frontend setMessages calls keep running.
+#   t=5s   Stream completes; backend writes the final assistant message to
+#          the previous uid's thread.
+#   t=5s   User signs back in as uidB; Index.tsx:818 restores guest chat
+#          (uidA's chat is gone from the screen), but the OLD stream's
+#          final write is still pending in the browser's microtask queue.
+#   t=5.5s setMessages with the AI response runs against uidB's context.
+#          If activeThreadId was preserved (same `tid` for some weird reason),
+#          the AI text appears under uidB. If not, it appears as a phantom
+#          message that vanishes on next thread switch.
+
+# Concrete consequences (from code review only — could not script this race
+# without real Firebase auth):
+# 1. PHANTOM MESSAGES on the signed-out user's screen for ~3-10s.
+# 2. UNNECESSARY BACKEND COST — the Azure OpenAI call continues to completion;
+#    user is charged tokens for output they may never see.
+# 3. DATA WRITTEN UNDER STALE UID — Firestore writes from the streaming
+#    backend land under users/{uidA}/messages/* even though uidA is signed
+#    out. Firebase rules will still permit it because the backend uses the
+#    Admin SDK with the token from before signOut.
+# 4. IF SAME-DEVICE SIGN-IN AS DIFFERENT USER: depending on thread routing
+#    luck, the AI reply may cross-bleed into uidB's chat view briefly.
+
+# === Bonus failure: signup-immediate-chat ===
+#
+# AuthContext.tsx:73-85 — Step 1 reads sessionStorage[SESSION_KEY] and
+# short-circuits before onAuthStateChanged even runs. If a fresh signup
+# stores SESSION_KEY (the phone-WhatsApp flow does this), then the user's
+# email isn't yet verified. quotaCheck middleware allows the request through
+# because requireAuth has no emailVerified gate (auth.ts:38-44 only checks
+# token signature). Pre-verification chat lands as a fully billable chat
+# under uid even though Firebase's emailVerified flag is still false.
+
+# === Fix direction ===
+# 1. Add useEffect cleanup in useChat: `useEffect(() => () => abortControllerRef.current?.abort(), [user?.uid])`
+# 2. Or: in AuthContext.handleSignOut, dispatch a global event that abortable
+#    callers can subscribe to.
+# 3. Decide whether to gate chat on emailVerified or not — document the decision.

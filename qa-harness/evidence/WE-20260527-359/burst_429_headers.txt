@@ -1,0 +1,3 @@
+
+--- Test: fire 15 concurrent requests, inspect 429 headers ---
+Result: 5/15 returned 429, none with Retry-After or RateLimit-Reset headers.

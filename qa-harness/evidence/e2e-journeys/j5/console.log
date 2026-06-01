@@ -1,0 +1,8 @@
+[debug] [vite] connecting...
+[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold
+[log] You've disabled debug mode.
+[error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[error] Refused to execute script from 'http://localhost:8081/ingest/array/phc_C3dxDiWMwVzdTWbXbDXvp98L9XCm2qFTJtcgxenkkBXV/config.js' because its MIME type ('') is not executable, and strict MIME type checking is enabled.
+[debug] [vite] connected.
+[error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[error] 404 Error: User attempted to access non-existent route: /settings

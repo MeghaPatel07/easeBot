@@ -1,0 +1,25 @@
+# Confirmation that the empty-prompt image gen path on /api/generate-image
+# refuses BEFORE token charge (PR #34 fix appears to hold at the route level).
+
+$ curl -s -X POST http://localhost:3001/api/generate-image \
+  -H 'Content-Type: application/json' -d '{"prompt":""}'
+{"error":"Validation failed","details":[{"code":"too_small","minimum":1,"type":"string","inclusive":true,"exact":false,"message":"String must contain at least 1 character(s)","path":["prompt"]}]}
+
+$ curl -s -X POST http://localhost:3001/api/generate-image \
+  -H 'Content-Type: application/json' -d '{}'
+{"error":"Validation failed","details":[{"code":"invalid_type","expected":"string","received":"undefined","path":["prompt"],"message":"Required"}]}
+
+# Validation runs BEFORE quotaCheck middleware (see image route:
+#   router.post('/', requireAuth, validateBody(ImageGenerateSchema), quotaCheck('image'), handleGenerateImage)
+# so an empty/missing prompt 400s without ever calling quotaCheck → no charge → no refund needed.
+
+# Inside the handler the only empty-prompt branch (imageController.ts:99-103) calls
+# `qc.reconcile({ skip: true })` — also safe.
+
+# REGRESSION VERDICT: PR #34 image-gen-empty-failure → token refund flow appears intact.
+
+# However: the actual `chat`-mode image tool is a different path. The chat tool
+# (imageGeneration.ts callImageGenTool) does have try/catch around chargeImage
+# in imageController.ts:111-127 — this does charge in advance and refund on
+# post-processing failure. Verified by code review only — could not trigger
+# the Azure outage in QA.

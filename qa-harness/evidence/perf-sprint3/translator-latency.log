@@ -1,0 +1,18 @@
+=== detect (5 runs) ===
+  detect 1: 408.4ms result=[{"isTranslationSupported":true,"isTransliterationSupported":true,"language":"hi
+  detect 2: 131.9ms result=[{"isTranslationSupported":true,"isTransliterationSupported":true,"language":"hi
+  detect 3: 102.5ms result=[{"isTranslationSupported":true,"isTransliterationSupported":true,"language":"hi
+  detect 4: 104.6ms result=[{"isTranslationSupported":true,"isTransliterationSupported":true,"language":"hi
+  detect 5: 442.4ms result=[{"isTranslationSupported":true,"isTransliterationSupported":true,"language":"hi
+=== translate hi->en (5 runs) ===
+  translate 1: 1048.1ms
+  translate 2: 968.3ms
+  translate 3: 373.6ms
+  translate 4: 126.0ms
+  translate 5: 162.9ms
+=== translate en->hi (5 runs) ===
+  translate 1: 193.2ms
+  translate 2: 137.6ms
+  translate 3: 128.1ms
+  translate 4: 98.6ms
+  translate 5: 123.3ms

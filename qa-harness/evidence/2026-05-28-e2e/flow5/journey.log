@@ -1,0 +1,19 @@
+=== Journey 5: Settings nickname → propagate to chat header ===
+
+STATIC ANALYSIS — where 'nickname' is READ in UI:
+/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/SettingsModal.tsx:96:      setNickname(profile?.nickname ?? '')
+
+→ ZERO UI components display nickname. SettingsModal/AccountTab READ it for editing only.
+→ ChatHeader (line 89) and ProfileMenu (line 172,177) show profile.name (display name), not nickname.
+→ Only useChat.ts sends nickname downstream as 'userPersonalization' to the LLM (affects tone, not visuals).
+
+BACKEND PROBE: PATCH /api/account/profile requires auth
+PATCH /api/account/profile (no token) → 401
+
+DUAL-WRITE RISK (per WE-20260527-170 architectural umbrella):
+  Frontend can write profile via:
+    (a) accountService.updateProfile() → PATCH /api/account/profile → Admin SDK
+    (b) settingsService.savePersonalization() → Firestore SDK direct
+  These two paths emit different events, run different validation, race-condition each other.
+
+MISSING UI SURFACE — nickname change saves successfully but is invisible to user.

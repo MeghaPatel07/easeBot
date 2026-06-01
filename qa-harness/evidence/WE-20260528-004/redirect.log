@@ -1,0 +1,13 @@
+$ curl -sS -X POST http://localhost:3001/api/payment/return \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "status=success&txnid=test" -i
+HTTP/1.1 302 Found
+...
+Location: http://localhost:8080/payment/failure?reason=bad_payload
+Found. Redirecting to http://localhost:8080/payment/failure?reason=bad_payload
+
+$ curl -sS -I http://localhost:8080 --max-time 2
+curl: (7) Failed to connect to localhost port 8080: Connection refused
+
+$ curl -sS -I http://localhost:8081 --max-time 2
+HTTP/1.1 200 OK

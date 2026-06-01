@@ -1,0 +1,11 @@
+$ grep -n "'pro:\|'promax:\|usd:" easebot-backend/src/controllers/paymentController.ts | head -10
+42:  'pro:monthly':    { plan: 'pro',      cycle: 'monthly', usd: 10,    productinfo: 'Easebot Pro — Monthly' },
+43:  'pro:annual':     { plan: 'pro',      cycle: 'annual',  usd: 79,    productinfo: 'Easebot Pro — Annual' },
+44:  'promax:monthly': { plan: 'promax',   cycle: 'monthly', usd: 39,    productinfo: 'Easebot Pro Max — Monthly' },
+45:  'promax:annual':  { plan: 'promax',   cycle: 'annual',  usd: 299,   productinfo: 'Easebot Pro Max — Annual' },
+
+$ grep "1299" easebot-backend/src/utils/__tests__/payuHash.test.ts
+66:    'JBZaLc|EB-TEST-123|1299.00|Easebot Pro Monthly|Krish|test@example.com|uid_abc|pro|monthly||||||||eCwWELxi'
+
+# At PayU INR locked exchange rate (~86), $14.99 ≈ ₹1,289 ≈ test fixture ₹1,299 (small rate drift).
+# But the live PRICING.usd is 10, so production hash = ₹860, NOT ₹1,299. The unit test is asserting a value the runtime no longer produces.

@@ -1,0 +1,26 @@
+# Sprint 3 brief regression item: re-confirm Pro tier is still $10 (locked = $14.99)
+
+# BACKEND source of truth — paymentController.ts:42-43
+$ grep -n "'pro:" easebot-backend/src/controllers/paymentController.ts
+42:  'pro:monthly':    { plan: 'pro',      cycle: 'monthly', usd: 10,    productinfo: 'Easebot Pro — Monthly' },
+43:  'pro:annual':     { plan: 'pro',      cycle: 'annual',  usd: 79,    productinfo: 'Easebot Pro — Annual' },
+
+# FRONTEND display
+$ grep -n "Pro " Wedding-Ease-Viva-Chat/src/pages/Pricing.tsx
+... FAQ copy line 53: "Pro ($10/mo) adds more tokens, image generation, and advanced planning tools."
+... PRICING_DATA: { tier: 'pro', monthlyUsd: 10, annualUsd: 79, isRecommended: true }
+
+$ grep -rn "subscriptionStateMachine" easebot-backend/src/services/subscriptionStateMachine.ts | grep -E "pro: |10|79"
+pro: { monthly: 10, annual: 79 },
+
+# LOCKED memory (project_pricing_rollout.md §6) — read 2026-05-28:
+#   pro: 300k/day + 3M/mo ($14.99/mo or $119/yr)
+
+# Delta unchanged from Sprint 1:
+#   Pro monthly:  $10  vs locked $14.99  → −33%
+#   Pro annual:   $79  vs locked $119    → −34%
+#   Pro Max:      OK
+#   Top-up:       OK
+
+# REGRESSION VERDICT: regression NOT fixed in Sprint 1 or 2. Status quo at start
+# of Sprint 3 is identical to WE-20260528-011 / WE-20260528-012 filing.

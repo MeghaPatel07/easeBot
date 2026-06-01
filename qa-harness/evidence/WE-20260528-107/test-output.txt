@@ -1,0 +1,55 @@
+TAP version 13
+# Subtest: strips <img onerror> attribute payloads
+ok 1 - strips <img onerror> attribute payloads
+  ---
+  duration_ms: 0.39375
+  ...
+# Subtest: strips <script> tags AND keeps inner text (parens also dropped as belt-and-suspenders)
+ok 2 - strips <script> tags AND keeps inner text (parens also dropped as belt-and-suspenders)
+  ---
+  duration_ms: 0.062458
+  ...
+# Subtest: strips anchor tags pointing at javascript: URIs
+ok 3 - strips anchor tags pointing at javascript: URIs
+  ---
+  duration_ms: 0.044209
+  ...
+# Subtest: collapses [label](javascript:url) to just the label
+ok 4 - collapses [label](javascript:url) to just the label
+  ---
+  duration_ms: 0.038167
+  ...
+# Subtest: collapses nested-looking [label](url) variants
+ok 5 - collapses nested-looking [label](url) variants
+  ---
+  duration_ms: 0.085334
+  ...
+# Subtest: drops stray < and > that survive both passes
+ok 6 - drops stray < and > that survive both passes
+  ---
+  duration_ms: 0.035792
+  ...
+# Subtest: trims surrounding whitespace
+ok 7 - trims surrounding whitespace
+  ---
+  duration_ms: 0.035334
+  ...
+# Subtest: caps length at 80 characters
+ok 8 - caps length at 80 characters
+  ---
+  duration_ms: 0.095
+  ...
+# Subtest: handles null and undefined input without throwing
+ok 9 - handles null and undefined input without throwing
+  ---
+  duration_ms: 0.108166
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 107.4725

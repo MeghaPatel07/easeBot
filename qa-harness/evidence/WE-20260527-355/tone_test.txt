@@ -1,0 +1,8 @@
+Test: identical message, varying toneSettings.concise
+
+QUERY: "What are the key things to plan for a 6-month-out wedding?"
+
+concise=0  → 795 chars, mode=planner, 4 numbered items with sub-bullets and a long opening preamble
+concise=100 → 851 chars, mode=planner, 4 numbered items with sub-bullets — slightly LONGER than concise=0
+
+Conclusion: tone slider has no measurable effect on response length.

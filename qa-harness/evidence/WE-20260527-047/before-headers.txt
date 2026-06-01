@@ -1,0 +1,43 @@
+BEFORE (rateLimiter.ts on Bug-Resolve-claude prior to WE-20260527-047 fix)
+============================================================================
+Source (src/middleware/rateLimiter.ts):
+  apiRateLimiter: standardHeaders: true (= draft-6), no custom handler,
+                  message = { error: "Too many requests, please try again later." }
+  imageRateLimiter: same shape.
+  chatBurstRateLimiter: custom handler returning
+                        { error: "chat_burst_limit", retryAfter: 10 }
+                        (camelCase, no Retry-After body field per spec).
+
+Behavior on 429 (per express-rate-limit v8 with standardHeaders: true):
+  - Retry-After: 60                 ← actually was set (lib emits it auto)
+  - RateLimit-Policy: 30;w=60       ← draft-6 only emits Policy + Limit/Remaining/Reset
+  - RateLimit-Limit: 30
+  - RateLimit-Remaining: 0
+  - RateLimit-Reset: 60
+  - (no combined draft-7 `RateLimit:` header)
+
+Body on 429:
+  apiRateLimiter:     {"error":"Too many requests, please try again later."}
+                      ← no retry_after, no limit, no scope, no machine code.
+  imageRateLimiter:   same shape.
+  chatBurstRateLimiter:{"error":"chat_burst_limit","retryAfter":10}
+                      ← `retryAfter` (camelCase) + opaque `error` value.
+
+QA report (WE-20260527-047) captured this set of response headers:
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Origin-Agent-Cluster: ?1
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-DNS-Prefetch-Control: off
+  X-Download-Options: noopen
+  X-Frame-Options: SAMEORIGIN
+
+— with no Retry-After / RateLimit-* visible. Likely a deployment/version
+mismatch at capture time (express-rate-limit < 7 needs explicit headers
+config; helmet doesn't strip them; reverse proxy is the only other suspect).
+This fix removes ambiguity by switching to draft-7 (combined RateLimit
+header + explicit Retry-After) and normalizing the body shape so the
+contract is explicit and machine-parseable regardless of intermediate
+proxy behavior.

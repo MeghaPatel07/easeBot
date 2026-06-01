@@ -1,0 +1,10 @@
+$ python3 -c "import json; print(json.dumps({'text':'hello '*200000}))" \
+    | curl -sS -X POST http://localhost:3001/api/tts \
+        -H "Content-Type: application/json" -d @- --max-time 30 -i | head -25
+HTTP/1.1 100 Continue
+HTTP/1.1 200 OK
+RateLimit-Policy: 30;w=60
+Content-Type: audio/wav
+Content-Length: 15610244
+Cache-Control: no-store
+Connection: keep-alive
