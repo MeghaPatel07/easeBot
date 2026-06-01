@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-893</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-893 · NoteShareDialog empty-state copy <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-893</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-893</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>NoteShareDialog shows a blank list area when a note has no existing shares (no collaborators, no public link). No copy explaining what to do.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:00</div>
+        <div class="what">Read ticket + NoteShareDialog.tsx end-to-end (366 lines).</div>
+        <div class="detail">Confirmed: when note has no collaborators AND publicAccess is not enabled, the "People with access" section only shows the Owner row plus a very weak italic "No collaborators yet" sub-line. The "Link sharing" section shows an "Enable public link" button. No explicit empty-state guidance.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:01</div>
+        <div class="what">Searched for an existing EmptyState component.</div>
+        <div class="detail">Only a local <code>EmptyState</code> inside <code>AttachmentPicker.tsx</code> exists (very minimal, only renders a one-line msg). Not reusable; inlining the empty state directly in the dialog is the smallest viable change and matches the ticket's expected shape (icon + heading + sub-copy).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:05</div>
+        <div class="what">Implemented inline empty-state block.</div>
+        <div class="detail">Conditional render: when <code>note.collaborators</code> is empty AND <code>note.publicAccess?.enabled</code> is false, render a centered block at the top of the "People with access" section with a <code>Share2</code> icon, "No shares yet" heading, and "Use the form above to create your first share link." sub-copy. Owner row + sections below stay untouched. Replaced weaker "No collaborators yet" italic with this richer empty state (only displays when truly no shares).</div>
+      </div>
+    </div>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">pre-existing config crash in functions/ (noted, not fixed in this PR)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/components/notes/NoteShareDialog.tsx</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/71">https://github.com/MeghaPatel07/easeBot/pull/71</a></p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

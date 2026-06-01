@@ -1,0 +1,22 @@
+WE-20260527-209 — server-side logging verification
+
+Pattern in src/controllers/transcribeController.ts (after fix):
+
+  console.error('[transcribeController]', err)        // logs FULL err including stack + raw message
+  res.status(500).json({                              // client gets generic body only
+    error: 'Audio could not be processed',
+    code: 'TRANSCRIBE_FAILED',
+  })
+
+Pattern in src/services/stt.ts convertToWav (after fix):
+
+  .on('error', (err: Error) => {
+    console.error('[stt.convertToWav] ffmpeg failed:', err)   // ops sees raw stderr + paths
+    reject(new Error(`Audio conversion failed: ${scrubPaths(err.message)}`))
+  })
+
+Both layers preserve the full diagnostic detail in stderr/stdout while only
+emitting a sanitized payload across the HTTP boundary. ffmpeg stderr that
+ends up in err.message at the boundary has /var/folders/... and /tmp/...
+paths replaced with the literal '<tmp>' marker; controller then overwrites
+with the static generic message regardless.

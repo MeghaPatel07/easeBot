@@ -1,0 +1,10 @@
+$ for i in $(seq 1 11); do curl -s -o /dev/null -w "%{http_code} " -X POST http://localhost:3001/api/chat -H "Content-Type: application/json" -d "{\"message\":\"hi $i\"}"; done; echo
+200 200 200 200 200 200 200 200 200 200 429
+
+src/middleware/rateLimiter.ts:28-35:
+export const chatBurstRateLimiter = rateLimit({
+  windowMs: 10 * 1000,
+  max: 10,
+  ...
+})
+(no keyGenerator override — defaults to req.ip)

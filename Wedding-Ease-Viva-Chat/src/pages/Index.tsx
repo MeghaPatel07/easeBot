@@ -78,7 +78,7 @@ const Index = () => {
   const {
     messages, threads, activeThreadId, isTyping, allLikedMessages, reminders, lastToolActions,
     likedProducts, likedProductIds, toggleProductLike,
-    sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
+    sendMessage, stopGeneration, retryLastFailedSend, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
     hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError,
   } = useChat();
@@ -1446,6 +1446,7 @@ const Index = () => {
             onToggleLike={toggleLike}
             onRegenerateMessage={handleRegenerateMessage}
             onContinueGenerating={handleContinueGenerating}
+            onRetryFailedSend={retryLastFailedSend}
             onToneModifier={handleToneModifier}
             onConvertToTable={handleConvertToTable}
             onSaveProduct={handleSaveProduct}

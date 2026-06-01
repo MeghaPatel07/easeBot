@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { auth } from '@/lib/firebase'
+import { getGuestSessionId } from '@/lib/guestSession'
 
 // Backend base URL mirrors the rest of the service layer.
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
@@ -64,14 +65,20 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onOpenChange }) =
     try {
       const currentUser = auth.currentUser
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      let sentAuth = false
       if (currentUser) {
         try {
           const token = await currentUser.getIdToken()
           headers.Authorization = `Bearer ${token}`
+          sentAuth = true
         } catch {
           // Token fetch failure is non-fatal — submit as guest.
         }
       }
+      // Guest (or token fetch failed): carry a valid guest session so the
+      // backend admits the request (WE-20260527-202 — feedback now rejects
+      // fully-anonymous callers).
+      if (!sentAuth) headers['X-Guest-Id'] = getGuestSessionId()
 
       const res = await fetch(`${API_BASE}/api/feedback`, {
         method: 'POST',

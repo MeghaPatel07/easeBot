@@ -72,6 +72,17 @@ function AnalyticsBoot(): null {
     }
   }, [])
   return null
+ * WE-20260601-200: the backend's guest cap-hit response and the in-chat
+ * guest-limit bubble both point the upgrade CTA at `/signup?from=guest-cap`,
+ * but no `/signup` route existed — clicking it fell through to NotFound at the
+ * single highest-intent conversion moment. The canonical signup surface is the
+ * Login page (single email/Google entry handles both sign-in and sign-up), so
+ * redirect `/signup` → `/login`, preserving the query string (e.g. the
+ * `from=guest-cap` conversion-source param) for analytics/return intent.
+ */
+function SignupRedirect() {
+  const location = useLocation()
+  return <Navigate to={`/login${location.search}`} replace />
 }
 
 const Index = lazy(() => import('./pages/Index'));
@@ -150,6 +161,9 @@ const App = () => (
               <Route path="/payment/failure" element={<PaymentFailure />} />
               <Route path="/help" element={<Help />} />
               <Route path="/login" element={<Login />} />
+              {/* WE-20260601-200: /signup → /login (signup surface), */}
+              {/* preserving query so guest-cap CTAs no longer 404. */}
+              <Route path="/signup" element={<SignupRedirect />} />
               {/* Sprint 1 batch B (FE-001): /billing placeholder route — */}
               {/* redirects into Settings → Plan & Billing tab. */}
               <Route

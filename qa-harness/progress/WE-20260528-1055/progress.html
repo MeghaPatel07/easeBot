@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-1055</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-1055 &middot; useTypewriter ignores prefers-reduced-motion <span class="pill P1">P1</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-1055</code> &rarr; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-1055</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      <code>src/index.css:872</code> globally applies <code>prefers-reduced-motion: reduce</code> to kill CSS animation/transition.
+      However <code>useTypewriter</code> is a JS hook driven by <code>requestAnimationFrame</code> at 12 ms/char &mdash; entirely unaffected by CSS media queries.
+      Users with motion-reduction enabled still see every assistant message animate char-by-char for 5&ndash;30 s. This violates
+      WCAG 2.2.2 (Level A &mdash; Pause/Stop/Hide) and 2.3.3 (AAA &mdash; Animation from Interactions).
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:10</div>
+        <div class="what">Read ticket + hook source. Confirmed RAF loop has no a11y gate.</div>
+        <div class="detail">Hook at <code>src/hooks/useTypewriter.ts</code> uses <code>requestAnimationFrame</code> directly &mdash; CSS reduce-motion override at <code>src/index.css:872</code> can't reach it.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:11</div>
+        <div class="what">Implemented matchMedia short-circuit inside hook.</div>
+        <div class="detail">Subscribe to <code>window.matchMedia('(prefers-reduced-motion: reduce)')</code>, store match as state, gate both effects on it. When matched: flush <code>displayedText = targetText</code>, skip RAF. Includes Safari &lt;14 <code>addListener</code> fallback and SSR/non-browser guard.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:14</div>
+        <div class="what">tsc + lint passed on changed file (pre-existing repo errors unchanged).</div>
+        <div class="detail">No new TypeScript or ESLint diagnostics introduced by this PR.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:15</div>
+        <div class="what">Dev server in worktree running on :8081. Page boots in both modes, 0 console errors.</div>
+        <div class="detail">Probed via Playwright (chromium) with <code>reducedMotion</code> context option set to <code>'no-preference'</code> and <code>'reduce'</code>. <code>window.matchMedia('(prefers-reduced-motion: reduce)').matches</code> flips correctly in both runs.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:18</div>
+        <div class="what">Behavioral hook test PASSED &mdash; all 4 assertions green.</div>
+        <div class="detail">
+          Mounted the actual <code>useTypewriter</code> from the dev server's module graph in a hidden React root. Drove it with an 85-character target string and sampled <code>displayedText</code> every render.
+          <ul>
+            <li><b>Reduce-motion OFF</b>: 41 samples, length grew 0&rarr;85 over ~700ms (matches 12 ms/char animation cadence). PASS.</li>
+            <li><b>Reduce-motion ON</b>: only 2 samples &mdash; <code>len=0</code> then <code>len=85</code>. Zero RAF loop, full text appears in the first effect tick. PASS.</li>
+            <li>Both modes reach final target length. PASS &times; 2.</li>
+          </ul>
+          Output saved to <code>qa-harness/evidence/WE-20260528-1055/hook-behavior-test.txt</code>.
+        </div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Page boot, reduce-motion OFF: <code>qa-harness/evidence/WE-20260528-1055/screenshots/before-normal.png</code></li>
+      <li>Page boot, reduce-motion ON (emulated via CDP): <code>qa-harness/evidence/WE-20260528-1055/screenshots/after-reduce-motion-on.png</code></li>
+      <li>Behavioral hook test output (4/4 assertions PASS): <code>qa-harness/evidence/WE-20260528-1055/hook-behavior-test.txt</code></li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type-check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">no new errors (pre-existing repo errors unchanged)</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="ok">no new errors on <code>useTypewriter.ts</code></td></tr>
+        <tr><td>E2E boot</td><td>Playwright chromium @ <code>http://localhost:8081/</code></td><td class="ok">page boots, 0 console errors, matchMedia toggle works both ways</td></tr>
+        <tr><td>Behavior</td><td>headless React mount of <code>useTypewriter</code> with sampling</td><td class="ok">4/4 PASS &mdash; ON: 2 samples (instant), OFF: 41 samples (smooth)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/hooks/useTypewriter.ts | +28 -3 (matchMedia subscription + gate)</pre>
+    <p>Intentionally not touched: <code>src/components/chat/ChatMessages.tsx</code> &mdash; the typewriter consumer at <code>:109</code> is the territory of ticket WE-20260528-1056, which is being worked in parallel. The hook change is internal-only so no consumer edits are required.</p>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/65">https://github.com/MeghaPatel07/easeBot/pull/65</a> (base: <code>Bug-Resolve-claude</code>, head: <code>fix-WE-20260528-1055</code>)</p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Theme boot — runs before React mounts to kill the theme-swap flash
+         on cold reload. Reads the persisted theme synchronously and applies
+         either the `light` or `dark` class to <html>. Default is `light`.
+         Also sets color-scheme so native form controls / scrollbars track. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('easebot-theme');
+          if (t !== 'system' && t !== 'light' && t !== 'dark') t = 'light';
+          var resolved = t;
+          if (t === 'system') {
+            resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          var root = document.documentElement;
+          root.classList.toggle('dark', resolved === 'dark');
+          root.classList.toggle('light', resolved === 'light');
+          root.style.colorScheme = resolved;
+        } catch (e) { /* private mode / no storage */ }
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <link rel="icon" type="image/png" href="/images/typo.png" />
+    <link rel="apple-touch-icon" href="/images/typo.png" />
+    <title>TheWeddingBot - Your Personal Wedding Planning Assistant</title>
+    <meta name="description" content="TheWeddingBot helps you plan your perfect wedding with personalized guidance, expert tips, and 24/7 support." />
+    <meta name="author" content="TheWeddingBot" />
+
+    <!-- Mobile browser chrome color (Android Chrome / Safari iOS 15+) -->
+    <meta name="theme-color" content="#3A0E20" />
+    <!-- color-scheme is set dynamically by the boot script above so native
+         form controls / scrollbars track the active theme. -->
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- iOS PWA / add-to-home-screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="TheWeddingBot" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Google Fonts (Stitch: Noto Serif + Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Material Symbols (Stitch icon set) -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <!-- Preload background image for immediate loading -->
+    <link rel="preload" href="/images/IMG_3917.PNG" as="image" type="image/png" />
+
+    <meta property="og:title" content="TheWeddingBot - Your Personal Wedding Planning Assistant" />
+    <meta property="og:description" content="TheWeddingBot helps you plan your perfect wedding with personalized guidance, expert tips, and 24/7 support." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://theweddingbot.ai/images/easebot.png" />
+    <meta property="og:image:secure_url" content="https://theweddingbot.ai/images/easebot.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="275" />
+    <meta property="og:image:height" content="300" />
+    <meta property="og:image:alt" content="TheWeddingBot mascot" />
+    <meta property="og:url" content="https://theweddingbot.ai/">
+    <meta property="og:site_name" content="TheWeddingBot" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="@weddingease_ai" />
+    <meta name="twitter:title" content="TheWeddingBot - Your Personal Wedding Planning Assistant" />
+    <meta name="twitter:description" content="TheWeddingBot helps you plan your perfect wedding with personalized guidance, expert tips, and 24/7 support." />
+    <meta name="twitter:image" content="https://theweddingbot.ai/images/easebot.png" />
+
+    <link rel="manifest" href="/manifest.json">
+    <link rel="canonical" href="https://theweddingbot.ai/">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "TheWeddingBot",
+      "applicationCategory": "LifestyleApplication",
+      "operatingSystem": "Web",
+      "description": "TheWeddingBot — AI-powered wedding planning assistant with personalized guidance, style recommendations, budget tracking, and 24/7 support.",
+      "offers": [
+        {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "name": "Free"
+        },
+        {
+          "@type": "Offer",
+          "price": "1",
+          "priceCurrency": "INR",
+          "name": "Pro"
+        },
+        {
+          "@type": "Offer",
+          "price": "39",
+          "priceCurrency": "USD",
+          "name": "Pro Max"
+        }
+      ],
+      "author": {
+        "@type": "Organization",
+        "name": "TheWeddingBot",
+        "url": "https://theweddingbot.ai"
+      }
+    }
+    </script>
+    <script type="module" crossorigin src="/assets/index-BFQDlZeM.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BFm3j64I.css">
+  </head>
+
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

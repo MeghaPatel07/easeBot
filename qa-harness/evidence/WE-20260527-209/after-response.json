@@ -1,0 +1,5 @@
+{
+  "_status": 500,
+  "error": "Audio could not be processed",
+  "code": "TRANSCRIBE_FAILED"
+}

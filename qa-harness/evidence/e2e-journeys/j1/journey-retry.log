@@ -1,0 +1,4 @@
+[2026-05-27T10:26:21.839Z] [j1-retry] consent-dismissed → ok
+[2026-05-27T10:26:48.565Z] [j1-retry] cap-loop 11 → skip :: locator.click: Timeout 3000ms exceeded.
+Call log:
+[2m  - waiting for locator('t
