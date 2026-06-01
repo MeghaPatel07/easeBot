@@ -54,19 +54,19 @@ export default function SharedChat() {
   return (
     <div className="gradient-bg min-h-[100vh] min-h-[100dvh]">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-foreground/80 backdrop-blur-md border-b px-5 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-card-elevated/90 backdrop-blur-md border-b border-foreground/[0.08] px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/" className="text-primary hover:text-primary/80 transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-sm font-bold text-foreground/80">{data.threadTitle}</h1>
-            <p className="text-2xs text-foreground/40">
+            <h1 className="text-sm font-bold text-foreground">{data.threadTitle}</h1>
+            <p className="text-2xs text-muted-foreground">
               Shared {data.sharedAt.toLocaleDateString()} &middot; Expires {data.expiresAt.toLocaleDateString()}
             </p>
           </div>
         </div>
-        <span className="text-2xs text-foreground/40 bg-foreground/10 px-2 py-1 rounded-full uppercase tracking-wider font-medium">Read-only</span>
+        <span className="text-2xs text-muted-foreground bg-foreground/[0.06] px-2 py-1 rounded-full uppercase tracking-wider font-medium">Read-only</span>
       </header>
 
       {/* Messages */}
