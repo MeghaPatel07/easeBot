@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getCountFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -11,6 +12,11 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { Checklist, ChecklistItem } from '@/types'
+import {
+  checkChecklistLimit,
+  ChecklistLimitError,
+  type TierProfile,
+} from './checklistLimits'
 
 function checklistsCol(userId: string) {
   return collection(db, 'users', userId, 'checklists')
@@ -20,13 +26,40 @@ function checklistDoc(userId: string, checklistId: string) {
   return doc(db, 'users', userId, 'checklists', checklistId)
 }
 
+// ── Count (server-side) ────────────────────────────────────────────────────
+// Used by the tier-cap gate so the manual creation paths enforce the same
+// free-tier "max 5 checklists" limit as the AI planner tool (WE-20260601-103).
+// Uses Firestore's aggregation count so we don't pull every doc just to count.
+export async function countChecklists(userId: string): Promise<number> {
+  const snap = await getCountFromServer(checklistsCol(userId))
+  return snap.data().count
+}
+
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Create a checklist, enforcing the resolved tier's checklist cap. `profile` is
+ * required so every call site (manual UI + duplicate) goes through the same gate
+ * the AI tool path uses — preventing the free-tier bypass in WE-20260601-103.
+ * Throws {@link ChecklistLimitError} (with an upgrade message) when capped.
+ */
 export async function createChecklist(
   userId: string,
   title: string,
-  itemTexts: string[]
+  itemTexts: string[],
+  profile: TierProfile
 ): Promise<Checklist> {
+  // Tier-cap gate — consistent with the backend AI-tool path. Only counts when
+  // the tier is actually capped (free), so pro/promax skip the extra read.
+  const precheck = checkChecklistLimit(profile, 0)
+  if (precheck.max != null) {
+    const existingCount = await countChecklists(userId)
+    const verdict = checkChecklistLimit(profile, existingCount)
+    if (!verdict.allowed) {
+      throw new ChecklistLimitError(verdict)
+    }
+  }
+
   const id = crypto.randomUUID()
   const now = serverTimestamp()
   const items: ChecklistItem[] = itemTexts.map(text => ({
@@ -42,10 +75,14 @@ export async function createChecklist(
   return checklist as unknown as Checklist
 }
 
-export async function duplicateChecklist(userId: string, source: Checklist): Promise<void> {
+export async function duplicateChecklist(
+  userId: string,
+  source: Checklist,
+  profile: TierProfile
+): Promise<void> {
   const title = `${source.title} (Copy)`
   const itemTexts = source.items.map(i => i.text)
-  await createChecklist(userId, title, itemTexts)
+  await createChecklist(userId, title, itemTexts, profile)
 }
 
 export async function updateChecklistItem(
