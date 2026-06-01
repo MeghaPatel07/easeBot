@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +17,60 @@ import { useLocation } from "react-router-dom";
 /** Runs route-level side-effects that need router context. */
 function RouteEffects() {
   useCanonical()
+  return null
+}
+
+/**
+ * Boots PostHog analytics off the critical path (WE-20260528-305).
+ *
+ * `posthog-js` (~60 KB gzipped) used to be imported and initialized
+ * synchronously from main.tsx, blocking first paint and bloating the
+ * initial chunk graph. We now dynamic-import `./lib/analytics` and call
+ * `initAnalytics()` inside `requestIdleCallback` after first paint, so
+ * the SDK + /ingest/* requests don't compete with main-bundle download.
+ *
+ * The analytics module buffers any `track()` / `identify()` / etc. calls
+ * made before init resolves and replays them once PostHog is ready, so
+ * early page-load events are not lost.
+ */
+function AnalyticsBoot(): null {
+  useEffect(() => {
+    let cancelled = false
+    const boot = (): void => {
+      if (cancelled) return
+      void import('./lib/analytics').then((mod) => {
+        if (cancelled) return
+        void mod.initAnalytics().then(() => {
+          if (cancelled) return
+          // Anonymous/guest replay decision: sampled per §7 cost-control.
+          // AuthContext will upgrade this when the user logs in (paying
+          // users always record).
+          mod.startReplay({ isPaying: false, route: window.location.pathname })
+        })
+      })
+    }
+    const ric = (window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }).requestIdleCallback
+    if (typeof ric === 'function') {
+      const id = ric(boot, { timeout: 2000 })
+      return () => {
+        cancelled = true
+        const cic = (window as Window & {
+          cancelIdleCallback?: (id: number) => void
+        }).cancelIdleCallback
+        if (typeof cic === 'function') cic(id)
+      }
+    }
+    // Safari < 16.4 / older WebKit: fall back to a short macrotask delay so
+    // we still yield to first paint before pulling in the SDK.
+    const t = window.setTimeout(boot, 0)
+    return () => {
+      cancelled = true
+      window.clearTimeout(t)
+    }
+  }, [])
   return null
 }
 
@@ -55,6 +109,7 @@ const queryClient = new QueryClient();
 const App = () => (
 
   <QueryClientProvider client={queryClient}>
+    <AnalyticsBoot />
     <AuthProvider>
       <ChatAttachmentsProvider>
       <ThemeProvider>
