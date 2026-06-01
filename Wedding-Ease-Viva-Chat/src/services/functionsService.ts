@@ -2,6 +2,7 @@ import { httpsCallable } from 'firebase/functions'
 import { auth, functions } from '@/lib/firebase'
 import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@/types'
 import { QUOTA_EVENT, type QuotaExceededPayload } from '@/services/accountService'
+import { buildAuthHeaders } from '@/lib/guestSession'
 // CalendarEvent kept here transitionally — used in StreamDoneEvent below until backend drops the field.
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
@@ -39,8 +40,9 @@ async function getAuthToken(): Promise<string | null> {
 
 async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const token = await getAuthToken()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  // Authenticated → Authorization; anonymous → X-Guest-Id (valid guest session).
+  // The backend rejects fully-anonymous callers on these routes (WE-20260527-202).
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...buildAuthHeaders(token) }
 
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
@@ -155,8 +157,8 @@ export async function* streamChatMessage(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'text/event-stream',
+    ...buildAuthHeaders(token),
   }
-  if (token) headers['Authorization'] = `Bearer ${token}`
 
   const res = await fetch(`${API_BASE}/api/chat/stream`, {
     method: 'POST',
@@ -213,8 +215,7 @@ export async function* streamChatMessage(
 export async function cancelChatRequest(requestId: string): Promise<void> {
   try {
     const token = await getAuthToken()
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...buildAuthHeaders(token) }
     await fetch(`${API_BASE}/api/chat/cancel`, {
       method: 'POST',
       headers,
