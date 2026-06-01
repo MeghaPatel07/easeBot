@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
+import { GlossaryText } from '@/components/images/GlossaryText'
 
 import TabShell from './_TabShell'
 
@@ -474,7 +475,9 @@ export function PersonalizationTab() {
             <p className="text-sm font-medium text-foreground/90">{activeVibe.title}</p>
             {activeVibe.subtitle && (
               <p className="mt-1 text-xs text-foreground/90">
-                {activeVibe.subtitle}
+                {/* Specialist terms keep their wording but gain a focusable,
+                    screen-reader-reachable definition (WCAG 3.1.3). */}
+                <GlossaryText text={activeVibe.subtitle} />
               </p>
             )}
             {activeVibe.descriptors?.length > 0 && (
@@ -484,7 +487,7 @@ export function PersonalizationTab() {
                     key={d}
                     className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-2xs font-medium text-foreground/90"
                   >
-                    {d}
+                    <GlossaryText text={d} />
                   </span>
                 ))}
               </div>
