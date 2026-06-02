@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { requireUser } from '../middleware/auth'
 import {
   initiate,
   activatePlan,
@@ -15,18 +15,23 @@ import {
 
 const router = Router()
 
+// Payment/subscription mutations must NEVER serve guests or invalid tokens.
+// `requireUser` requires a verified Firebase user and FAILS CLOSED — missing OR
+// invalid token => 401 (WE-20260527-202 / -1007). PayU callbacks below stay
+// unauthenticated (PayU is the HTTP client; hash verification is the gate).
+
 // Authenticated: user-initiated purchase + verify.
-router.post('/initiate', requireAuth, initiate)
-router.post('/activate-plan', requireAuth, activatePlan)
-router.get ('/verify',   requireAuth, verify)
+router.post('/initiate', requireUser, initiate)
+router.post('/activate-plan', requireUser, activatePlan)
+router.get ('/verify',   requireUser, verify)
 
 // Subscription mutations.
-router.post('/subscription/upgrade',   requireAuth, upgrade)
-// router.post('/subscription/downgrade', requireAuth, downgrade) // TODO: disabled for now, only upgrades allowed
-router.get ('/subscription/current',   requireAuth, getCurrentSubscription)
+router.post('/subscription/upgrade',   requireUser, upgrade)
+// router.post('/subscription/downgrade', requireUser, downgrade) // TODO: disabled for now, only upgrades allowed
+router.get ('/subscription/current',   requireUser, getCurrentSubscription)
 
 // Top-up alias — hits the standard initiate flow with plan=topup_2m.
-router.post('/topup', requireAuth, (req, res, next) => {
+router.post('/topup', requireUser, (req, res, next) => {
   req.body = { ...(req.body ?? {}), plan: 'topup_2m', cycle: 'once' }
   return initiate(req, res, next)
 })

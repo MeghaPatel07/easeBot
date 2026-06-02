@@ -1,0 +1,5 @@
+=== /ingest/array/<key>/config.js ===
+HTTP 200 bytes=1230 type=application/javascript
+
+=== /ingest/array/<key>/config?ip=0 ===
+HTTP 200 bytes=1031 type=application/json

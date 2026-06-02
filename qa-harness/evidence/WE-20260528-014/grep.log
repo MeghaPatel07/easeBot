@@ -1,0 +1,10 @@
+$ grep -n "sendInvite\|sendEmail\|fetch\|notify" /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/InvitePartner.tsx
+(no matches — no network call to send email)
+
+$ grep '"/invite' /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/App.tsx
+(no matches — route not registered)
+
+$ sed -n '138,142p' /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/InvitePartner.tsx
+      const inviteLink = `${window.location.origin}/invite?from=${userId}`
+      setLastInviteLink(inviteLink)
+      setSuccess(`Invite sent to ${trimmed}. They'll receive an email to join your plan.`)

@@ -1,0 +1,80 @@
+{
+  "checkout": {
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 1,
+        "help": "Elements must meet minimum color contrast ratio thresholds"
+      },
+      {
+        "id": "link-in-text-block",
+        "impact": "serious",
+        "nodes": 1,
+        "help": "Links must be distinguishable without relying on color"
+      }
+    ],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 1,
+      "footer": 0
+    },
+    "h1": 1,
+    "title": "TheWeddingBot - Your Personal Wedding Planning Assistant"
+  },
+  "payment-success": {
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 2,
+        "help": "Elements must meet minimum color contrast ratio thresholds"
+      }
+    ],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 0,
+      "footer": 0
+    },
+    "h1": 1,
+    "title": "TheWeddingBot - Your Personal Wedding Planning Assistant"
+  },
+  "payment-failure": {
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 2,
+        "help": "Elements must meet minimum color contrast ratio thresholds"
+      }
+    ],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 0,
+      "footer": 0
+    },
+    "h1": 1,
+    "title": "TheWeddingBot - Your Personal Wedding Planning Assistant"
+  },
+  "share": {
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "nodes": 2,
+        "help": "Elements must meet minimum color contrast ratio thresholds"
+      }
+    ],
+    "landmarks": {
+      "main": 0,
+      "nav": 0,
+      "header": 0,
+      "footer": 0
+    },
+    "h1": 0,
+    "title": "TheWeddingBot - Your Personal Wedding Planning Assistant"
+  }
+}

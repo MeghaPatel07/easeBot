@@ -1,0 +1,31 @@
+=== Reduce-motion OFF (animation expected) ===
+  matchMedia matches: false
+  Sample count: 41
+  First samples (t, len):
+    2832ms len=0
+    2886ms len=8
+    2899ms len=10
+    2912ms len=12
+    2926ms len=14
+    2939ms len=16
+    2952ms len=18
+    2966ms len=20
+  Final len: 85 / target len: 85
+  Errors: 0
+
+=== Reduce-motion ON (instant text expected) ===
+  matchMedia matches: true
+  Sample count: 2
+  First samples (t, len):
+    2781ms len=0
+    2831ms len=85
+  Final len: 85 / target len: 85
+  Errors: 0
+
+=== Assertions ===
+PASS   OFF: at least one intermediate sample (animation in progress)
+PASS   ON: first non-empty sample equals full target (len 85 === 85)
+PASS   OFF: final text reaches target length
+PASS   ON: final text reaches target length
+
+ALL PASS

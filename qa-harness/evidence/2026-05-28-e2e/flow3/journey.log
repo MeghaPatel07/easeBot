@@ -1,0 +1,47 @@
+=== Journey 3: New signup → email verify → first chat ===
+
+Auth flow analysis (Firebase client-side, no backend signup endpoint):
+ - SignUpModal.tsx (1104 lines) gates email path: form → 'verifying' → 'success'
+ - authService.signUp() calls Firebase createUserWithEmailAndPassword + setDoc(users/{uid}) + sendEmailVerification + signOut
+ - User MUST click link in email then sign in again before reaching chat
+
+EXPECTED ROUTE — '/signup' for direct deep-link:
+  Per useChat.ts:840 → errorText = "You've reached the guest limit. [Sign up](/signup) for a free account to keep chatting."
+  When rendered as Markdown link, clicking opens /signup which is NOT in App.tsx Routes.
+  Result: 404 NotFound page instead of opening SignUpModal.
+
+App.tsx route table:
+              <Route path="/" element={<Index />} />
+              <Route path="/chat/:threadId" element={<Index />} />
+              <Route path="/:userId/gallery" element={<Index />} />
+              <Route path="/:userId/images" element={<Index />} />
+              <Route path="/:userId/planner" element={<Index />} />
+              <Route path="/:userId/planner/:checklistId" element={<Index />} />
+              <Route path="/:userId/liked" element={<Index />} />
+              <Route path="/:userId/reminders" element={<Index />} />
+              <Route path="/:userId/budget" element={<Index />} />
+              <Route path="/:userId/shopping" element={<Index />} />
+              <Route path="/:userId/saved-items" element={<Index />} />
+              <Route path="/:userId/timeline" element={<Index />} />
+              <Route path="/:userId/progress" element={<Index />} />
+              <Route path="/:userId/notifications" element={<Index />} />
+              <Route path="/:userId/collaborate" element={<Index />} />
+              <Route path="/:userId/notes" element={<Index />} />
+              <Route path="/:userId/notes/:noteId" element={<Index />} />
+              <Route path="/share/:shareId" element={<SharedChat />} />
+              <Route path="/shared/note/:shareId" element={<SharedNote />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/failure" element={<PaymentFailure />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/login" element={<Login />} />
+                path="/billing"
+              <Route path="*" element={<NotFound />} />
+
+VERIFY: /signup → 404
+GET /signup → HTTP 200 (SPA serves index → React Router shows NotFound)
+
+NOT TESTED end-to-end: would require writing Firebase Auth user (forbidden per hard rule §1).

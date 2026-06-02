@@ -1,0 +1,421 @@
+
+> easebot-backend@1.0.0 test:all
+> npm run test:phase1 && npm run test:phase2 && npm run test:langfix && npm run test:contracts
+
+
+> easebot-backend@1.0.0 test:phase1
+> npm run test:phase1:cache && npm run test:phase1:controller
+
+
+> easebot-backend@1.0.0 test:phase1:cache
+> ts-node --transpile-only src/lib/__tests__/userPrefsCache.test.ts
+
+TAP version 13
+# Subtest: anonymous: empty/undefined uid short-circuits with no Firestore call and no event
+ok 1 - anonymous: empty/undefined uid short-circuits with no Firestore call and no event
+  ---
+  duration_ms: 0.5925
+  ...
+# Subtest: cold MISS: fetcher called, MISS event emitted, value cached
+ok 2 - cold MISS: fetcher called, MISS event emitted, value cached
+  ---
+  duration_ms: 0.385542
+  ...
+# Subtest: warm HIT: second call within TTL skips fetcher, emits HIT
+ok 3 - warm HIT: second call within TTL skips fetcher, emits HIT
+  ---
+  duration_ms: 0.545125
+  ...
+# Subtest: no doc: caches null sentinel; subsequent calls HIT without fetcher
+ok 4 - no doc: caches null sentinel; subsequent calls HIT without fetcher
+  ---
+  duration_ms: 0.182625
+  ...
+# Subtest: 'auto' preference resolves to undefined and is cached as null
+ok 5 - 'auto' preference resolves to undefined and is cached as null
+  ---
+  duration_ms: 0.313042
+  ...
+# Subtest: legacy preferredLanguage field still works when preferences.language absent
+ok 6 - legacy preferredLanguage field still works when preferences.language absent
+  ---
+  duration_ms: 0.136375
+  ...
+# Subtest: preferences.language wins over legacy preferredLanguage
+ok 7 - preferences.language wins over legacy preferredLanguage
+  ---
+  duration_ms: 0.234625
+  ...
+# Subtest: empty string preference resolves to undefined (not cached as the string)
+ok 8 - empty string preference resolves to undefined (not cached as the string)
+  ---
+  duration_ms: 0.281875
+  ...
+# Subtest: fetcher throws: ERROR event emitted, returns undefined, does NOT cache
+ok 9 - fetcher throws: ERROR event emitted, returns undefined, does NOT cache
+  ---
+  duration_ms: 0.335208
+  ...
+# Subtest: invalidate: forces next call to re-fetch
+ok 10 - invalidate: forces next call to re-fetch
+  ---
+  duration_ms: 0.316541
+  ...
+# Subtest: invalidate with empty uid is a no-op
+ok 11 - invalidate with empty uid is a no-op
+  ---
+  duration_ms: 0.104916
+  ...
+# Subtest: different uids cached independently
+ok 12 - different uids cached independently
+  ---
+  duration_ms: 0.198167
+  ...
+# Subtest: observability envelope shape is stable for downstream parsers
+ok 13 - observability envelope shape is stable for downstream parsers
+  ---
+  duration_ms: 0.16975
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11.775958
+
+> easebot-backend@1.0.0 test:phase1:controller
+> ts-node --transpile-only src/controllers/__tests__/transcribeController.test.ts
+
+TAP version 13
+# Subtest: anonymous user: no pref lookup, passes undefined to STT, returns 200
+ok 1 - anonymous user: no pref lookup, passes undefined to STT, returns 200
+  ---
+  duration_ms: 0.664167
+  ...
+# Subtest: signed-in user with DB lang: cache MISS then STT called with that lang
+ok 2 - signed-in user with DB lang: cache MISS then STT called with that lang
+  ---
+  duration_ms: 0.395084
+  ...
+# Subtest: body language override wins over DB lang
+ok 3 - body language override wins over DB lang
+  ---
+  duration_ms: 0.247833
+  ...
+# Subtest: body language === 'auto' falls back to DB lang
+ok 4 - body language === 'auto' falls back to DB lang
+  ---
+  duration_ms: 0.258208
+  ...
+# Subtest: DB lang === 'auto' resolves to undefined → legacy 4-lang autodetect
+ok 5 - DB lang === 'auto' resolves to undefined → legacy 4-lang autodetect
+  ---
+  duration_ms: 0.230583
+  ...
+# Subtest: signed-in user with no user doc: STT called with undefined
+ok 6 - signed-in user with no user doc: STT called with undefined
+  ---
+  duration_ms: 0.147833
+  ...
+# Subtest: Firestore error: STT still runs with undefined, request succeeds
+ok 7 - Firestore error: STT still runs with undefined, request succeeds
+  ---
+  duration_ms: 0.279917
+  ...
+# Subtest: second request same user within TTL: HIT, no Firestore call
+ok 8 - second request same user within TTL: HIT, no Firestore call
+  ---
+  duration_ms: 0.561542
+  ...
+# Subtest: missing audioBase64 → 400, no STT call, no pref lookup
+ok 9 - missing audioBase64 → 400, no STT call, no pref lookup
+  ---
+  duration_ms: 0.188083
+  ...
+# Subtest: STT throws → 500 with message, request error path clean
+ok 10 - STT throws → 500 with message, request error path clean
+  ---
+  duration_ms: 0.238
+  ...
+# Subtest: observability: every captured event has kind=obs, event, ts, and a parsable JSON line
+ok 11 - observability: every captured event has kind=obs, event, ts, and a parsable JSON line
+  ---
+  duration_ms: 0.135458
+  ...
+# Subtest: observability: stt.timing and stt.error emits have stable required fields
+ok 12 - observability: stt.timing and stt.error emits have stable required fields
+  ---
+  duration_ms: 0.195542
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10.640834
+
+> easebot-backend@1.0.0 test:phase2
+> npm run test:phase2:phrases
+
+
+> easebot-backend@1.0.0 test:phase2:phrases
+> ts-node --transpile-only src/services/__tests__/sttPhraseList.test.ts
+
+TAP version 13
+# Subtest: en / en-IN / en-US all resolve to the same English list
+ok 1 - en / en-IN / en-US all resolve to the same English list
+  ---
+  duration_ms: 1.1025
+  ...
+# Subtest: English list contains core wedding vocab harvested from keywordDirectory
+ok 2 - English list contains core wedding vocab harvested from keywordDirectory
+  ---
+  duration_ms: 0.136917
+  ...
+# Subtest: Hindi list contains Devanagari + Roman transliteration forms
+ok 3 - Hindi list contains Devanagari + Roman transliteration forms
+  ---
+  duration_ms: 0.073708
+  ...
+# Subtest: Gujarati list contains Gujarati script + Roman + Gujarat-specific rituals
+ok 4 - Gujarati list contains Gujarati script + Roman + Gujarat-specific rituals
+  ---
+  duration_ms: 0.073209
+  ...
+# Subtest: unknown locale returns empty array (no-op for caller)
+ok 5 - unknown locale returns empty array (no-op for caller)
+  ---
+  duration_ms: 0.135459
+  ...
+# Subtest: bare language stem works (hi, gu, en)
+ok 6 - bare language stem works (hi, gu, en)
+  ---
+  duration_ms: 0.053333
+  ...
+# Subtest: locale codes are case-insensitive
+ok 7 - locale codes are case-insensitive
+  ---
+  duration_ms: 0.2355
+  ...
+# Subtest: getPhrasesForLocales: union of multiple lists, deduplicated
+ok 8 - getPhrasesForLocales: union of multiple lists, deduplicated
+  ---
+  duration_ms: 0.83625
+  ...
+# Subtest: getPhrasesForLocales: unknown locales contribute nothing
+ok 9 - getPhrasesForLocales: unknown locales contribute nothing
+  ---
+  duration_ms: 0.133667
+  ...
+# Subtest: no phrase exceeds Azure 200-char limit
+ok 10 - no phrase exceeds Azure 200-char limit
+  ---
+  duration_ms: 0.177708
+  ...
+# Subtest: no list exceeds Azure 1024-phrase limit
+ok 11 - no list exceeds Azure 1024-phrase limit
+  ---
+  duration_ms: 0.124667
+  ...
+# Subtest: list sizes are sane (>30 each — guards against accidental empty corpus)
+ok 12 - list sizes are sane (>30 each — guards against accidental empty corpus)
+  ---
+  duration_ms: 0.053708
+  ...
+# Subtest: English list is deduplicated (no repeats from keywordDirectory + extras)
+ok 13 - English list is deduplicated (no repeats from keywordDirectory + extras)
+  ---
+  duration_ms: 0.053708
+  ...
+# Subtest: English list is sorted (stable ordering for downstream hashing/caching)
+ok 14 - English list is sorted (stable ordering for downstream hashing/caching)
+  ---
+  duration_ms: 0.217
+  ...
+# Subtest: immutable: returned arrays cannot be mutated by callers
+ok 15 - immutable: returned arrays cannot be mutated by callers
+  ---
+  duration_ms: 0.229875
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13.115791
+
+> easebot-backend@1.0.0 test:langfix
+> ts-node --transpile-only src/pipeline/__tests__/inbound.test.ts
+
+TAP version 13
+# Subtest: Gujarati script → gu (not Hindi — the pre-fix bug)
+ok 1 - Gujarati script → gu (not Hindi — the pre-fix bug)
+  ---
+  duration_ms: 0.680833
+  ...
+# Subtest: Devanagari (Hindi) script → hi
+ok 2 - Devanagari (Hindi) script → hi
+  ---
+  duration_ms: 0.078416
+  ...
+# Subtest: Bengali script → bn
+ok 3 - Bengali script → bn
+  ---
+  duration_ms: 0.059667
+  ...
+# Subtest: Gurmukhi (Punjabi) script → pa
+ok 4 - Gurmukhi (Punjabi) script → pa
+  ---
+  duration_ms: 0.061958
+  ...
+# Subtest: Tamil script → ta
+ok 5 - Tamil script → ta
+  ---
+  duration_ms: 0.074125
+  ...
+# Subtest: Telugu script → te
+ok 6 - Telugu script → te
+  ---
+  duration_ms: 0.058333
+  ...
+# Subtest: Kannada script → kn
+ok 7 - Kannada script → kn
+  ---
+  duration_ms: 0.054833
+  ...
+# Subtest: Malayalam script → ml
+ok 8 - Malayalam script → ml
+  ---
+  duration_ms: 0.149334
+  ...
+# Subtest: Arabic script → ar
+ok 9 - Arabic script → ar
+  ---
+  duration_ms: 0.217084
+  ...
+# Subtest: Thai script → th
+ok 10 - Thai script → th
+  ---
+  duration_ms: 0.19625
+  ...
+# Subtest: Hiragana/Katakana (Japanese) → ja, not Chinese
+ok 11 - Hiragana/Katakana (Japanese) → ja, not Chinese
+  ---
+  duration_ms: 0.124833
+  ...
+# Subtest: Hangul (Korean) → ko
+ok 12 - Hangul (Korean) → ko
+  ---
+  duration_ms: 0.058875
+  ...
+# Subtest: CJK ideograph fallback → zh (when no Hiragana/Hangul)
+ok 13 - CJK ideograph fallback → zh (when no Hiragana/Hangul)
+  ---
+  duration_ms: 0.128833
+  ...
+# Subtest: Pure Latin text → fallback "hi" (parity with pre-fix behavior)
+ok 14 - Pure Latin text → fallback "hi" (parity with pre-fix behavior)
+  ---
+  duration_ms: 0.258
+  ...
+# Subtest: Gujarati vs Devanagari: disjoint ranges do not collide
+ok 15 - Gujarati vs Devanagari: disjoint ranges do not collide
+  ---
+  duration_ms: 0.046208
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10.87025
+
+> easebot-backend@1.0.0 test:contracts
+> npm run test:contracts:chat-modes
+
+
+> easebot-backend@1.0.0 test:contracts:chat-modes
+> ts-node --transpile-only src/schemas/__tests__/chat.modes.test.ts
+
+TAP version 13
+# Subtest: mode='planner' is accepted
+ok 1 - mode='planner' is accepted
+  ---
+  duration_ms: 0.94575
+  ...
+# Subtest: mode='stylist' is accepted
+ok 2 - mode='stylist' is accepted
+  ---
+  duration_ms: 0.140125
+  ...
+# Subtest: mode='knowledge' is accepted
+ok 3 - mode='knowledge' is accepted
+  ---
+  duration_ms: 0.070167
+  ...
+# Subtest: mode='assistant' is accepted
+ok 4 - mode='assistant' is accepted
+  ---
+  duration_ms: 0.13475
+  ...
+# Subtest: mode='styler' is rejected with a clear enum error
+ok 5 - mode='styler' is rejected with a clear enum error
+  ---
+  duration_ms: 0.413583
+  ...
+# Subtest: mode='image' is rejected with a clear enum error
+ok 6 - mode='image' is rejected with a clear enum error
+  ---
+  duration_ms: 0.076042
+  ...
+# Subtest: mode='therapist' is rejected with a clear enum error
+ok 7 - mode='therapist' is rejected with a clear enum error
+  ---
+  duration_ms: 0.064292
+  ...
+# Subtest: mode='consultant' is rejected with a clear enum error
+ok 8 - mode='consultant' is rejected with a clear enum error
+  ---
+  duration_ms: 0.108291
+  ...
+# Subtest: mode='bogus' is rejected with a clear enum error
+ok 9 - mode='bogus' is rejected with a clear enum error
+  ---
+  duration_ms: 0.172792
+  ...
+# Subtest: mode='' is rejected with a clear enum error
+ok 10 - mode='' is rejected with a clear enum error
+  ---
+  duration_ms: 0.124083
+  ...
+# Subtest: omitting `mode` is accepted (server picks default via detectMode)
+ok 11 - omitting `mode` is accepted (server picks default via detectMode)
+  ---
+  duration_ms: 0.073167
+  ...
+# Subtest: stream route mounts the same ChatRequestSchema validator as the non-stream route
+ok 12 - stream route mounts the same ChatRequestSchema validator as the non-stream route
+  ---
+  duration_ms: 0.256709
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9.135625

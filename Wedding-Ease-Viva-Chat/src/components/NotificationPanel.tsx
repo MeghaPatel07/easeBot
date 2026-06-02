@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, type KeyboardEvent } from 'react'
 import { Bell, AlertTriangle, Info, Check, CheckCheck, X, Trash2, Clock } from 'lucide-react'
 import {
   subscribeToNotifications,
@@ -225,12 +225,28 @@ export default function NotificationPanel({ userId, checklists }: NotificationPa
               return (
                 <div
                   key={notif.id}
-                  onClick={() => {
-                    if (!notif.read) handleMarkAsRead(notif.id)
-                  }}
+                  // Unread rows carry the "mark as read" action, so they must be
+                  // keyboard-operable: expose them as a button and handle
+                  // Enter/Space. Read rows have no action, so they stay static
+                  // (only the Delete button inside remains focusable).
+                  {...(!notif.read
+                    ? {
+                        role: 'button',
+                        tabIndex: 0,
+                        'aria-label': `Mark as read: ${notif.title}`,
+                        onClick: () => handleMarkAsRead(notif.id),
+                        onKeyDown: (e: KeyboardEvent) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleMarkAsRead(notif.id)
+                          }
+                        },
+                      }
+                    : {})}
                   className={`
-                    group relative flex items-start gap-3 px-4 py-3 cursor-pointer
+                    group relative flex items-start gap-3 px-4 py-3
                     border-b border-foreground/[0.06] transition-all duration-200
+                    ${notif.read ? '' : 'cursor-pointer'}
                     ${isDeleting ? 'opacity-0 max-h-0 py-0 overflow-hidden' : 'opacity-100 max-h-40'}
                     ${notif.read ? 'bg-foreground/[0.06] hover:bg-foreground/[0.06]' : 'bg-info/10 hover:bg-info/15'}
                   `}

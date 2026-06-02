@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 import { Editor } from "@tiptap/react";
 import {
   AlignLeft,
@@ -182,6 +182,14 @@ export default function SlashCommandMenu({ editor, onImageUpload }: SlashCommand
   const [slashPos, setSlashPos] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // Stable ids so the editor's contenteditable element can reference the
+  // listbox (aria-controls) and the active option (aria-activedescendant).
+  const listboxId = useId();
+  const optionId = useCallback(
+    (index: number) => `${listboxId}-option-${index}`,
+    [listboxId]
+  );
+
   const filteredCommands = COMMANDS.filter((cmd) =>
     cmd.name.toLowerCase().includes(query.toLowerCase())
   );
@@ -314,11 +322,47 @@ export default function SlashCommandMenu({ editor, onImageUpload }: SlashCommand
     selected?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex, open]);
 
+  // Expose combobox semantics on the editor's contenteditable element.
+  // The editor keeps DOM focus while this menu is open (keydown is driven by a
+  // document-level listener), so we point assistive tech at the active option
+  // via aria-activedescendant and announce the open listbox via aria-controls /
+  // aria-expanded. Attributes are removed on close/unmount so the editor is a
+  // plain textbox the rest of the time.
+  useEffect(() => {
+    const dom = editor.view?.dom as HTMLElement | undefined;
+    if (!dom) return;
+
+    const clear = () => {
+      dom.removeAttribute("role");
+      dom.removeAttribute("aria-expanded");
+      dom.removeAttribute("aria-controls");
+      dom.removeAttribute("aria-activedescendant");
+      dom.removeAttribute("aria-haspopup");
+    };
+
+    if (!open || filteredCommands.length === 0) {
+      clear();
+      return clear;
+    }
+
+    dom.setAttribute("role", "combobox");
+    dom.setAttribute("aria-haspopup", "listbox");
+    dom.setAttribute("aria-expanded", "true");
+    dom.setAttribute("aria-controls", listboxId);
+    dom.setAttribute("aria-activedescendant", optionId(selectedIndex));
+
+    return clear;
+  }, [editor, open, filteredCommands.length, selectedIndex, listboxId, optionId]);
+
   if (!open || filteredCommands.length === 0) return null;
 
   return (
     <div
       ref={menuRef}
+      id={listboxId}
+      role="listbox"
+      aria-label="Insert block"
+      aria-activedescendant={optionId(selectedIndex)}
       className="absolute z-50 bg-overlay-scrim/90 backdrop-blur-md border border-foreground/10 rounded-lg shadow-2xl py-1 w-64 max-h-72 overflow-y-auto"
       style={{
         top: position.top,
@@ -329,6 +373,9 @@ export default function SlashCommandMenu({ editor, onImageUpload }: SlashCommand
         <button
           key={cmd.name}
           type="button"
+          id={optionId(index)}
+          role="option"
+          aria-selected={index === selectedIndex}
           data-index={index}
           onClick={() => executeCommand(cmd)}
           onMouseEnter={() => setSelectedIndex(index)}
@@ -338,7 +385,7 @@ export default function SlashCommandMenu({ editor, onImageUpload }: SlashCommand
               : "hover:bg-foreground/5"
           }`}
         >
-          <span className="text-foreground/60 flex-shrink-0">{cmd.icon}</span>
+          <span className="text-foreground/60 flex-shrink-0" aria-hidden="true">{cmd.icon}</span>
           <div className="min-w-0">
             <div className="text-sm text-foreground/90">{cmd.name}</div>
             <div className="text-xs text-foreground/40 truncate">

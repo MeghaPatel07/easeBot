@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-280</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    .ok { color: var(--ok); }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-280 &middot; Page &lt;title&gt; identical across all 9 routes (WCAG 2.4.2) <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-280</code> &rarr; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-280</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      Every route returns <code>document.title === "TheWeddingBot - Your Personal Wedding Planning Assistant"</code>
+      because the title is only set statically in <code>index.html</code>. No React Helmet, no router-driven title hook.
+      Fails <b>WCAG 2.4.2 Page Titled (Level A)</b>. SR users with multiple tabs cannot tell pages apart.
+    </p>
+
+    <h2>Fix shape</h2>
+    <p>
+      Added a small <code>usePageTitle(title)</code> hook (no new deps) that sets <code>document.title</code> in a
+      <code>useEffect</code> and restores on unmount. Pattern mirrors the existing <code>useCanonical</code> hook.
+      Wired only to pages with <b>no open PR collisions</b>: <code>PrivacyPolicy.tsx</code>, <code>TermsOfService.tsx</code>,
+      <code>PaymentFailure.tsx</code>. All other pages (Index, Login, Pricing, PaymentSuccess, Help, Checkout, NotFound,
+      SharedChat, SharedNote) are deferred to follow-up PRs after their respective collision PRs merge.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Read ticket WE-20260528-280, confirmed bug shape and WCAG criterion.</div>
+        <div class="detail">Title is hard-coded in index.html line 28. No per-route title management exists.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Checked package.json &mdash; no <code>react-helmet</code> / <code>react-helmet-async</code> installed.</div>
+        <div class="detail">Went with option 1: small custom hook, no new npm deps (per instructions).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Created <code>src/hooks/usePageTitle.ts</code> &mdash; mirrors <code>useCanonical</code> pattern.</div>
+        <div class="detail">Sets <code>document.title</code> in <code>useEffect</code>, restores previous title on unmount, treats empty string as &quot;use default&quot;.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Wired hook into 3 collision-free pages.</div>
+        <div class="detail">
+          <code>PrivacyPolicy.tsx</code> &rarr; &quot;Privacy Policy &middot; TheWeddingBot&quot;<br>
+          <code>TermsOfService.tsx</code> &rarr; &quot;Terms of Service &middot; TheWeddingBot&quot;<br>
+          <code>PaymentFailure.tsx</code> &rarr; &quot;Payment failed &middot; TheWeddingBot&quot;
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Ran <code>npx tsc --noEmit -p tsconfig.app.json</code> &mdash; clean (no errors introduced).</div>
+        <div class="detail">See &quot;Tests run&quot; below.</div>
+      </div>
+    </div>
+
+    <h2>Pages wired in this PR</h2>
+    <table>
+      <thead><tr><th>Page</th><th>Route</th><th>Title</th></tr></thead>
+      <tbody>
+        <tr><td>PrivacyPolicy.tsx</td><td>/privacy</td><td>Privacy Policy &middot; TheWeddingBot</td></tr>
+        <tr><td>TermsOfService.tsx</td><td>/terms</td><td>Terms of Service &middot; TheWeddingBot</td></tr>
+        <tr><td>PaymentFailure.tsx</td><td>/payment/failure</td><td>Payment failed &middot; TheWeddingBot</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Pages deferred (open-PR collision)</h2>
+    <table>
+      <thead><tr><th>Page</th><th>Blocking PR(s)</th></tr></thead>
+      <tbody>
+        <tr><td>Index.tsx</td><td>#55, #56, #63, #96</td></tr>
+        <tr><td>Login.tsx</td><td>#98</td></tr>
+        <tr><td>Pricing.tsx</td><td>#93</td></tr>
+        <tr><td>PaymentSuccess.tsx</td><td>#92</td></tr>
+        <tr><td>Help.tsx</td><td>#89</td></tr>
+        <tr><td>Checkout.tsx</td><td>#83</td></tr>
+        <tr><td>NotFound.tsx</td><td>#88</td></tr>
+        <tr><td>SharedChat.tsx</td><td>#70</td></tr>
+        <tr><td>SharedNote.tsx</td><td>#70</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>
+src/hooks/usePageTitle.ts        | new file
+src/pages/PrivacyPolicy.tsx      | +2 lines
+src/pages/TermsOfService.tsx     | +2 lines
+src/pages/PaymentFailure.tsx     | +2 lines
+    </pre>
+
+    <h2>PR</h2>
+    <p>PR URL: see ticket file for live link.</p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

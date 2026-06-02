@@ -1,0 +1,17 @@
+$ curl -sS http://localhost:3001/api/speech-token -i
+HTTP/1.1 200 OK
+...
+{"token":"eyJhbGciOiJFUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.<PAYLOAD>.<SIG>","region":"eastus"}
+
+# Decoded JWT payload (base64url):
+{
+  "region": "eastus",
+  "subscription-id": "224b6237a21a47f0ab1953e8dcfd7fe7",
+  "product-id": "SpeechServices.F0",
+  "cognitive-services-endpoint": "https://api.cognitive.microsoft.com/internal/v1.0/",
+  "azure-resource-id": "/subscriptions/0c355664-3033-4fd8-9d00-1904e5f1837b/resourceGroups/OpenAI/providers/Microsoft.CognitiveServices/accounts/EaseBot",
+  "scope": "speechservices",
+  "aud": "urn:ms.speechservices.eastus",
+  "exp": 1779948010,
+  "iss": "urn:ms.cognitiveservices"
+}

@@ -1,0 +1,45 @@
+# Sprint 3 brief adversarial item #8: "Concurrent checklist edits — same
+# checklist, 2 tabs, edit different items simultaneously — both persist?"
+
+# Source: easebot-backend/src/services/checklistService.ts:149-188
+
+export async function editChecklistItem(userId, checklistIdOrTitle, itemIdOrText, newText) {
+  const resolved = await resolveChecklist(userId, checklistIdOrTitle)   // ← getDoc
+  if (!resolved) throw new Error(...)
+  const items = resolved.data.items || []                                // ← in-memory snapshot
+  const target = resolveItem(items, itemIdOrText)
+  if (!target) throw new Error(...)
+  const nextItems = items.map(item =>                                    // ← rebuilds the WHOLE array
+    item.id === target.id ? { ...item, text: newText } : item,
+  )
+  await updateDoc(checklistRef(userId, resolved.id), {                   // ← writes the WHOLE array
+    items: nextItems,
+    updatedAt: serverTimestamp()
+  })
+  return { checklistId, itemId, checklistTitle }
+}
+
+# toggleItemDone (lines 171-189) follows the same get-then-rewrite-whole-items
+# pattern. Neither uses runTransaction. Neither uses arrayUnion / arrayRemove.
+
+# Sequence diagram for two-tab race:
+#   t=0   Tab A: getDoc → items = [{id:'a',text:'A'},{id:'b',text:'B'}]
+#   t=10  Tab B: getDoc → items = [{id:'a',text:'A'},{id:'b',text:'B'}]   (same snapshot)
+#   t=20  Tab A: editItem(a, 'A-new') → items = [{a,'A-new'},{b,'B'}]
+#   t=30  Tab A: updateDoc(items=[a-new, b])
+#   t=40  Firestore now: [{a,'A-new'},{b,'B'}]
+#   t=50  Tab B: editItem(b, 'B-new') → items = [{a,'A'},{b,'B-new'}]   ← still uses STALE snapshot
+#   t=60  Tab B: updateDoc(items=[a, b-new])
+#   t=70  Firestore now: [{a,'A'},{b,'B-new'}]   ← Tab A's edit to a is GONE
+#
+# Both tabs see "Saved ✓". Refresh either tab: Tab A's edit is silently lost.
+
+# This is distinct from WE-20260528-105 (which is the architecture-level
+# concern about dual write paths). Even with a single Express write path,
+# the lost-update bug exists because the read → modify → write is not
+# atomic at the Firestore level.
+
+# Fix: wrap both editChecklistItem and toggleItemDone in runTransaction(),
+# OR use arrayRemove(old) + arrayUnion(new) on the items array. Firestore
+# transactions retry on conflict so the second write would re-read and
+# preserve Tab A's edit.

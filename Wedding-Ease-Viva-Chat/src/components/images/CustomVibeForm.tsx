@@ -10,6 +10,8 @@ interface CustomVibeFormProps {
   onSubmit: (vibe: { title: string; descriptors: string[] }) => void
 }
 
+const TITLE_MAX = 40
+
 export function CustomVibeForm({ onSubmit }: CustomVibeFormProps) {
   const [title, setTitle] = useState('')
   const [descriptorText, setDescriptorText] = useState('')
@@ -38,8 +40,8 @@ export function CustomVibeForm({ onSubmit }: CustomVibeFormProps) {
       setError('Please give your vibe a name.')
       return
     }
-    if (trimmedTitle.length > 40) {
-      setError('Vibe name must be 40 characters or fewer.')
+    if (trimmedTitle.length > TITLE_MAX) {
+      setError(`Vibe name must be ${TITLE_MAX} characters or fewer.`)
       return
     }
 
@@ -67,14 +69,30 @@ export function CustomVibeForm({ onSubmit }: CustomVibeFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-xl bg-foreground/[0.03] p-4 sm:p-5">
       <div className="space-y-2">
-        <Label htmlFor="custom-vibe-title">Vibe name</Label>
+        <div className="flex items-baseline justify-between gap-2">
+          <Label htmlFor="custom-vibe-title">Vibe name</Label>
+          {title.length >= TITLE_MAX - 5 && (
+            <span
+              id="custom-vibe-title-counter"
+              aria-live="polite"
+              className={`text-[10px] tabular-nums ${
+                title.length >= TITLE_MAX ? 'text-warning' : 'text-foreground/60'
+              }`}
+            >
+              {title.length}/{TITLE_MAX}
+            </span>
+          )}
+        </div>
         <Input
           id="custom-vibe-title"
           value={title}
-          onChange={(e) => setTitle(e.target.value.slice(0, 40))}
-          maxLength={40}
+          onChange={(e) => setTitle(e.target.value.slice(0, TITLE_MAX))}
+          maxLength={TITLE_MAX}
           placeholder="e.g. Monsoon Mehendi"
           aria-label="Vibe name"
+          aria-describedby={
+            title.length >= TITLE_MAX - 5 ? 'custom-vibe-title-counter' : undefined
+          }
         />
       </div>
 

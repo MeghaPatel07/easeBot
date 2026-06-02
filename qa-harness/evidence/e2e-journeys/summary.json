@@ -1,0 +1,92 @@
+{
+  "journeys": [
+    {
+      "journey": "j1",
+      "steps": [
+        {
+          "step": "landed",
+          "ok": true
+        },
+        {
+          "step": "input-visible",
+          "ok": true
+        }
+      ],
+      "failed": {
+        "step": "unknown",
+        "reason": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('textarea, [contenteditable=\"true\"]').first()\u001b[22m\n\u001b[2m    - locator resolved to <textarea rows=\"1\" data-ph-mask=\"true\" data-lov-name=\"textarea\" data-component-line=\"412\" data-component-name=\"textarea\" placeholder=\"Ask me anything \" data-component-file=\"ChatInput.tsx\" data-lov-id=\"src/components/chat/ChatInput.tsx:412:12\" data-component-path=\"src/components/chat/ChatInput.tsx\" class=\"flex-1 min-w-0 bg-transparent border-none text-foreground/90 py-2 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-foreground/40 outlin…></textarea>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-lov-name=\"div\" data-component-line=\"71\" data-component-name=\"div\" data-component-file=\"AnalyticsConsent.tsx\" class=\"flex items-center gap-2 justify-end\" data-lov-id=\"src/components/AnalyticsConsent.tsx:71:6\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-content=\"%7B%22className%22%3A%22flex%20items-center%20gap-2%20justify-end%22%7D\">…</div> from <div role=\"dialog\" data-lov-name=\"div\" data-component-line=\"62\" data-component-name=\"div\" aria-label=\"Analytics consent\" data-component-file=\"AnalyticsConsent.tsx\" data-lov-id=\"src/components/AnalyticsConsent.tsx:62:4\" data-component-path=\"src/components/AnalyticsConsent.tsx\" class=\"fixed bottom-4 left-1/2 z-[100] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-foreground/[0.12] bg-background/95 backdrop-blur-md p-4 shadow-xl\" data-component-content=\"%7B%22className%22%3A%22fixed%20b…>…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-lov-name=\"div\" data-component-line=\"71\" data-component-name=\"div\" data-component-file=\"AnalyticsConsent.tsx\" class=\"flex items-center gap-2 justify-end\" data-lov-id=\"src/components/AnalyticsConsent.tsx:71:6\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-content=\"%7B%22className%22%3A%22flex%20items-center%20gap-2%20justify-end%22%7D\">…</div> from <div role=\"dialog\" data-lov-name=\"div\" data-component-line=\"62\" data-component-name=\"div\" aria-label=\"Analytics consent\" data-component-file=\"AnalyticsConsent.tsx\" data-lov-id=\"src/components/AnalyticsConsent.tsx:62:4\" data-component-path=\"src/components/AnalyticsConsent.tsx\" class=\"fixed bottom-4 left-1/2 z-[100] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-foreground/[0.12] bg-background/95 backdrop-blur-md p-4 shadow-xl\" data-component-content=\"%7B%22className%22%3A%22fixed%20b…>…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    57 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-lov-name=\"div\" data-component-line=\"71\" data-component-name=\"div\" data-component-file=\"AnalyticsConsent.tsx\" class=\"flex items-center gap-2 justify-end\" data-lov-id=\"src/components/AnalyticsConsent.tsx:71:6\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-content=\"%7B%22className%22%3A%22flex%20items-center%20gap-2%20justify-end%22%7D\">…</div> from <div role=\"dialog\" data-lov-name=\"div\" data-component-line=\"62\" data-component-name=\"div\" aria-label=\"Analytics consent\" data-component-file=\"AnalyticsConsent.tsx\" data-lov-id=\"src/components/AnalyticsConsent.tsx:62:4\" data-component-path=\"src/components/AnalyticsConsent.tsx\" class=\"fixed bottom-4 left-1/2 z-[100] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-foreground/[0.12] bg-background/95 backdrop-blur-md p-4 shadow-xl\" data-component-content=\"%7B%22className%22%3A%22fixed%20b…>…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+      },
+      "status": "failed"
+    },
+    {
+      "journey": "j2",
+      "steps": [
+        {
+          "step": "login-controls",
+          "ok": true,
+          "note": "google=true email=true"
+        },
+        {
+          "step": "form-fillable",
+          "ok": true
+        }
+      ],
+      "failed": null,
+      "status": "passed",
+      "note": "signup completion not exercised (Firebase write forbidden); entry surface verified only"
+    },
+    {
+      "journey": "j3",
+      "steps": [
+        {
+          "step": "planner-mode-clickable",
+          "ok": false
+        }
+      ],
+      "failed": {
+        "step": "switch-mode",
+        "reason": "no planner mode trigger found"
+      },
+      "status": "failed"
+    },
+    {
+      "journey": "j4",
+      "steps": [
+        {
+          "step": "image-mode-clickable",
+          "ok": true
+        }
+      ],
+      "failed": {
+        "step": "unknown",
+        "reason": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('textarea, [contenteditable=\"true\"]').first()\u001b[22m\n\u001b[2m    - locator resolved to <textarea rows=\"1\" data-ph-mask=\"true\" data-lov-name=\"textarea\" data-component-line=\"412\" data-component-name=\"textarea\" placeholder=\"Ask me anything \" data-component-file=\"ChatInput.tsx\" data-lov-id=\"src/components/chat/ChatInput.tsx:412:12\" data-component-path=\"src/components/chat/ChatInput.tsx\" class=\"flex-1 min-w-0 bg-transparent border-none text-foreground/90 py-2 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-foreground/40 outlin…></textarea>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-lov-name=\"div\" data-component-line=\"71\" data-component-name=\"div\" data-component-file=\"AnalyticsConsent.tsx\" class=\"flex items-center gap-2 justify-end\" data-lov-id=\"src/components/AnalyticsConsent.tsx:71:6\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-content=\"%7B%22className%22%3A%22flex%20items-center%20gap-2%20justify-end%22%7D\">…</div> from <div role=\"dialog\" data-lov-name=\"div\" data-component-line=\"62\" data-component-name=\"div\" aria-label=\"Analytics consent\" data-component-file=\"AnalyticsConsent.tsx\" data-lov-id=\"src/components/AnalyticsConsent.tsx:62:4\" data-component-path=\"src/components/AnalyticsConsent.tsx\" class=\"fixed bottom-4 left-1/2 z-[100] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-foreground/[0.12] bg-background/95 backdrop-blur-md p-4 shadow-xl\" data-component-content=\"%7B%22className%22%3A%22fixed%20b…>…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-lov-name=\"div\" data-component-line=\"71\" data-component-name=\"div\" data-component-file=\"AnalyticsConsent.tsx\" class=\"flex items-center gap-2 justify-end\" data-lov-id=\"src/components/AnalyticsConsent.tsx:71:6\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-content=\"%7B%22className%22%3A%22flex%20items-center%20gap-2%20justify-end%22%7D\">…</div> from <div role=\"dialog\" data-lov-name=\"div\" data-component-line=\"62\" data-component-name=\"div\" aria-label=\"Analytics consent\" data-component-file=\"AnalyticsConsent.tsx\" data-lov-id=\"src/components/AnalyticsConsent.tsx:62:4\" data-component-path=\"src/components/AnalyticsConsent.tsx\" class=\"fixed bottom-4 left-1/2 z-[100] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-foreground/[0.12] bg-background/95 backdrop-blur-md p-4 shadow-xl\" data-component-content=\"%7B%22className%22%3A%22fixed%20b…>…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    57 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div data-lov-name=\"div\" data-component-line=\"71\" data-component-name=\"div\" data-component-file=\"AnalyticsConsent.tsx\" class=\"flex items-center gap-2 justify-end\" data-lov-id=\"src/components/AnalyticsConsent.tsx:71:6\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-content=\"%7B%22className%22%3A%22flex%20items-center%20gap-2%20justify-end%22%7D\">…</div> from <div role=\"dialog\" data-lov-name=\"div\" data-component-line=\"62\" data-component-name=\"div\" aria-label=\"Analytics consent\" data-component-file=\"AnalyticsConsent.tsx\" data-lov-id=\"src/components/AnalyticsConsent.tsx:62:4\" data-component-path=\"src/components/AnalyticsConsent.tsx\" class=\"fixed bottom-4 left-1/2 z-[100] w-[min(92vw,520px)] -translate-x-1/2 rounded-2xl border border-foreground/[0.12] bg-background/95 backdrop-blur-md p-4 shadow-xl\" data-component-content=\"%7B%22className%22%3A%22fixed%20b…>…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+      },
+      "status": "failed"
+    },
+    {
+      "journey": "j5",
+      "steps": [
+        {
+          "step": "settings-reachable",
+          "ok": true,
+          "note": "settings content rendered"
+        }
+      ],
+      "failed": null,
+      "status": "passed",
+      "note": "nickname save not exercised (Firebase write forbidden); surface visibility verified only"
+    },
+    {
+      "journey": "j6",
+      "steps": [
+        {
+          "step": "cap-banner",
+          "ok": false,
+          "note": "no cap banner observed after 6 long prompts (cap may be higher than burn quantity)"
+        }
+      ],
+      "failed": null,
+      "status": "passed"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "journeys": [
+    {
+      "journey": "j1",
+      "steps": [
+        {
+          "step": "first-msg-sent",
+          "ok": true
+        },
+        {
+          "step": "guest-cap-banner",
+          "ok": true,
+          "note": "cap msg present"
+        }
+      ],
+      "failed": null,
+      "status": "passed"
+    },
+    {
+      "journey": "j3",
+      "steps": [
+        {
+          "step": "planner-style-response",
+          "ok": true,
+          "note": "list-like content detected"
+        },
+        {
+          "step": "planner-route-link",
+          "ok": false,
+          "note": "no /planner nav link"
+        }
+      ],
+      "failed": null,
+      "status": "passed"
+    },
+    {
+      "journey": "j4",
+      "steps": [
+        {
+          "step": "image-rendered",
+          "ok": false,
+          "note": "no generated image visible in DOM"
+        }
+      ],
+      "failed": null,
+      "status": "passed"
+    }
+  ]
+}

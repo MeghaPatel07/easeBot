@@ -1,0 +1,15 @@
+ChatMessages.tsx:289-303 (verified main 2026-05-28):
+
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      ...
+      reader.readAsDataURL(file);    ← no file.size check above this line
+    }}
+  />
+
+Same pattern at line ~317. Existing pattern in src/components/images/VibeComposer.tsx defines MAX_FILE_BYTES = 8MB.

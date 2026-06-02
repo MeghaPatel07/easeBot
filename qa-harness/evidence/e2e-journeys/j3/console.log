@@ -1,0 +1,8 @@
+[debug] [vite] connecting...
+[info] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold
+[log] You've disabled debug mode.
+[debug] [vite] connected.
+[error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[error] Refused to execute script from 'http://localhost:8081/ingest/array/phc_C3dxDiWMwVzdTWbXbDXvp98L9XCm2qFTJtcgxenkkBXV/config.js' because its MIME type ('') is not executable, and strict MIME type checking is enabled.
+[error] Failed to load resource: the server responded with a status of 404 (Not Found)
+[warning] The resource http://localhost:8081/images/IMG_3917.PNG was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
