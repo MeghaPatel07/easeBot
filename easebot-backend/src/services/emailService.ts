@@ -24,6 +24,27 @@ interface SendEmailArgs {
 
 let cachedTransporter: Transporter | null = null
 
+const FALLBACK_FROM = 'TheWeddingBot <noreply@theweddingbot.ai>'
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/**
+ * Resolve the From header. Priority:
+ *   1. REMINDER_FROM_EMAIL — explicit, recommended.
+ *   2. SMTP_USER, but ONLY when it's a real email (e.g. Gmail). Resend's SMTP
+ *      username is the literal string "resend", which is NOT a valid From and
+ *      Resend rejects it — so we must never fall back to it for Resend.
+ *   3. A default address on our verified domain.
+ * Guarantees a deliverable sender so a missing env var can't silently break
+ * every send (which is exactly what happened on the Resend migration).
+ */
+function resolveFromAddress(): string {
+  const configured = process.env.REMINDER_FROM_EMAIL?.trim()
+  if (configured) return configured
+  const user = process.env.SMTP_USER?.trim()
+  if (user && EMAIL_RE.test(user)) return `TheWeddingBot <${user}>`
+  return FALLBACK_FROM
+}
+
 function getTransporter(): Transporter | null {
   const user = process.env.SMTP_USER
   const pass = process.env.SMTP_PASS
@@ -42,6 +63,10 @@ function getTransporter(): Transporter | null {
     secure,
     auth: { user, pass },
   })
+  // One-time visibility into the resolved config (never logs the password).
+  console.log(
+    `[emailService] SMTP ready — host=${host} port=${port} secure=${secure} user="${user}" from="${resolveFromAddress()}"`,
+  )
   return cachedTransporter
 }
 
@@ -53,17 +78,25 @@ export async function sendEmailNotification(args: SendEmailArgs): Promise<void> 
     )
     return
   }
-  const from =
-    process.env.REMINDER_FROM_EMAIL ||
-    `TheWeddingBot <${process.env.SMTP_USER}>`
+  const from = resolveFromAddress()
 
-  await transporter.sendMail({
-    from,
-    to: args.to,
-    subject: args.subject,
-    html: args.html,
-    text: args.text,
-  })
+  try {
+    await transporter.sendMail({
+      from,
+      to: args.to,
+      subject: args.subject,
+      html: args.html,
+      text: args.text,
+    })
+  } catch (err) {
+    // Surface full context so a failed send is never a mystery "skipped".
+    const host = process.env.SMTP_HOST || 'smtp.gmail.com'
+    console.error(
+      `[emailService] send FAILED — host=${host} from="${from}" to="${args.to}":`,
+      err,
+    )
+    throw err
+  }
 }
 
 interface BuildReminderEmailArgs {
