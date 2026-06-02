@@ -97,6 +97,10 @@ function daysUntil(date: Date | null): number | null {
 
 // Sprint 4 (Kenji): Custom-instructions max length matches Claude's UX.
 const CUSTOM_INSTRUCTIONS_MAX = 1500
+// WE-20260528-865: surface a warning-color counter within 100 chars of cap so
+// users notice they're approaching the limit (mirrors NoteHeader pattern,
+// WE-20260528-870). Below this threshold the counter stays muted.
+const CUSTOM_INSTRUCTIONS_WARN_REMAINING = 100
 
 export function PersonalizationTab() {
   const { profile, updateProfile } = useAccount()
@@ -402,7 +406,13 @@ export function PersonalizationTab() {
             />
             <p
               id="custom-about-counter"
-              className="text-right text-2xs text-foreground/90"
+              aria-live="polite"
+              className={cn(
+                'text-right text-2xs tabular-nums',
+                CUSTOM_INSTRUCTIONS_MAX - about.length <= CUSTOM_INSTRUCTIONS_WARN_REMAINING
+                  ? 'text-warning'
+                  : 'text-foreground/90',
+              )}
             >
               {about.length} / {CUSTOM_INSTRUCTIONS_MAX}
             </p>
@@ -426,7 +436,13 @@ export function PersonalizationTab() {
             />
             <p
               id="custom-response-counter"
-              className="text-right text-2xs text-foreground/90"
+              aria-live="polite"
+              className={cn(
+                'text-right text-2xs tabular-nums',
+                CUSTOM_INSTRUCTIONS_MAX - responseStyle.length <= CUSTOM_INSTRUCTIONS_WARN_REMAINING
+                  ? 'text-warning'
+                  : 'text-foreground/90',
+              )}
             >
               {responseStyle.length} / {CUSTOM_INSTRUCTIONS_MAX}
             </p>
