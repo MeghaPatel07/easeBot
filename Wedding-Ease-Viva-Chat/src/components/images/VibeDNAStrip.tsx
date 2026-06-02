@@ -13,6 +13,8 @@ interface VibeDNAStripProps {
   onChangeVibe: () => void
 }
 
+const DESCRIPTOR_MAX = 30
+
 export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChangeVibe }: VibeDNAStripProps) {
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
@@ -29,7 +31,7 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
       setAdding(false)
       return
     }
-    if (value.length < 2 || value.length > 30) return
+    if (value.length < 2 || value.length > DESCRIPTOR_MAX) return
     setBusy(true)
     try {
       await onAddDescriptor(value)
@@ -114,11 +116,11 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
         ))}
 
         {adding ? (
-          <div className="inline-flex items-center gap-1">
+          <div className="inline-flex items-center gap-1.5">
             <Input
               ref={inputRef}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => setDraft(e.target.value.slice(0, DESCRIPTOR_MAX))}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
@@ -131,9 +133,23 @@ export function VibeDNAStrip({ vibe, onAddDescriptor, onRemoveDescriptor, onChan
               onBlur={() => void commitAdd()}
               placeholder="New descriptor"
               className="h-8 w-36 text-xs"
-              maxLength={30}
+              maxLength={DESCRIPTOR_MAX}
               aria-label="New descriptor"
+              aria-describedby={
+                draft.length >= DESCRIPTOR_MAX - 5 ? 'vibe-descriptor-counter' : undefined
+              }
             />
+            {draft.length >= DESCRIPTOR_MAX - 5 && (
+              <span
+                id="vibe-descriptor-counter"
+                aria-live="polite"
+                className={`text-[10px] tabular-nums flex-shrink-0 ${
+                  draft.length >= DESCRIPTOR_MAX ? 'text-warning' : 'text-foreground/60'
+                }`}
+              >
+                {draft.length}/{DESCRIPTOR_MAX}
+              </span>
+            )}
           </div>
         ) : (
           <button
