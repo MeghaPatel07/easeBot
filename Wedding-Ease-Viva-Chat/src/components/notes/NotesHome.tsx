@@ -108,6 +108,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
             <h3 className="text-sm font-semibold text-foreground/90 line-clamp-1">
               {note.title || 'Untitled'}
             </h3>
+
+            
             {preview && (
               <p className="text-xs text-foreground/45 line-clamp-2 flex-1">{preview}</p>
             )}
