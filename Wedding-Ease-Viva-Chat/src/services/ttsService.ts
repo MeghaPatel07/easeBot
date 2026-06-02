@@ -1,6 +1,6 @@
 import { auth } from '@/lib/firebase'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 async function getAuthToken(): Promise<string | null> {
   const user = auth.currentUser

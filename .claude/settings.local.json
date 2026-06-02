@@ -190,7 +190,19 @@
       "Bash(awk 'NR>=1079 && NR<=1110 {print NR\": \"$0} /^export async function handleChatStream/,/^export /' /Users/krish/Desktop/easebot/easebot-backend/src/controllers/chatController.ts)",
       "Bash(awk 'NR>=1600 && NR<=1720' /Users/krish/Desktop/easebot/easebot-backend/src/controllers/chatController.ts)",
       "Bash(git log *)",
-      "Bash(sips -g all \"/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/IMG_0721.png\")"
+      "Bash(sips -g all \"/Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/assets/images/IMG_0721.png\")",
+      "Bash(dscacheutil -q host -a name localhost)",
+      "Bash(getent hosts *)",
+      "Read(//private/etc/**)",
+      "Bash(echo \"=== exit: $? ===\")",
+      "Bash(awk '/const mainAreaShell|function mainAreaShell|mainAreaShell =/{f=1} f{print NR\": \"$0} f&&/^\\\\s*\\\\\\);?\\\\s*$/{c++; if\\(c>=1 && /\\\\\\);/\\){exit}}' src/pages/Index.tsx)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "firebase",
+    "playwright",
+    "chrome-devtools",
+    "posthog"
+  ]
 }

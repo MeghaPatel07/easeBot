@@ -1206,7 +1206,7 @@ const Index = () => {
   }
 
   // ── Helper: main-area shell ───────────────────────────────────────────────
-  const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
+  const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode, onBack?: () => void) => (
     <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ height: '100dvh' }}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
@@ -1217,7 +1217,7 @@ const Index = () => {
       <main className={`flex-1 flex flex-col overflow-x-hidden overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
         {chatHeaderJSX}
         <div className="flex items-center gap-2 px-3 sm:px-5 h-11 flex-shrink-0 border-b border-border/40">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10">
+          <Button variant="ghost" size="sm" onClick={onBack ?? (() => navigate('/'))} className="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10">
             <ArrowLeft className="h-3.5 w-3.5 text-foreground/60" />
           </Button>
           <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2">{icon}{title}</h2>
@@ -1347,7 +1347,17 @@ const Index = () => {
 
   if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
-  if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
+  if (sidebarView === 'notes' && user && profile) {
+    // When a note is open (/:userId/notes/:noteId), "back" returns to the notes
+    // listing rather than jumping straight to chat; from the listing it goes to chat.
+    const openNoteId = pathSegments[2] ?? null;
+    return mainAreaShell(
+      'Notes',
+      <FileText className="h-5 w-5 text-primary" />,
+      <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />,
+      openNoteId ? () => navigate(`/${activeUserId}/notes`) : undefined,
+    );
+  }
   if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-foreground/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
   // ── Coming soon views ─────────────────────────────────────────────────────

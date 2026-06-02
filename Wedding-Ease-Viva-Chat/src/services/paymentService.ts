@@ -9,7 +9,7 @@
 
 import { auth } from '@/lib/firebase'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 export function isPaymentEnabled(): boolean {
   return import.meta.env.VITE_ENABLE_PAYMENT !== 'false'

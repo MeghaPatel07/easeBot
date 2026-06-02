@@ -62,6 +62,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   const [linkLoading, setLinkLoading] = useState(false);
   const [pendingInviteEmails, setPendingInviteEmails] = useState<string[]>([]);
   const [sendingInvites, setSendingInvites] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   // Reset the pending list each time the dialog opens on a new note
   useEffect(() => {
@@ -69,6 +70,7 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   }, [open, note?.id]);
 
   const handleSendInvite = async () => {
+    if (adding) return;
     const trimmed = email.trim();
     if (!trimmed) return;
     if (!isValidEmail(trimmed)) {
@@ -80,13 +82,18 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
       return;
     }
     setEmailError('');
-    const result = await onAddCollaborator(trimmed, invitePermission);
-    // Only queue for email if the add actually succeeded
-    if (result !== false) {
-      setPendingInviteEmails(prev =>
-        prev.includes(trimmed) ? prev : [...prev, trimmed],
-      );
-      setEmail('');
+    setAdding(true);
+    try {
+      const result = await onAddCollaborator(trimmed, invitePermission);
+      // Only queue for email if the add actually succeeded
+      if (result !== false) {
+        setPendingInviteEmails(prev =>
+          prev.includes(trimmed) ? prev : [...prev, trimmed],
+        );
+        setEmail('');
+      }
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -203,9 +210,16 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
             <Button
               onClick={handleSendInvite}
               className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 px-4 rounded-full"
-              disabled={!email.trim()}
+              disabled={!email.trim() || adding}
             >
-              Send Invite
+              {adding ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  Adding...
+                </>
+              ) : (
+                'Add'
+              )}
             </Button>
           </div>
         )}

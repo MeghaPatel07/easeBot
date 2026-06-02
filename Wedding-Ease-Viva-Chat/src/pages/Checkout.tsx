@@ -146,7 +146,7 @@ export default function Checkout() {
     const user = auth.currentUser
     if (!user) throw new Error('not_signed_in')
     const token = await user.getIdToken()
-    const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
+    const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
     const res = await fetch(`${apiBase}/api/payment/activate-plan`, {
       method: 'POST',
       headers: {
