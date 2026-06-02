@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { ToastAction } from '@/components/ui/toast'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Accordion,
@@ -125,14 +126,49 @@ export default function Help() {
 
   // ── Submit ───────────────────────────────────────────────────────────────
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const error = validate()
-    if (error) {
-      toast({ title: 'Validation error', description: error, variant: 'destructive' })
-      return
+  // Classify an error from addDoc/network into a user-facing reason + recovery copy.
+  // We treat the form state as the retry payload — it isn't reset on failure,
+  // so the user's input is preserved for re-submission.
+  const classifyError = (
+    err: unknown,
+  ): { title: string; description: string } => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return {
+        title: 'No internet connection',
+        description:
+          'Your message is still here. Reconnect and tap Try again, or email theweddingease@gmail.com.',
+      }
     }
+    const e = err as { code?: string; message?: string } | undefined
+    const code = e?.code ?? ''
+    // Firestore offline / unavailable -> server-side transient
+    if (
+      code === 'unavailable' ||
+      code === 'deadline-exceeded' ||
+      code === 'internal'
+    ) {
+      return {
+        title: 'Server hiccup',
+        description:
+          'Our server is having a moment. Try again in a few seconds — or email theweddingease@gmail.com.',
+      }
+    }
+    // Auth / permission -> 4xx-ish
+    if (code === 'permission-denied' || code === 'unauthenticated') {
+      return {
+        title: 'Couldn’t submit ticket',
+        description:
+          'Please check your details and try again. If this keeps happening, email theweddingease@gmail.com.',
+      }
+    }
+    return {
+      title: 'Something went wrong',
+      description:
+        (e?.message ?? 'Please try again. If it persists, email theweddingease@gmail.com.'),
+    }
+  }
 
+  const submitTicket = async () => {
     setSubmitting(true)
     try {
       await addDoc(collection(db, 'support_tickets'), {
@@ -152,7 +188,7 @@ export default function Help() {
         description: 'Thanks for reaching out! We\'ll get back to you soon.',
       })
 
-      // Reset form
+      // Reset form only on success
       setCategory('')
       setSubject('')
       setDescription('')
@@ -160,14 +196,36 @@ export default function Help() {
       setGuestName('')
       setGuestEmail('')
     } catch (err) {
+      const { title, description: desc } = classifyError(err)
       toast({
-        title: 'Something went wrong',
-        description: (err as Error)?.message ?? 'Please try again later.',
+        title,
+        description: desc,
         variant: 'destructive',
+        action: (
+          <ToastAction
+            altText="Try submitting the ticket again"
+            onClick={() => {
+              // Form state is preserved; re-invoke the same submit path.
+              void submitTicket()
+            }}
+          >
+            Try again
+          </ToastAction>
+        ),
       })
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const error = validate()
+    if (error) {
+      toast({ title: 'Validation error', description: error, variant: 'destructive' })
+      return
+    }
+    await submitTicket()
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -257,8 +315,14 @@ export default function Help() {
                 {!isLoggedIn && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-foreground/90 text-sm">Your name</Label>
+                      <Label htmlFor="help-guest-name" className="text-foreground/90 text-sm">
+                        Your name
+                      </Label>
                       <Input
+                        id="help-guest-name"
+                        name="name"
+                        type="text"
+                        autoComplete="name"
                         value={guestName}
                         onChange={(e) => setGuestName(e.target.value)}
                         placeholder="Jane Doe"
@@ -266,9 +330,14 @@ export default function Help() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-foreground/90 text-sm">Email</Label>
+                      <Label htmlFor="help-guest-email" className="text-foreground/90 text-sm">
+                        Email
+                      </Label>
                       <Input
+                        id="help-guest-email"
+                        name="email"
                         type="email"
+                        autoComplete="email"
                         value={guestEmail}
                         onChange={(e) => setGuestEmail(e.target.value)}
                         placeholder="jane@example.com"
