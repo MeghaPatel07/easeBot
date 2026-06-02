@@ -161,19 +161,23 @@ export default function SharedNote() {
   const canComment = permission === 'comment' || permission === 'edit';
 
   return (
-    <div className="min-h-[100vh] min-h-[100dvh] bg-surface-note">
-      {/* Branded header */}
-      <header className="border-b border-foreground/[0.06] px-6 py-4">
+    // WE-20260528-864: shared-print-surface marker is consumed by the
+    // @media print block in src/index.css to neutralise globally-fixed
+    // chrome (analytics consent, cap-hit banner, toasts) when planners
+    // export a note to PDF for offline handoff.
+    <div className="shared-print-surface min-h-[100vh] min-h-[100dvh] bg-surface-note print:bg-white print:text-black">
+      {/* Branded header — slimmed in print: brand mark stays as attribution, CTA hidden. */}
+      <header className="border-b border-foreground/[0.06] px-6 py-4 print:border-neutral-300 print:py-2">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <span className="text-sm font-headline text-primary/80 tracking-wide">TheWeddingBot</span>
+              <Sparkles className="h-5 w-5 text-primary print:hidden" />
+              <span className="text-sm font-headline text-primary/80 tracking-wide print:text-black">TheWeddingBot</span>
             </div>
-            <div className="h-5 w-px bg-foreground/10" />
-            <span className="text-[10px] uppercase tracking-wider text-foreground/30 font-medium">Shared Note</span>
+            <div className="h-5 w-px bg-foreground/10 print:hidden" />
+            <span className="text-[10px] uppercase tracking-wider text-foreground/30 font-medium print:text-neutral-600">Shared Note</span>
           </div>
-          <Link to="/">
+          <Link to="/" className="print:hidden">
             <Button variant="ghost" className="text-xs text-primary/70 hover:text-primary gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
               Create your own wedding notes
@@ -183,12 +187,12 @@ export default function SharedNote() {
       </header>
 
       {/* Note title bar */}
-      <div className="border-b border-foreground/[0.04] px-6 py-3">
+      <div className="border-b border-foreground/[0.04] px-6 py-3 print:border-neutral-300">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <span className="text-2xl">{note.icon || '\u{1F4DD}'}</span>
           <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-headline text-foreground/90 truncate">{note.title || 'Untitled'}</h1>
-            <p className="text-[10px] text-foreground/30">
+            <h1 className="text-lg font-headline text-foreground/90 truncate print:text-black print:whitespace-normal">{note.title || 'Untitled'}</h1>
+            <p className="text-[10px] text-foreground/30 print:hidden">
               {permission === 'edit' ? 'You can edit this note' : permission === 'comment' ? 'You can comment on this note' : 'View only'}
             </p>
           </div>
@@ -196,7 +200,7 @@ export default function SharedNote() {
       </div>
 
       {/* Note content */}
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      <main className="max-w-3xl mx-auto px-6 py-8 print:max-w-none print:px-0 print:py-4">
         <NoteEditor
           noteId={note.id}
           content={note.content}
