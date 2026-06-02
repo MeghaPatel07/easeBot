@@ -335,14 +335,26 @@ export default function PlannerView({
               <label htmlFor="checklist-title" className="text-xs font-medium text-foreground/70">
                 Title
               </label>
+              {/* WE-20260528-870: cap title at 80 chars (consistent with notes/folders) */}
               <Input
                 id="checklist-title"
                 autoFocus
                 value={newTitle}
-                onChange={e => setNewTitle(e.target.value)}
+                onChange={e => setNewTitle(e.target.value.slice(0, 80))}
                 placeholder="e.g. Venue shortlist"
                 disabled={creating}
+                maxLength={80}
               />
+              {newTitle.length >= 70 && (
+                <span
+                  className={`text-[10px] tabular-nums self-end ${
+                    newTitle.length >= 80 ? 'text-warning' : 'text-foreground/40'
+                  }`}
+                  aria-live="polite"
+                >
+                  {newTitle.length}/80
+                </span>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="checklist-items" className="text-xs font-medium text-foreground/70">
