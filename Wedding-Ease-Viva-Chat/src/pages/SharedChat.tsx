@@ -60,8 +60,19 @@ export default function SharedChat() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-sm font-bold text-foreground">{data.threadTitle}</h1>
+
+            {/*
+              SECURITY (WE-20260528-107): render threadTitle as a plain text
+              node only — do NOT wrap in <ReactMarkdown> or any component that
+              uses dangerouslySetInnerHTML. Title is sanitized at write time in
+              chatService.createSharedChat() but this is the layer-2 belt that
+              keeps us safe even if a stale doc predates the sanitizer.
+            */}
+      
+
+            <h1 className="text-sm font-bold text-foreground/80">{data.threadTitle}</h1>
             <p className="text-2xs text-muted-foreground">
+
               Shared {data.sharedAt.toLocaleDateString()} &middot; Expires {data.expiresAt.toLocaleDateString()}
             </p>
           </div>
