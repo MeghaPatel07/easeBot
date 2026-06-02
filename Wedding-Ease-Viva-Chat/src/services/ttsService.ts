@@ -1,4 +1,5 @@
 import { auth } from '@/lib/firebase'
+import { buildAuthHeaders } from '@/lib/guestSession'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
 
@@ -21,8 +22,9 @@ export interface TTSRequest {
  */
 export async function requestTTS(req: TTSRequest): Promise<string> {
   const token = await getAuthToken()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
+  // Authenticated → Authorization; anonymous → X-Guest-Id (valid guest session).
+  // The backend now rejects fully-anonymous callers on /api/tts (WE-20260527-202).
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...buildAuthHeaders(token) }
 
   const res = await fetch(`${API_BASE}/api/tts`, {
     method: 'POST',

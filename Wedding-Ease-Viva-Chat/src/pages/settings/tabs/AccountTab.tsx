@@ -99,6 +99,85 @@ function passwordIsStrong(s: string): boolean {
   return PASSWORD_RULES.every((r) => r.test(s))
 }
 
+// WE-20260528-873: map the AccountServiceError (or any thrown Error) raised by
+// `updateProfile` to a user-readable {title, description} pair. We never leak
+// raw stack traces; we never collapse all failures into one generic string.
+// Recognised shapes (from src/services/accountService.ts → AccountServiceError):
+//   code: 'network'         → offline / fetch threw
+//   code: 'unauthenticated' → 401 (token expired / signed out elsewhere)
+//   code: 'quota_exceeded'  → 402 (cap hit)
+//   code: 'not_implemented' → 501 (endpoint not yet wired)
+//   code: 'server'          → any other non-2xx; further split by status
+// HTTP status fallback so generic Error instances with `.status` are still
+// mapped (422 field validation, 429 rate limit, 5xx).
+function mapSaveError(err: unknown): { title: string; description: string } {
+  const e = err as { code?: string; status?: number; message?: string; details?: unknown }
+  const code = typeof e?.code === 'string' ? e.code : ''
+  const status = typeof e?.status === 'number' ? e.status : 0
+  const rawMessage = typeof e?.message === 'string' ? e.message : ''
+
+  // Network / offline.
+  if (code === 'network' || status === 0) {
+    return {
+      title: 'No internet',
+      description: 'Check your connection and try again.',
+    }
+  }
+
+  // Auth expired or revoked.
+  if (code === 'unauthenticated' || status === 401 || status === 403) {
+    return {
+      title: 'Session expired',
+      description: 'Please sign in again to save your changes.',
+    }
+  }
+
+  // Quota / rate-limit.
+  if (code === 'quota_exceeded' || status === 402 || status === 429) {
+    return {
+      title: status === 429 ? 'Too many requests' : 'Quota reached',
+      description:
+        status === 429
+          ? 'Please wait a moment and try again.'
+          : 'You have reached your plan limit for this action.',
+    }
+  }
+
+  // Field-level validation (422 / 400). Prefer a backend-supplied message —
+  // it is the only place that knows which field is bad ("phone format invalid",
+  // "name too short", etc.) — and fall back to a generic prompt.
+  if (status === 422 || status === 400) {
+    return {
+      title: 'Check the form',
+      description: rawMessage || 'Some of the values you entered are invalid.',
+    }
+  }
+
+  // Endpoint not yet implemented (Sprint-1 holdover).
+  if (code === 'not_implemented' || status === 501) {
+    return {
+      title: 'Not available yet',
+      description: 'This change cannot be saved right now. Please try again later.',
+    }
+  }
+
+  // Generic server crash.
+  if (code === 'server' || (status >= 500 && status < 600)) {
+    return {
+      title: 'Server hiccup',
+      description: 'Something went wrong on our side. Please try again in a moment.',
+    }
+  }
+
+  // Unknown shape — surface raw message if short and safe, else fallback.
+  // Never echo back anything that looks like a stack trace.
+  const looksLikeStack = /\bat \S+ \(/.test(rawMessage) || rawMessage.length > 200
+  return {
+    title: 'Could not save',
+    description: rawMessage && !looksLikeStack ? rawMessage : 'Failed to save profile. Please try again.',
+  }
+}
+
 // Reads provider IDs straight off Firebase Auth's currentUser as a fallback for
 // linkedProviders. Sprint 1 backfill may not have populated Firestore yet.
 function readFirebaseProviders(): Array<'password' | 'google.com'> {
@@ -190,9 +269,12 @@ export function AccountTab() {
       await updateProfile(patch)
       toast({ title: 'Profile updated', description: 'Your details have been saved.' })
     } catch (err) {
+      // WE-20260528-873: surface error-specific context (network / auth / 422 /
+      // 429 / 5xx / unknown) instead of a single generic toast.
+      const { title, description } = mapSaveError(err)
       toast({
-        title: 'Could not save',
-        description: (err as Error)?.message ?? 'Please try again.',
+        title,
+        description,
         variant: 'destructive',
       })
       // Rollback local state — full snapshot including phone (M-9).

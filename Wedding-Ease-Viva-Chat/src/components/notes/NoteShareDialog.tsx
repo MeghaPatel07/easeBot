@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Link2, Copy, Check, X, UserPlus, Shield, Globe, Loader2, Lock,
+  Link2, Copy, Check, X, UserPlus, Shield, Globe, Loader2, Lock, Share2, ArrowUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -150,6 +150,8 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
   if (!note) return null;
 
   const publicEnabled = note.publicAccess?.enabled ?? false;
+  const hasCollaborators = (note.collaborators?.length ?? 0) > 0;
+  const hasNoShares = !hasCollaborators && !publicEnabled;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -268,8 +270,25 @@ const NoteShareDialog: React.FC<NoteShareDialogProps> = ({
             </div>
           ))}
 
-          {(!note.collaborators || note.collaborators.length === 0) && (
-            <p className="text-xs text-foreground/20 italic px-2 py-1">No collaborators yet</p>
+          {hasNoShares ? (
+            <div className="flex flex-col items-center text-center px-4 py-5 rounded-lg bg-foreground/[0.02] border border-dashed border-foreground/10 mt-1">
+              {isOwner && (
+                <ArrowUp className="h-3 w-3 text-foreground/30 mb-1.5" aria-hidden="true" />
+              )}
+              <div className="h-9 w-9 rounded-full bg-foreground/[0.06] flex items-center justify-center mb-2">
+                <Share2 className="h-4 w-4 text-foreground/40" aria-hidden="true" />
+              </div>
+              <p className="text-xs font-medium text-foreground/70">No shares yet</p>
+              <p className="text-[11px] text-foreground/40 mt-0.5 max-w-[240px]">
+                {isOwner
+                  ? 'Use the form above to invite people or enable a public link below.'
+                  : 'This note hasn’t been shared with anyone yet.'}
+              </p>
+            </div>
+          ) : (
+            !hasCollaborators && (
+              <p className="text-xs text-foreground/20 italic px-2 py-1">No collaborators yet</p>
+            )
           )}
         </div>
 

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WE-20260528-895 — VibeComposer img lazy + dimensions</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1f2937; }
+  h1 { font-size: 1.25rem; }
+  ul { line-height: 1.6; }
+  .done { color: #16a34a; }
+  .pending { color: #6b7280; }
+  code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.85em; }
+  pre { background: #f9fafb; padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<h1>WE-20260528-895 — VibeComposer img: lazy + explicit dimensions</h1>
+<p><b>Branch:</b> <code>fix-WE-20260528-895</code> &nbsp; <b>Base:</b> <code>Bug-Resolve-claude</code></p>
+<ul>
+  <li class="done">Worktree created from <code>origin/Bug-Resolve-claude</code></li>
+  <li class="done">Inspected <code>VibeComposer.tsx</code> — single 48×48 reference-preview <code>&lt;img&gt;</code> at line 145</li>
+  <li class="done">Added <code>width={48}</code>, <code>height={48}</code>, <code>loading="lazy"</code>, <code>decoding="async"</code></li>
+  <li class="done">Type-check passes for <code>VibeComposer.tsx</code> (pre-existing unrelated errors in ChatInput / ChatMessages / NoteEditor / ProfileMenu / etc. left untouched)</li>
+  <li class="done">Commit + push + PR opened against <code>Bug-Resolve-claude</code></li>
+  <li class="done">Ticket updated</li>
+</ul>
+<h2>Diff</h2>
+<pre>           &lt;img
+             src={previewUrl}
+             alt="Reference preview"
++            width={48}
++            height={48}
++            loading="lazy"
++            decoding="async"
+             className="h-12 w-12 rounded object-cover"
+           /&gt;</pre>
+<h2>Why this helps</h2>
+<ul>
+  <li><b>CLS</b>: explicit <code>width</code>/<code>height</code> lets the browser reserve the 48×48 box before the blob URL decodes — no shift when reference image swap completes.</li>
+  <li><b>LCP / main thread</b>: <code>decoding="async"</code> moves decode off the critical path; <code>loading="lazy"</code> defers fetch until the preview row is in the viewport.</li>
+  <li>Smallest-viable change — single <code>&lt;img&gt;</code> in the file, no layout / Tailwind class churn.</li>
+</ul>
+</body>
+</html>

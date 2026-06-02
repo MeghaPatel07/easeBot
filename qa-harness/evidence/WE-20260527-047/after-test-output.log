@@ -1,0 +1,8 @@
+ok - apiRateLimiter: 429 emits Retry-After + draft-7 RateLimit headers + structured body
+ok - imageRateLimiter: 429 has identical header + body contract scoped "image"
+{"kind":"obs","event":"chat_burst_flag","ts":"2026-05-29T13:41:02.606Z","key":"g:e51a151e7b2c0d43","path":"/probe"}
+ok - chatBurstRateLimiter: 429 has draft-7 headers + body preserves code "chat_burst_limit"
+1..3
+# tests 3
+# pass 3
+# fail 0

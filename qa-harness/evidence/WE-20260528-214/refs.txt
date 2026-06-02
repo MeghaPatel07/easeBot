@@ -1,0 +1,9 @@
+src/routes/chat.ts:11:
+  router.post('/', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), handleChat)
+
+src/routes/chat.ts:20:
+  router.post('/cancel', requireAuth, (req: Request, res: Response) => { ... })
+
+useChat.ts:941:
+  abortControllerRef.current?.abort()
+  if (id) void cancelChatRequest(id)

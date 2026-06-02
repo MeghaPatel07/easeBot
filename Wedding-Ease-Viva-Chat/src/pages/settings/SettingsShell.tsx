@@ -17,7 +17,7 @@
 // Dark-mode aware: uses bg-background / text-foreground/90 / /
 // bg-muted / text-foreground/90 / accent tokens — no hard-coded colours.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   User as UserIcon,
@@ -136,6 +136,56 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
       setMobileShowingContent(true)
     }
   }, [open, activeTab])
+
+  // ── Mobile scroll restoration (WE-20260528-880) ────────────────────────────
+  //
+  // On mobile, the per-tab scroll container unmounts when the user taps Back
+  // to the list view, so re-entering the same tab loses the scrollTop. We
+  // snapshot scrollTop per tab into a ref-backed Map and restore it on remount
+  // via useLayoutEffect + requestAnimationFrame (so the DOM is laid out and
+  // children have settled before we set scrollTop).
+  //
+  // The Map is keyed by tab id, lives in a ref so it survives renders, and is
+  // cleared when the modal closes (alongside mobileShowingContent reset).
+  const mobileScrollRef = useRef<HTMLDivElement | null>(null)
+  const scrollPositionsRef = useRef<Map<SettingsTabId, number>>(new Map())
+
+  const snapshotMobileScroll = useCallback(() => {
+    const el = mobileScrollRef.current
+    if (el) scrollPositionsRef.current.set(activeTab, el.scrollTop)
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!open) scrollPositionsRef.current.clear()
+  }, [open])
+
+  useLayoutEffect(() => {
+    if (!mobileShowingContent) return
+    const el = mobileScrollRef.current
+    if (!el) return
+    const tab = activeTab
+    const saved = scrollPositionsRef.current.get(tab) ?? 0
+    // rAF lets the just-mounted tab content render its children first so the
+    // scroll height exists before we try to set scrollTop.
+    const id = requestAnimationFrame(() => {
+      if (mobileScrollRef.current) mobileScrollRef.current.scrollTop = saved
+    })
+    // Cleanup runs with the OLD `tab` closed-over (effect re-runs on tab
+    // change while staying in content view, eg. via URL back/forward).
+    // Snapshot the current scroll into the OLD tab's slot before moving on.
+    //
+    // NB: we intentionally read mobileScrollRef.current in cleanup — we need
+    // the live element's scrollTop AT THE TIME of cleanup, not a stale mount-
+    // time snapshot. Likewise scrollPositionsRef is a stable Map (identity
+    // never changes), so accessing it in cleanup is safe.
+    const positions = scrollPositionsRef.current
+    return () => {
+      cancelAnimationFrame(id)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const el2 = mobileScrollRef.current
+      if (el2) positions.set(tab, el2.scrollTop)
+    }
+  }, [activeTab, mobileShowingContent])
 
   // ── URL helpers ────────────────────────────────────────────────────────────
 
@@ -316,10 +366,18 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
             <>
               <MobileContentHeader
                 title={activeLabel}
-                onBack={() => setMobileShowingContent(false)}
+                onBack={() => {
+                  // Snapshot scrollTop BEFORE we unmount the scroll container
+                  // so re-entering this tab restores the user's position.
+                  snapshotMobileScroll()
+                  setMobileShowingContent(false)
+                }}
                 onClose={closeModal}
               />
-              <div className="flex-1 overflow-y-auto p-4 bg-transparent">
+              <div
+                ref={mobileScrollRef}
+                className="flex-1 overflow-y-auto p-4 bg-transparent"
+              >
                 <ActiveComponent />
               </div>
             </>

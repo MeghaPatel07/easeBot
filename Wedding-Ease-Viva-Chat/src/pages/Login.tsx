@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { Loader2, Sparkles, Heart, Calendar, MessageSquare, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Loader2, Sparkles, Heart, Calendar, MessageSquare, Eye, EyeOff, ArrowLeft, CheckCircle2, ChevronDown } from 'lucide-react'
+import { fetchSignInMethodsForEmail } from 'firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError } from '@/services/authService'
+import { auth } from '@/lib/firebase'
 import { track } from '@/lib/analytics'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
@@ -23,7 +25,7 @@ const PROMO_FEATURES = [
   { icon: Calendar, text: 'Track budgets, timelines, and checklists' },
 ]
 
-type Step = 'entry' | 'password' | 'fp-email' | 'fp-otp' | 'fp-newpass' | 'fp-success'
+type Step = 'entry' | 'password' | 'use-google' | 'no-account' | 'fp-email' | 'fp-otp' | 'fp-newpass' | 'fp-success'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -78,14 +80,36 @@ export default function Login() {
     }
   }
 
-  const handleEmailContinue = (e: React.FormEvent) => {
+  const handleEmailContinue = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) {
+    const targetEmail = email.trim()
+    if (!targetEmail) {
       setError('Please enter your email address')
       return
     }
     setError('')
-    setStep('password')
+    setLoading(true)
+    try {
+      // Preflight: branch on which sign-in methods this email already has.
+      // Falls back to the password step on any network/SDK error so a flaky
+      // lookup never blocks an existing user from signing in.
+      const methods = await fetchSignInMethodsForEmail(auth, targetEmail)
+      if (methods.includes('password')) {
+        setStep('password')
+      } else if (methods.includes('google.com')) {
+        setStep('use-google')
+      } else if (methods.length === 0) {
+        setStep('no-account')
+      } else {
+        // Unknown provider — let the password attempt surface a real error.
+        setStep('password')
+      }
+    } catch {
+      // Preflight failed — proceed to password step rather than block sign-in.
+      setStep('password')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -302,10 +326,10 @@ export default function Login() {
         return (
           <>
             <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
-              Plan Your Dream Wedding
+              Welcome to TheWeddingBot
             </h1>
             <p className="text-sm text-foreground/50 mb-8">
-              Sign in to get AI-powered planning, personalized recommendations, and 24/7 support.
+              Sign in or create an account to save your planning, generate mood boards, and chat 24/7.
             </p>
 
             {error && (
@@ -340,10 +364,80 @@ export default function Login() {
                 autoComplete="email"
                 autoFocus
               />
-              <button type="submit" className={btnPrimary}>
-                Continue With Email
+              <button type="submit" disabled={loading} className={btnPrimary}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Continue With Email'}
               </button>
             </form>
+          </>
+        )
+
+      // ─── Existing email uses Google sign-in ────────────────────────────
+      case 'use-google':
+        return (
+          <>
+            <button
+              type="button"
+              onClick={() => { setStep('entry'); setError('') }}
+              className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-6"
+            >
+              <ArrowLeft className="h-4 w-4" />Back
+            </button>
+
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
+              Use Google to sign in
+            </h1>
+            <p className="text-sm text-foreground/50 mb-8">
+              <span className="text-foreground/70">{email}</span> is registered with Google. Continue with Google to access your account.
+            </p>
+
+            {error && (
+              <div role="alert" className="mb-4 rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={googleLoading}
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-foreground/[0.12] bg-foreground/[0.04] px-4 py-3 text-sm font-medium text-foreground/90 hover:bg-foreground/[0.08] hover:border-foreground/[0.2] transition-all disabled:opacity-50"
+            >
+              {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+              Continue With Google
+            </button>
+          </>
+        )
+
+      // ─── No account for this email — prompt to sign up ─────────────────
+      case 'no-account':
+        return (
+          <>
+            <button
+              type="button"
+              onClick={() => { setStep('entry'); setError('') }}
+              className="flex items-center gap-2 text-sm text-foreground/50 hover:text-foreground/80 transition-colors mb-6"
+            >
+              <ArrowLeft className="h-4 w-4" />Back
+            </button>
+
+            <h1 className="font-headline text-3xl md:text-4xl tracking-tight text-foreground mb-2">
+              No account found
+            </h1>
+            <p className="text-sm text-foreground/50 mb-8">
+              We couldn't find an account for <span className="text-foreground/70">{email}</span>. Create one to get started.
+            </p>
+
+            <Link to="/" className={`${btnPrimary} block text-center`}>
+              Create an account
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => { setStep('entry'); setError('') }}
+              className="mt-3 w-full text-center text-xs text-foreground/40 hover:text-foreground/70 transition-colors"
+            >
+              Try a different email
+            </button>
           </>
         )
 
@@ -657,10 +751,36 @@ export default function Login() {
                 Privacy Policy
               </Link>.
             </p>
+
+            {/* Mobile/tablet only — collapsible "what you get" so the consent banner doesn't eat it */}
+            <details className="lg:hidden mt-6 group rounded-2xl border border-foreground/[0.08] bg-foreground/[0.03] backdrop-blur-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="text-2xs uppercase tracking-widest text-primary/80 font-semibold">
+                    What You Get
+                  </span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-foreground/40 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="px-5 pb-5 space-y-3">
+                {PROMO_FEATURES.map(({ icon: Icon, text }, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
+                      <Icon className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <p className="text-sm text-foreground/70 leading-relaxed">{text}</p>
+                  </div>
+                ))}
+                <p className="pt-3 text-xs text-foreground/40 leading-relaxed border-t border-foreground/[0.06]">
+                  Free accounts include 10 messages per session. Upgrade to Pro for unlimited planning conversations, image generation, and more.
+                </p>
+              </div>
+            </details>
           </div>
 
-          {/* Right — Promo card */}
-          <div className="flex-1 max-w-md mx-auto lg:mx-0 lg:mt-4">
+          {/* Right — Promo card (desktop only — mobile uses the accordion above) */}
+          <div className="hidden lg:block flex-1 max-w-md mx-auto lg:mx-0 lg:mt-4">
             <div className="rounded-2xl border border-foreground/[0.08] bg-foreground/[0.03] backdrop-blur-sm p-6 md:p-8">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="h-4 w-4 text-primary" />

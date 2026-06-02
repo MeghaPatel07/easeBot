@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-1051</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-1051 - Auth forms missing autocomplete attributes (WCAG 2.2 SC 3.3.8) <span class="pill P1">P1</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-1051</code> -&gt; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-1051</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      Email / password / phone / OTP inputs across <code>SignInModal</code>, <code>SignUpModal</code>, and <code>PhoneInput</code>
+      carry no <code>autoComplete</code> attribute. WCAG 2.2 Level AA SC 3.3.8 Accessible Authentication (Minimum) and SC 1.3.5
+      Identify Input Purpose require these so password managers (1Password, Bitwarden, iCloud Keychain) can autofill credentials.
+      Without them, users must hand-transcribe email / password / OTP every visit - excluding users with cognitive impairments and
+      defeating the purpose of password managers.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 step 1</div>
+        <div class="what">Read ticket + templates. Created worktree at <code>worktrees/fix-WE-20260528-1051</code> off <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 step 2</div>
+        <div class="what">Grepped src/ for auth-related components. Confirmed scope: <code>SignInModal.tsx</code>, <code>SignUpModal.tsx</code>, <code>PhoneInput.tsx</code>.</div>
+        <div class="detail">
+          <code>Login.tsx</code> already has <code>autoComplete</code> attributes on its inputs (no change needed).
+          No standalone forgot-password component - the flow is inline inside <code>SignInModal</code> (3 steps + 6 OTP boxes)
+          and a separate inline flow inside <code>Login.tsx</code> (already covered). Sign-up has its own 6 OTP boxes.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 step 3</div>
+        <div class="what">Diagnosis: zero <code>autoComplete</code> attributes in the three target files. <code>Input</code> wrapper is pass-through so adding the prop on each call is sufficient.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 step 4</div>
+        <div class="what">Applied attribute-only edits per WCAG 2.2 mapping.</div>
+        <div class="detail">
+          <table>
+            <thead><tr><th>File</th><th>Field</th><th>autoComplete value</th></tr></thead>
+            <tbody>
+              <tr><td>SignInModal.tsx</td><td>Sign-in email</td><td><code>email</code></td></tr>
+              <tr><td>SignInModal.tsx</td><td>Sign-in password</td><td><code>current-password</code></td></tr>
+              <tr><td>SignInModal.tsx</td><td>Forgot-pwd email</td><td><code>email</code></td></tr>
+              <tr><td>SignInModal.tsx</td><td>Forgot-pwd OTP (x6)</td><td><code>one-time-code</code> (only on first; rest <code>off</code> per WHATWG guidance)</td></tr>
+              <tr><td>SignInModal.tsx</td><td>Forgot-pwd new password</td><td><code>new-password</code></td></tr>
+              <tr><td>SignInModal.tsx</td><td>Forgot-pwd confirm</td><td><code>new-password</code></td></tr>
+              <tr><td>SignInModal.tsx</td><td>Phone OTP single field</td><td><code>one-time-code</code></td></tr>
+              <tr><td>SignInModal.tsx</td><td>Unverified resend password</td><td><code>current-password</code></td></tr>
+              <tr><td>SignInModal.tsx</td><td>Link-Google password</td><td><code>current-password</code></td></tr>
+              <tr><td>SignUpModal.tsx</td><td>Full name (email tab)</td><td><code>name</code></td></tr>
+              <tr><td>SignUpModal.tsx</td><td>Email (email tab)</td><td><code>email</code></td></tr>
+              <tr><td>SignUpModal.tsx</td><td>New password</td><td><code>new-password</code></td></tr>
+              <tr><td>SignUpModal.tsx</td><td>Confirm password</td><td><code>new-password</code></td></tr>
+              <tr><td>SignUpModal.tsx</td><td>Full name (phone tab)</td><td><code>name</code></td></tr>
+              <tr><td>SignUpModal.tsx</td><td>Email (phone tab)</td><td><code>email</code></td></tr>
+              <tr><td>SignUpModal.tsx</td><td>Verify-phone OTP (x6)</td><td><code>one-time-code</code> (first only)</td></tr>
+              <tr><td>SignUpModal.tsx</td><td>Phone-tab OTP single field</td><td><code>one-time-code</code></td></tr>
+              <tr><td>PhoneInput.tsx</td><td>Phone input</td><td><code>tel</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before-fix screenshot: <code>qa-harness/evidence/WE-20260528-1051/screenshots/before-signin-modal.png</code></li>
+      <li>After-fix screenshot: <code>qa-harness/evidence/WE-20260528-1051/screenshots/after-signin-modal.png</code></li>
+      <li>Accessibility snapshot (after): <code>qa-harness/evidence/WE-20260528-1051/a11y-snapshot-after.txt</code></li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="ok">passed (no new warnings in touched files)</td></tr>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed (no new TS errors in touched files)</td></tr>
+        <tr><td>Manual a11y check</td><td>Playwright MCP <code>browser_snapshot</code> over sign-in modal</td><td class="ok">autocomplete=email + autocomplete=current-password present</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/components/auth/SignInModal.tsx
+src/components/auth/SignUpModal.tsx
+src/components/auth/PhoneInput.tsx</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/60">https://github.com/MeghaPatel07/easeBot/pull/60</a> (base: <code>Bug-Resolve-claude</code>, head: <code>fix-WE-20260528-1051</code>)</p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+=== AFTER FIX (worktree code: zod schema verification) ===
+Schema unit test against worktrees/fix-WE-20260527-211/easebot-backend/src/schemas/chat.ts
+
+[PASS] malicious system role (CWE-1336 injection) → expected=reject, actual=reject
+         issue: history.0.role — Invalid enum value. Expected 'user' | 'assistant', received 'system'
+[PASS] legit user/assistant history → expected=accept, actual=accept
+[PASS] no history → expected=accept, actual=accept
+[PASS] mixed (one system snuck in) → expected=reject, actual=reject
+         issue: history.1.role — Invalid enum value. Expected 'user' | 'assistant', received 'system'
+
+=== Defense-in-depth filter test ===
+[PASS] drop a leading system inj
+[PASS] drop middle system + nulls
+[PASS] drop tool role (unknown role)
+[PASS] pure legit passes through

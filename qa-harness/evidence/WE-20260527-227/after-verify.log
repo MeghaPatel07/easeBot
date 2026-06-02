@@ -1,0 +1,6 @@
+[imageGeneration] No Azure credentials
+generateImageGptImage1 (no creds) → null
+[imageGeneration] No Azure credentials
+editImageGptImage1 (no creds) → null
+controller guard: FAILURE branch fired (HTTP 502 + IMAGE_REFUSED) — refund tokens
+PASS

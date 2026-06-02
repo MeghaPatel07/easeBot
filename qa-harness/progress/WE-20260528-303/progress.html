@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-303</title>
+  <style>
+    :root {
+      --bg: #0c0c0e; --panel: #16161a; --border: #2a2a30;
+      --text: #e4e4e7; --muted: #71717a; --accent: #f97cb1;
+      --ok: #4ade80; --warn: #facc15; --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.done { background: rgba(74,222,128,0.2); color: #4ade80; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-303 · Index.tsx god-component eager-imports 14+ heavy views; 250KB (72%) unused on /chat <span class="pill P1">P1</span><span class="pill done">in_review</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-performance &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-303</code> &rarr; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-303</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>Index.tsx (1668 lines) is a god-component used by every primary route. It statically imports 14+ heavy view modules (BudgetDashboard, TimelineView, ShoppingListView, PlannerView, etc). Build emits a single Index chunk of ~583 KB raw / ~142 KB gz that ships on every route. Lighthouse reports 250 KB (72%) of this chunk is unused on /chat. PR #49 (WE-20260528-304) already lazies NotesView; this PR lazies the remaining views, complementing #49.</p>
+
+    <h2>Perf delta</h2>
+    <table>
+      <tr><th>Metric</th><th>Before</th><th>After</th><th>Delta</th></tr>
+      <tr><td>Index chunk (raw)</td><td>583.64 KB</td><td>442.49 KB</td><td><b>-141.15 KB (-24.2%)</b></td></tr>
+      <tr><td>Index chunk (gzip)</td><td>142.08 KB</td><td>108.89 KB</td><td><b>-33.19 KB (-23.4%)</b></td></tr>
+      <tr><td>New lazy chunks</td><td>0</td><td>11</td><td>code on-demand</td></tr>
+    </table>
+    <p>11 new lazy chunks (NotificationPanel 2.55 KB gz &middot; ProgressDashboard 2.09 KB gz &middot; InvitePartner 2.51 KB gz &middot; SavedItemsView 3.18 KB gz &middot; PlannerView 3.86 KB gz &middot; ChecklistDetail 4.12 KB gz &middot; RemindersView 3.81 KB gz &middot; BudgetDashboard 3.45 KB gz &middot; ShoppingListView 3.82 KB gz &middot; TimelineView 6.02 KB gz &middot; ImagesHub 10.80 KB gz). Each downloads only when its sidebar view is opened.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">init</div>
+        <div class="what">Worktree created off origin/Bug-Resolve-claude.</div>
+        <div class="detail">Confirmed PR #49 lazy pattern by diffing origin/fix-WE-20260528-304 against base: <code>const NotesView = lazy(() =&gt; import(&apos;&hellip;&apos;))</code> + inline Suspense fallback "Loading notes&hellip;". Matched the same shape (generic "Loading&hellip;" fallback) for the other 11 views.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">build-before</div>
+        <div class="what">Captured baseline bundle sizes.</div>
+        <div class="detail">Top chunks: Index 583.64 KB / 142.08 KB gz &middot; vendor-pdf 574.70 KB / 173.04 KB gz &middot; vendor-firebase 541.53 KB / 126.03 KB gz &middot; vendor-tiptap 457.76 KB / 138.01 KB gz.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">edit</div>
+        <div class="what">Converted 11 view modules to <code>React.lazy()</code> in Index.tsx; added Suspense boundary inside <code>mainAreaShell()</code> helper + planner-detail ChecklistDetail branch.</div>
+        <div class="detail">Single-source Suspense in mainAreaShell covers all sidebarView branches (budget, shopping, saved-items, timeline, reminders, planner-listing, progress, notifications, collaborate, gallery/images). Dropped unused GalleryView import (legacy). NotesView intentionally left eager — PR #49 owns it.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">build-after</div>
+        <div class="what">EXIT=0; Index chunk dropped to 442.49 KB / 108.89 KB gz; 11 new view chunks emitted.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">tsc</div>
+        <div class="what">27 TS errors baseline = 27 after — no new TS errors introduced.</div>
+        <div class="detail">Pre-existing errors in ChatInput, ChatMessages, NoteEditor, ProfileMenu etc are out of scope.</div>
+      </div>
+      <div class="entry warn">
+        <div class="time">lint</div>
+        <div class="what">eslint fails to bootstrap (plugin compat issue in <code>@typescript-eslint/no-unused-expressions</code>) — same on base branch, not caused by this PR.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">runtime</div>
+        <div class="what">HTTP 200 on /, /chat, /planner, /budget, /timeline (dev server). Production preview confirms /chat HTML preloads only entry + vendor chunks; new view chunks NOT in initial preload set.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before bundle sizes: <code>qa-harness/evidence/WE-20260528-303/bundle-before.txt</code></li>
+      <li>After bundle sizes: <code>qa-harness/evidence/WE-20260528-303/bundle-after.txt</code></li>
+      <li>Bundle diff: <code>qa-harness/evidence/WE-20260528-303/bundle-diff.txt</code></li>
+      <li>Build log before: <code>qa-harness/evidence/WE-20260528-303/build-before.log</code></li>
+      <li>Build log after: <code>qa-harness/evidence/WE-20260528-303/build-after.log</code></li>
+      <li>Perf delta writeup: <code>qa-harness/evidence/WE-20260528-303/perf-delta.md</code></li>
+    </ul>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/56">#56 &mdash; perf(route): React.lazy split for 11 view modules in Index.tsx</a> &rarr; base <code>Bug-Resolve-claude</code>.</p>
+
+    <footer>
+      Generated by fix-performance &middot; Easebot QA Harness
+    </footer>
+  </div>
+</body>
+</html>

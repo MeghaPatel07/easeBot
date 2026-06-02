@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-880</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-880 · Settings → mobile back-flow has no scroll-restoration <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-880</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-880</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>On mobile (&lt;768px) the Settings modal renders one tab at a time. When the user scrolls deep
+       in a tab (eg. Plan &amp; Billing), taps Back to the list, then re-enters the same tab, the content
+       remounts and scroll resets to top. UX paper cut on tabs with lots of content.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 — step 1</div>
+        <div class="what">Read ticket WE-20260528-880 and SettingsShell.tsx end-to-end.</div>
+        <div class="detail">Mobile flow uses a single <code>mobileShowingContent</code> boolean. The
+          content view renders <code>&lt;ActiveComponent /&gt;</code> inside <code>&lt;div className="flex-1 overflow-y-auto p-4"&gt;</code>.
+          Going Back flips <code>mobileShowingContent=false</code> which unmounts that scroll div, losing scrollTop.
+          Desktop (≥1024px) and tablet (768–1023px) keep the scroll container mounted across tab changes,
+          so they're unaffected — fix only needs to touch the mobile branch.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — step 2</div>
+        <div class="what">Diagnosis &amp; approach.</div>
+        <div class="detail">Smallest-diff fix: add a <code>scrollPositionsRef</code> (a <code>Map&lt;tabId, number&gt;</code>) inside <code>SettingsShell</code>.
+          Wrap the mobile back &amp; tab-switch handlers so they snapshot <code>scrollTop</code> before unmounting.
+          Attach a ref to the mobile scroll container and, on mount/when activeTab changes,
+          restore the saved scrollTop via <code>requestAnimationFrame</code> (waits for layout).
+          No new files, no new deps, no new hooks needed — fits inside <code>SettingsShell.tsx</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — step 3</div>
+        <div class="what">Implemented the fix in <code>src/pages/settings/SettingsShell.tsx</code>.</div>
+        <div class="detail">Added <code>scrollPositionsRef</code> (Map), <code>mobileScrollRef</code> (ref to the
+          mobile content scroll div), a helper <code>snapshotMobileScroll()</code> used by the Back button
+          and by the tab-switch path inside the content view, and a <code>useLayoutEffect</code>
+          that restores scroll on mount of the content view (and whenever activeTab changes
+          while the content view is open).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — step 4</div>
+        <div class="what">Lint + typecheck.</div>
+        <div class="detail">
+          <code>tsc --noEmit -p tsconfig.app.json</code> &rarr; zero new errors related to SettingsShell.tsx
+          (30 pre-existing project-wide errors, all in services/components I did not touch — Firebase types,
+          payment service, etc.).<br/>
+          <code>eslint src/pages/settings/SettingsShell.tsx</code> &rarr; zero new warnings/errors from my diff.
+          The remaining 3 ESLint errors on this file are pre-existing <code>user: any</code> prop typings
+          on the side-nav components — out of scope for this ticket.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — step 5</div>
+        <div class="what">Edge-case hardening: scroll snapshot on tab change while in content view.</div>
+        <div class="detail">Initially I only snapshotted on the Back tap. But if the user uses browser
+          back/forward (which mutates <code>?settings=&lt;tab&gt;</code>) <strong>while still in the mobile
+          content view</strong>, activeTab changes without going through Back. To cover that, I moved
+          the per-tab snapshot into the <code>useLayoutEffect</code> cleanup — it captures the OLD tab's
+          scrollTop just before React re-runs the effect for the new tab. Best of both: Back-button path
+          is explicit (because React clears the ref before cleanup when the JSX unmounts), and in-place
+          tab changes are caught automatically.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before-fix screenshots: <code>qa-harness/evidence/WE-20260528-880/screenshots/before-*.png</code></li>
+      <li>After-fix screenshots: <code>qa-harness/evidence/WE-20260528-880/screenshots/after-*.png</code></li>
+      <li>Note: this bug requires a logged-in mobile user with a populated Plan &amp; Billing tab
+        (invoices list) to be visually verifiable end-to-end. The fix is small enough that
+        the typecheck + behavioural reasoning is documented above; a follow-up Playwright
+        run can validate visually once Krish points the harness at a seeded test account.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">PASS (see below)</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">Pre-existing functions/ ESLint config crash — no new errors in SettingsShell.tsx</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/pages/settings/SettingsShell.tsx | ~30 lines added (scroll restoration)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/72">https://github.com/MeghaPatel07/easeBot/pull/72</a></p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

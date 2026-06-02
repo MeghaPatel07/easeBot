@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Receipt, AlertTriangle, Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Receipt, AlertTriangle, Zap, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useUsageStats } from '@/hooks/useUsageStats'
 import { useAccount } from '@/hooks/useAccount'
@@ -7,9 +7,23 @@ import { useAuth } from '@/contexts/AuthContext'
 import { UsageMeter, type UsageMeterState } from '@/components/pricing/UsageMeter'
 import { cn } from '@/lib/utils'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   getInvoices,
   downloadInvoicePdf,
+  cancelSubscription,
+  reactivateSubscription,
+  getCurrentSubscription,
   type InvoiceSummary,
+  type SubscriptionSnapshot,
 } from '@/services/paymentService'
 
 function formatResetDate(iso?: string | null): string {
@@ -38,6 +52,18 @@ export function BillingSettings({ className }: { className?: string }) {
   const [invoicesLoading, setInvoicesLoading] = useState(false)
   const [invoicesError, setInvoicesError] = useState<string | null>(null)
 
+  // Subscription state — drives the Cancel / Reactivate flow. The cancel
+  // action is a financial-impact destructive action (WCAG 3.3.4 Error
+  // Prevention) so it MUST go through an AlertDialog confirm before the API
+  // fires. See `cancelConfirmOpen` + `handleConfirmCancel`.
+  const [subscription, setSubscription] = useState<SubscriptionSnapshot | null>(null)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [reactivateConfirmOpen, setReactivateConfirmOpen] = useState(false)
+  const [cancelBusy, setCancelBusy] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  // aria-live region content for SR announcements (WCAG 4.1.3 Status Messages).
+  const [statusAnnounce, setStatusAnnounce] = useState('')
+
   const handleViewInvoices = async () => {
     setInvoicesLoading(true)
     setInvoicesError(null)
@@ -49,6 +75,85 @@ export function BillingSettings({ className }: { className?: string }) {
       setInvoicesError(err instanceof Error ? err.message : String(err))
     } finally {
       setInvoicesLoading(false)
+    }
+  }
+
+  // Load subscription snapshot for paid users so we can correctly render
+  // either "Cancel subscription" or "Resume subscription".
+  useEffect(() => {
+    if (!user) {
+      setSubscription(null)
+      return
+    }
+    let alive = true
+    void getCurrentSubscription()
+      .then((sub) => {
+        if (alive) setSubscription(sub)
+      })
+      .catch(() => {
+        // Soft-fail: cancel/reactivate UI just won't render. Don't block the
+        // rest of BillingSettings on this.
+        if (alive) setSubscription(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [user])
+
+  const handleConfirmCancel = async () => {
+    setCancelBusy(true)
+    setCancelError(null)
+    try {
+      const clientRequestId = `cancel_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      await cancelSubscription(clientRequestId)
+      setCancelConfirmOpen(false)
+      setStatusAnnounce('Subscription cancellation scheduled. You will keep access until the end of your current billing period.')
+      // Refresh subscription + usage so the UI flips to the "cancel_scheduled" variant.
+      try {
+        const sub = await getCurrentSubscription()
+        setSubscription(sub)
+      } catch {
+        // ignore — next mount will reconcile
+      }
+      void refetch()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setCancelError(
+        msg.includes('409')
+          ? 'This subscription cannot be cancelled right now — it may already be scheduled.'
+          : msg.includes('401')
+          ? 'Please sign in again to continue.'
+          : 'Something went wrong. Please try again.',
+      )
+    } finally {
+      setCancelBusy(false)
+    }
+  }
+
+  const handleConfirmReactivate = async () => {
+    setCancelBusy(true)
+    setCancelError(null)
+    try {
+      const clientRequestId = `reactivate_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      await reactivateSubscription(clientRequestId)
+      setReactivateConfirmOpen(false)
+      setStatusAnnounce('Subscription resumed. Your plan will continue to renew at the end of the current period.')
+      try {
+        const sub = await getCurrentSubscription()
+        setSubscription(sub)
+      } catch {
+        // ignore
+      }
+      void refetch()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setCancelError(
+        msg.includes('401')
+          ? 'Please sign in again to continue.'
+          : 'Something went wrong. Please try again.',
+      )
+    } finally {
+      setCancelBusy(false)
     }
   }
 
@@ -140,6 +245,174 @@ export function BillingSettings({ className }: { className?: string }) {
         >
           {tier === 'free' || tier === 'guest' ? 'Upgrade plan' : 'Change plan'}
         </Link>
+      </div>
+
+      {/*
+        Cancel / Resume subscription — only rendered for paid users.
+
+        WCAG 3.3.4 Error Prevention (Legal, Financial, Data) requires the
+        destructive action to be confirmable before firing. The button does
+        NOT call cancelSubscription() directly; it opens an AlertDialog whose
+        "Yes, cancel subscription" button is what actually fires the API.
+        Default focus stays on the Cancel/Keep escape hatch, so an accidental
+        Enter on the trigger only opens the confirm — never cancels.
+      */}
+      {user && (tier === 'pro' || tier === 'promax') && subscription && (
+        <div className="flex flex-col gap-2">
+          {subscription.status === 'cancel_scheduled' ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-warn/40 bg-warn/[0.06] p-4 text-xs text-foreground/90">
+              <p>
+                Your {tierLabel} subscription is scheduled to end
+                {snapshot?.resetAt ? ` on ${formatResetDate(subscription.currentPeriodEnd)}` : ' at the end of the current period'}.
+                You can resume it any time before then.
+              </p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancelError(null)
+                    setReactivateConfirmOpen(true)
+                  }}
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Resume subscription
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelError(null)
+                  setCancelConfirmOpen(true)
+                }}
+                aria-haspopup="dialog"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-foreground/[0.12] bg-transparent px-4 text-sm font-medium text-foreground/70 hover:bg-foreground/[0.04]"
+              >
+                Cancel subscription
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Confirm cancel — AlertDialog enforces the deliberate two-click pattern. */}
+      <AlertDialog
+        open={cancelConfirmOpen}
+        onOpenChange={(open) => {
+          if (!cancelBusy) {
+            setCancelConfirmOpen(open)
+            if (!open) setCancelError(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel your subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll keep {tierLabel} access until the end of your current billing cycle, then
+              switch to the Free plan. No refunds are issued for the remaining period. You can
+              resume your subscription any time before the cycle ends.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {cancelError && (
+            <div
+              role="alert"
+              className="rounded-md bg-destructive/10 p-3 text-xs text-destructive"
+            >
+              {cancelError}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            {/*
+              AlertDialogCancel renders first in the DOM so it receives
+              default focus per shadcn/Radix — matches the "safer choice
+              gets focus" guidance for destructive confirms.
+            */}
+            <AlertDialogCancel disabled={cancelBusy}>Keep subscription</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                // Prevent Radix from auto-closing the dialog so we can show
+                // an inline error if the API rejects the call.
+                e.preventDefault()
+                void handleConfirmCancel()
+              }}
+              disabled={cancelBusy}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelBusy ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Cancelling…
+                </span>
+              ) : (
+                'Yes, cancel subscription'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm reactivate — same pattern, less scary copy. */}
+      <AlertDialog
+        open={reactivateConfirmOpen}
+        onOpenChange={(open) => {
+          if (!cancelBusy) {
+            setReactivateConfirmOpen(open)
+            if (!open) setCancelError(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Resume your {tierLabel} subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your subscription will continue to renew at the end of the current billing period
+              and you'll keep full access. You can cancel again any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {cancelError && (
+            <div
+              role="alert"
+              className="rounded-md bg-destructive/10 p-3 text-xs text-destructive"
+            >
+              {cancelError}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelBusy}>Not now</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void handleConfirmReactivate()
+              }}
+              disabled={cancelBusy}
+            >
+              {cancelBusy ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Resuming…
+                </span>
+              ) : (
+                'Yes, resume subscription'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/*
+        aria-live status region — announces success/failure of cancel or
+        reactivate to screen-reader users without stealing focus (WCAG 4.1.3
+        Status Messages, AA). Visually hidden via the sr-only utility.
+      */}
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {statusAnnounce}
       </div>
 
       {/* Invoices — lazy-loaded on click (hidden for signed-out users) */}

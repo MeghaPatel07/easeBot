@@ -36,7 +36,7 @@ const INSPIRATION_ONLY_RE = /\b(inspire me|mood ?board|palette|aesthetic|vibe|th
 
 const SHOW_MORE_RE = /^(?:yes|yeah|yup|sure|ok|okay|please|pls)?\s*(?:show\s+(?:me\s+)?)?(?:more|others?|other options?|next|more options?|see more)\b/i
 
-export const PRODUCTS_PER_TURN = 3
+export const PRODUCTS_PER_TURN = 4
 
 export interface RecommendInput {
   userMessage: string
@@ -150,8 +150,9 @@ export async function maybeRecommendProducts(
   if (!shouldFetch) return null
 
   try {
-    // Fetch a pool via hybridSearch (lexical + vector), slice 3 for this
-    // turn, stash the rest for the "show more" follow-up.
+    // Fetch products via the hybrid searchProducts service (lexical + vector),
+    // surface up to PRODUCTS_PER_TURN this turn, and stash any remainder for the
+    // "show more" follow-up.
     const products = await getRelevantProductsViaHybridSearch(searchQuery)
     if (products.length === 0) return null
 

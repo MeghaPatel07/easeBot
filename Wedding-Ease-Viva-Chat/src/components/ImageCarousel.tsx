@@ -75,7 +75,7 @@ function ImagePreview({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay-scrim/90 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay-scrim/90 backdrop-blur-sm motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200"
       onClick={onClose}
     >
       {/* Close button */}
@@ -213,7 +213,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
   if (imageUrls.length === 1) {
     return (
       <>
-        <div className="mt-2 mb-2 relative group w-full max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md animate-in fade-in duration-500">
+        <div className="mt-2 mb-2 relative group w-full max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
           <img
             src={imageUrls[0]}
             alt="Generated"
@@ -241,7 +241,7 @@ export function ImageCarousel({ imageUrls, aspectRatio, onSaveToGallery, onDelet
   // Multiple variants
   return (
     <>
-      <div className="mt-2 mb-2 space-y-2 w-full max-w-[calc(100%-1rem)] sm:max-w-md md:max-w-lg animate-in fade-in duration-500">
+      <div className="mt-2 mb-2 space-y-2 w-full max-w-[calc(100%-1rem)] sm:max-w-md md:max-w-lg motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         {/* Main selected image */}
         <div className="relative group">
           <img

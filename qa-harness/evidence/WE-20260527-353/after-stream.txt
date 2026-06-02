@@ -1,0 +1,6 @@
+id: 1
+data: {"t":"c","v":"I'm not able to respond to that — let's stay on wedding planning. What were you working on?"}
+
+id: 2
+data: {"t":"d","text":"I'm not able to respond to that — let's stay on wedding planning. What were you working on?","toolActions":[],"mode":"assistant","detectedLanguage":"en","responseLanguage":"en","audioUrl":null,"imageUrl":null,"imageUrls":[],"filtered":true}
+

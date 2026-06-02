@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260527-073</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260527-073 · Guest-Mode banner stack consumes too much mobile space <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260527-073</code> (PRs into <code>Bug-Resolve-claude</code>) ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260527-073</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>On mobile (375x812), the guest-mode banner in <code>src/pages/Index.tsx</code> uses a vertically stacked 2-row layout: row 1 has the lock icon + "Guest Mode" + counts, and row 2 has the "This chat won't be saved. Sign in to save your conversations." link. Combined with the bottom consent banner this consumes ~30% of mobile vertical space and pushes hero + suggestion content below the fold.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 — setup</div>
+        <div class="what">Created worktree <code>fix-WE-20260527-073</code> off <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — diagnose</div>
+        <div class="what">Grep confirmed: no standalone <code>GuestModeBanner.tsx</code> — banner JSX inlined in <code>src/pages/Index.tsx</code> as <code>guestBannerJSX</code> (lines 187–225).</div>
+        <div class="detail">Two stacked blocks (icon+counts row, then a 2nd "won't be saved · sign in" row) each with their own line-height, plus container <code>py-2.5</code>. Mobile collapses dots indicator but still shows both rows.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — fix</div>
+        <div class="what">Consolidated banner to a single compact line on mobile. Replaced <code>space-y-1.5</code> 2-row layout with a single flex row, condensed copy to "Guest · N left · Sign in", added compact <code>py-1</code> on mobile (<code>sm:py-2.5</code> retains desktop spacing). Sign-in trigger now an inline pill button.</div>
+        <div class="detail">Smallest viable change: single-block JSX rewrite, no new dependencies, no extra files. Limit-reached branch preserved (still surfaces Sign-up CTA).</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 — verify</div>
+        <div class="what"><code>npx tsc --noEmit -p tsconfig.app.json</code> → 0 errors.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before-fix screenshot: <code>qa-harness/evidence/WE-20260527-073/screenshots/mobile-guestmode-banner.png</code> (from QA visual sweep)</li>
+      <li>After-fix: pending — tsc clean; awaiting Chairman dev-server verification</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed (0 errors)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/pages/Index.tsx | guestBannerJSX block consolidated to single-line layout</pre>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>
