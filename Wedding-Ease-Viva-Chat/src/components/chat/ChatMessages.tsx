@@ -271,7 +271,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           {message.sender === 'user' ? (
             <div className="flex flex-col items-end w-full">
               {inlineEditId === message.id ? (
-                <div className="w-full max-w-2xl flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="w-full max-w-2xl flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200">
                   {/* Edit mode container */}
                   <div className="rounded-2xl border border-primary/30 bg-foreground/[0.06] backdrop-blur-md shadow-xl overflow-hidden">
                     {/* Attached image preview with remove/replace */}
@@ -607,7 +607,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
               )}
               {/* Image generation skeleton */}
               {message.imageGenerating && !message.imageUrl && !message.imageUrls?.length && (
-                <div className="mt-3 mb-2 max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full animate-in fade-in duration-300">
+                <div className="mt-3 mb-2 max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
                   <div className="relative aspect-square rounded-xl overflow-hidden bg-foreground/[0.04] border border-foreground/[0.08]">
                     {(message as any).partialImageUrl ? (
                       <>
@@ -618,24 +618,24 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         />
                         <div className="absolute inset-0 bg-overlay-scrim/20 flex items-end justify-center pb-4">
                           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-overlay-scrim/40 backdrop-blur-sm">
-                            <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+                            <Sparkles className="h-3.5 w-3.5 text-primary motion-safe:animate-pulse" />
                             <p className="text-xs text-foreground/80 font-medium">refining image...</p>
                           </div>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent motion-safe:animate-[shimmer_1.8s_ease-in-out_infinite]" />
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-foreground/[0.06] flex items-center justify-center">
-                            <Sparkles className="h-5 w-5 text-primary/50 animate-pulse" />
+                            <Sparkles className="h-5 w-5 text-primary/50 motion-safe:animate-pulse" />
                           </div>
                           <div className="space-y-1.5 text-center">
                             <p className="text-xs text-foreground/40 font-medium">generating image...</p>
                             <p className="text-3xs text-foreground/25">this may take a few seconds</p>
                           </div>
                           <div className="w-32 h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
-                            <div className="h-full bg-primary/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                            <div className="h-full bg-primary/30 rounded-full motion-safe:animate-[progress_3s_ease-in-out_infinite]" />
                           </div>
                         </div>
                       </>
@@ -992,17 +992,17 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
             {isGeneratingImage ? (
               <div className="max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full msg-enter">
                 <div className="relative aspect-square rounded-xl overflow-hidden bg-foreground/[0.04] border border-foreground/[0.08]">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent motion-safe:animate-[shimmer_1.8s_ease-in-out_infinite]" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-foreground/[0.06] flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-primary/50 animate-pulse" />
+                      <Sparkles className="h-5 w-5 text-primary/50 motion-safe:animate-pulse" />
                     </div>
                     <div className="space-y-1.5 text-center">
                       <p className="text-xs text-foreground/40 font-medium">generating...</p>
                       <p className="text-3xs text-foreground/25">creating your image</p>
                     </div>
                     <div className="w-32 h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
-                      <div className="h-full bg-primary/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                      <div className="h-full bg-primary/30 rounded-full motion-safe:animate-[progress_3s_ease-in-out_infinite]" />
                     </div>
                   </div>
                 </div>
