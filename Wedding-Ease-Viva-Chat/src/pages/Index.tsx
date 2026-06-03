@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useQueryClient } from '@tanstack/react-query';
@@ -20,19 +20,27 @@ import { useChatAttachments, type ChatAttachment } from '@/contexts/ChatAttachme
 import { useVoice } from '@/hooks/useVoice';
 import { updatePreferredLanguage } from '@/services/authService';
 import { searchAllMessages, createSharedChat, type SearchResult } from '@/services/chatService';
-import PlannerView from '@/components/PlannerView';
-import ChecklistDetail from '@/components/ChecklistDetail';
-import BudgetDashboard from '@/components/BudgetDashboard';
-import ShoppingListView from '@/components/ShoppingListView';
-import SavedItemsView from '@/components/SavedItemsView';
-import TimelineView from '@/components/TimelineView';
-import RemindersView from '@/components/RemindersView';
-import GalleryView from '@/components/GalleryView';
-import ImagesHub from '@/pages/ImagesHub';
-import NotesView from '@/components/notes/NotesView';
-import ProgressDashboard from '@/components/ProgressDashboard';
-import NotificationPanel from '@/components/NotificationPanel';
-import InvitePartner from '@/components/InvitePartner';
+// WE-20260528-303 + WE-20260528-304 (merged in perf/sprint-bundle):
+// Index.tsx is rendered by every primary route, so static imports of these
+// heavy view modules forced their JS onto every route (Lighthouse measured
+// ~250 KB / 72% unused on /chat). React.lazy + Suspense splits each view into
+// its own chunk that only downloads when the user navigates to that sidebar
+// view. NotesView (304) additionally detaches the vendor-tiptap chunk
+// (~138 KB gz) from the /chat eager load — it now downloads only on the Notes
+// view. The wrapping Suspense boundaries live in mainAreaShell / the Planner
+// shell below.
+const PlannerView = lazy(() => import('@/components/PlannerView'));
+const ChecklistDetail = lazy(() => import('@/components/ChecklistDetail'));
+const BudgetDashboard = lazy(() => import('@/components/BudgetDashboard'));
+const ShoppingListView = lazy(() => import('@/components/ShoppingListView'));
+const SavedItemsView = lazy(() => import('@/components/SavedItemsView'));
+const TimelineView = lazy(() => import('@/components/TimelineView'));
+const RemindersView = lazy(() => import('@/components/RemindersView'));
+const ImagesHub = lazy(() => import('@/pages/ImagesHub'));
+const NotesView = lazy(() => import('@/components/notes/NotesView'));
+const ProgressDashboard = lazy(() => import('@/components/ProgressDashboard'));
+const NotificationPanel = lazy(() => import('@/components/NotificationPanel'));
+const InvitePartner = lazy(() => import('@/components/InvitePartner'));
 import FeedbackDialog from '@/components/FeedbackDialog';
 // Legacy SettingsModal is no longer rendered (Sprint 4, Hana — Marcus QA M-8).
 // SettingsShell is the canonical surface. The file is intentionally not deleted
@@ -70,7 +78,7 @@ const Index = () => {
   const {
     messages, threads, activeThreadId, isTyping, allLikedMessages, reminders, lastToolActions,
     likedProducts, likedProductIds, toggleProductLike,
-    sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
+    sendMessage, stopGeneration, retryLastFailedSend, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
     hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError,
   } = useChat();
@@ -184,42 +192,71 @@ const Index = () => {
   useEffect(() => { guestMessageCountRef.current = guestMessageCount; }, [guestMessageCount]);
   useEffect(() => { guestImageCountRef.current = guestImageCount; }, [guestImageCount]);
 
+  // Cross-tab sync for guest quota counters (WE-20260528-990).
+  // The `storage` event fires in OTHER tabs (not the one that wrote) whenever
+  // localStorage changes. Without this, opening N tabs as a guest effectively
+  // multiplies the quota by N — each tab's in-memory state is independent.
+  // We re-read on every relevant key change and update React state so the
+  // banner / gating logic reflects the true cross-tab count.
+  useEffect(() => {
+    if (user) return; // signed-in users don't use the localStorage counters
+    const handler = (e: StorageEvent) => {
+      // null key fires on storage.clear() — re-sync everything in that case.
+      if (e.key === null || e.key === 'easebot-guest-msg-count') {
+        try {
+          const v = Number(localStorage.getItem('easebot-guest-msg-count')) || 0;
+          if (v !== guestMessageCountRef.current) {
+            guestMessageCountRef.current = v;
+            setGuestMessageCount(v);
+          }
+        } catch { /* ignore */ }
+      }
+      if (e.key === null || e.key === 'easebot-guest-img-count') {
+        try {
+          const v = Number(localStorage.getItem('easebot-guest-img-count')) || 0;
+          if (v !== guestImageCountRef.current) {
+            guestImageCountRef.current = v;
+            setGuestImageCount(v);
+          }
+        } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [user]);
+
   const guestBannerJSX = !user ? (
-    <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-3">
-      <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-2.5 text-xs text-foreground/70 space-y-1.5">
-        <div className="flex items-center gap-1.5">
+    <div className="flex-shrink-0 mx-auto w-full max-w-4xl px-3 sm:px-5 pt-2 sm:pt-3">
+      <div className="bg-foreground/[0.06] backdrop-blur-sm rounded-xl px-3 py-1.5 sm:py-2.5 text-xs text-foreground/70">
+        <div className="flex items-center gap-1.5 min-w-0">
           <Lock className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-          <span className="font-semibold text-foreground/80">Guest Mode</span>
-          <span className="text-foreground/40 mx-1">—</span>
-          <span>{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining</span>
-          <span className="text-foreground/30 hidden sm:inline">·</span>
-          <span className="hidden sm:inline">{Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} remaining</span>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1.5">
-              {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
-                <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-foreground/[0.12]'}`} />
-              ))}
-            </div>
+          <span className="font-semibold text-foreground/80 flex-shrink-0">Guest</span>
+          <span className="text-foreground/40 flex-shrink-0">·</span>
+          <span className="truncate">
+            <span className="sm:hidden">{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} left · chats won't save</span>
+            <span className="hidden sm:inline">{Math.max(0, GUEST_MESSAGE_LIMIT - guestMessageCount)} message{GUEST_MESSAGE_LIMIT - guestMessageCount !== 1 ? 's' : ''} remaining · {Math.max(0, GUEST_IMAGE_LIMIT - guestImageCount)} image{GUEST_IMAGE_LIMIT - guestImageCount !== 1 ? 's' : ''} · chats won't save</span>
+          </span>
+          <div className="hidden sm:flex items-center gap-1.5 ml-2 flex-shrink-0">
+            {Array.from({ length: GUEST_MESSAGE_LIMIT }).map((_, i) => (
+              <div key={i} className={`h-1.5 w-1.5 rounded-full transition-colors ${i < guestMessageCount ? 'bg-primary/60' : 'bg-foreground/[0.12]'}`} />
+            ))}
           </div>
-        </div>
-        {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-foreground/50 text-2xs">You've used all guest messages.</span>
+          {guestMessageCount >= GUEST_MESSAGE_LIMIT ? (
             <button
               onClick={() => setShowSignUpModal(true)}
-              className="ml-auto px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
+              className="ml-auto flex-shrink-0 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-semibold hover:bg-primary/30 transition-colors"
             >
-              Sign up to continue chatting
+              Sign up
             </button>
-          </div>
-        ) : (
-          <div className="text-2xs text-foreground/40">
-            This chat won't be saved.{' '}
-            <button className="font-semibold text-primary underline underline-offset-2" onClick={() => setShowSignInModal(true)}>
-              Sign in to save your conversations.
+          ) : (
+            <button
+              onClick={() => setShowSignInModal(true)}
+              className="ml-auto flex-shrink-0 font-semibold text-primary underline underline-offset-2"
+            >
+              Sign in
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   ) : null;
@@ -382,13 +419,29 @@ const Index = () => {
   // ── Guest message counting helper ─────────────────────────────────────────
   // Returns false if the guest has hit the limit (caller should abort).
   // Must be called by every path that sends a message when !user.
+  // Cross-tab safety (WE-20260528-990): we read-modify-write against
+  // localStorage rather than trusting the in-memory ref, so a sibling tab
+  // that incremented since our last read is honored. The sub-ms race where
+  // two tabs read the same value and then both write +1 is acknowledged and
+  // accepted — atomicity would require BroadcastChannel/SharedWorker, which
+  // is out of scope (see BC-ARCH backlog).
   const checkAndBumpGuestCount = (): boolean => {
     if (user) return true;
-    if (guestMessageCountRef.current >= GUEST_MESSAGE_LIMIT) {
-      track('guest_prompt_hit', { limit_kind: 'message', count: guestMessageCountRef.current });
+    let current = guestMessageCountRef.current;
+    try {
+      const stored = Number(localStorage.getItem('easebot-guest-msg-count'));
+      if (Number.isFinite(stored) && stored > current) current = stored;
+    } catch { /* localStorage may be unavailable — fall back to ref */ }
+    if (current >= GUEST_MESSAGE_LIMIT) {
+      track('guest_prompt_hit', { limit_kind: 'message', count: current });
+      // Reconcile state so the UI banner reflects the true cross-tab count.
+      if (current !== guestMessageCountRef.current) {
+        guestMessageCountRef.current = current;
+        setGuestMessageCount(current);
+      }
       return false;
     }
-    const nextCount = guestMessageCountRef.current + 1;
+    const nextCount = current + 1;
     guestMessageCountRef.current = nextCount;
     setGuestMessageCount(nextCount);
     try { localStorage.setItem('easebot-guest-msg-count', String(nextCount)) } catch { }
@@ -837,11 +890,17 @@ const Index = () => {
   useEffect(() => {
     if (user) return;
     const imgCount = messages.filter(m => m.sender === 'ai' && (m.imageUrl || (m.imageUrls && m.imageUrls.length > 0))).length;
-    // Only ratchet up — never decrease the count (prevents reset when new chat clears messages)
-    const totalImgCount = Math.max(imgCount, guestImageCountRef.current);
+    // Only ratchet up — never decrease the count (prevents reset when new chat clears messages).
+    // Cross-tab safety (WE-20260528-990): consult localStorage too so we don't
+    // accidentally write a lower value than a sibling tab already persisted.
+    let stored = 0;
+    try { stored = Number(localStorage.getItem('easebot-guest-img-count')) || 0; } catch { /* ignore */ }
+    const totalImgCount = Math.max(imgCount, guestImageCountRef.current, stored);
     if (totalImgCount !== guestImageCountRef.current) {
       guestImageCountRef.current = totalImgCount;
       setGuestImageCount(totalImgCount);
+    }
+    if (totalImgCount !== stored) {
       try { localStorage.setItem('easebot-guest-img-count', String(totalImgCount)) } catch { }
     }
   }, [user, messages]);  
@@ -1192,13 +1251,15 @@ const Index = () => {
             <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2"><CheckSquare className="h-4 w-4 text-primary" />Planner</h2>
           </div>
           <div className="flex-1 overflow-hidden p-4">
-            <ChecklistDetail
-              userId={user.uid}
-              checklistId={selectedChecklistId}
-              favourites={profile?.favourites ?? []}
-              recentlyToggledItemIds={recentlyToggledItemIds}
-              onClose={() => setSelectedChecklistId(null)}
-            />
+            <Suspense fallback={<div className="flex items-center justify-center py-20 text-foreground/40 text-sm">Loading…</div>}>
+              <ChecklistDetail
+                userId={user.uid}
+                checklistId={selectedChecklistId}
+                favourites={profile?.favourites ?? []}
+                recentlyToggledItemIds={recentlyToggledItemIds}
+                onClose={() => setSelectedChecklistId(null)}
+              />
+            </Suspense>
           </div>
         </main>
       </div>
@@ -1223,7 +1284,12 @@ const Index = () => {
           <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2">{icon}{title}</h2>
         </div>
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-5">
-          <div className=" mx-auto w-full">{children}</div>
+          <div className=" mx-auto w-full">
+            {/* WE-20260528-303: Suspense boundary for lazy view chunks. */}
+            <Suspense fallback={<div className="flex items-center justify-center py-20 text-foreground/40 text-sm">Loading…</div>}>
+              {children}
+            </Suspense>
+          </div>
         </div>
       </main>
     </div>
@@ -1345,8 +1411,10 @@ const Index = () => {
     return mainAreaShell('Progress', <BarChart3 className="h-5 w-5 text-primary" />, <ProgressDashboard weddingDate={profile?.weddingDate ? (profile.weddingDate as any).toDate?.() ?? null : null} checklistStats={computeStats(checklistsData)} budgetStats={budgetStats} calendarEventCount={reminders.length} threadCount={threads.length} />);
   }
 
-  if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
+  if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} isPremium={profile?.isPremium ?? false} onNavigate={setSidebarView} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
+  // NotesView is lazy (WE-20260528-304); mainAreaShell already provides the
+  // Suspense boundary around children, so no inner Suspense is needed here.
   if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
   if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-foreground/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
@@ -1429,6 +1497,7 @@ const Index = () => {
             onToggleLike={toggleLike}
             onRegenerateMessage={handleRegenerateMessage}
             onContinueGenerating={handleContinueGenerating}
+            onRetryFailedSend={retryLastFailedSend}
             onToneModifier={handleToneModifier}
             onConvertToTable={handleConvertToTable}
             onSaveProduct={handleSaveProduct}

@@ -1,0 +1,37 @@
+=== Step 1: hit home page ===
+GET /  status=200 ttfb=0.001367s
+
+=== Step 2: guest opens consent — checked via index.html ===
+import AnalyticsConsent from "@/components/AnalyticsConsent";
+            <AnalyticsConsent />
+
+=== Step 3: send chat message 'help me plan my engagement' (no mode → default) ===
+id: 1
+data: {"t":"c","v":"Planning"}
+
+id: 2
+data: {"t":"c","v":" your"}
+...
+data: {"t":"c","v":"?"}
+
+id: 192
+data: {"t":"d","text":"Planning your engagement is such an exciting step! Let’s break it into manageable pieces so it feels easier. Here’s a quick starting checklist:\n\n1. **Set the Date**: Decide on a date and time for your engagement celebration.\n2. **Choose a Venue**: Will it be at home, a banquet hall, or an outdoor space? Venues can book up quickly, so this is a priority.\n3. **Guest List**: Draft a list of who you’d like to invite. This helps with venue size and catering decisions.\n4. **Theme and Style**: Do you want a formal event, a casual gathering, or something cultural/traditional? This will guide décor, outfits, and more.\n5. **Vendors**: Think about catering, photography, and décor. These are the key elements to lock in early.\n\nWhat’s already decided? Date, venue, or guest list? Or should we start from scratch?","toolActions":[],"mode":"planner","detectedLanguage":"en","responseLanguage":"en","audioUrl":null,"imageUrl":null,"imageUrls":[],"products":[],"productsHasMore":false}
+
+
+=== Step 4: switch to mode=planner ===
+id: 1
+data: {"t":"c","v":"Planning"}
+
+id: 2
+data: {"t":"c","v":" your"}
+
+=== Step 5: switch to mode=stylist (client term) ===
+id: 1
+data: {"t":"c","v":"Could"}
+
+
+=== Step 6: image gen prompt via /api/generate-image ===
+POST /api/generate-image status=200 time=47.546028s size=2633481
+
+=== Step 7: vibe-mode image-gen via /api/chat?forceImageGeneration=true ===
+POST /api/chat (force-image) status=500 time=55.367218s

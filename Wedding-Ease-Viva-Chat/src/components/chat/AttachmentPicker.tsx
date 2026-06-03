@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Plus, Image as ImageIcon, FileText, ListChecks, Calendar, Upload,
   ArrowLeft, Search, Loader2, X,
@@ -92,6 +93,7 @@ export default function AttachmentPicker({
   const userId = user?.uid ?? null
   const userEmail = user?.email ?? null
   const { addAttachment, attachments } = useChatAttachments()
+  const navigate = useNavigate()
 
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<View>('root')
@@ -262,6 +264,14 @@ export default function AttachmentPicker({
     requestAnimationFrame(() => onUploadImage())
   }
 
+  // Closes the picker, then routes to the matching section so empty-state
+  // CTAs ("Open Notes", "Open Planner", etc.) take the user there in one tap
+  // instead of forcing the 6-step manual escape.
+  const goTo = (path: string) => {
+    setOpen(false)
+    requestAnimationFrame(() => navigate(path))
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="relative" data-attachment-picker>
@@ -373,7 +383,13 @@ export default function AttachmentPicker({
 
             {view === 'note' && (
               (filtered as typeof notes).length === 0
-                ? <EmptyState msg={notes.length === 0 ? 'No notes yet. Create one in Notes.' : 'No notes match.'} />
+                ? (notes.length === 0
+                    ? <EmptyState
+                        msg="No notes yet."
+                        actionLabel={userId ? 'Open Notes' : undefined}
+                        onAction={userId ? () => goTo(`/${userId}/notes`) : undefined}
+                      />
+                    : <EmptyState msg="No notes match." />)
                 : (filtered as typeof notes).map(n => (
                     <button
                       key={n.id}
@@ -391,7 +407,13 @@ export default function AttachmentPicker({
 
             {view === 'checklist' && (
               (filtered as Checklist[]).length === 0
-                ? <EmptyState msg={checklists.length === 0 ? 'No checklists yet. Create one in Planner.' : 'No checklists match.'} />
+                ? (checklists.length === 0
+                    ? <EmptyState
+                        msg="No checklists yet."
+                        actionLabel={userId ? 'Open Planner' : undefined}
+                        onAction={userId ? () => goTo(`/${userId}/planner`) : undefined}
+                      />
+                    : <EmptyState msg="No checklists match." />)
                 : (filtered as Checklist[]).map(cl => {
                     const done = cl.items.filter(i => i.completed).length
                     return (
@@ -413,7 +435,13 @@ export default function AttachmentPicker({
 
             {view === 'timeline' && (
               (filtered as TimelineEvent[]).length === 0
-                ? <EmptyState msg={timeline.length === 0 ? 'No timeline events yet.' : 'No events match.'} />
+                ? (timeline.length === 0
+                    ? <EmptyState
+                        msg="No timeline events yet."
+                        actionLabel={userId ? 'Open Timeline' : undefined}
+                        onAction={userId ? () => goTo(`/${userId}/timeline`) : undefined}
+                      />
+                    : <EmptyState msg="No events match." />)
                 : (filtered as TimelineEvent[]).map(e => (
                     <button
                       key={e.id}
@@ -438,7 +466,13 @@ export default function AttachmentPicker({
                   </div>
                 )
                 : (filtered as UserImage[]).length === 0
-                  ? <EmptyState msg={images.length === 0 ? 'No images yet. Generate some in Images.' : 'No images match.'} />
+                  ? (images.length === 0
+                      ? <EmptyState
+                          msg="No images yet."
+                          actionLabel={userId ? 'Open Gallery' : undefined}
+                          onAction={userId ? () => goTo(`/${userId}/gallery`) : undefined}
+                        />
+                      : <EmptyState msg="No images match." />)
                   : (
                     <div className="grid grid-cols-3 gap-1 p-1.5">
                       {(filtered as UserImage[]).map(img => (
@@ -467,6 +501,27 @@ export default function AttachmentPicker({
   )
 }
 
-function EmptyState({ msg }: { msg: string }) {
-  return <div className="px-4 py-8 text-center text-xs text-foreground/40">{msg}</div>
+function EmptyState({
+  msg,
+  actionLabel,
+  onAction,
+}: {
+  msg: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="px-4 py-8 flex flex-col items-center gap-3 text-center">
+      <p className="text-xs text-foreground/40">{msg}</p>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="text-xs font-medium px-3 py-1.5 rounded-md bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  )
 }

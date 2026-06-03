@@ -24,6 +24,34 @@ export default function AnalyticsConsent(): JSX.Element | null {
     }
   }, [])
 
+  // WE-20260528-968: keep banner state in sync across tabs.
+  // `storage` only fires in OTHER tabs (not the one that wrote), which is
+  // exactly what we want — the writing tab already updated its own state.
+  // We don't emit a duplicate `analytics_consent_changed` event here, since
+  // the writing tab already did, and we only need to mirror the visual /
+  // opt-in state. This avoids the GDPR-audit double-record described in the
+  // ticket. No BroadcastChannel — that's BC-ARCH (Krish-blocked); the
+  // standard `storage` event is enough for same-origin tabs.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent): void => {
+      if (e.key !== STORAGE_KEY && e.key !== null) return
+      const stored = e.key === null ? localStorage.getItem(STORAGE_KEY) : e.newValue
+      if (stored === 'accepted') {
+        posthog.opt_in_capturing?.()
+        setNeedsChoice(false)
+      } else if (stored === 'declined') {
+        posthog.opt_out_capturing?.()
+        setNeedsChoice(false)
+      } else {
+        // key was removed (e.g. user reset consent in another tab) — re-prompt
+        posthog.opt_out_capturing?.()
+        setNeedsChoice(true)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   if (!needsChoice) return null
 
   const accept = (): void => {

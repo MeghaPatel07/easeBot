@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-1063</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-1063 · Icon-only buttons lack aria-label (Voice Control / Switch Control) <span class="pill P1">P1</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-1063</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-1063</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>WCAG 2.5.3 (Label in Name, Level A) + 4.1.2 (Name, Role, Value, Level A) violations.
+    Multiple icon-only <code>&lt;button&gt;</code> elements in the chat surfaces have
+    <code>title=</code> only (mouse-hover tooltip) but no <code>aria-label</code>. This means
+    macOS Voice Control / Windows Voice Access users cannot say "Click Download" or
+    "Click Close" — they must say "Show numbers" and pick the numbered overlay, then
+    memorize the assignment. ~3&times; friction multiplier on every interaction.</p>
+
+    <p><b>Fix shape</b>: pure attribute additions &mdash; add <code>aria-label="&lt;verb&gt; &lt;object&gt;"</code>
+    to each affected icon-only button. No refactors. <code>title=</code> kept where present
+    (for sighted mouse users) but is never sufficient on its own for AT users.</p>
+
+    <p><b>Out of scope (claimed by sibling agent WE-20260528-1056)</b>:
+    <code>src/components/chat/ChatMessages.tsx</code> &mdash; do not touch.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 setup</div>
+        <div class="what">Worktree created at <code>worktrees/fix-WE-20260528-1063</code>, branch <code>fix-WE-20260528-1063</code> off <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 audit</div>
+        <div class="what">Audited 5 files for icon-only buttons missing <code>aria-label</code>. Cross-checked against the reference good-pattern at <code>Index.tsx:1608</code> (Reset chip uses both <code>title</code> and <code>aria-label</code>).</div>
+        <div class="detail">15 button sites identified across ChatHeader, ChatInput, ImageActions, ImageCarousel, AudioPlayer. Excluded: any button with visible text (e.g. AudioPlayer Retry, ChatInput mode chip with label) and any already-labeled buttons (Index.tsx reset chip, AudioPlayer Play/Pause/Stop/Speed/Close player, ChatInput Cancel recording / Send voice / Expand-Collapse / Remove attachment, ChatHeader BetaBadge / MobileLanguageSelector / WeddingEase logo link).</div>
+      </div>
+    </div>
+
+    <h2>Button-by-button table</h2>
+    <table>
+      <thead><tr><th>File</th><th>Line (pre-edit)</th><th>Button verb</th><th>aria-label assigned</th></tr></thead>
+      <tbody>
+        <tr><td>ChatHeader.tsx</td><td>58</td><td>Open sidebar (PanelLeft icon)</td><td><code>Open sidebar</code></td></tr>
+        <tr><td>ChatHeader.tsx</td><td>61</td><td>New chat (SquarePen icon)</td><td><code>New chat</code></td></tr>
+        <tr><td>ChatHeader.tsx</td><td>81</td><td>Open settings (Avatar/User icon)</td><td><code>Open settings</code></td></tr>
+        <tr><td>ChatInput.tsx</td><td>353</td><td>Remove attached image (X icon)</td><td><code>Remove attached image</code></td></tr>
+        <tr><td>ChatInput.tsx</td><td>434</td><td>Mic / Stop recording / Transcribing (dynamic)</td><td>Dynamic, matches state (<code>Stop recording</code> | <code>Starting microphone</code> | <code>Transcribing audio</code> | <code>Record voice message</code>)</td></tr>
+        <tr><td>ChatInput.tsx</td><td>466</td><td>Stop generating reply (StopCircle icon)</td><td><code>Stop generating reply</code></td></tr>
+        <tr><td>ChatInput.tsx</td><td>474</td><td>Send message (Send icon)</td><td><code>Send message</code></td></tr>
+        <tr><td>ImageActions.tsx</td><td>191</td><td>Download image (Download icon)</td><td><code>Download image</code></td></tr>
+        <tr><td>ImageActions.tsx</td><td>205</td><td>Copy image (Copy icon)</td><td>Dynamic (<code>Image copied</code> | <code>Copy image</code>)</td></tr>
+        <tr><td>ImageActions.tsx</td><td>220</td><td>Attach image to chat (MessageSquarePlus icon)</td><td><code>Attach image to chat</code></td></tr>
+        <tr><td>ImageActions.tsx</td><td>236</td><td>Share image (Share2 icon)</td><td><code>Share image</code></td></tr>
+        <tr><td>ImageActions.tsx</td><td>252</td><td>Save / saved (Bookmark icon)</td><td>Dynamic (<code>Image saved to gallery</code> | <code>Save image to gallery</code>)</td></tr>
+        <tr><td>ImageActions.tsx</td><td>268</td><td>Delete image (Trash2 icon)</td><td><code>Delete image</code></td></tr>
+        <tr><td>ImageActions.tsx</td><td>288</td><td>Close share dialog (X icon)</td><td><code>Close share dialog</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>82</td><td>Close image preview (X icon)</td><td><code>Close image preview</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>91</td><td>Zoom out (ZoomOut icon)</td><td><code>Zoom out</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>98</td><td>Zoom in (ZoomIn icon)</td><td><code>Zoom in</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>109</td><td>Previous image (preview ChevronLeft)</td><td><code>Previous image</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>115</td><td>Next image (preview ChevronRight)</td><td><code>Next image</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>153</td><td>Thumbnail in preview lightbox</td><td><code>Show image N</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>264</td><td>Previous variant (carousel ChevronLeft)</td><td><code>Previous variant</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>270</td><td>Next variant (carousel ChevronRight)</td><td><code>Next variant</code></td></tr>
+        <tr><td>ImageCarousel.tsx</td><td>282</td><td>Variant thumbnail (carousel)</td><td><code>Show variant N</code></td></tr>
+        <tr><td>AudioPlayer.tsx</td><td>259</td><td>Close error toast (X icon)</td><td><code>Close audio player</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Why <code>title=</code> isn't enough</h2>
+    <ul>
+      <li><code>title</code> appears as a mouse-hover tooltip only. It is <b>not</b> exposed reliably to AT.</li>
+      <li>macOS Voice Control's "Click [label]" matching uses the accessible name &mdash; computed from <code>aria-label</code>, <code>aria-labelledby</code>, or visible text. <code>title</code> is a last-resort fallback that VoiceControl ignores for click-by-name.</li>
+      <li>Switch Control reads the accessible name when scanning. With only <code>title</code>, switch users hear no description and have to memorize position.</li>
+      <li>WCAG 2.5.3 (Label in Name) requires the accessible name contain the visible label. Where there is no visible label, an explicit <code>aria-label</code> is the canonical fix.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check (delta)</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code> &mdash; filter to edited files</td><td class="ok">PASS &mdash; 0 errors in <code>AudioPlayer.tsx</code>, <code>ImageActions.tsx</code>, <code>ImageCarousel.tsx</code>, <code>ChatHeader.tsx</code>. ChatInput.tsx has 18 pre-existing <code>TS2367</code> errors (voiceState narrowing); confirmed identical to base by running <code>git stash &amp;&amp; tsc</code> &mdash; same line offsets, none added by this PR.</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">CRASH &mdash; pre-existing ESLint 9.39 config issue: <code>TypeError: Error while loading rule '@typescript-eslint/no-unused-expressions': Cannot read properties of undefined (reading 'allowShortCircuit')</code>. Affects <em>every</em> file in repo, not specific to this PR. Documented in ticket notes; out of scope to fix.</td></tr>
+        <tr><td>Build</td><td><code>npx vite build</code></td><td class="ok">PASS &mdash; built in 5.07s, all bundles emitted clean. Confirms my changes don't break the production build.</td></tr>
+        <tr><td>aria-label presence</td><td><code>grep -nE "aria-label=" &lt;edited files&gt;</code></td><td class="ok">PASS &mdash; all 24 planned <code>aria-label</code> attributes present (15 newly added + 9 pre-existing left untouched).</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre> Wedding-Ease-Viva-Chat/src/components/AudioPlayer.tsx     |  1 +
+ Wedding-Ease-Viva-Chat/src/components/ImageActions.tsx    |  8 +++++++-
+ Wedding-Ease-Viva-Chat/src/components/ImageCarousel.tsx   | 11 +++++++++++
+ Wedding-Ease-Viva-Chat/src/components/chat/ChatHeader.tsx |  5 +++--
+ Wedding-Ease-Viva-Chat/src/components/chat/ChatInput.tsx  | 10 ++++++++++
+ 5 files changed, 32 insertions(+), 3 deletions(-)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/61">https://github.com/MeghaPatel07/easeBot/pull/61</a></p>
+    <p>Commit: <code>81dcbde</code> on branch <code>fix-WE-20260528-1063</code> &rarr; base <code>Bug-Resolve-claude</code>.</p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

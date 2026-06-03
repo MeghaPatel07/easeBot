@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260527-023</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before { content: ''; position: absolute; left: -1.4rem; top: 0.85rem; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.8rem; overflow-x: auto; color: #d4d4d8; }
+    code { padding: 0.1rem 0.35rem; }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    td.ok { color: var(--ok); }
+    .pill { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.02em; vertical-align: middle; margin-left: 0.5rem; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260527-023 · NotFound page lacks search / sitemap <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260527-023</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260527-023</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>The catch-all <code>*</code> route renders a barebones <code>NotFound</code> page with only "404 / Oops! Page not found / Return to Home". Common typos like <code>/privacy-policy</code> (instead of <code>/privacy</code>), <code>/terms-of-service</code>, <code>/images</code>, <code>/settings</code> all dead-end here with no further navigation aid.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 · step 1</div>
+        <div class="what">Read ticket + App.tsx route table.</div>
+        <div class="detail">Cataloged real routes: <code>/</code>, <code>/pricing</code>, <code>/help</code>, <code>/login</code>, <code>/privacy</code>, <code>/terms</code>, <code>/:userId/planner</code>, plus several other authed views. No global search route exists, so search input is skipped per the ticket's "Optional" note.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 · step 2</div>
+        <div class="what">Read existing <code>NotFound.tsx</code>.</div>
+        <div class="detail">15-line component, uses <code>gradient-bg</code> + <code>text-foreground/*</code> tokens. Uses raw <code>&lt;a href&gt;</code> for the home link.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 · step 3</div>
+        <div class="what">Checked <code>AuthContext</code> for auth-gated planner link.</div>
+        <div class="detail"><code>useAuth()</code> exposes <code>user: User | null</code> with <code>user.uid</code>. Used to swap "Sign in" vs "My planner" in the destinations list.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 · step 4</div>
+        <div class="what">Applied the enrichment to <code>src/pages/NotFound.tsx</code>.</div>
+        <div class="detail">Kept the existing aesthetic (gradient-bg, foreground tokens). Added: (a) display of the bad path, (b) primary "Return to Home" CTA + secondary "Go back" button (only when history exists), (c) "Popular destinations" 2-col grid with 6 links — Chat, Pricing, Help, Sign in/Planner (auth-gated), Privacy, Terms. Switched <code>&lt;a&gt;</code> to <code>&lt;Link&gt;</code> from react-router-dom. No new deps.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 · step 5</div>
+        <div class="what">Ran <code>npx tsc --noEmit -p tsconfig.app.json</code>.</div>
+        <div class="detail">Clean — no type errors.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 · step 6</div>
+        <div class="what">Committed and pushed to <code>fix-WE-20260527-023</code> branch.</div>
+        <div class="detail">Single atomic commit. Branch tracks <code>origin/Bug-Resolve-claude</code>; PR will target <code>Bug-Resolve-claude</code>.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before: barebones 404 (described in ticket).</li>
+      <li>After: enriched 404 with 6-link sitemap, contextual back button, displayed bad path.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed (0 errors)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre> src/pages/NotFound.tsx | 87 +++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, ~84 insertions(+), ~7 deletions(-)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: see ticket file.</p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

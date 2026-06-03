@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-897</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-897 · BudgetDashboard footer chips show literal 0% / 0 left when no categories <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-897</code> (PR base: Bug-Resolve-claude) ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-897</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>BudgetDashboard footer renders percentage-used and amount-remaining chips. When <code>budget.categories.length === 0</code> (fresh user / empty state), <code>totalSpent</code> is 0 and <code>remaining = totalBudget - 0 = totalBudget</code>, and <code>overallPct</code> falls back to 0 (since <code>totalBudget</code> may be 0 too). The footer displays <code>0% used</code> and <code>$0 left</code> as literal values. This is technically true but semantically misleading — "0% of nothing" reads as "you've spent nothing of your budget" when there's actually no budget defined yet. The left side of the footer already handles the empty state with "Add categories to start tracking", but the right-side chips do not.</p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:00:00</div>
+        <div class="what">Read ticket WE-20260528-897 + identified affected file <code>src/components/BudgetDashboard.tsx:407-410</code>.</div>
+        <div class="detail">Confirmed footer chips compute literal 0%/0 when categories are empty; left side already shows empty-state CTA.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:01:00</div>
+        <div class="what">Created worktree at <code>worktrees/fix-WE-20260528-897</code> on branch <code>fix-WE-20260528-897</code> tracking <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:02:00</div>
+        <div class="what">Diagnosis: chips at lines 408-409 unconditionally render <code>overallPct</code> and <code>remaining</code>; no empty-state branch.</div>
+        <div class="detail">Variables defined at 106-109. <code>overallPct</code> short-circuits to 0 when <code>totalBudget &lt;= 0</code>; <code>remaining</code> = <code>totalBudget - totalSpent</code>. With zero categories and (often) no totalBudget set, both render as 0.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:03:00</div>
+        <div class="what">Picked Option A (placeholders). When <code>budget.categories.length === 0</code>, render <code>—% used</code> and <code>— left</code> instead of zero values. Preserves footer's horizontal layout symmetry with left-side empty-state text.</div>
+        <div class="detail">Option B (hide entirely) would leave an unbalanced footer — left text alone with no right-side counterweight. Option A keeps visual balance and reads naturally with the "Add categories to start tracking" message.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:04:00</div>
+        <div class="what">Applied surgical edit to lines 407-410. Wrapped chip JSX in ternary on <code>budget.categories.length === 0</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:05:00</div>
+        <div class="what">Ran <code>npx tsc --noEmit -p tsconfig.app.json</code> — clean.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 00:06:00</div>
+        <div class="what">Committed + pushed + opened PR.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Affected file: <code>Wedding-Ease-Viva-Chat/src/components/BudgetDashboard.tsx:407-414</code></li>
+      <li>Before (computed): <code>&lt;span&gt;0% used&lt;/span&gt;&lt;span&gt;$0 left&lt;/span&gt;</code></li>
+      <li>After (placeholders): <code>&lt;span&gt;—% used&lt;/span&gt;&lt;span&gt;— left&lt;/span&gt;</code></li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">passed</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td class="warn">noted (pre-existing functions/ ESLint config crash unrelated to this change)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>Wedding-Ease-Viva-Chat/src/components/BudgetDashboard.tsx | 10 +++++++---
+1 file changed, 7 insertions(+), 3 deletions(-)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/67">https://github.com/MeghaPatel07/easeBot/pull/67</a></p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

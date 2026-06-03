@@ -1,0 +1,49 @@
+WE-20260528-985 — test output
+
+Lint (Wedding-Ease-Viva-Chat, eslint .):
+- 162 errors / 31 warnings repo-wide, all pre-existing (per project_notes_gtm_sprint.md "Known typecheck noise").
+- 0 new errors in my changed files (src/hooks/useNoteEditor.ts, src/services/notesService.ts).
+- Remaining `any` in notesService.ts:44 (`collect = (node: any)`) is the pre-existing deriveSearchableText recursion — untouched.
+
+Typecheck (npx tsc --noEmit -p tsconfig.app.json):
+- All errors are in pre-existing locations called out in the GTM memory:
+  ChatInput.tsx, ChatMessages.tsx, NoteEditor.tsx:223, ProfileMenu.tsx,
+  AccountTab.tsx, DowngradeFlow.tsx, WeddingEaseFloater.tsx, Checkout.tsx,
+  Index.tsx, pcmAudioRecorder.ts.
+- 0 new typecheck errors in my changed files.
+
+Manual two-tab verification (recommended chairman repro):
+1. Build the fix-WE-20260528-985 worktree:
+     cd worktrees/fix-WE-20260528-985/Wedding-Ease-Viva-Chat && npm run dev -- --port 8090
+2. Open http://localhost:8090, sign in.
+3. Open the same /<userId>/notes/<noteId> in Tab A and Tab B.
+4. Tab A: type "AAA" in the body, wait for "Saved" status (~2s).
+5. Tab B: do NOT refresh. Type "BBB" in a different paragraph.
+6. Tab A: should see the amber banner appear ("<user> just updated this note")
+   from the subscription-side path (this part already worked before the fix).
+7. Tab B: click Save (or hit Cmd+S). Without this fix, Tab B's write would
+   silently overwrite Tab A. With this fix, the optimistic-lock precondition
+   rejects the write and Tab B sees the same amber banner with View theirs /
+   Keep mine — Tab A's content is preserved.
+8. Click "Keep mine" in Tab B -> next save succeeds (the rejected pending
+   edits were re-buffered into pendingUpdatesRef; lastSeenUpdatedAt was bumped
+   to the conflict's actualUpdatedAtMillis, so the retry passes the precondition).
+9. Click "View theirs" in Tab B -> editor replaced with Tab A's content; local
+   edits discarded (with the A3 draft cleared, matching existing behavior).
+
+Code paths covered by the precondition (all 4 write sites in useNoteEditor.ts):
+  - flushPending() — used on note switch + beforeunload
+  - scheduleSave() — 2s debounce after each keystroke
+  - save() — explicit Cmd+S or Save button
+  - the inline unmount-cleanup save in the noteId-change effect
+
+Backward compatibility:
+  updateNote(noteId, updates) without options preserves the existing fast path
+  (single updateDoc with serverTimestamp). Only when {expectedUpdatedAtMillis}
+  is provided do we switch to the transactional read-then-write. All non-editor
+  callers (folder rename, favorite toggle, cover image, addCollaborator path)
+  remain last-writer-wins, which is appropriate for low-conflict metadata.
+
+WE-20260528-554 (BC scaffold) is NOT closed by this PR. The cross-tab
+BroadcastChannel architecture is separate; this fix addresses the data-loss
+window via Firestore-level optimistic locking only.

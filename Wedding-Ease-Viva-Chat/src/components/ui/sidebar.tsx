@@ -643,16 +643,37 @@ const SidebarMenuBadge = React.forwardRef<
 ))
 SidebarMenuBadge.displayName = "SidebarMenuBadge"
 
+// Fixed-width pattern for skeleton rows — keeps the skeleton looking "natural"
+// (alternating bar lengths) without rolling a new random per render. Pass a
+// stable `seed` (typically a row index) and the same width comes back every
+// render of the same row. When no seed is provided we fall back to a value
+// captured once on mount via useRef — unlike useMemo, useRef's initial value
+// is not re-invoked under React.StrictMode, so the width does not flicker
+// between mount and remount in dev.
+const SKELETON_WIDTH_PATTERN = ["60%", "75%", "90%"] as const
+
 const SidebarMenuSkeleton = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
     showIcon?: boolean
+    /** Stable per-row seed (e.g. array index) used to pick a deterministic width. */
+    seed?: number
   }
->(({ className, showIcon = false, ...props }, ref) => {
-  // Random width between 50 to 90%.
-  const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  }, [])
+>(({ className, showIcon = false, seed, ...props }, ref) => {
+  // Capture a stable width per mount. Using useRef (not useMemo) so the value
+  // survives React.StrictMode's double-invoke of render in dev, eliminating
+  // the flicker described in WE-20260528-874.
+  const fallbackWidthRef = React.useRef<string | null>(null)
+  if (fallbackWidthRef.current === null) {
+    fallbackWidthRef.current = `${Math.floor(Math.random() * 40) + 50}%`
+  }
+  const width =
+    typeof seed === "number"
+      ? SKELETON_WIDTH_PATTERN[
+          ((seed % SKELETON_WIDTH_PATTERN.length) + SKELETON_WIDTH_PATTERN.length) %
+            SKELETON_WIDTH_PATTERN.length
+        ]
+      : fallbackWidthRef.current
 
   return (
     <div

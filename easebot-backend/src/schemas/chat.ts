@@ -3,7 +3,14 @@ import { z } from 'zod';
 export const ChatRequestSchema = z.object({
   message: z.string().min(1).max(10000),
   threadId: z.string().optional(),
-  mode: z.enum(['planner', 'stylist', 'knowledge']).optional(),
+  // Canonical mode set — must match `Mode` in src/types.ts and the cases handled
+  // in src/controllers/chatController.ts (buildSystemPrompt, getToolsForMode) +
+  // src/modeRouter.ts (detectMode). 'assistant' is the implicit fallback when
+  // no mode is sent — it is also accepted explicitly so the client union
+  // (`'planner' | 'stylist' | 'knowledge' | 'assistant'`) and the server enum
+  // agree (WE-20260528-103). `therapist` / `consultant` stay disabled until
+  // EXECUTION_PLAN §0 guardrail #7 is lifted.
+  mode: z.enum(['planner', 'stylist', 'knowledge', 'assistant']).optional(),
   imageData: z.string().optional(),
   imageMimeType: z.string().optional(),
   toneSettings: z.record(z.number().min(0).max(100)).optional(),

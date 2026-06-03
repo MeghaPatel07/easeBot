@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WE-20260528-990 progress</title>
+</head>
+<body>
+<h1>WE-20260528-990 — Guest message-counter cross-tab sync</h1>
+<p><strong>Status:</strong> ready for PR</p>
+<ul>
+  <li>Worktree: <code>worktrees/fix-WE-20260528-990</code> off <code>origin/Bug-Resolve-claude</code></li>
+  <li>Files changed: <code>Wedding-Ease-Viva-Chat/src/pages/Index.tsx</code></li>
+  <li>Changes:
+    <ol>
+      <li><code>checkAndBumpGuestCount</code> now reads localStorage first (read-modify-write) so a sibling tab's increment is honored before this tab's check + bump.</li>
+      <li>Added a <code>useEffect</code> with <code>window.addEventListener('storage', handler)</code> that re-reads both <code>easebot-guest-msg-count</code> and <code>easebot-guest-img-count</code> on cross-tab writes and syncs React state + ref. Cleans up on unmount and skips for signed-in users.</li>
+      <li>Image-count effect (lines ~885) now also consults localStorage in its <code>Math.max</code> ratchet so a sibling tab's higher count isn't accidentally overwritten by this tab's lower count.</li>
+    </ol>
+  </li>
+  <li>Manual test (Playwright, 3 contexts share localStorage):
+    <ul>
+      <li>Tab A writes 1 → B + C banner updates to "9 messages remaining"</li>
+      <li>Tab B writes 2 → A + C banner shows "8 messages remaining"</li>
+      <li>Tab C writes 3 → A + B banner shows "7 messages remaining"</li>
+      <li>Tab A writes 10 → B + C show "Sign up to continue chatting" CTA (limit blocked)</li>
+    </ul>
+    Screenshots at <code>qa-harness/evidence/WE-20260528-990/screenshots/</code>.
+  </li>
+  <li>Lint: only pre-existing Index.tsx errors at lines 443/490/900 (empty try/catch) and 1363/1396/1400 (any) — none from this change.</li>
+  <li>Type-check (<code>tsc --noEmit -p tsconfig.app.json</code>): only pre-existing errors. No new errors introduced.</li>
+  <li>Overlap note: WE-20260528-303 is touching Index.tsx for route lazy splits. Conflict likely at merge time — Krish to resolve.</li>
+</ul>
+</body>
+</html>

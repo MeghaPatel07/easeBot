@@ -24,6 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
+import { GlossaryText } from '@/components/images/GlossaryText'
 
 import TabShell from './_TabShell'
 
@@ -96,6 +97,10 @@ function daysUntil(date: Date | null): number | null {
 
 // Sprint 4 (Kenji): Custom-instructions max length matches Claude's UX.
 const CUSTOM_INSTRUCTIONS_MAX = 1500
+// WE-20260528-865: surface a warning-color counter within 100 chars of cap so
+// users notice they're approaching the limit (mirrors NoteHeader pattern,
+// WE-20260528-870). Below this threshold the counter stays muted.
+const CUSTOM_INSTRUCTIONS_WARN_REMAINING = 100
 
 export function PersonalizationTab() {
   const { profile, updateProfile } = useAccount()
@@ -401,7 +406,13 @@ export function PersonalizationTab() {
             />
             <p
               id="custom-about-counter"
-              className="text-right text-2xs text-foreground/90"
+              aria-live="polite"
+              className={cn(
+                'text-right text-2xs tabular-nums',
+                CUSTOM_INSTRUCTIONS_MAX - about.length <= CUSTOM_INSTRUCTIONS_WARN_REMAINING
+                  ? 'text-warning'
+                  : 'text-foreground/90',
+              )}
             >
               {about.length} / {CUSTOM_INSTRUCTIONS_MAX}
             </p>
@@ -425,7 +436,13 @@ export function PersonalizationTab() {
             />
             <p
               id="custom-response-counter"
-              className="text-right text-2xs text-foreground/90"
+              aria-live="polite"
+              className={cn(
+                'text-right text-2xs tabular-nums',
+                CUSTOM_INSTRUCTIONS_MAX - responseStyle.length <= CUSTOM_INSTRUCTIONS_WARN_REMAINING
+                  ? 'text-warning'
+                  : 'text-foreground/90',
+              )}
             >
               {responseStyle.length} / {CUSTOM_INSTRUCTIONS_MAX}
             </p>
@@ -474,7 +491,9 @@ export function PersonalizationTab() {
             <p className="text-sm font-medium text-foreground/90">{activeVibe.title}</p>
             {activeVibe.subtitle && (
               <p className="mt-1 text-xs text-foreground/90">
-                {activeVibe.subtitle}
+                {/* Specialist terms keep their wording but gain a focusable,
+                    screen-reader-reachable definition (WCAG 3.1.3). */}
+                <GlossaryText text={activeVibe.subtitle} />
               </p>
             )}
             {activeVibe.descriptors?.length > 0 && (
@@ -484,7 +503,7 @@ export function PersonalizationTab() {
                     key={d}
                     className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-2xs font-medium text-foreground/90"
                   >
-                    {d}
+                    <GlossaryText text={d} />
                   </span>
                 ))}
               </div>

@@ -1,0 +1,44 @@
+# Sprint 3 brief adversarial item #3: "Guest → signup conversion — guest sends 5
+# messages, signs up, do those 5 messages migrate to the new account or get lost?"
+
+# Static analysis of the relevant useEffect / pages.
+
+# Index.tsx — guest chat is stored in sessionStorage as a JSON-stringified
+# Message[] array under key 'easebot-guest-chat':
+$ grep -n "easebot-guest-chat" Wedding-Ease-Viva-Chat/src/pages/Index.tsx
+807:      sessionStorage.removeItem('easebot-guest-chat');
+818:        const stored = sessionStorage.getItem('easebot-guest-chat');
+853:        sessionStorage.setItem('easebot-guest-chat', JSON.stringify(messages));
+864:      sessionStorage.removeItem('easebot-guest-chat');
+
+# Index.tsx:800-812 — Reset effect that triggers WHEN [user] dependency changes:
+useEffect(() => {
+  if (user) {
+    setGuestMessageCount(0);
+    guestMessageCountRef.current = 0;
+    setGuestImageCount(0);
+    guestImageCountRef.current = 0;
+    sessionStorage.removeItem('easebot-guest-chat');     // ← WIPES 5 messages
+    sessionStorage.removeItem('easebot-guest-images');
+    localStorage.removeItem('easebot-guest-msg-count');
+    localStorage.removeItem('easebot-guest-img-count');
+  }
+}, [user]);
+
+# Nowhere in this codebase does anything PERSIST those guest messages into the
+# new user's Firestore thread:
+$ grep -rnE "migrateGuest|importGuest|guestToUser|attachGuestMessages" \
+  Wedding-Ease-Viva-Chat/src easebot-backend/src --include='*.ts' --include='*.tsx'
+(no results)
+
+# PostHog tracking explicitly hardcodes is_guest_conversion = false on signup:
+$ grep -n "is_guest_conversion" Wedding-Ease-Viva-Chat/src/contexts/AuthContext.tsx
+155: track('signup_completed', { method: 'email', is_guest_conversion: false })
+195: track('signup_completed', { method: 'google', is_guest_conversion: false })
+
+# Conclusion: pure data loss. The 5 guest messages live in sessionStorage,
+# the moment the user signs up Firebase fires onAuthStateChanged → user
+# becomes non-null → this useEffect deletes sessionStorage. The new
+# Firestore thread under users/{uid}/threads starts EMPTY.
+
+# Bonus: also lost on 'beforeunload' (lines 858-869) — guest tab close = data loss.

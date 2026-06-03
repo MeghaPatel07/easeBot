@@ -1,0 +1,12 @@
+$ ls /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/pages/
+Checkout.tsx       ImagesHub.tsx  Login.tsx   PaymentFailure.tsx  Pricing.tsx        SharedChat.tsx  TermsOfService.tsx
+Help.tsx           Index.tsx      NotFound.tsx  PaymentSuccess.tsx  PrivacyPolicy.tsx  SharedNote.tsx  settings/
+
+$ grep '"/auth"' /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/App.tsx
+(no match)
+
+$ ls /Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/src/components/auth/
+PhoneInput.tsx  SignInModal.tsx  SignUpModal.tsx
+
+$ grep -rn "sendVerificationEmail\|verifyUserAccount\|sendForgotPasswordOtp\|verifyUserPhone" Wedding-Ease-Viva-Chat/src/
+(only sendEmailVerification from firebase/auth — the Cloud Functions from authflow.md do not exist)

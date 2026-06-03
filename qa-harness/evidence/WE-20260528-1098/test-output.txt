@@ -1,0 +1,15 @@
+ok 1 - findGlossaryTerms: matches a single term in a subtitle
+ok 2 - findGlossaryTerms: is plural-tolerant (jaalis → jaali, jharokhas → jharokha)
+ok 3 - findGlossaryTerms: is case-insensitive
+ok 4 - findGlossaryTerms: finds multiple distinct terms, de-duplicated, first-seen order
+ok 5 - findGlossaryTerms: ignores punctuation around words
+ok 6 - findGlossaryTerms: does NOT match a glossary key embedded in a larger word
+ok 7 - findGlossaryTerms: returns empty array for plain copy with no jargon
+ok 8 - findGlossaryTerms: handles empty / falsy input
+ok 9 - lookupGlossaryTerm: resolves an exact descriptor chip
+ok 10 - lookupGlossaryTerm: resolves a plural descriptor
+ok 11 - lookupGlossaryTerm: returns null for an unknown token
+ok 12 - VIBE_GLOSSARY: every entry has a non-empty term and definition
+# tests 12
+# pass 12
+# fail 0

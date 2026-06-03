@@ -115,6 +115,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const [tagPickerThreadId, setTagPickerThreadId] = useState<string | null>(null);
   const [deleteConfirmThreadId, setDeleteConfirmThreadId] = useState<string | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // a11y: drives aria-busy on the thread list while the search-analytics debounce
+  // is pending. Result count itself updates synchronously — this flag only
+  // tells AT users that a status announcement is in-flight (WCAG 4.1.3).
+  const [isSearchDebouncePending, setIsSearchDebouncePending] = useState(false);
 
   // Debounced thread_searched analytics — PII-safe: only length + count.
   // Fires once per user "intent" (debounced 500ms after they stop typing).
@@ -146,15 +150,24 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   // Debounced thread_searched event — fires 500ms after user stops typing, only
   // if the query changed since last fire and is non-empty. No query text sent.
+  // a11y: flip isSearchDebouncePending true while the timer is active so the
+  // thread list can advertise aria-busy to AT users (WCAG 4.1.3 status messages).
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     const q = searchQuery;
-    if (!q.trim()) { lastTrackedQueryRef.current = ''; return; }
+    if (!q.trim()) {
+      lastTrackedQueryRef.current = '';
+      setIsSearchDebouncePending(false);
+      return;
+    }
+    setIsSearchDebouncePending(true);
     searchDebounceRef.current = setTimeout(() => {
-      if (lastTrackedQueryRef.current === q) return;
-      lastTrackedQueryRef.current = q;
-      const resultCount = filteredThreads.length + archivedThreads.length;
-      track('thread_searched', { query_length: q.length, result_count: resultCount });
+      if (lastTrackedQueryRef.current !== q) {
+        lastTrackedQueryRef.current = q;
+        const resultCount = filteredThreads.length + archivedThreads.length;
+        track('thread_searched', { query_length: q.length, result_count: resultCount });
+      }
+      setIsSearchDebouncePending(false);
     }, 500);
     return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
   }, [searchQuery, filteredThreads.length, archivedThreads.length]);
@@ -380,7 +393,21 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
             {/* Thread history */}
             {user && (
-              <div>
+              <div
+                role="region"
+                aria-label="Chat threads"
+                aria-busy={isSearchDebouncePending}
+              >
+                {/* a11y: announce result count to AT users when a search is active.
+                    Synchronous list updates are already visible — this just gives
+                    screen-reader / Switch Control users an audible status (WCAG 4.1.3). */}
+                <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+                  {searchQuery.trim()
+                    ? (isSearchDebouncePending
+                        ? `Searching for ${searchQuery}`
+                        : `${filteredThreads.length + archivedThreads.length} thread${filteredThreads.length + archivedThreads.length === 1 ? '' : 's'} match ${searchQuery}`)
+                    : ''}
+                </div>
                 {/* Pinned Threads */}
                 {pinnedThreads.length > 0 && (
                   <div className="mb-3">

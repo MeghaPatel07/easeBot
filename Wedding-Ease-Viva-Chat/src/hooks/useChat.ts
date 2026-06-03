@@ -21,6 +21,7 @@ import {
   type NewMessage,
 } from '@/services/chatService'
 import { streamChatMessage, cancelChatRequest, type StreamDoneEvent } from '@/services/functionsService'
+import { classifySendError, type SendErrorKind } from '@/lib/chatSendErrors'
 import { listReminders } from '@/services/reminderService'
 import type { ChatThread, ChatMessage, MessageAttachment, Mode, CalendarEvent, ReminderDoc, ToolAction, UserPersonalization } from '@/types'
 import type { ChatAttachment } from '@/contexts/ChatAttachmentsContext'
@@ -64,6 +65,10 @@ export interface Message {
   // Recommended products sidecar — rendered as a card strip below the bubble.
   products?: MessageProductCard[]
   productsHasMore?: boolean
+  // WE-20260601-300/303: when this AI bubble is a recoverable send failure
+  // (offline / timeout / no-stream / rate-limited) the UI renders a Retry
+  // affordance keyed off `retryKind`. Absent for normal/quota/too-long bubbles.
+  retryKind?: SendErrorKind
 }
 
 export interface SendMessageOptions {
@@ -103,6 +108,9 @@ export interface UseChatResult {
     (text: string, options: SendMessageOptions): Promise<void>
   }
   stopGeneration: () => void
+  /** Re-issue the most recent recoverable failed send (offline / timeout /
+   *  no-stream / rate-limited). No-op when there is nothing to retry. */
+  retryLastFailedSend: () => Promise<void>
   loadChat: (threadId: string) => Promise<void>
   startNewChat: () => void
   deleteThread: (threadId: string) => Promise<void>
@@ -205,6 +213,19 @@ export function useChat(): UseChatResult {
   // /api/chat/cancel on Stop so the backend aborts even when the proxy
   // swallows the client-side TCP close.
   const activeRequestIdRef = useRef<string | null>(null)
+
+  // WE-20260601-300/303: the last send that failed for a recoverable reason
+  // (offline / timeout / no-stream / rate-limited). Held so the user can tap
+  // Retry, and so a `window 'online'` event can auto-retry an offline send.
+  // null while there is nothing to retry.
+  const [retryableSend, setRetryableSend] = useState<{
+    text: string
+    options: SendMessageOptions
+    kind: SendErrorKind
+    errorMsgId: string
+  } | null>(null)
+  const retryableSendRef = useRef<typeof retryableSend>(null)
+  useEffect(() => { retryableSendRef.current = retryableSend }, [retryableSend])
 
   // ── Firestore thread subscription ─────────────────────────────────────────
   useEffect(() => {
@@ -346,6 +367,8 @@ export function useChat(): UseChatResult {
     imageMimeTypeArg?: string,
   ) => {
     if (isTyping) return
+    // A fresh send supersedes any pending retry token (WE-20260601-300/303).
+    if (retryableSendRef.current) setRetryableSend(null)
     // Normalize: support both positional and options-object call styles.
     const isOptionsObject =
       audioBase64OrOptions !== undefined &&
@@ -827,6 +850,10 @@ export function useChat(): UseChatResult {
       // Drop the empty placeholder AI message before appending the error bubble,
       // otherwise the user sees a blank assistant message followed by the error.
       let errorText = 'Something went wrong. Please try again.'
+      // Non-quota recoverable failures (offline / timeout / no-stream /
+      // rate-limited) attach a retryKind so the UI shows a Retry button and we
+      // remember the failed send for auto-retry on reconnect.
+      let retryKind: SendErrorKind | undefined
       if (err?.code === 'quota_exceeded') {
         const reason = err?.details?.reason as string | undefined
         let kind: 'daily' | 'monthly' | 'guest' | 'tokens' | 'unknown' = 'unknown'
@@ -837,36 +864,95 @@ export function useChat(): UseChatResult {
           errorText = "You've used this month's token pool. [Upgrade or top up](/pricing) to keep planning."
           kind = 'monthly'
         } else if (reason === 'guest_limit_exceeded') {
-          // WE-20260528-102: /signup route never existed; clicking the link
-          // hit the NotFound page. Point at /pricing — it owns both the
-          // upgrade and the sign-up CTA, and is a real route in App.tsx.
+
           errorText = "You've reached the guest limit. [Sign up](/pricing) for a free account to keep chatting."
+
+         
           kind = 'guest'
         } else {
           errorText = err.message || 'Quota exceeded.'
         }
         track('quota_exceeded', { kind })
+      } else {
+        // WE-20260601-300/303: replace the generic "Something went wrong"
+        // collapse with a small taxonomy. Offline / stall / no-stream /
+        // rate-limited are recoverable and get a Retry affordance; too-long is
+        // surfaced distinctly but not auto-retried.
+        const classified = classifySendError(err)
+        errorText = classified.message
+        if (classified.recoverable && classified.kind !== 'aborted' && classified.kind !== 'generic') {
+          retryKind = classified.kind
+        }
+        track('chat_send_error', { kind: classified.kind })
       }
 
+      const errorMsgId = (Date.now() + 1).toString()
       setMessages((prev) => {
         const next = [...prev]
         const last = next[next.length - 1]
         if (last && last.sender === 'ai' && !last.text) next.pop()
         next.push({
-          id: (Date.now() + 1).toString(),
+          id: errorMsgId,
           text: errorText,
           sender: 'ai',
           timestamp: new Date(),
           liked: false,
+          ...(retryKind ? { retryKind } : {}),
         })
         return next
       })
+
+      // Remember the failed send so the user (or the 'online' listener) can
+      // retry the exact same payload. Only for recoverable, non-quota errors.
+      if (retryKind) {
+        setRetryableSend({ text, options: opts, kind: retryKind, errorMsgId })
+      }
     } finally {
       setIsTyping(false)
       abortControllerRef.current = null
       activeRequestIdRef.current = null
     }
   }, [user, profile, refetchReminders, isTyping])
+
+  // ── Retry a recoverable failed send (WE-20260601-300/303) ──────────────────
+  // Strips the error bubble + the orphaned user message for the failed turn,
+  // then re-issues the exact same send. Used by the in-bubble Retry button and
+  // by the auto-retry-on-reconnect effect below.
+  const retryLastFailedSend = useCallback(async () => {
+    const pending = retryableSendRef.current
+    if (!pending || isTyping) return
+    // Remove the failed error bubble and the user message that immediately
+    // preceded it, so the retried send re-appends a fresh user turn rather than
+    // duplicating it.
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === pending.errorMsgId)
+      if (idx === -1) return prev
+      const next = [...prev]
+      next.splice(idx, 1) // drop error bubble
+      // Drop the immediately-preceding user message if present (the orphaned turn).
+      if (idx - 1 >= 0 && next[idx - 1]?.sender === 'user') {
+        next.splice(idx - 1, 1)
+      }
+      return next
+    })
+    setRetryableSend(null)
+    track('chat_send_retry', { kind: pending.kind })
+    await sendMessage(pending.text, pending.options)
+  }, [isTyping, sendMessage])
+
+  // Auto-retry an offline send once connectivity returns. Only the 'offline'
+  // kind auto-retries; timeout / no-stream / rate-limited wait for an explicit
+  // user tap to avoid hammering a struggling backend.
+  useEffect(() => {
+    const onOnline = () => {
+      const pending = retryableSendRef.current
+      if (pending && pending.kind === 'offline') {
+        void retryLastFailedSend()
+      }
+    }
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [retryLastFailedSend])
 
   // ── Toggle like ────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (messageId: string) => {
@@ -1085,6 +1171,7 @@ export function useChat(): UseChatResult {
     hasMoreMessages,
     sendMessage,
     stopGeneration,
+    retryLastFailedSend,
     loadChat,
     startNewChat,
     deleteThread,

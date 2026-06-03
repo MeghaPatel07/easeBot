@@ -1,0 +1,7 @@
+Input size: 59 KB
+metadata: 1ms
+upscale 2x lanczos3: 82ms
+webp q=90: 107ms, 7 KB
+jpeg mozjpeg q=92: 100ms, 12 KB
+full pipeline upscale+webp: 534ms, final 29 KB
+compress cascade 4 attempts: 405ms

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260527-001</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    td.ok { color: var(--ok); }
+    td.warn { color: var(--warn); }
+    td.err { color: var(--err); }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260527-001 &middot; PostHog analytics proxy returns 404 on every page load <span class="pill P1">P1</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260527-001</code> &rarr; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260527-001</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      Every page in dev fires two PostHog requests that 404 (or 500 in our case): the SDK calls
+      <code>/ingest/array/&lt;key&gt;/config.js</code> and <code>/ingest/array/&lt;key&gt;/config?ip=0</code>,
+      Vite proxies them at <code>http://localhost:3001</code> (the backend), but the backend isn't running
+      locally and its <code>/ingest</code> router exists only in prod. The SDK script load fails MIME
+      validation (<code>application/javascript</code> expected, empty received), feature flags fall back to
+      defaults, capture/replay never reach PostHog, and the console fills with noise.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-27 11:45</div>
+        <div class="what">Read ticket and located analytics code.</div>
+        <div class="detail">PostHog init at <code>src/lib/analytics.ts:168</code>. Init is gated on <code>ENABLED &amp;&amp; KEY</code> already, but a developer with <code>VITE_POSTHOG_ENABLED=true</code> + any <code>VITE_POSTHOG_KEY</code> set in their local <code>.env</code> triggers <code>posthog.init({api_host: '/ingest'})</code>, which then 404s through the Vite proxy.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-27 11:46</div>
+        <div class="what">Reproduced 500 on running dev server (port 8081).</div>
+        <div class="detail"><code>curl -I http://localhost:8081/ingest/array/phc_.../config.js</code> &rarr; <code>HTTP/1.1 500 Internal Server Error</code> (saved to <code>evidence/.../before-network.txt</code>). Root cause confirmed: <code>vite.config.ts</code> proxies <code>/ingest</code> to <code>http://localhost:3001</code> (backend) but the backend is not running, so requests fail upstream.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-27 11:50</div>
+        <div class="what">Wrote the fix &mdash; three small changes.</div>
+        <div class="detail">
+          <strong>1) vite.config.ts:</strong> repoint <code>/ingest</code> proxy to <code>https://us.i.posthog.com</code> with <code>changeOrigin</code> + <code>rewrite</code> so dev works without the backend running.<br>
+          <strong>2) src/lib/analytics.ts:</strong> tighten the init gate with a regex on KEY (<code>^phc_[A-Za-z0-9]{20,}$</code>) so placeholder/empty keys never boot the SDK. Added a one-line <code>console.info</code> breadcrumb in dev so devs see why analytics is off. <code>__phDebug</code> object now exposes <code>keyValid</code>.<br>
+          <strong>3) .env.example:</strong> document the new dev proxy + the KEY regex gate. <code>.env</code> itself is NOT edited (blocked by harness rules).
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-27 11:55</div>
+        <div class="what">Verified fix via fresh Vite server on :8099.</div>
+        <div class="detail">Both PostHog endpoints now return <code>HTTP 200</code> with correct MIME types &mdash; <code>application/javascript</code> for <code>config.js</code> and <code>application/json</code> for the <code>config?ip=0</code> poll. Saved to <code>evidence/.../after-network.txt</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-27 11:56</div>
+        <div class="what">Typecheck clean; lint shows no new errors.</div>
+        <div class="detail"><code>npx tsc --noEmit</code> &rarr; 0 errors. <code>npx eslint src/lib/analytics.ts vite.config.ts</code> &rarr; 6 errors, all pre-existing <code>no-empty</code> on <code>catch {}</code> swallow blocks that this change does not touch.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before-fix network log: <code>qa-harness/evidence/WE-20260527-001/before-network.txt</code> &mdash; <code>HTTP 500 bytes=0</code></li>
+      <li>After-fix network log: <code>qa-harness/evidence/WE-20260527-001/after-network.txt</code> &mdash; <code>HTTP 200, application/javascript, 1230 bytes</code> + <code>HTTP 200, application/json, 1031 bytes</code></li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td><code>npx tsc --noEmit</code></td><td class="ok">0 errors</td></tr>
+        <tr><td>Lint</td><td><code>npx eslint src/lib/analytics.ts vite.config.ts</code></td><td class="warn">6 pre-existing errors, 0 new</td></tr>
+        <tr><td>Manual (before)</td><td><code>curl http://localhost:8081/ingest/array/.../config.js</code></td><td class="err">HTTP 500</td></tr>
+        <tr><td>Manual (after)</td><td><code>curl http://127.0.0.1:8099/ingest/array/.../config.js</code></td><td class="ok">HTTP 200 application/javascript</td></tr>
+        <tr><td>Manual (after)</td><td><code>curl http://127.0.0.1:8099/ingest/array/.../config?ip=0</code></td><td class="ok">HTTP 200 application/json</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>.env.example                |  9 +++++++--
+src/lib/analytics.ts        | 17 ++++++++++++++---
+vite.config.ts              | 11 +++++++++--
+3 files changed, 28 insertions(+), 4 deletions(-)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: (filled after <code>gh pr create</code> below)</p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminAuth, adminDb } from '../lib/firebaseAdmin'
-import { requireAuth } from '../middleware/auth'
+import { requireUser } from '../middleware/auth'
 
 // ---------------------------------------------------------------------------
 // Firestore helpers (Admin SDK)
@@ -12,16 +12,18 @@ const serverTimestamp = () => FieldValue.serverTimestamp()
 // ---------------------------------------------------------------------------
 // Strict auth wrapper
 // ---------------------------------------------------------------------------
-// The shared `requireAuth` middleware deliberately allows anonymous (guest)
-// requests through for chat/notes/etc. Account endpoints must NEVER serve
-// anonymous traffic, so we wrap it and 401 when no verified uid was attached.
-// We do NOT modify the shared middleware (per sprint scope rules).
+// Account endpoints must NEVER serve anonymous traffic. We layer on top of
+// `requireUser` (the strict, fail-closed token verifier: missing OR invalid
+// token => 401, never a null-user pass-through — WE-20260527-1007).
 //
 // In addition, after the token is verified we consult a 30-second-cached
 // "deletionPending" flag on the user doc. If set, we reject all routes EXCEPT
 // GET /me and POST /delete (so users can still observe / cancel).
 export function requireStrictAuth(req: Request, res: Response, next: NextFunction): void {
-  void requireAuth(req, res, async () => {
+  void requireUser(req, res, async () => {
+    // requireUser already guarantees req.user.uid here, but keep the guard as
+    // defense-in-depth so a future refactor of requireUser can't silently
+    // open this gate.
     if (!req.user?.uid) {
       res.status(401).json({ error: 'Authentication required', code: 'UNAUTHORIZED' })
       return

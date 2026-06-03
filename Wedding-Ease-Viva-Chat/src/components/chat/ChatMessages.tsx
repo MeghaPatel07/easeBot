@@ -22,6 +22,7 @@ import { ImageCarousel } from '@/components/ImageCarousel';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Link } from 'react-router-dom';
 import { modeConfig, markdownToHtml, type ModeOrAuto } from './constants';
 import easebotAvatar from '@/assets/images/easebot.png';
 import { track } from '@/lib/analytics';
@@ -66,6 +67,9 @@ export interface ChatMessagesProps {
   onToggleLike: (messageId: string) => void;
   onRegenerateMessage: (m: Message) => void;
   onContinueGenerating: () => void;
+  // WE-20260601-300/303: retry the last recoverable failed send (offline /
+  // timeout / no-stream / rate-limited). Optional so existing callers compile.
+  onRetryFailedSend?: () => void;
   onToneModifier: (modifier: string) => void;
   onConvertToTable: (message: Message) => void;
   onSaveProduct: (title: string, url: string, imageUrl: string) => void;
@@ -97,6 +101,25 @@ export interface ChatMessagesProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Language helpers — WCAG 3.1.2 (Language of Parts, AA). The backend tags
+// each AI message with a BCP-47 `language` (e.g. "hi", "ar", "gu", "es"),
+// but the DOM wrapper used to ignore it, so screen readers kept reading
+// Hindi/Arabic/etc. with English phonemes (garbled). We now propagate
+// `lang=` onto the markdown wrapper div, and `dir="rtl"` for the small set
+// of RTL languages we expect to see (`dir="ltr"` for everything else, so
+// nested elements inherit a known direction rather than relying on UA
+// defaults from the parent <html dir>).
+// ─────────────────────────────────────────────────────────────────────────────
+const RTL_LANGUAGE_CODES = new Set(['ar', 'he', 'fa', 'ur', 'ps', 'yi', 'dv']);
+
+function isRtlLanguage(code?: string): boolean {
+  if (!code) return false;
+  // Accept full BCP-47 tags ("ar-EG", "he-IL") by checking only the primary subtag.
+  const primary = code.toLowerCase().split('-')[0];
+  return RTL_LANGUAGE_CODES.has(primary);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Typewriter markdown — reveals characters gradually during streaming,
 // then renders full text with markdown once streaming finishes.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,7 +146,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   inlineEditId, inlineEditText, inlineEditImage, onStartInlineEdit, onCancelInlineEdit, onSubmitInlineEdit, onInlineEditTextChange, onInlineEditImageChange, onInlineEditImageRemove,
   getBranchInfo, onSwitchBranch,
   onLoadMoreMessages, onCopyMessage, onDownloadMessage, onToggleLike, onRegenerateMessage,
-  onContinueGenerating, onToneModifier, onConvertToTable, onSaveProduct,
+  onContinueGenerating, onRetryFailedSend, onToneModifier, onConvertToTable, onSaveProduct,
   likedProductIds, onToggleProductLike,
   onShareProduct, onRequestMoreProducts,
   onOpenPlanner, onShowSignIn, onDeleteImage,
@@ -267,7 +290,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
           {message.sender === 'user' ? (
             <div className="flex flex-col items-end w-full">
               {inlineEditId === message.id ? (
-                <div className="w-full max-w-2xl flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="w-full max-w-2xl flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200">
                   {/* Edit mode container */}
                   <div className="rounded-2xl border border-primary/30 bg-foreground/[0.06] backdrop-blur-md shadow-xl overflow-hidden">
                     {/* Attached image preview with remove/replace */}
@@ -293,6 +316,15 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              // WE-20260528-405: same 4MB cap as Index.tsx:368.
+                              // Inline-edit's Replace input was missed when
+                              // WE-20260527-220 landed; a 50MB pick balloons
+                              // React state + the message-edit payload.
+                              if (file.size > 4 * 1024 * 1024) {
+                                alert('Image must be under 4MB');
+                                e.target.value = '';
+                                return;
+                              }
                               const reader = new FileReader();
                               reader.onload = () => {
                                 if (typeof reader.result === 'string') {
@@ -319,6 +351,14 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              // WE-20260528-405: same 4MB cap as Index.tsx:368.
+                              // Inline-edit's Attach input was missed when
+                              // WE-20260527-220 landed.
+                              if (file.size > 4 * 1024 * 1024) {
+                                alert('Image must be under 4MB');
+                                e.target.value = '';
+                                return;
+                              }
                               const reader = new FileReader();
                               reader.onload = () => {
                                 if (typeof reader.result === 'string') {
@@ -372,7 +412,11 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         userId={activeUserId}
                       />
                     )}
-                    <p className="text-[13px] leading-relaxed" data-ph-mask>{message.text}</p>
+                    {/* dir="auto" lets the browser pick LTR/RTL from the first
+                        strong character of the user's typed text — costs nothing
+                        for English and fixes Arabic/Hebrew display without
+                        needing a language detector on the user-typed path. */}
+                    <p className="text-[13px] leading-relaxed" data-ph-mask dir="auto">{message.text}</p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 mr-1">
                     <span className="text-3xs text-foreground/40 uppercase tracking-wider">
@@ -439,17 +483,38 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   })()}
                 </div>
               )}
-              <div className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground" data-ph-mask>
+              <div
+                className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground"
+                data-ph-mask
+                lang={message.language || 'en'}
+                dir={isRtlLanguage(message.language) ? 'rtl' : 'ltr'}
+              >
                 <TypewriterMarkdown
                   text={message.text}
                   isStreaming={message.id === streamingMsgId}
                   remarkPlugins={[remarkGfm]}
                   components={{
-                    a: ({ href, children }: any) => (
-                      <a href={href} target="_blank" rel="noopener noreferrer" className="text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors">
-                        {children}
-                      </a>
-                    ),
+                    a: ({ href, children }: any) => {
+                      // WE-20260601-201: internal app routes (e.g. /pricing,
+                      // /signup emitted by the quota-error bubbles) must navigate
+                      // in-place via the SPA router so session/chat state is
+                      // preserved — NOT open in a cold new tab. Only true external
+                      // links keep target="_blank".
+                      const linkClass = 'text-mode-stylist-dark hover:text-mode-stylist underline underline-offset-2 font-medium transition-colors';
+                      const isInternal = typeof href === 'string' && href.startsWith('/') && !href.startsWith('//');
+                      if (isInternal) {
+                        return (
+                          <Link to={href} className={linkClass}>
+                            {children}
+                          </Link>
+                        );
+                      }
+                      return (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className={linkClass}>
+                          {children}
+                        </a>
+                      );
+                    },
                     img: ({ src, alt }: any) => {
                       // Skip known-bad / hallucinated image hosts. The LLM
                       // sometimes emits markdown pointing to cdn.openai.com
@@ -561,6 +626,18 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   }}
                 />
               </div>
+              {/* WE-20260601-300/303: recoverable send-failure retry affordance.
+                  Shown on offline / timeout / no-stream / rate-limited bubbles. */}
+              {message.retryKind && onRetryFailedSend && !isTyping && (
+                <button
+                  type="button"
+                  onClick={onRetryFailedSend}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-foreground/15 bg-foreground/[0.04] px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry
+                </button>
+              )}
               {message.attachments && message.attachments.length > 0 && (
                 <div className="mt-2">
                   <MessageAttachmentChips
@@ -575,7 +652,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
               )}
               {/* Image generation skeleton */}
               {message.imageGenerating && !message.imageUrl && !message.imageUrls?.length && (
-                <div className="mt-3 mb-2 max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full animate-in fade-in duration-300">
+                <div className="mt-3 mb-2 max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
                   <div className="relative aspect-square rounded-xl overflow-hidden bg-foreground/[0.04] border border-foreground/[0.08]">
                     {(message as any).partialImageUrl ? (
                       <>
@@ -586,24 +663,24 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                         />
                         <div className="absolute inset-0 bg-overlay-scrim/20 flex items-end justify-center pb-4">
                           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-overlay-scrim/40 backdrop-blur-sm">
-                            <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+                            <Sparkles className="h-3.5 w-3.5 text-primary motion-safe:animate-pulse" />
                             <p className="text-xs text-foreground/80 font-medium">refining image...</p>
                           </div>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent motion-safe:animate-[shimmer_1.8s_ease-in-out_infinite]" />
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-foreground/[0.06] flex items-center justify-center">
-                            <Sparkles className="h-5 w-5 text-primary/50 animate-pulse" />
+                            <Sparkles className="h-5 w-5 text-primary/50 motion-safe:animate-pulse" />
                           </div>
                           <div className="space-y-1.5 text-center">
                             <p className="text-xs text-foreground/40 font-medium">generating image...</p>
                             <p className="text-3xs text-foreground/25">this may take a few seconds</p>
                           </div>
                           <div className="w-32 h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
-                            <div className="h-full bg-primary/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                            <div className="h-full bg-primary/30 rounded-full motion-safe:animate-[progress_3s_ease-in-out_infinite]" />
                           </div>
                         </div>
                       </>
@@ -960,17 +1037,17 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
             {isGeneratingImage ? (
               <div className="max-w-[calc(100%-1rem)] sm:max-w-sm md:max-w-md w-full msg-enter">
                 <div className="relative aspect-square rounded-xl overflow-hidden bg-foreground/[0.04] border border-foreground/[0.08]">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent motion-safe:animate-[shimmer_1.8s_ease-in-out_infinite]" />
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-foreground/[0.06] flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-primary/50 animate-pulse" />
+                      <Sparkles className="h-5 w-5 text-primary/50 motion-safe:animate-pulse" />
                     </div>
                     <div className="space-y-1.5 text-center">
                       <p className="text-xs text-foreground/40 font-medium">generating...</p>
                       <p className="text-3xs text-foreground/25">creating your image</p>
                     </div>
                     <div className="w-32 h-1 rounded-full bg-foreground/[0.06] overflow-hidden">
-                      <div className="h-full bg-primary/30 rounded-full animate-[progress_3s_ease-in-out_infinite]" />
+                      <div className="h-full bg-primary/30 rounded-full motion-safe:animate-[progress_3s_ease-in-out_infinite]" />
                     </div>
                   </div>
                 </div>

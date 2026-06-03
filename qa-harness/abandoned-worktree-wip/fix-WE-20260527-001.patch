@@ -1,0 +1,85 @@
+diff --git a/Wedding-Ease-Viva-Chat/.env.example b/Wedding-Ease-Viva-Chat/.env.example
+index 8b22475..4907536 100644
+--- a/Wedding-Ease-Viva-Chat/.env.example
++++ b/Wedding-Ease-Viva-Chat/.env.example
+@@ -17,10 +17,16 @@ VITE_IP_GEOLOCATION_API_KEY=f92eea25a17246a09563543976ca23d7
+ 
+ # --- PostHog analytics (client) ---
+ # Project key from app.posthog.com → Project Settings. Only phc_* public keys here.
++# Leave blank to disable analytics entirely (no /ingest requests will be made).
++# In dev the SDK only boots when KEY matches /^phc_[A-Za-z0-9]{20,}$/ AND
++# VITE_POSTHOG_ENABLED=true; otherwise initAnalytics() short-circuits with a
++# console.info breadcrumb (see src/lib/analytics.ts).
+ VITE_POSTHOG_KEY=
+-# Reverse proxy path served by the backend. Keeps requests same-origin and bypasses ad-blockers.
++# Reverse proxy path. Same-origin so ad-blockers don't strip it. In dev the
++# Vite proxy forwards /ingest -> https://us.i.posthog.com (see vite.config.ts);
++# in prod the backend at easebot-backend/src/routes/ingest.ts owns the path.
+ VITE_POSTHOG_HOST=/ingest
+-# Hard kill-switch. Must be "true" AND PROD build for capture to fire.
++# Hard kill-switch. Must be "true" AND a valid phc_* key for capture to fire.
+ VITE_POSTHOG_ENABLED=false
+ # Optional build version tag sent as super property
+ VITE_APP_VERSION=dev
+diff --git a/Wedding-Ease-Viva-Chat/src/lib/analytics.ts b/Wedding-Ease-Viva-Chat/src/lib/analytics.ts
+index be6f6e5..1592fc5 100644
+--- a/Wedding-Ease-Viva-Chat/src/lib/analytics.ts
++++ b/Wedding-Ease-Viva-Chat/src/lib/analytics.ts
+@@ -163,18 +163,32 @@ const KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined
+ const HOST = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? '/ingest'
+ const ENABLED = import.meta.env.VITE_POSTHOG_ENABLED === 'true'
+ 
++// Treat KEY as missing when it's an empty string or a placeholder. Prevents the
++// SDK from booting on `phc_` / `your-key-here` / etc. — which would otherwise
++// trigger the /ingest 404 storm reported in WE-20260527-001.
++const KEY_VALID = typeof KEY === 'string' && /^phc_[A-Za-z0-9]{20,}$/.test(KEY)
++
+ let ready = false
+ 
+ export function initAnalytics(): PostHog | null {
+   if (import.meta.env.DEV) {
+     ;(window as unknown as { posthog: PostHog }).posthog = posthog
+-    ;(window as unknown as { __phDebug: { enabled: boolean; key: string | undefined; host: string } }).__phDebug = {
++    ;(window as unknown as { __phDebug: { enabled: boolean; key: string | undefined; host: string; keyValid: boolean } }).__phDebug = {
+       enabled: ENABLED,
+       key: KEY,
+       host: HOST,
++      keyValid: KEY_VALID,
++    }
++  }
++  if (!ENABLED || !KEY_VALID) {
++    if (import.meta.env.DEV) {
++      // One-line breadcrumb so devs can see why no PH events fire.
++      console.info(
++        `[analytics] PostHog disabled (enabled=${ENABLED}, keyValid=${KEY_VALID}). Set VITE_POSTHOG_ENABLED=true and a valid VITE_POSTHOG_KEY to enable.`,
++      )
+     }
++    return null
+   }
+-  if (!ENABLED || !KEY) return null
+   if (ready) return posthog
+   posthog.init(KEY, {
+     api_host: HOST,
+diff --git a/Wedding-Ease-Viva-Chat/vite.config.ts b/Wedding-Ease-Viva-Chat/vite.config.ts
+index f5e4c06..8c8dbe0 100644
+--- a/Wedding-Ease-Viva-Chat/vite.config.ts
++++ b/Wedding-Ease-Viva-Chat/vite.config.ts
+@@ -18,9 +18,17 @@ export default defineConfig(({ mode }) => ({
+     host: "::",
+     port: 8080,
+     proxy: {
++      // PostHog analytics reverse proxy.
++      // In dev the backend (which owns /ingest in prod) is often not running,
++      // so point straight at PostHog US ingest. The path is preserved
++      // (posthog-js calls /ingest/array/<key>/config.js etc.), and we rewrite
++      // /ingest -> '' so the upstream sees /array/<key>/config.js.
++      // VITE_POSTHOG_HOST=/ingest in .env.example so the SDK stays same-origin.
+       '/ingest': {
+-        target: 'http://localhost:3001',
++        target: 'https://us.i.posthog.com',
+         changeOrigin: true,
++        secure: true,
++        rewrite: (p) => p.replace(/^\/ingest/, ''),
+       },
+     },
+   },

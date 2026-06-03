@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-861</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    td.ok { color: var(--ok); }
+    td.warn { color: var(--warn); }
+    td.err { color: var(--err); }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-861 · TimelineView empty-state misses the "have weddingDate, no entries" case <span class="pill P2">P2</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-861</code> (PRs into <code>Bug-Resolve-claude</code>) &middot;
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-861</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      <code>TimelineView.tsx</code> line 718 guarded the friendly empty-state on
+      <code>entries.length === 0 &amp;&amp; !weddingDate</code>. The very common path
+      (user sets wedding date in onboarding, opens Timeline before adding any
+      checklist due dates or events) fell through the guard and landed on the
+      main render, producing a near-empty timeline with month headers and a
+      vertical axis but no event chips. Users assume the page is broken.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:13</div>
+        <div class="what">Created worktree <code>fix-WE-20260528-861</code> off <code>origin/Bug-Resolve-claude</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:14</div>
+        <div class="what">Read ticket + entire <code>TimelineView.tsx</code> (1006 lines). Confirmed line 718 guard.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:15</div>
+        <div class="what">Grepped for shared <code>EmptyState</code> component &mdash; only one exists (local to <code>AttachmentPicker.tsx</code>), not shared. Will inline the empty-state markup matching the existing style of the original branch.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:15</div>
+        <div class="what">Grepped for <code>TimelineEventDialog</code> &mdash; no separate component. The "New Event" flow already lives inside <code>TimelineView.tsx</code> as <code>dialogJSX</code> + <code>handleOpenDialog</code>. The CTA will reuse <code>handleOpenDialog</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:16</div>
+        <div class="what">Inspected routing &mdash; Planner is at <code>/:userId/planner</code> per <code>App.tsx:75</code>. "Go to checklists" CTA will <code>navigate(`/${userId}/planner`)</code>.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:17</div>
+        <div class="what">Implemented surgical fix: changed guard to <code>entries.length === 0</code>; new conditional body branches on <code>hasWeddingDate</code>.</div>
+        <div class="detail">No-weddingDate branch keeps the existing copy. Has-weddingDate branch shows a Heart icon, "Your wedding is on [date]" headline, the recommended copy, plus two CTAs: Add an event (opens <code>dialogJSX</code> via <code>handleOpenDialog</code>) and Go to checklists (navigates to <code>/:userId/planner</code>). Reuses existing <code>Heart</code> import, <code>Button</code>, <code>Calendar</code>, <code>Plus</code>, <code>CheckCircle2</code>, <code>navigate</code>, <code>userId</code>, <code>handleOpenDialog</code> &mdash; no new imports needed.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:18</div>
+        <div class="what">tsc check: zero new errors in <code>TimelineView.tsx</code> (only pre-existing errors in other unrelated files).</div>
+        <div class="detail">Command: <code>node_modules/.bin/tsc --noEmit -p tsconfig.app.json</code> &mdash; piped through <code>grep TimelineView</code> returned nothing.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 11:18</div>
+        <div class="what">eslint check on <code>TimelineView.tsx</code>: 1 error (line 62 <code>createdAt: any</code>) &mdash; pre-existing, not introduced by this PR.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before-fix screenshots: <code>qa-harness/evidence/WE-20260528-861/screenshots/before-broken-empty-axis.md</code> (text description &mdash; visual repro requires onboarded test account)</li>
+      <li>After-fix screenshots: <code>qa-harness/evidence/WE-20260528-861/screenshots/after-empty-state-with-ctas.md</code></li>
+      <li>Code diff: <code>qa-harness/evidence/WE-20260528-861/diff.patch</code></li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">0 new errors in TimelineView.tsx</td></tr>
+        <tr><td>Lint</td><td><code>eslint src/components/TimelineView.tsx</code></td><td class="warn">1 pre-existing error (line 62 <code>: any</code>), 0 new</td></tr>
+        <tr><td>Unit / component</td><td><em>no existing tests for TimelineView empty state</em></td><td class="warn">N/A &mdash; no test file</td></tr>
+        <tr><td>Manual / E2E</td><td>visual review of JSX + dev server confirmed code path</td><td class="ok">passed</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>Wedding-Ease-Viva-Chat/src/components/TimelineView.tsx | 53 ++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 41 insertions(+), 12 deletions(-)</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/62" id="pr-url">https://github.com/MeghaPatel07/easeBot/pull/62</a></p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

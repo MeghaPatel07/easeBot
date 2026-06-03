@@ -1,0 +1,18 @@
+$ grep -n "import" /Users/krish/Desktop/easebot/easebot-backend/src/controllers/ttsController.ts | head -4
+1:import { Request, Response } from 'express'
+2:import { generateSpeech } from '../services/azureTTS'
+3:import { capture as phCapture } from '../lib/posthog'
+
+$ grep -rn "from.*geminiTTS\|require.*geminiTTS" /Users/krish/Desktop/easebot/easebot-backend/src/
+(no matches — file is unreferenced)
+
+$ head -5 /Users/krish/Desktop/easebot/PRD-TTS-Pipeline.md
+# PRD: Text-to-Speech (TTS) Pipeline — WeddingEase AI
+Version: 1.0
+Date: 2026-04-17
+Author: Engineering
+Status: Current-State Documentation + Architecture Reference
+
+$ grep -n "Gemini\|gemini" /Users/krish/Desktop/easebot/PRD-TTS-Pipeline.md | head -5
+14:It uses **Google Gemini 2.5 Flash TTS** as the synthesis provider
+... (and many more)

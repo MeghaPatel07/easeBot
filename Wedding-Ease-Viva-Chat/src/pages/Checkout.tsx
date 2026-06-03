@@ -305,6 +305,7 @@ export default function Checkout() {
               <input
                 type="text"
                 required
+                autoComplete="name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className={inputCls}
@@ -316,6 +317,7 @@ export default function Checkout() {
               <input
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={inputCls}
@@ -329,6 +331,7 @@ export default function Checkout() {
             <input
               type="text"
               required
+              autoComplete="address-line1"
               value={line1}
               onChange={(e) => setLine1(e.target.value)}
               className={inputCls}
@@ -340,6 +343,7 @@ export default function Checkout() {
             <label className="flex flex-col gap-1.5 text-xs text-foreground/60">
               Country
               <select
+                autoComplete="country"
                 value={country}
                 onChange={(e) => {
                   setCountry(e.target.value)
@@ -357,6 +361,7 @@ export default function Checkout() {
               {country === 'IN' ? (
                 <select
                   required
+                  autoComplete="address-level1"
                   value={stateName}
                   onChange={(e) => setStateName(e.target.value)}
                   className={cn(inputCls, 'appearance-none')}
@@ -369,6 +374,7 @@ export default function Checkout() {
               ) : (
                 <input
                   type="text"
+                  autoComplete="address-level1"
                   value={stateName}
                   onChange={(e) => setStateName(e.target.value)}
                   className={inputCls}
@@ -384,6 +390,7 @@ export default function Checkout() {
               <input
                 type="text"
                 required
+                autoComplete="address-level2"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 className={inputCls}
@@ -395,6 +402,7 @@ export default function Checkout() {
               <input
                 type="text"
                 required
+                autoComplete="postal-code"
                 value={postalCode}
                 onChange={(e) => setPostalCode(e.target.value)}
                 className={inputCls}
@@ -407,6 +415,7 @@ export default function Checkout() {
             GSTIN (optional — Indian businesses only)
             <input
               type="text"
+              autoComplete="off"
               value={gstin}
               onChange={(e) => setGstin(e.target.value.toUpperCase())}
               className={cn(inputCls, 'font-mono uppercase tracking-wider')}

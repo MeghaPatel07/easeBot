@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>WE-20260528-968 — progress</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1 { font-size: 1.15rem; }
+    li { margin: 0.25rem 0; }
+    code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; }
+    .done::before { content: "[x] "; color: #2a7a2a; }
+    .pending::before { content: "[ ] "; color: #888; }
+    a { color: #2a4fa7; }
+  </style>
+</head>
+<body>
+  <h1>WE-20260528-968 — AnalyticsConsent banner cross-tab sync</h1>
+  <p>Owner: fix-state-data — branch: <code>fix-WE-20260528-968</code> — base: <code>Bug-Resolve-claude</code> — status: <strong>in_review</strong></p>
+  <p>PR: <a href="https://github.com/MeghaPatel07/easeBot/pull/51">#51</a></p>
+  <ol>
+    <li class="done">Create worktree + branch</li>
+    <li class="done">Locate AnalyticsConsent component + grep <code>ph_consent</code></li>
+    <li class="done">Read component end-to-end to understand state model</li>
+    <li class="done">Add <code>storage</code> event listener to sync banner across tabs</li>
+    <li class="done">tsc: zero new errors introduced (pre-existing errors unchanged); lint blocked by pre-existing eslint-plugin config crash, not this change</li>
+    <li class="done">Manual Playwright cross-tab repro: Tab B hides in 2ms; reset path also verified; 5 screenshots</li>
+    <li class="done">Commit + push + PR #51</li>
+    <li class="done">Update ticket status to <code>in_review</code> with PR link</li>
+  </ol>
+  <h2>Evidence</h2>
+  <ul>
+    <li><code>/Users/krish/Desktop/easebot/qa-harness/evidence/WE-20260528-968/repro.mjs</code> — Playwright repro script</li>
+    <li><code>/Users/krish/Desktop/easebot/qa-harness/evidence/WE-20260528-968/screenshots/01..05-*.png</code></li>
+  </ul>
+  <h2>Out of scope (intentional)</h2>
+  <ul>
+    <li>BroadcastChannel adoption — that's BC-ARCH (Krish-blocked backlog).</li>
+    <li>WE-20260528-551 / -561 — same root, stay open until BC layer lands.</li>
+  </ul>
+</body>
+</html>

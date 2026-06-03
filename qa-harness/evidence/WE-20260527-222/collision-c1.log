@@ -1,0 +1,150 @@
+id: 1
+data: {"t":"c","v":"I"}
+
+id: 2
+data: {"t":"c","v":"’d"}
+
+id: 3
+data: {"t":"c","v":" love"}
+
+id: 4
+data: {"t":"c","v":" to"}
+
+id: 5
+data: {"t":"c","v":" help"}
+
+id: 6
+data: {"t":"c","v":"!"}
+
+id: 7
+data: {"t":"c","v":" Could"}
+
+id: 8
+data: {"t":"c","v":" you"}
+
+id: 9
+data: {"t":"c","v":" share"}
+
+id: 10
+data: {"t":"c","v":" a"}
+
+id: 11
+data: {"t":"c","v":" bit"}
+
+id: 12
+data: {"t":"c","v":" more"}
+
+id: 13
+data: {"t":"c","v":" about"}
+
+id: 14
+data: {"t":"c","v":" what"}
+
+id: 15
+data: {"t":"c","v":" the"}
+
+id: 16
+data: {"t":"c","v":" essay"}
+
+id: 17
+data: {"t":"c","v":" should"}
+
+id: 18
+data: {"t":"c","v":" focus"}
+
+id: 19
+data: {"t":"c","v":" on"}
+
+id: 20
+data: {"t":"c","v":"?"}
+
+id: 21
+data: {"t":"c","v":" Perhaps"}
+
+id: 22
+data: {"t":"c","v":" a"}
+
+id: 23
+data: {"t":"c","v":" wedding"}
+
+id: 24
+data: {"t":"c","v":"-related"}
+
+id: 25
+data: {"t":"c","v":" topic"}
+
+id: 26
+data: {"t":"c","v":" like"}
+
+id: 27
+data: {"t":"c","v":" planning"}
+
+id: 28
+data: {"t":"c","v":" tips"}
+
+id: 29
+data: {"t":"c","v":","}
+
+id: 30
+data: {"t":"c","v":" cultural"}
+
+id: 31
+data: {"t":"c","v":" traditions"}
+
+id: 32
+data: {"t":"c","v":","}
+
+id: 33
+data: {"t":"c","v":" or"}
+
+id: 34
+data: {"t":"c","v":" styling"}
+
+id: 35
+data: {"t":"c","v":" ideas"}
+
+id: 36
+data: {"t":"c","v":"?"}
+
+id: 37
+data: {"t":"c","v":" Let"}
+
+id: 38
+data: {"t":"c","v":" me"}
+
+id: 39
+data: {"t":"c","v":" know"}
+
+id: 40
+data: {"t":"c","v":","}
+
+id: 41
+data: {"t":"c","v":" and"}
+
+id: 42
+data: {"t":"c","v":" I"}
+
+id: 43
+data: {"t":"c","v":"’ll"}
+
+id: 44
+data: {"t":"c","v":" tailor"}
+
+id: 45
+data: {"t":"c","v":" it"}
+
+id: 46
+data: {"t":"c","v":" perfectly"}
+
+id: 47
+data: {"t":"c","v":" for"}
+
+id: 48
+data: {"t":"c","v":" you"}
+
+id: 49
+data: {"t":"c","v":"."}
+
+id: 50
+data: {"t":"d","text":"I’d love to help! Could you share a bit more about what the essay should focus on? Perhaps a wedding-related topic like planning tips, cultural traditions, or styling ideas? Let me know, and I’ll tailor it perfectly for you.","toolActions":[],"mode":"assistant","detectedLanguage":"en","responseLanguage":"en","audioUrl":null,"imageUrl":null,"imageUrls":[],"products":[],"productsHasMore":false}
+

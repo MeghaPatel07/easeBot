@@ -47,6 +47,13 @@ export interface NotesSidebarProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+// WE-20260528-870: soft cap for note + folder title inputs. Prevents 200-char
+// paste from overflowing the editor header / surfacing awkwardly in metadata.
+const TITLE_MAX = 80;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
@@ -235,12 +242,14 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
             autoFocus
             onFocus={e => e.currentTarget.select()}
             value={renameNoteValue}
-            onChange={e => setRenameNoteValue(e.target.value)}
+            onChange={e => setRenameNoteValue(e.target.value.slice(0, TITLE_MAX))}
             onKeyDown={e => {
               if (e.key === 'Enter') submitRenameNote(note.id);
               if (e.key === 'Escape') { setRenamingNoteId(null); setRenameNoteValue(''); }
             }}
             onBlur={() => submitRenameNote(note.id)}
+            maxLength={TITLE_MAX}
+            aria-label="Rename note"
             className="flex-1 min-w-0 text-sm sm:text-xs px-2 py-1 rounded-lg bg-foreground/[0.08] border border-primary/40 outline-none focus:ring-1 focus:ring-primary/30 text-foreground/90"
           />
         </div>
@@ -493,13 +502,15 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
                       <input
                         autoFocus
                         value={renameFolderValue}
-                        onChange={e => setRenameFolderValue(e.target.value)}
+                        onChange={e => setRenameFolderValue(e.target.value.slice(0, TITLE_MAX))}
                         onKeyDown={e => {
                           if (e.key === 'Enter') submitRenameFolder(folder.id);
                           if (e.key === 'Escape') setRenamingFolderId(null);
                         }}
                         onBlur={() => submitRenameFolder(folder.id)}
                         onClick={e => e.stopPropagation()}
+                        maxLength={TITLE_MAX}
+                        aria-label="Rename folder"
                         className="flex-1 text-xs px-1 py-0 bg-foreground/[0.06] border border-primary/20 outline-none focus:ring-1 focus:ring-primary/30 rounded text-foreground/90"
                       />
                     ) : (
@@ -570,11 +581,13 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
               autoFocus
               placeholder="Folder name..."
               value={newFolderName}
-              onChange={e => setNewFolderName(e.target.value)}
+              onChange={e => setNewFolderName(e.target.value.slice(0, TITLE_MAX))}
               onKeyDown={e => {
                 if (e.key === 'Enter') submitNewFolder();
                 if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); }
               }}
+              maxLength={TITLE_MAX}
+              aria-label="New folder name"
               className="h-7 text-xs bg-foreground/[0.06] border-foreground/10 text-foreground/90 placeholder-foreground/35 rounded-lg flex-1"
             />
             <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-foreground/40 hover:text-foreground/70" onClick={() => { setCreatingFolder(false); setNewFolderName(''); }}>

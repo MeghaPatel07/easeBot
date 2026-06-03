@@ -45,6 +45,7 @@ import {
   deleteChecklistItem,
 } from '@/services/checklistService'
 import { deleteTimelineEvent } from '@/services/timelineEventsService'
+import { ChecklistLimitError } from '@/services/checklistLimits'
 import type { ReminderDoc, TimelineEvent } from '@/types'
 import { track } from '@/lib/analytics'
 
@@ -238,7 +239,11 @@ export default function TimelineView({
     }
     setSubmitting(true)
     try {
-      const created = await createChecklist(userId, trimmedText, [trimmedText])
+      // A timeline "task" is a single-item checklist — so it must respect the
+      // same free-tier checklist cap as the planner UI and the AI tool. The
+      // service enforces it (keyed on resolved tier); we surface the upgrade
+      // message on a cap hit instead of a generic failure (WE-20260601-103).
+      const created = await createChecklist(userId, trimmedText, [trimmedText], profile)
       const firstItem = created.items[0]
       if (firstItem) {
         await updateItemDueDate(userId, created.id, firstItem.id, taskDueDate)
@@ -250,7 +255,9 @@ export default function TimelineView({
       // via Firestore onSnapshot subscriptions in the parent.
       void onRefresh()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create task'
+      const msg = err instanceof ChecklistLimitError
+        ? err.message
+        : err instanceof Error ? err.message : 'Failed to create task'
       toast.error(msg)
     } finally {
       setSubmitting(false)
@@ -714,19 +721,60 @@ export default function TimelineView({
     </Dialog>
   )
 
-  // Empty state
-  if (entries.length === 0 && !weddingDate) {
+  // Empty state — fires whenever there are no entries, regardless of whether
+  // a wedding date has been set. The body branches on `weddingDate` so users
+  // who only set their date (very common after onboarding) get a helpful
+  // explanation + actionable CTAs instead of a half-empty axis (WE-20260528-861).
+  if (entries.length === 0) {
+    const hasWeddingDate = !!weddingDate
     return (
       <div className="flex flex-col h-full">
         {toolbar}
         <div className="flex flex-col items-center justify-center flex-1 px-6 py-12 text-center">
           <div className="h-14 w-14 rounded-full bg-foreground/[0.06] flex items-center justify-center mb-4">
-            <Calendar className="h-7 w-7 text-foreground/40" />
+            {hasWeddingDate ? (
+              <Heart className="h-7 w-7 text-cat-timeline" />
+            ) : (
+              <Calendar className="h-7 w-7 text-foreground/40" />
+            )}
           </div>
-          <h3 className="text-sm font-semibold text-foreground/70 mb-1">No timeline items yet</h3>
-          <p className="text-xs text-foreground/40 max-w-[260px] leading-relaxed">
-            Add due dates to your checklist items or create calendar events to see them on your timeline.
-          </p>
+          {hasWeddingDate ? (
+            <>
+              <h3 className="text-sm font-semibold text-foreground/70 mb-1">
+                Your wedding is on {formatDate(weddingDate!)}
+              </h3>
+              <p className="text-xs text-foreground/40 max-w-[280px] leading-relaxed mb-4">
+                Add events or due dates to see them on this timeline.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 w-full max-w-[280px]">
+                <Button
+                  size="sm"
+                  onClick={handleOpenDialog}
+                  className="flex-1 h-10 rounded-xl gap-1.5 text-xs font-medium touch-manipulation"
+                  disabled={!user}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add an event
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate(`/${userId}/planner`)}
+                  className="flex-1 h-10 rounded-xl gap-1.5 text-xs font-medium touch-manipulation"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Go to checklists
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 className="text-sm font-semibold text-foreground/70 mb-1">No timeline items yet</h3>
+              <p className="text-xs text-foreground/40 max-w-[260px] leading-relaxed">
+                Add due dates to your checklist items or create calendar events to see them on your timeline.
+              </p>
+            </>
+          )}
         </div>
         {dialogJSX}
       </div>

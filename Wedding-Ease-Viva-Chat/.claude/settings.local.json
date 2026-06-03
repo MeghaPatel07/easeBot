@@ -7,7 +7,9 @@
       "Bash(npx tsc:*)",
       "Bash(npx vite:*)",
       "Bash(npx --prefix D:/weddingease/easeBot/easebot-backend tsc --project D:/weddingease/easeBot/easebot-backend/tsconfig.json --noEmit)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Read(//Users/krish/Desktop/easebot/worktrees/**)",
+      "Bash(git -C /Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-061 status)"
     ]
   }
 }

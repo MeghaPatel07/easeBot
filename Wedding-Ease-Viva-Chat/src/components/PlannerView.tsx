@@ -30,6 +30,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import ExportMenu from '@/components/ExportMenu'
 import type { Checklist } from '@/types'
 import { track } from '@/lib/analytics'
+import { resolveTier, getLimits } from '@/config/tierConfig'
+import { ChecklistLimitError } from '@/services/checklistLimits'
 
 interface PlannerViewProps {
   userId: string
@@ -67,7 +69,12 @@ export default function PlannerView({
   }, [])
 
   const stats = computeStats(checklists)
-  const atLimit = !isPremium && checklists.length >= 5
+  // Resolve the cap from the actual tier (tierConfig is the single source of
+  // truth) rather than the raw isPremium boolean, so pro/promax users whose
+  // isPremium flag is unset are not wrongly limited (WE-20260601-103).
+  const maxChecklists = getLimits(resolveTier(profile)).maxChecklists
+  const atLimit = maxChecklists != null && checklists.length >= maxChecklists
+  const limitCopy = `Plan limited to ${maxChecklists} checklists. Upgrade to add more.`
 
   const resetForm = () => {
     setNewTitle('')
@@ -81,7 +88,7 @@ export default function PlannerView({
       return
     }
     if (atLimit) {
-      toast.error('Plan limited to 5 checklists. Upgrade to add more.')
+      toast.error(limitCopy)
       return
     }
     const itemTexts = newItems
@@ -91,7 +98,7 @@ export default function PlannerView({
 
     setCreating(true)
     try {
-      const created = await createChecklist(userId, title, itemTexts)
+      const created = await createChecklist(userId, title, itemTexts, profile)
       track('checklist_created', { checklist_id: created.id, item_count: itemTexts.length, source: 'planner' })
       toast.success('Checklist created')
       setDialogOpen(false)
@@ -100,7 +107,11 @@ export default function PlannerView({
       // automatically — we still call onSelectChecklist to navigate into it.
       onSelectChecklist(created.id)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create checklist'
+      // Cap hit at the service layer (the authoritative, server-counted gate) —
+      // surface the upgrade message instead of a generic failure toast.
+      const msg = err instanceof ChecklistLimitError
+        ? err.message
+        : err instanceof Error ? err.message : 'Failed to create checklist'
       toast.error(msg)
     } finally {
       setCreating(false)
@@ -166,7 +177,7 @@ export default function PlannerView({
           size="sm"
           onClick={() => {
             if (atLimit) {
-              toast.error('Plan limited to 5 checklists. Upgrade to add more.')
+              toast.error(limitCopy)
               return
             }
             setDialogOpen(true)
@@ -203,7 +214,7 @@ export default function PlannerView({
         <div className="mb-3 flex-shrink-0 rounded-xl bg-cat-budget/10 border border-cat-budget/25 px-3 py-2 flex items-start gap-2">
           <Lock className="h-3 w-3 text-cat-budget flex-shrink-0 mt-0.5" />
           <p className="text-2xs text-cat-budget-darker leading-snug">
-            Limit: 5 checklists. Upgrade for unlimited.
+            Limit: {maxChecklists} checklists. Upgrade for unlimited.
           </p>
         </div>
       )}
@@ -324,14 +335,26 @@ export default function PlannerView({
               <label htmlFor="checklist-title" className="text-xs font-medium text-foreground/70">
                 Title
               </label>
+              {/* WE-20260528-870: cap title at 80 chars (consistent with notes/folders) */}
               <Input
                 id="checklist-title"
                 autoFocus
                 value={newTitle}
-                onChange={e => setNewTitle(e.target.value)}
+                onChange={e => setNewTitle(e.target.value.slice(0, 80))}
                 placeholder="e.g. Venue shortlist"
                 disabled={creating}
+                maxLength={80}
               />
+              {newTitle.length >= 70 && (
+                <span
+                  className={`text-[10px] tabular-nums self-end ${
+                    newTitle.length >= 80 ? 'text-warning' : 'text-foreground/40'
+                  }`}
+                  aria-live="polite"
+                >
+                  {newTitle.length}/80
+                </span>
+              )}
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="checklist-items" className="text-xs font-medium text-foreground/70">

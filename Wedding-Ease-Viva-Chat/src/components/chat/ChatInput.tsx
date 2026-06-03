@@ -353,6 +353,8 @@ const ChatInput = ({
               <button
                 type="button"
                 onClick={onRemoveImage}
+                aria-label="Remove attached image"
+                title="Remove attached image"
                 className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center hover:bg-destructive/90 transition-colors shadow-sm"
               >
                 <X className="h-2.5 w-2.5" />
@@ -435,6 +437,12 @@ const ChatInput = ({
                 type="button"
                 onClick={onMicClick}
                 disabled={voiceState === 'transcribing'}
+                aria-label={
+                  voiceState === 'recording' ? 'Stop recording'
+                  : voiceState === 'requesting' ? 'Starting microphone'
+                  : voiceState === 'transcribing' ? 'Transcribing audio'
+                  : 'Record voice message'
+                }
                 title={
                   voiceState === 'recording' ? 'Stop recording'
                   : voiceState === 'requesting' ? 'Starting microphone…'
@@ -465,6 +473,7 @@ const ChatInput = ({
               {isTyping && onStop ? (
                 <button
                   onClick={onStop}
+                  aria-label="Stop generating reply"
                   title="Stop generating"
                   className="h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center text-foreground/55 hover:text-foreground/80 rounded-full hover:bg-foreground/[0.08] active:scale-95 transition-all flex-shrink-0"
                 >
@@ -474,6 +483,7 @@ const ChatInput = ({
                 <button
                   onClick={handleSend}
                   disabled={!hasContent || voiceState === 'recording' || voiceState === 'transcribing'}
+                  aria-label="Send message"
                   title="Send"
                   className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center text-foreground rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
                 >

@@ -1,0 +1,12 @@
+{
+  "error": "Validation failed",
+  "details": [
+    {
+      "received": "admin",
+      "code": "invalid_enum_value",
+      "options": ["user", "assistant", "system"],
+      "path": ["history", 0, "role"],
+      "message": "Invalid enum value. Expected 'user' | 'assistant' | 'system', received 'admin'"
+    }
+  ]
+}

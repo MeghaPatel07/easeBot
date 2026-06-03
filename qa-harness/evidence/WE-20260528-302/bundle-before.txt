@@ -1,0 +1,30 @@
+4.0K	dist/assets/NotFound-DUns_ewd.js
+4.0K	dist/assets/PaymentFailure-BMnJtc4a.js
+4.0K	dist/assets/PaymentSuccess-CacDdc2i.js
+4.0K	dist/assets/button-CpSasTrt.js
+4.0K	dist/assets/exchangeRateService-BhbTQd6F.js
+4.0K	dist/assets/paymentService-DKSgasWJ.js
+4.0K	dist/assets/useAccount-xPY5TA50.js
+8.0K	dist/assets/SharedChat-BoMyqmQR.js
+8.0K	dist/assets/SharedNote-BNZKulRo.js
+8.0K	dist/assets/chatService-DtbX-VE4.js
+8.0K	dist/assets/label-GqjMF7s4.js
+ 12K	dist/assets/Checkout-C53qZeuU.js
+ 12K	dist/assets/Help-CeX9loAO.js
+ 16K	dist/assets/PrivacyPolicy-qRc9uYAj.js
+ 16K	dist/assets/TermsOfService-UxBD0_Br.js
+ 20K	dist/assets/Login-cBMlXFLl.js
+ 28K	dist/assets/Pricing-BSAqEK41.js
+ 36K	dist/assets/NoteEditor-D8xN3KO8.js
+ 40K	dist/assets/index-BIrFBi5o.js
+ 56K	dist/assets/vendor-lucide-BXT1kQbJ.js
+108K	dist/assets/vendor-markdown-ps_LR0AO.js
+120K	dist/assets/vendor-radix-D0BWXkKe.js
+144K	dist/assets/vendor-react-nj-5CZd8.js
+156K	dist/assets/vendor-phone-D3mC5Ha-.js
+180K	dist/assets/vendor-posthog-CHP4ijfT.js
+392K	dist/assets/vendor-DqJL847i.js
+448K	dist/assets/vendor-tiptap-BzRqVSZ4.js
+532K	dist/assets/vendor-firebase-CssYNPO6.js
+564K	dist/assets/vendor-pdf-10J_mlQh.js
+572K	dist/assets/Index-BCX-pEGT.js

@@ -1,0 +1,4 @@
+len=5000
+id: 1
+data: {"t":"e","msg":"400 You uploaded an unsupported image. Please make sure your image is valid."}
+
