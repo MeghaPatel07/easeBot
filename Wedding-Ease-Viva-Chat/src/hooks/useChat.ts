@@ -864,9 +864,10 @@ export function useChat(): UseChatResult {
           errorText = "You've used this month's token pool. [Upgrade or top up](/pricing) to keep planning."
           kind = 'monthly'
         } else if (reason === 'guest_limit_exceeded') {
-          // WE-20260601-200: /signup is now a real route (App.tsx redirects it
-          // to the Login signup surface), so this CTA no longer 404s.
-          errorText = "You've reached the guest limit. [Sign up](/signup) for a free account to keep chatting."
+
+          errorText = "You've reached the guest limit. [Sign up](/pricing) for a free account to keep chatting."
+
+         
           kind = 'guest'
         } else {
           errorText = err.message || 'Quota exceeded.'
