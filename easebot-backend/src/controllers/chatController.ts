@@ -413,7 +413,18 @@ async function getChatHistory(
   currentUserMessage?: string,
 ): Promise<HistoryMessage[]> {
   if (!threadId && providedHistory && providedHistory.length > 0) {
-    return providedHistory.slice(-historyLimit)
+    // SECURITY (WE-20260527-211 / CWE-1336): defense-in-depth against prompt
+    // injection. The Zod schema on /api/chat already rejects role='system' at
+    // validation time, but the streaming route /api/chat/stream does NOT run
+    // validateBody (it's mounted before the SSE wrapper), so a malicious
+    // history[].role='system' could otherwise reach this code path and be
+    // spread verbatim into the LLM messages list after the legitimate system
+    // prompt. Filter unconditionally — anything that isn't 'user' or
+    // 'assistant' is dropped here even if upstream validation is ever loosened
+    // or bypassed.
+    return providedHistory
+      .filter((m): m is HistoryMessage => !!m && (m.role === 'user' || m.role === 'assistant'))
+      .slice(-historyLimit)
   }
   if (threadId) {
     // Fetch one extra so that, after dropping the duplicated current-turn user
