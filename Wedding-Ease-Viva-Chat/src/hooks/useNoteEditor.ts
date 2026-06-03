@@ -5,6 +5,7 @@ import {
   subscribeToNote,
   updateNote,
   uploadNoteImage,
+  NoteConflictError,
 } from '@/services/notesService'
 import { track } from '@/lib/analytics'
 
@@ -77,6 +78,13 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
   // detect collaborator edits that land while we have local divergence.
   const prevRemoteContentRef = useRef<string | null>(null)
 
+  // Last remote `updatedAt.toMillis()` we've seen — drives the optimistic-lock
+  // precondition on the write path (WE-20260528-985). When we save, we pass
+  // this to updateNote(); if Firestore's current value differs, the write is
+  // aborted and we surface the conflict banner instead of clobbering the
+  // other tab's commit. Null until the first subscription event arrives.
+  const lastSeenUpdatedAtRef = useRef<number | null>(null)
+
   // Refs to avoid stale closures
   const noteIdRef = useRef(noteId)
   const userIdRef = useRef(userId)
@@ -92,6 +100,35 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
   // Debounce timer ref for auto-save
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // ── Shared conflict handler — invoked by all 4 write sites when the
+  //    optimistic-lock precondition rejects a save (WE-20260528-985).
+  //    Re-buffers the rejected updates so the next save attempt can retry,
+  //    raises the same banner the inbound-conflict path raises, and bumps
+  //    lastSeenUpdatedAt so the user can resolve via the banner buttons.
+  const handleWriteConflict = useCallback(
+    (err: NoteConflictError, rejected: Partial<Note>, targetNoteId: string) => {
+      // Put the rejected edits back so they aren't lost — the user picks
+      // "Keep mine" -> next save will retry; "View theirs" -> discardLocalEdits
+      // throws them away intentionally.
+      pendingUpdatesRef.current = { ...rejected, ...pendingUpdatesRef.current }
+      // Only mutate UI state if we're still looking at the same note (the user
+      // may have navigated away during the failed save).
+      if (noteIdRef.current !== targetNoteId) return
+      lastSeenUpdatedAtRef.current = err.actualUpdatedAtMillis
+      prevRemoteContentRef.current = err.remote.content
+      setHasUnsavedChanges(true)
+      setConflict({
+        remoteEditedBy: err.remote.lastEditedBy,
+        remoteContent: err.remote.content,
+      })
+      track('note_conflict_detected', {
+        note_id: targetNoteId,
+        source: 'write_precondition',
+      })
+    },
+    []
+  )
+
   // ── Flush helper — persists pending changes immediately ──────────────────
   const flushPending = useCallback((targetNoteId?: string, targetUserId?: string) => {
     const nId = targetNoteId ?? noteIdRef.current
@@ -104,14 +141,21 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     // Clear buffer immediately to prevent double-writes
     pendingUpdatesRef.current = {}
 
-    updateNote(nId, { ...updates, lastEditedBy: uId })
+    const expected = lastSeenUpdatedAtRef.current
+    updateNote(nId, { ...updates, lastEditedBy: uId }, { expectedUpdatedAtMillis: expected })
       .then(() => {
         clearDraft(nId)
         // Our write just became canonical; drop any pending conflict banner.
         if (noteIdRef.current === nId) setConflict(null)
       })
-      .catch((err) => console.error('[useNoteEditor] flush failed', err))
-  }, [])
+      .catch((err) => {
+        if (err instanceof NoteConflictError) {
+          handleWriteConflict(err, updates, nId)
+          return
+        }
+        console.error('[useNoteEditor] flush failed', err)
+      })
+  }, [handleWriteConflict])
 
   // ── Real-time subscription to the active note ─────────────────────────────
   useEffect(() => {
@@ -120,12 +164,14 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
       setHasUnsavedChanges(false)
       pendingUpdatesRef.current = {}
       prevRemoteContentRef.current = null
+      lastSeenUpdatedAtRef.current = null
       setConflict(null)
       return
     }
     // Reset the remote-snapshot tracker when switching notes so the first
     // subscription event on a fresh note doesn't register as a conflict.
     prevRemoteContentRef.current = null
+    lastSeenUpdatedAtRef.current = null
     setConflict(null)
 
     const unsub = subscribeToNote(noteId, (n) => {
@@ -137,9 +183,14 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
 
         if (remoteChanged && byOther && hasLocalContentPending) {
           setConflict({ remoteEditedBy: n.lastEditedBy, remoteContent: n.content })
-          track('note_conflict_detected', { note_id: n.id })
+          track('note_conflict_detected', { note_id: n.id, source: 'subscription' })
         }
         prevRemoteContentRef.current = n.content
+        // Track updatedAt for the write-path optimistic lock (WE-20260528-985).
+        // Firestore SDK Timestamp -> millis; if missing (shouldn't happen for
+        // server-written docs) we fall back to null which disables the check.
+        const ts = n.updatedAt as { toMillis?: () => number } | null
+        lastSeenUpdatedAtRef.current = ts?.toMillis?.() ?? null
       }
       setNote(n)
     })
@@ -178,9 +229,25 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
         const updates = { ...pendingUpdatesRef.current }
         if (Object.keys(updates).length > 0) {
           pendingUpdatesRef.current = {}
-          updateNote(currentNId, { ...updates, lastEditedBy: currentUId })
+          const expected = lastSeenUpdatedAtRef.current
+          updateNote(
+            currentNId,
+            { ...updates, lastEditedBy: currentUId },
+            { expectedUpdatedAtMillis: expected }
+          )
             .then(() => clearDraft(currentNId))
-            .catch((err) => console.error('[useNoteEditor] unmount-save failed', err))
+            .catch((err) => {
+              if (err instanceof NoteConflictError) {
+                // The component is unmounting — we can't show a banner. The A3
+                // localStorage draft still holds the rejected edits, so when
+                // the user returns to this note they'll be prompted to restore.
+                console.warn(
+                  '[useNoteEditor] unmount-save aborted (conflict); draft preserved for next mount'
+                )
+                return
+              }
+              console.error('[useNoteEditor] unmount-save failed', err)
+            })
         }
       }
     }
@@ -201,7 +268,12 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
       if (Object.keys(updates).length === 0) return
 
       pendingUpdatesRef.current = {}
-      updateNote(currentNoteId, { ...updates, lastEditedBy: currentUserId })
+      const expected = lastSeenUpdatedAtRef.current
+      updateNote(
+        currentNoteId,
+        { ...updates, lastEditedBy: currentUserId },
+        { expectedUpdatedAtMillis: expected }
+      )
         .then(() => {
           if (noteIdRef.current === currentNoteId) {
             setHasUnsavedChanges(false)
@@ -211,10 +283,14 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
           clearDraft(currentNoteId)
         })
         .catch((err) => {
+          if (err instanceof NoteConflictError) {
+            handleWriteConflict(err, updates, currentNoteId)
+            return
+          }
           console.error('[useNoteEditor] debounce-save failed', err)
         })
     }, 2000)
-  }, [])
+  }, [handleWriteConflict])
 
   // ── Restore unsaved draft from localStorage after a crash / closed tab ────
   // The draft was written on every keystroke and is only cleared on a
@@ -279,7 +355,12 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
     pendingUpdatesRef.current = {}
     setIsSaving(true)
     try {
-      await updateNote(currentNoteId, { ...updates, lastEditedBy: currentUserId })
+      const expected = lastSeenUpdatedAtRef.current
+      await updateNote(
+        currentNoteId,
+        { ...updates, lastEditedBy: currentUserId },
+        { expectedUpdatedAtMillis: expected }
+      )
       if (noteIdRef.current === currentNoteId) {
         setHasUnsavedChanges(false)
         setLastSavedAt(new Date())
@@ -287,14 +368,21 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
       }
       clearDraft(currentNoteId)
     } catch (err) {
-      console.error('[useNoteEditor] save failed', err)
-      // Put updates back so they aren't lost
-      pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...updates }
-      setHasUnsavedChanges(true)
+      if (err instanceof NoteConflictError) {
+        // handleWriteConflict re-buffers `updates` and raises the banner; do
+        // NOT also append `pendingUpdatesRef.current` to the buffer below —
+        // the helper already does the merge in the correct order.
+        handleWriteConflict(err, updates, currentNoteId)
+      } else {
+        console.error('[useNoteEditor] save failed', err)
+        // Put updates back so they aren't lost
+        pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...updates }
+        setHasUnsavedChanges(true)
+      }
     } finally {
       setIsSaving(false)
     }
-  }, [])
+  }, [handleWriteConflict])
 
   // ── Keyboard shortcut: Ctrl+S / Cmd+S ────────────────────────────────────
   useEffect(() => {

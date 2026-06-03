@@ -11,6 +11,7 @@ import {
   getDocs,
   getDoc,
   setDoc,
+  runTransaction,
   where,
 } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebase/storage'
@@ -125,9 +126,49 @@ export async function createNote(
   return note as unknown as Note
 }
 
+/**
+ * Thrown when an optimistic-lock precondition fails: the remote doc's
+ * `updatedAt` has advanced past what the caller last observed, meaning another
+ * tab / collaborator wrote between the caller's last read and this write.
+ *
+ * Carries the freshest remote snapshot so the caller can surface it in a
+ * conflict UI (see useNoteEditor + the A1 Approach B banner in NotesView).
+ *
+ * Fixes WE-20260528-985 (same-tab race silently clobbers the other saver).
+ */
+export class NoteConflictError extends Error {
+  remote: Note
+  expectedUpdatedAtMillis: number
+  actualUpdatedAtMillis: number
+  constructor(remote: Note, expected: number, actual: number) {
+    super('Note has been modified by another writer')
+    this.name = 'NoteConflictError'
+    this.remote = remote
+    this.expectedUpdatedAtMillis = expected
+    this.actualUpdatedAtMillis = actual
+  }
+}
+
+export interface UpdateNoteOptions {
+  /**
+   * If provided, the write becomes optimistic-locked: the doc is read inside a
+   * transaction; if its `updatedAt.toMillis()` differs from this value the
+   * write is aborted and a `NoteConflictError` is thrown carrying the current
+   * remote snapshot. Use this on save paths where silent overwrites are data
+   * loss (the editor body); omit for metadata writes (folder, favorite, etc.)
+   * where last-writer-wins is acceptable.
+   *
+   * Pass `null` when the caller has never seen a remote `updatedAt` yet (e.g.
+   * the doc was just created and the local snapshot hasn't arrived); this
+   * skips the check the same as if the option were omitted.
+   */
+  expectedUpdatedAtMillis?: number | null
+}
+
 export async function updateNote(
   noteId: string,
-  updates: Partial<Note>
+  updates: Partial<Note>,
+  options?: UpdateNoteOptions
 ): Promise<void> {
   // Derive searchableText whenever content changes so body search (C1) stays
   // in sync without every caller having to remember to compute it.
@@ -136,9 +177,38 @@ export async function updateNote(
       ? { ...updates, searchableText: deriveSearchableText(updates.content) }
       : updates
 
-  await updateDoc(noteDoc(noteId), {
-    ...derived,
-    updatedAt: serverTimestamp(),
+  const expected = options?.expectedUpdatedAtMillis
+  // No precondition requested — preserve the old fast path. Metadata writes
+  // (folder rename, favorite toggle, etc.) hit this branch and remain
+  // last-writer-wins which is fine for those low-conflict fields.
+  if (expected === undefined || expected === null) {
+    await updateDoc(noteDoc(noteId), {
+      ...derived,
+      updatedAt: serverTimestamp(),
+    })
+    return
+  }
+
+  // Optimistic-lock path: read-then-write atomically. If updatedAt advanced
+  // between the caller's last subscription event and now, abort with a
+  // NoteConflictError carrying the freshest remote snapshot so the caller can
+  // surface the conflict banner instead of clobbering the other writer.
+  await runTransaction(db, async (tx) => {
+    const ref = noteDoc(noteId)
+    const snap = await tx.get(ref)
+    if (!snap.exists()) {
+      throw new Error(`Note ${noteId} no longer exists`)
+    }
+    const data = snap.data() as Note
+    const ts = data.updatedAt as { toMillis?: () => number } | null
+    const actual = ts?.toMillis?.() ?? 0
+    if (actual !== expected) {
+      throw new NoteConflictError({ ...data, id: snap.id }, expected, actual)
+    }
+    tx.update(ref, {
+      ...derived,
+      updatedAt: serverTimestamp(),
+    })
   })
 }
 
