@@ -395,6 +395,7 @@ const ChatInput = ({
             <textarea
               ref={textareaRef}
               data-ph-mask
+              aria-label="Message TheWeddingBot"
               value={inputText}
               onChange={e => onInputChange(e.target.value)}
               onKeyDown={e => {
