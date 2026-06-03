@@ -261,7 +261,7 @@ const ChatInput = ({
                 disabled={!onCancelRecording}
                 aria-label="Cancel recording"
                 title="Cancel"
-                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full border border-foreground/15 bg-foreground/[0.04] text-foreground/70 hover:text-foreground hover:bg-foreground/[0.08] hover:border-foreground/25 active:scale-95 transition-all flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full border border-foreground/15 bg-foreground/[0.04] text-foreground/70 hover:text-foreground hover:bg-foreground/[0.08] hover:border-foreground/25 active:scale-95 transition-all flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <X className="h-4 w-4 sm:h-[15px] sm:w-[15px]" />
               </button>
@@ -335,7 +335,7 @@ const ChatInput = ({
                 disabled={isTranscribing}
                 aria-label="Send voice message"
                 title="Send voice"
-                className="h-10 w-10 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary-light active:scale-95 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
+                className="h-11 w-11 sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary-light active:scale-95 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
               >
                 {isTranscribing ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -411,7 +411,9 @@ const ChatInput = ({
               }
               readOnly={voiceState === 'recording' || voiceState === 'transcribing'}
               rows={1}
-              className="flex-1 min-w-0 bg-transparent border-none text-foreground/90 py-2 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-foreground/40 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 min-h-[34px] sm:min-h-[36px]"
+              // WCAG 2.5.5 — single-row min-h 44px on mobile (≥44 touch target).
+              // Desktop keeps the slimmer 36px since pointer input has no minimum.
+              className="flex-1 min-w-0 bg-transparent border-none text-foreground/90 py-2.5 sm:py-2 px-2 sm:px-3 custom-scrollbar resize-none text-[15px] sm:text-sm leading-snug sm:leading-normal placeholder-foreground/40 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 min-h-[44px] sm:min-h-[36px]"
               style={{ maxHeight: `${maxHeight}px` }}
             />
 
@@ -450,7 +452,7 @@ const ChatInput = ({
                   : voiceState === 'transcribing' ? 'Transcribing…'
                   : 'Record voice message'
                 }
-                className={`${(hasContent || isTyping) && voiceState === 'idle' ? 'hidden sm:flex' : 'flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center transition-all active:scale-95 rounded-full flex-shrink-0 ${
+                className={`${(hasContent || isTyping) && voiceState === 'idle' ? 'hidden sm:flex' : 'flex'} h-11 w-11 sm:h-9 sm:w-9 items-center justify-center transition-all active:scale-95 rounded-full flex-shrink-0 ${
                   voiceState === 'recording' || voiceState === 'requesting'
                     ? 'text-destructive bg-destructive/15'
                     : voiceState === 'transcribing'
@@ -476,7 +478,7 @@ const ChatInput = ({
                   onClick={onStop}
                   aria-label="Stop generating reply"
                   title="Stop generating"
-                  className="h-10 w-10 sm:h-9 sm:w-9 flex items-center justify-center text-foreground/55 hover:text-foreground/80 rounded-full hover:bg-foreground/[0.08] active:scale-95 transition-all flex-shrink-0"
+                  className="h-11 w-11 sm:h-9 sm:w-9 flex items-center justify-center text-foreground/55 hover:text-foreground/80 rounded-full hover:bg-foreground/[0.08] active:scale-95 transition-all flex-shrink-0"
                 >
                   <StopCircle className="h-5 w-5 sm:h-4 sm:w-4" />
                 </button>
@@ -486,7 +488,7 @@ const ChatInput = ({
                   disabled={!hasContent || voiceState === 'recording' || voiceState === 'transcribing'}
                   aria-label="Send message"
                   title="Send"
-                  className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-10 w-10 sm:h-9 sm:w-9 items-center justify-center text-foreground rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
+                  className={`${hasContent ? 'flex' : 'hidden sm:flex'} h-11 w-11 sm:h-9 sm:w-9 items-center justify-center text-foreground rounded-full  active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md  flex-shrink-0`}
                 >
                   <Send className="h-5 w-5 sm:h-4 sm:w-4" />
                 </button>
