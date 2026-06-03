@@ -213,13 +213,25 @@ test('missing audioBase64 → 400, no STT call, no pref lookup', async () => {
   assert.equal(eventsOf('stt.pref_cache').length, 0)
 })
 
-test('STT throws → 500 with message, request error path clean', async () => {
+test('STT throws → 500 with scrubbed body (no internal error message leaked)', async () => {
   __setFirestoreFetcherForTests(fetcher({ exists: false }))
-  sttImpl = async () => { throw new Error('azure outage') }
+  // WE-20260527-209 (CWE-209): the controller must NEVER echo the underlying
+  // err.message — ffmpeg stderr leaks server temp paths through this path.
+  // Simulate an ffmpeg-style failure carrying an absolute path; verify the
+  // client payload is the generic shape and the leak string is absent.
+  sttImpl = async () => {
+    throw new Error(
+      'Audio conversion failed: /var/folders/gd/p3q5gbvd1cl4gn1p8j1t9c4r0000gn/T/viva-input-1779875900921.webm: Invalid data',
+    )
+  }
   const res = mkRes()
   await handleTranscribe(mkReq({ uid: 'u' }), res as any)
   assert.equal(res.statusCode, 500)
-  assert.ok(JSON.stringify(res.body).includes('azure outage'))
+  const bodyStr = JSON.stringify(res.body)
+  assert.ok(!bodyStr.includes('/var/folders'), 'response must not leak absolute temp paths')
+  assert.ok(!bodyStr.includes('viva-input-'), 'response must not leak temp file names')
+  assert.ok(!bodyStr.includes('Invalid data'), 'response must not leak ffmpeg stderr')
+  assert.deepEqual(res.body, { error: 'Audio could not be processed', code: 'TRANSCRIBE_FAILED' })
 })
 
 // ────────────────────────────────────────────────────────────────────────────
