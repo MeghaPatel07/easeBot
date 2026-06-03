@@ -258,6 +258,7 @@ export function AudioPlayer({ audioUrl, onEnded, onError, onClose, messageId, vo
           {onClose && (
             <button
               onClick={onClose}
+              aria-label="Close audio player"
               className="h-5 w-5 flex items-center justify-center text-foreground/40 hover:text-foreground/70 transition-colors"
             >
               <X size={12} />

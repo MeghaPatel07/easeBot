@@ -55,10 +55,10 @@ export const SidebarToggle: React.FC<{
   if (isSidebarOpen) return null;
   return (
     <div className="flex items-center gap-0.5 flex-shrink-0">
-      <Button onClick={onToggleSidebar} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-foreground/10 text-foreground/70" title="Open sidebar">
+      <Button onClick={onToggleSidebar} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-foreground/10 text-foreground/70" title="Open sidebar" aria-label="Open sidebar">
         <PanelLeft className="h-4 w-4 text-foreground/60" />
       </Button>
-      <Button onClick={onNewChat} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-foreground/10 text-foreground/70" title="New Chat">
+      <Button onClick={onNewChat} variant="ghost" className="h-8 w-8 p-0 rounded-full hover:bg-foreground/10 text-foreground/70" title="New Chat" aria-label="New chat">
         <SquarePen className="h-4 w-4 text-foreground/60" />
       </Button>
     </div>
@@ -82,6 +82,7 @@ export const ProfileIcon: React.FC<{
       onClick={onShowSettings}
       className="h-8 w-8 rounded-full bg-foreground/[0.06] hover:bg-foreground/[0.1] flex items-center justify-center transition-colors"
       title="Settings"
+      aria-label="Open settings"
     >
       <Avatar className="h-6 w-6">
         <AvatarImage src="" alt="Profile" />
