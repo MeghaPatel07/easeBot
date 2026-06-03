@@ -537,10 +537,15 @@ async function handleImageToolCall(
 
   let base64Images: string[] = []
 
+  // WE-20260527-227: editImageGptImage1 / generateImageGptImage1 now
+  // return `string[] | null` (null on failure). The post-call
+  // `base64Images.length === 0` check below already routes failure
+  // through the cancelled/failed branches, so we coalesce null → []
+  // here to preserve that flow.
   if (opts.imageBase64) {
     const sourceSize = await detectImageAspectRatio(opts.imageBase64)
     console.log(`[chatController] User attached image → edit mode | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-    base64Images = await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images, signal: opts.signal, distinctId: opts.distinctId })
+    base64Images = (await editImageGptImage1(opts.imageBase64, finalPrompt, sourceSize, { negativePrompt, referenceImages: args.reference_images, signal: opts.signal, distinctId: opts.distinctId })) ?? []
   } else if (imgAction === 'edit' && opts.lastGeneratedImageUrl) {
     try {
       console.log('[chatController] Iterative edit → fetching previous image from URL')
@@ -549,14 +554,14 @@ async function handleImageToolCall(
       const sourceBase64 = imgBuf.toString('base64')
       const sourceSize = await detectImageAspectRatio(sourceBase64)
       console.log(`[chatController] Iterative edit | source=${sourceSize}, llm_wanted=${llmChosenSize}`)
-      base64Images = await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt, signal: opts.signal, distinctId: opts.distinctId })
+      base64Images = (await editImageGptImage1(sourceBase64, finalPrompt, sourceSize, { negativePrompt, signal: opts.signal, distinctId: opts.distinctId })) ?? []
     } catch (fetchErr) {
       if ((fetchErr as Error).name === 'AbortError') throw fetchErr
       console.error('[chatController] Failed to fetch lastGeneratedImageUrl, falling back to generate:', fetchErr)
-      base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })
+      base64Images = (await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })) ?? []
     }
   } else {
-    base64Images = await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })
+    base64Images = (await generateImageGptImage1(finalPrompt, llmChosenSize, imgVariants as 1 | 2 | 3, { negativePrompt, onPartialImage: opts.onPartialImage, signal: opts.signal, distinctId: opts.distinctId })) ?? []
   }
 
   // Track which size was actually used for storage metadata
