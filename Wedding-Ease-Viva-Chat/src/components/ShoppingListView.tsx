@@ -547,9 +547,17 @@ export default function ShoppingListView({ userId }: ShoppingListViewProps) {
 
                     {/* Items */}
                     {sortedItems.length === 0 ? (
-                      <p className="text-xs text-foreground/40 text-center py-3">
-                        No items yet. Add your first item above.
-                      </p>
+                      <div className="flex flex-col items-center justify-center py-3 text-foreground/40">
+                        <p className="text-xs">No items yet.</p>
+                        {addingItemToListId !== list.id && (
+                          <button
+                            onClick={() => setAddingItemToListId(list.id)}
+                            className="mt-1.5 text-xs text-primary hover:underline"
+                          >
+                            + Add the first item
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       sortedItems.map(item => (
                         <div

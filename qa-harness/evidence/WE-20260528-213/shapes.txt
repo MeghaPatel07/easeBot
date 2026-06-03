@@ -1,0 +1,8 @@
+apiRateLimiter:
+  message: { error: 'Too many requests, please try again later.' }
+
+chatBurstRateLimiter:
+  res.status(429).json({ error: 'chat_burst_limit', retryAfter: 10 })
+
+imageRateLimiter:
+  message: { error: 'Too many requests, please try again later.' }

@@ -1,0 +1,1 @@
+Reproducer: see ticket WE-20260527-201 description. Firebase token error verbose leak via src/middleware/auth.ts:48.

@@ -1,0 +1,11 @@
+$ node -e "...sanitizer copy..."
+Before: {"message":"hi","history":[{"role":"user","content":"<NUL><BEL>evil<ESC>[31m"}]}
+After:  {"message":"hi","history":[{"role":"user","content":"<NUL><BEL>evil<ESC>[31m"}]}
+
+→ history[].content is unchanged. Control bytes (NUL, BEL, ESC) pass through.
+
+Conversely:
+Before: {"message":"<NUL>hi<ESC>[31m"}
+After:  {"message":"hi"}   ← top-level message is stripped + trimmed
+
+Confirms the allowlist (SANITIZE_FIELDS) only matches the literal field names 'message' and 'prompt'. Nested fields with other names are not covered.

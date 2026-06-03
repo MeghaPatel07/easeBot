@@ -206,6 +206,11 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
     setTitleValue(note?.title || '');
   }, [note?.id, note?.title]);
 
+  // WE-20260528-870: soft cap at 80 chars to prevent 200-char paste from
+  // overflowing the editor header / surfacing awkwardly in shared metadata.
+  // Pre-existing long titles are NOT migrated server-side — see ticket.
+  const TITLE_MAX = 80;
+
   const handleTitleBlur = () => {
     const trimmed = titleValue.trim();
     if (trimmed !== note?.title) onUpdateTitle(trimmed || 'Untitled');
@@ -244,7 +249,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
         {!readOnly ? (
           <Popover>
             <PopoverTrigger asChild>
-              <button className="text-xl hover:bg-foreground/10 rounded-lg p-1 transition-colors flex-shrink-0" title="Change icon">
+              <button className="text-xl hover:bg-foreground/10 rounded-lg p-1 transition-colors flex-shrink-0" title="Change icon" aria-label="Change note icon">
                 {note.icon || '📝'}
               </button>
             </PopoverTrigger>
@@ -267,19 +272,33 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
           <span className="text-xl p-1 flex-shrink-0">{note.icon || '📝'}</span>
         )}
 
-        {/* Title */}
+        {/* Title — WE-20260528-870: cap at 80 chars, truncate read-only fallback */}
         {readOnly ? (
-          <h1 className="text-xl font-headline text-foreground flex-1 truncate">{note.title || 'Untitled'}</h1>
+          <h1 className="flex-1 min-w-0 max-w-full text-xl font-headline text-foreground truncate">{note.title || 'Untitled'}</h1>
         ) : (
-          <input
-            ref={titleRef}
-            value={titleValue}
-            onChange={e => setTitleValue(e.target.value)}
-            onBlur={handleTitleBlur}
-            onKeyDown={handleTitleKeyDown}
-            placeholder="Untitled"
-            className="flex-1 text-xl font-headline text-foreground bg-transparent border-none outline-none placeholder-foreground/25 min-w-0"
-          />
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <input
+              ref={titleRef}
+              value={titleValue}
+              onChange={e => setTitleValue(e.target.value.slice(0, TITLE_MAX))}
+              onBlur={handleTitleBlur}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="Untitled"
+              maxLength={TITLE_MAX}
+              aria-label="Note title"
+              className="flex-1 text-xl font-headline text-foreground bg-transparent border-none outline-none placeholder-foreground/25 min-w-0 truncate"
+            />
+            {titleValue.length >= TITLE_MAX - 10 && (
+              <span
+                className={`text-[10px] tabular-nums flex-shrink-0 ${
+                  titleValue.length >= TITLE_MAX ? 'text-warning' : 'text-foreground/40'
+                }`}
+                aria-live="polite"
+              >
+                {titleValue.length}/{TITLE_MAX}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Read-only badge */}
@@ -301,6 +320,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                   type="button"
                   onClick={() => editor.chain().focus().undo().run()}
                   disabled={!editor.can().undo()}
+                  aria-label="Undo"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <Undo2 className="h-3.5 w-3.5" />
@@ -317,6 +337,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                   type="button"
                   onClick={() => editor.chain().focus().redo().run()}
                   disabled={!editor.can().redo()}
+                  aria-label="Redo"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <Redo2 className="h-3.5 w-3.5" />
@@ -341,6 +362,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                       console.error('Copy failed:', err);
                     }
                   }}
+                  aria-label="Copy selection"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors"
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -367,6 +389,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                       console.error('Cut failed:', err);
                     }
                   }}
+                  aria-label="Cut selection"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors"
                 >
                   <Scissors className="h-3.5 w-3.5" />
@@ -390,6 +413,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
                       console.error('Paste failed:', err);
                     }
                   }}
+                  aria-label="Paste"
                   className="h-7 w-7 flex items-center justify-center rounded-md text-foreground/50 hover:text-foreground hover:bg-foreground/10 transition-colors"
                 >
                   <ClipboardPaste className="h-3.5 w-3.5" />
@@ -479,11 +503,12 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
               <Button
                 onClick={onToggleComments}
                 variant="ghost"
+                aria-label={`Comments${(commentsCount ?? 0) > 0 ? `, ${commentsCount} new` : ''}`}
                 className="h-8 w-8 rounded-lg hover:bg-foreground/10 text-foreground/50 p-0 relative"
               >
                 <MessageSquare className="h-3.5 w-3.5" />
                 {(commentsCount ?? 0) > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-medium px-1">
+                  <span aria-hidden="true" className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-primary text-[9px] text-primary-foreground flex items-center justify-center font-medium px-1">
                     {commentsCount}
                   </span>
                 )}
@@ -530,7 +555,7 @@ const NoteHeader: React.FC<NoteHeaderProps> = ({
         {/* More menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 rounded-lg hover:bg-foreground/10 text-foreground/50 p-0">
+            <Button variant="ghost" aria-label="More note actions" className="h-8 w-8 rounded-lg hover:bg-foreground/10 text-foreground/50 p-0">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { ToastAction } from '@/components/ui/toast'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Accordion,
@@ -125,14 +126,49 @@ export default function Help() {
 
   // ── Submit ───────────────────────────────────────────────────────────────
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const error = validate()
-    if (error) {
-      toast({ title: 'Validation error', description: error, variant: 'destructive' })
-      return
+  // Classify an error from addDoc/network into a user-facing reason + recovery copy.
+  // We treat the form state as the retry payload — it isn't reset on failure,
+  // so the user's input is preserved for re-submission.
+  const classifyError = (
+    err: unknown,
+  ): { title: string; description: string } => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return {
+        title: 'No internet connection',
+        description:
+          'Your message is still here. Reconnect and tap Try again, or email theweddingease@gmail.com.',
+      }
     }
+    const e = err as { code?: string; message?: string } | undefined
+    const code = e?.code ?? ''
+    // Firestore offline / unavailable -> server-side transient
+    if (
+      code === 'unavailable' ||
+      code === 'deadline-exceeded' ||
+      code === 'internal'
+    ) {
+      return {
+        title: 'Server hiccup',
+        description:
+          'Our server is having a moment. Try again in a few seconds — or email theweddingease@gmail.com.',
+      }
+    }
+    // Auth / permission -> 4xx-ish
+    if (code === 'permission-denied' || code === 'unauthenticated') {
+      return {
+        title: 'Couldn’t submit ticket',
+        description:
+          'Please check your details and try again. If this keeps happening, email theweddingease@gmail.com.',
+      }
+    }
+    return {
+      title: 'Something went wrong',
+      description:
+        (e?.message ?? 'Please try again. If it persists, email theweddingease@gmail.com.'),
+    }
+  }
 
+  const submitTicket = async () => {
     setSubmitting(true)
     try {
       await addDoc(collection(db, 'support_tickets'), {
@@ -152,7 +188,7 @@ export default function Help() {
         description: 'Thanks for reaching out! We\'ll get back to you soon.',
       })
 
-      // Reset form
+      // Reset form only on success
       setCategory('')
       setSubject('')
       setDescription('')
@@ -160,20 +196,42 @@ export default function Help() {
       setGuestName('')
       setGuestEmail('')
     } catch (err) {
+      const { title, description: desc } = classifyError(err)
       toast({
-        title: 'Something went wrong',
-        description: (err as Error)?.message ?? 'Please try again later.',
+        title,
+        description: desc,
         variant: 'destructive',
+        action: (
+          <ToastAction
+            altText="Try submitting the ticket again"
+            onClick={() => {
+              // Form state is preserved; re-invoke the same submit path.
+              void submitTicket()
+            }}
+          >
+            Try again
+          </ToastAction>
+        ),
       })
     } finally {
       setSubmitting(false)
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const error = validate()
+    if (error) {
+      toast({ title: 'Validation error', description: error, variant: 'destructive' })
+      return
+    }
+    await submitTicket()
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="gradient-bg min-h-screen text-foreground/90/85 font-body">
+    <div className="gradient-bg min-h-screen text-foreground/85 font-body">
       {/* Background blurs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -185,7 +243,7 @@ export default function Help() {
         <Link
           to="/"
           aria-label="Back to TheWeddingBot home"
-          className="inline-flex items-center gap-2 text-sm text-foreground/90 hover:text-foreground/90/90 transition mb-8"
+          className="inline-flex items-center gap-2 text-sm text-foreground/90 hover:text-foreground transition mb-8"
         >
           <ArrowLeft className="h-4 w-4" /> Back to TheWeddingBot
         </Link>
@@ -237,7 +295,7 @@ export default function Help() {
                     value={`faq-${i}`}
                     className="border-border/40"
                   >
-                    <AccordionTrigger className="text-left text-foreground/90/90 hover:text-primary hover:no-underline py-5 text-[15px]">
+                    <AccordionTrigger className="text-left text-foreground/90 hover:text-primary hover:no-underline py-5 text-[15px]">
                       {item.q}
                     </AccordionTrigger>
                     <AccordionContent className="text-foreground/90 leading-relaxed text-sm">
@@ -257,22 +315,33 @@ export default function Help() {
                 {!isLoggedIn && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-foreground/90 text-sm">Your name</Label>
+                      <Label htmlFor="help-guest-name" className="text-foreground/90 text-sm">
+                        Your name
+                      </Label>
                       <Input
+                        id="help-guest-name"
+                        name="name"
+                        type="text"
+                        autoComplete="name"
                         value={guestName}
                         onChange={(e) => setGuestName(e.target.value)}
                         placeholder="Jane Doe"
-                        className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
+                        className="border-0 text-foreground/90 placeholder:text-foreground/50"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-foreground/90 text-sm">Email</Label>
+                      <Label htmlFor="help-guest-email" className="text-foreground/90 text-sm">
+                        Email
+                      </Label>
                       <Input
+                        id="help-guest-email"
+                        name="email"
                         type="email"
+                        autoComplete="email"
                         value={guestEmail}
                         onChange={(e) => setGuestEmail(e.target.value)}
                         placeholder="jane@example.com"
-                        className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
+                        className="border-0 text-foreground/90 placeholder:text-foreground/50"
                       />
                     </div>
                   </div>
@@ -285,7 +354,7 @@ export default function Help() {
                     value={category}
                     onValueChange={(v) => setCategory(v as TicketCategory)}
                   >
-                    <SelectTrigger className="border-0 text-foreground/90/90">
+                    <SelectTrigger className="border-0 text-foreground/90">
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -305,7 +374,7 @@ export default function Help() {
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="Brief summary of your issue or idea"
-                    className="border-0 text-foreground/90/90 placeholder:text-foreground/50"
+                    className="border-0 text-foreground/90 placeholder:text-foreground/50"
                   />
                 </div>
 
@@ -317,7 +386,7 @@ export default function Help() {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Tell us more (at least 20 characters)..."
                     rows={5}
-                    className="border-0 text-foreground/90/90 placeholder:text-foreground/50 resize-none"
+                    className="border-0 text-foreground/90 placeholder:text-foreground/50 resize-none"
                   />
                   <p className="text-xs text-foreground/50">
                     {description.trim().length}/20 characters minimum

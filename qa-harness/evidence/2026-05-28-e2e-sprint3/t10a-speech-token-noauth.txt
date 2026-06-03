@@ -1,0 +1,25 @@
+HTTP/1.1 200 OK
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-origin
+Origin-Agent-Cluster: ?1
+Referrer-Policy: no-referrer
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+Access-Control-Allow-Origin: *
+RateLimit-Policy: 30;w=60
+RateLimit-Limit: 30
+RateLimit-Remaining: 21
+RateLimit-Reset: 34
+Content-Type: application/json; charset=utf-8
+Content-Length: 774
+ETag: W/"306-8kqoTIGNh5gwEjXnGUa61Ntnohw"
+Date: Thu, 28 May 2026 09:21:28 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"token":"eyJhbGciOiJFUzI1NiIsImtpZCI6ImtleTEiLCJ0eXAiOiJKV1QifQ.eyJyZWdpb24iOiJlYXN0dXMiLCJzdWJzY3JpcHRpb24taWQiOiIyMjRiNjIzN2EyMWE0N2YwYWIxOTUzZThkY2ZkN2ZlNyIsInByb2R1Y3QtaWQiOiJTcGVlY2hTZXJ2aWNlcy5GMCIsImNvZ25pdGl2ZS1zZXJ2aWNlcy1lbmRwb2ludCI6Imh0dHBzOi8vYXBpLmNvZ25pdGl2ZS5taWNyb3NvZnQuY29tL2ludGVybmFsL3YxLjAvIiwiYXp1cmUtcmVzb3VyY2UtaWQiOiIvc3Vic2NyaXB0aW9ucy8wYzM1NTY2NC0zMDMzLTRmZDgtOWQwMC0xOTA0ZTVmMTgzN2IvcmVzb3VyY2VHcm91cHMvT3BlbkFJL3Byb3ZpZGVycy9NaWNyb3NvZnQuQ29nbml0aXZlU2VydmljZXMvYWNjb3VudHMvRWFzZUJvdCIsInNjb3BlIjoic3BlZWNoc2VydmljZXMiLCJhdWQiOiJ1cm46bXMuc3BlZWNoc2VydmljZXMuZWFzdHVzIiwiZXhwIjoxNzc5OTYwNjg4LCJpc3MiOiJ1cm46bXMuY29nbml0aXZlc2VydmljZXMifQ.mBfwYAcXwcH8BrCMNKNUL2mNvhG9QQ181jy-D6-UY-5prirma31uzJPu1joI18WqmFRZlhWGrBhFW9jEYdqMTQ","region":"eastus"}

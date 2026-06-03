@@ -1,0 +1,7 @@
+=== Zero-width char bypass ===
+
+Message: U+200B U+200C U+200D U+FEFF
+Response: HTTP 200
+{"text":"It seems like you might have something on your mind! How can I help with your wedding planning today?","audioUrl":null,"imageUrl":null,...}
+
+→ LLM call completed, tokens billed, quota decremented for an effectively-empty input.

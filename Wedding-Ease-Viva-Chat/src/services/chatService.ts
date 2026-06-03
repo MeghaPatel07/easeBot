@@ -320,6 +320,43 @@ function pruneUndefined<T>(obj: T): T {
   return obj
 }
 
+/**
+ * Sanitize a user-controlled thread title before writing it to a publicly
+ * readable Firestore doc (`sharedChats/*`). Defense-in-depth against
+ * Markdown/HTML injection — see WE-20260528-107.
+ *
+ * Strips:
+ *   - HTML tags (`<script>`, `<img onerror=…>`, anchors, etc.)
+ *   - Markdown link syntax `[label](url)` → keeps `label`, drops the URL
+ *     (defangs `javascript:`-scheme links)
+ *   - Stray `<` and `>` characters (belt-and-suspenders)
+ *
+ * Also trims whitespace and caps length at 80 chars so a malicious title
+ * cannot bloat storage or overflow the share-page header.
+ *
+ * Pair with plain-text rendering at the consumer (no Markdown component
+ * wraps the title in `SharedChat.tsx`).
+ */
+export function sanitizeShareTitle(rawTitle: string | null | undefined): string {
+  let s = (rawTitle || '').replace(/<[^>]+>/g, '') // strip HTML tags
+
+  // Strip Markdown link syntax `[label](url)` — keep only the label.
+  // The URL may contain balanced parens (e.g. `javascript:alert(1)`), so we
+  // allow one level of nested parens inside the URL group, then sweep any
+  // residual `[label](…)` until the string stabilizes.
+  const mdLink = /\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g
+  let prev: string
+  do {
+    prev = s
+    s = s.replace(mdLink, '$1')
+  } while (s !== prev)
+
+  return s
+    .replace(/[<>[\]()]/g, '') // belt-and-suspenders: drop stray brackets
+    .trim()
+    .slice(0, 80)
+}
+
 /** Create a shareable snapshot of a conversation */
 export async function createSharedChat(threadId: string, threadTitle: string): Promise<string> {
   const msgSnap = await getDocs(
@@ -342,8 +379,12 @@ export async function createSharedChat(threadId: string, threadTitle: string): P
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 7) // 7-day expiry
 
+  // SECURITY (WE-20260528-107): always sanitize before writing to the
+  // publicly readable `sharedChats` collection — never trust the caller.
+  const cleanTitle = sanitizeShareTitle(threadTitle)
+
   const shareRef = await addDoc(collection(db, 'sharedChats'), {
-    threadTitle,
+    threadTitle: cleanTitle,
     messages,
     sharedAt: serverTimestamp(),
     expiresAt,

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-865</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .err { color: var(--err); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-865 · PersonalizationTab textareas: maxLength + warning-color counter <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-frontend ·
+        <b>Branch</b>: <code>fix-WE-20260528-865</code> &rarr; <code>Bug-Resolve-claude</code> ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260528-865</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      <code>PersonalizationTab.tsx</code> "About you" and "Response style" textareas cap input at 1500 chars
+      (<code>CUSTOM_INSTRUCTIONS_MAX</code>). A counter exists but doesn't visually warn users when they are
+      approaching the cap — it stays at the same muted style at 1/1500 and at 1499/1500. Users have no warning
+      they are about to hit the cap.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Read ticket WE-20260528-865 + reviewed code at PersonalizationTab.tsx:395-422.</div>
+        <div class="detail">
+          maxLength + counter already present, but counter uses static <code>text-foreground/90</code> regardless of fill level.
+          Pattern from PR #74 (WE-20260528-870 NoteHeader) is the reference: show counter only near cap, color-shift to <code>text-warning</code> at cap.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Diagnosed: counters need warning-color logic within 100 chars of cap (per ticket spec).</div>
+        <div class="detail">
+          Project style for warning is <code>text-warning</code> (defined in <code>tailwind.config.ts</code> &rarr; HSL var <code>--warning</code>).
+          Pattern matched to NoteHeader: muted color &gt;100 chars from cap, warning color within 100 chars.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Implemented: counter color now switches to <code>text-warning</code> when remaining &le; 100 chars; muted otherwise. Added <code>tabular-nums</code> for stable width and <code>aria-live="polite"</code> on the counter.</div>
+        <div class="detail">
+          maxLength={1500} already on both textareas — kept as-is (defensive cap also via slice in onChange).
+          Smallest possible change — only counter className + tabular-nums + aria-live added.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29</div>
+        <div class="what">Ran <code>npx tsc --noEmit -p tsconfig.app.json</code> — no new errors.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Code-level diff against PersonalizationTab.tsx (lines 402-407 and 426-431)</li>
+      <li>Reference pattern from WE-20260528-870 (NoteHeader title counter)</li>
+      <li>PersonalizationTab tab is currently hidden from nav (SettingsShell.tsx:81) — fix is preventive for when tab is re-enabled.</li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">no new errors</td></tr>
+        <tr><td>Visual (manual reasoning)</td><td>—</td><td class="ok">color-shift triggers at 1400/1500</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>Wedding-Ease-Viva-Chat/src/pages/settings/tabs/PersonalizationTab.tsx</pre>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/81">https://github.com/MeghaPatel07/easeBot/pull/81</a></p>
+
+    <footer>
+      Generated by fix-frontend · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

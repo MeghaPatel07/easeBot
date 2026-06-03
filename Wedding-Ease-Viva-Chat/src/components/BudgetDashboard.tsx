@@ -405,8 +405,17 @@ export default function BudgetDashboard({ userId }: BudgetDashboardProps) {
             : `${budget.categories.length} categor${budget.categories.length === 1 ? 'y' : 'ies'} tracked`}
         </p>
         <div className="flex gap-3 text-2xs font-medium">
-          <span className={statusColors[overallStatus].text}>{overallPct}% used</span>
-          <span className={remaining >= 0 ? 'text-success' : 'text-destructive'}>{fmt.format(Math.abs(remaining))} {remaining >= 0 ? 'left' : 'over'}</span>
+          {budget.categories.length === 0 ? (
+            <>
+              <span className="text-foreground/40">—% used</span>
+              <span className="text-foreground/40">— left</span>
+            </>
+          ) : (
+            <>
+              <span className={statusColors[overallStatus].text}>{overallPct}% used</span>
+              <span className={remaining >= 0 ? 'text-success' : 'text-destructive'}>{fmt.format(Math.abs(remaining))} {remaining >= 0 ? 'left' : 'over'}</span>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -90,6 +90,30 @@ export function SettingsModal({ open, onClose }: Props) {
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null)
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null)
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  // WCAG 1.4.2 — track the active blob URL so we can revoke on cancel/close/unmount
+  const previewUrlRef = useRef<string | null>(null)
+  // Monotonic token to invalidate any in-flight requestTTS whose user intent has been
+  // superseded by a newer click, modal close, or unmount. Prevents stale audio from
+  // ever calling .play() after the user has moved on (race fix).
+  const previewTokenRef = useRef(0)
+
+  // Cancel any in-flight or playing preview. Invalidates the token, pauses the
+  // current <audio>, revokes the blob URL, and clears UI state. Safe to call
+  // multiple times.
+  const stopPreview = () => {
+    previewTokenRef.current += 1
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause()
+      previewAudioRef.current.src = ''
+      previewAudioRef.current = null
+    }
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+    setPreviewingVoiceId(null)
+    setPreviewLoadingId(null)
+  }
 
   useEffect(() => {
     if (open) {
@@ -99,39 +123,68 @@ export function SettingsModal({ open, onClose }: Props) {
       setSaveState('idle')
       setActiveTab('identity')
     } else {
-      previewAudioRef.current?.pause()
-      setPreviewingVoiceId(null)
-      setPreviewLoadingId(null)
+      stopPreview()
     }
+    // stopPreview is stable (only touches refs/setters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, profile])
+
+  // Component unmount: kill any lingering audio + revoke URLs. Belt-and-braces
+  // for WCAG 1.4.2 in case the parent unmounts the modal without flipping `open`.
+  useEffect(() => {
+    return () => { stopPreview() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const previewVoice = async (presetId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (previewAudioRef.current) {
-      previewAudioRef.current.pause()
-      previewAudioRef.current = null
-    }
-    if (previewingVoiceId === presetId) {
-      setPreviewingVoiceId(null)
+    // Toggle off when the same preview button is clicked again.
+    if (previewingVoiceId === presetId || previewLoadingId === presetId) {
+      stopPreview()
       return
     }
+    // Cancel anything that was already playing/loading for a different voice.
+    stopPreview()
     const preset = getVoicePreset(presetId)
     if (!preset) return
     const storedLang = profile?.preferredLanguage
     const language = (storedLang && storedLang !== 'auto') ? storedLang : 'en'
+    // Capture the token AFTER stopPreview() bumped it, then watch for any
+    // further bump while we're awaiting the network.
+    const token = previewTokenRef.current
     setPreviewLoadingId(presetId)
     try {
       const audioUrl = await requestTTS({ text: preset.sampleText, voiceName: preset.geminiVoiceName, language })
+      // If the user clicked a different preview, closed the modal, or unmounted
+      // while we were waiting, do NOT start playback. Revoke the orphan URL.
+      if (previewTokenRef.current !== token) {
+        URL.revokeObjectURL(audioUrl)
+        return
+      }
       const audio = new Audio(audioUrl)
       previewAudioRef.current = audio
+      previewUrlRef.current = audioUrl
       setPreviewingVoiceId(presetId)
-      audio.onended = () => { setPreviewingVoiceId(null); URL.revokeObjectURL(audioUrl) }
-      audio.onerror = () => { setPreviewingVoiceId(null); URL.revokeObjectURL(audioUrl) }
-      audio.play().catch(() => { setPreviewingVoiceId(null); URL.revokeObjectURL(audioUrl) })
+      const cleanup = () => {
+        setPreviewingVoiceId(null)
+        if (previewUrlRef.current === audioUrl) {
+          URL.revokeObjectURL(audioUrl)
+          previewUrlRef.current = null
+        }
+        if (previewAudioRef.current === audio) {
+          previewAudioRef.current = null
+        }
+      }
+      audio.onended = cleanup
+      audio.onerror = cleanup
+      audio.play().catch(cleanup)
     } catch {
       setPreviewingVoiceId(null)
     } finally {
-      setPreviewLoadingId(null)
+      // Only clear the loading flag if it still belongs to this request.
+      if (previewTokenRef.current === token) {
+        setPreviewLoadingId(null)
+      }
     }
   }
 

@@ -37,6 +37,10 @@ export function DowngradeFlow({
   const [step, setStep] = useState<Step>('confirm')
   const [error, setError] = useState<string | null>(null)
   const [periodEnd, setPeriodEnd] = useState<string | null>(null)
+  // aria-live announcement string for step transitions — WCAG 4.1.3 Status
+  // Messages. SR users hear a short narration whenever the visible step
+  // changes (e.g. "Scheduling your downgrade", "Downgrade scheduled").
+  const [statusAnnounce, setStatusAnnounce] = useState('')
 
   const tierLabel = (t: string) =>
     t === 'promax' ? 'Pro Max' : t === 'pro' ? 'Pro' : t.charAt(0).toUpperCase() + t.slice(1)
@@ -47,6 +51,7 @@ export function DowngradeFlow({
       setStep('confirm')
       setError(null)
       setPeriodEnd(null)
+      setStatusAnnounce(`Confirm downgrade to ${tierLabel(targetTier)}.`)
       track('downgrade_flow_opened', { from_tier: currentTier, to_tier: targetTier })
       void getCurrentSubscription()
         .then((sub) => {
@@ -61,27 +66,35 @@ export function DowngradeFlow({
           }
         })
         .catch(() => {})
+    } else {
+      // Clear announce when dialog closes so reopening re-fires the message.
+      setStatusAnnounce('')
     }
   }, [open])
 
   const handleConfirm = useCallback(async () => {
     setStep('loading')
     setError(null)
+    setStatusAnnounce('Scheduling your downgrade. Please wait.')
     try {
       const clientRequestId = `downgrade_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
       await downgradeSubscription(clientRequestId)
       track('downgrade_completed', { from_tier: currentTier, to_tier: targetTier })
       setStep('success')
+      setStatusAnnounce(`Downgrade scheduled. Your plan will switch to ${tierLabel(targetTier)} at the end of the current billing period.`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
+      let nextErr: string
       if (msg.includes('409')) {
-        setError('Your current plan cannot be downgraded. It may already be scheduled.')
+        nextErr = 'Your current plan cannot be downgraded. It may already be scheduled.'
       } else if (msg.includes('401')) {
-        setError('Please sign in again to continue.')
+        nextErr = 'Please sign in again to continue.'
       } else {
-        setError('Something went wrong. Please try again.')
+        nextErr = 'Something went wrong. Please try again.'
       }
+      setError(nextErr)
       setStep('error')
+      setStatusAnnounce(`Downgrade failed. ${nextErr}`)
     }
   }, [currentTier, targetTier])
 
@@ -93,6 +106,14 @@ export function DowngradeFlow({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
+        {/*
+          aria-live region — narrates step transitions to screen-reader users
+          per WCAG 4.1.3 Status Messages. Visually hidden, polite priority so
+          it never interrupts active speech.
+        */}
+        <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {statusAnnounce}
+        </div>
         <DialogHeader>
           <DialogTitle className="font-headline text-xl text-foreground">
             {step === 'success'

@@ -377,8 +377,16 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                 activeNoteId={activeNoteId}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                onSelectNote={(noteId) => { handleSelectNote(noteId); setNotesPickerOpen(false); }}
-                onCreateNote={(folderId) => { guardedCreateNote(folderId); setNotesPickerOpen(false); }}
+                onSelectNote={(noteId) => {
+                  // Close picker BEFORE switching notes so the modal-like popover
+                  // unmounts in the same commit as the activeNoteId change.
+                  // Without this ordering the popover overlays the editor for one
+                  // frame while the TipTap content reset is in flight, producing
+                  // the cross-render flash described in WE-20260528-887.
+                  setNotesPickerOpen(false);
+                  handleSelectNote(noteId);
+                }}
+                onCreateNote={(folderId) => { setNotesPickerOpen(false); guardedCreateNote(folderId); }}
                 onDeleteNote={deleteNote}
                 onRenameNote={(noteId, title) => updateNote(noteId, { title })}
                 onRestoreNote={handleRestoreNote}
@@ -589,6 +597,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                   }}
                 >
                   <NoteEditor
+                    key={note.id}
                     noteId={note.id}
                     content={note.content}
                     onUpdate={updateContent}

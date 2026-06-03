@@ -1,0 +1,41 @@
+# Sprint 3 brief adversarial item #9: "Image edit mode — generate image, then
+# edit it with new prompt — does it preserve aspect ratio per
+# project_backend_structure?"
+
+# Source: easebot-backend/src/controllers/imageController.ts
+
+# Lines 5-13:
+export async function handleGenerateImage(req, res) {
+  const { prompt, imageBase64, imageMimeType, preferredAspectRatio } = req.body
+  const quality = preferredAspectRatio?.includes('1536') ? 'hd' : 'standard'   // ← preferredAspectRatio is used HERE only for quality
+
+# Line 50 — the image-edit branch:
+  if (imageBase64 && prompt?.trim() && (isImageRequest(prompt) || isImageEditRequest(prompt))) {
+    const imageUrl = await editImageGptImage1(imageBase64, prompt.trim(), '1024x1024', { distinctId: phDistinctId })
+                                                                            // ↑ HARDCODED size — preferredAspectRatio is dropped on the floor
+  }
+
+# editImageGptImage1 signature accepts size and passes it down to Azure:
+$ grep -n "editImageGptImage1" easebot-backend/src/services/imageGeneration.ts
+351: export async function editImageGptImage1(imageBase64, prompt, size: ImageSize = '1024x1024', options?) {
+...
+375:   () => callAzureImageEdit(config.endpoint, ..., size, true, options?.referenceImages, options?.signal)
+
+# Yet the system prompt that drives the chat-mode tool call documents the
+# OPPOSITE behavior (imageGeneration.ts:76-81):
+aspect_ratio: {
+  type: 'string',
+  enum: ['1024x1024', '1024x1536', '1536x1024', '1024x1792'],
+  description:
+    'Image dimensions. For "generate": use portrait (1024x1536) for attire/people/full-body shots, landscape (1536x1024) for venues/decor/wide scenes, square (1024x1024) for close-ups/details/invitations, tall (1024x1792) for timelines/infographics/step-by-step visual content. For "edit": DO NOT set this — the system will automatically preserve the original image\'s aspect ratio.',
+                                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+}
+
+# So the LLM is told edits will preserve aspect; the runtime hardcodes 1024x1024.
+# Net effect: every image edit comes back as a 1024x1024 SQUARE — destroying any
+# portrait (1024x1536) or landscape (1536x1024) the user originally generated.
+
+# This affects:
+# - Direct /api/generate-image POST with imageBase64 + prompt
+# - Chat-mode tool calls when the user uploads an attire photo and asks for edits
+# - Vibe mode edits on previously generated images

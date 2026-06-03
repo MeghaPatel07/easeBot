@@ -1,0 +1,975 @@
+{
+  "desktop": {
+    "home": {
+      "title": "TheWeddingBot - Your Personal Wedding Planning Assistant",
+      "lang": "en",
+      "landmarks": {
+        "main": 1,
+        "nav": 1,
+        "header": 1,
+        "footer": 0
+      },
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Hi!   I'm here to help..."
+        }
+      ],
+      "h1Count": 0,
+      "firstFocusable": {
+        "tag": "DIV",
+        "text": "",
+        "href": null
+      },
+      "imgs": 5,
+      "imgsMissingAlt": [],
+      "imgsEmptyAlt": 3,
+      "buttonsTotal": 43,
+      "buttonsNoLabel": [],
+      "linksNoText": [],
+      "inputsTotal": 2,
+      "inputsNoLabel": [
+        "<input data-lov-id=\"src/pages/Index.tsx:1611:14\" data-lov-name=\"input\" data-component-path=\"src/pages/Index.tsx\" data-component-line=\"1611\" data-component-file=\"Index.tsx\" data-component-name=\"input\" data-component-conte",
+        "<textarea data-lov-id=\"src/components/chat/ChatInput.tsx:412:12\" data-lov-name=\"textarea\" data-component-path=\"src/components/chat/ChatInput.tsx\" data-component-line=\"412\" data-component-file=\"ChatInput.tsx\" data-compone"
+      ],
+      "elementsWithOutlineNone": 48,
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 40,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:335:12\" data-lov-name=\"Button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"335\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 40,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:352:14\" data-lov-name=\"Button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"352\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 220,
+          "h": 40,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:500:12\" data-lov-name=\"button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"500\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 220,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:549:16\" data-lov-name=\"button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"549\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 220,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:553:16\" data-lov-name=\"button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"553\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 220,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:557:16\" data-lov-name=\"button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"557\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 194,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:568:18\" data-lov-name=\"button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"568\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 48,
+          "h": 20,
+          "html": "<button data-lov-id=\"src/components/chat/ChatHeader.tsx:127:8\" data-lov-name=\"button\" data-component-path=\"src/components/chat/ChatHeader.tsx\" data-component-line=\"127\" data-component-file=\"ChatHeader"
+        }
+      ],
+      "smallTargetsCount": 37,
+      "ariaLiveRegions": 0,
+      "dialogs": [
+        {
+          "ariaLabel": "Analytics consent",
+          "ariaLabelledby": null,
+          "ariaDescribedby": null
+        }
+      ],
+      "divOnClick": 0
+    },
+    "pricing": {
+      "title": "TheWeddingBot - Your Personal Wedding Planning Assistant",
+      "lang": "en",
+      "landmarks": {
+        "main": 0,
+        "nav": 0,
+        "header": 1,
+        "footer": 0
+      },
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Plans That Grow With Your Wedding"
+        },
+        {
+          "level": "H2",
+          "text": "Free"
+        },
+        {
+          "level": "H2",
+          "text": "Pro"
+        },
+        {
+          "level": "H2",
+          "text": "Pro Max"
+        },
+        {
+          "level": "H2",
+          "text": "Compare Plans in Detail"
+        },
+        {
+          "level": "H2",
+          "text": "Frequently Asked Questions"
+        }
+      ],
+      "h1Count": 1,
+      "firstFocusable": {
+        "tag": "DIV",
+        "text": "",
+        "href": null
+      },
+      "imgs": 1,
+      "imgsMissingAlt": [],
+      "imgsEmptyAlt": 1,
+      "buttonsTotal": 13,
+      "buttonsNoLabel": [],
+      "linksNoText": [],
+      "inputsTotal": 1,
+      "inputsNoLabel": [],
+      "elementsWithOutlineNone": 19,
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/Pricing.tsx:395:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"395\" data-component-file=\"Pricing.tsx\" data-component-name=\"Link\" dat"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 79,
+          "h": 36,
+          "html": "<button data-lov-id=\"src/pages/Pricing.tsx:424:12\" data-lov-name=\"button\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"424\" data-component-file=\"Pricing.tsx\" data-component-name=\"b"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 154,
+          "h": 36,
+          "html": "<button data-lov-id=\"src/pages/Pricing.tsx:424:12\" data-lov-name=\"button\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"424\" data-component-file=\"Pricing.tsx\" data-component-name=\"b"
+        },
+        {
+          "tag": "SELECT",
+          "w": 62,
+          "h": 36,
+          "html": "<select data-lov-id=\"src/pages/Pricing.tsx:443:12\" data-lov-name=\"select\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"443\" data-component-file=\"Pricing.tsx\" data-component-name=\"s"
+        },
+        {
+          "tag": "A",
+          "w": 162,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/Pricing.tsx:576:10\" data-lov-name=\"a\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"576\" data-component-file=\"Pricing.tsx\" data-component-name=\"a\" data-com"
+        }
+      ],
+      "smallTargetsCount": 7,
+      "ariaLiveRegions": 3,
+      "dialogs": [
+        {
+          "ariaLabel": "Analytics consent",
+          "ariaLabelledby": null,
+          "ariaDescribedby": null
+        }
+      ],
+      "divOnClick": 0
+    },
+    "terms": {
+      "title": "TheWeddingBot - Your Personal Wedding Planning Assistant",
+      "lang": "en",
+      "landmarks": {
+        "main": 0,
+        "nav": 0,
+        "header": 1,
+        "footer": 1
+      },
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Terms of Service"
+        },
+        {
+          "level": "H2",
+          "text": "1. Eligibility"
+        },
+        {
+          "level": "H2",
+          "text": "2. Your Account"
+        },
+        {
+          "level": "H2",
+          "text": "3. Description of the Service"
+        },
+        {
+          "level": "H2",
+          "text": "4. AI Output and Disclaimers"
+        },
+        {
+          "level": "H2",
+          "text": "5. Acceptable Use"
+        },
+        {
+          "level": "H2",
+          "text": "6. User Content and License"
+        },
+        {
+          "level": "H2",
+          "text": "7. Free and Paid Plans"
+        },
+        {
+          "level": "H2",
+          "text": "8. Third-Party Services"
+        },
+        {
+          "level": "H2",
+          "text": "9. Intellectual Property"
+        },
+        {
+          "level": "H2",
+          "text": "10. Feedback"
+        },
+        {
+          "level": "H2",
+          "text": "11. Termination"
+        },
+        {
+          "level": "H2",
+          "text": "12. Disclaimer of Warranties"
+        },
+        {
+          "level": "H2",
+          "text": "13. Limitation of Liability"
+        },
+        {
+          "level": "H2",
+          "text": "14. Indemnity"
+        },
+        {
+          "level": "H2",
+          "text": "15. Governing Law and Disputes"
+        },
+        {
+          "level": "H2",
+          "text": "16. Changes to These Terms"
+        },
+        {
+          "level": "H2",
+          "text": "17. Contact"
+        }
+      ],
+      "h1Count": 1,
+      "firstFocusable": {
+        "tag": "DIV",
+        "text": "",
+        "href": null
+      },
+      "imgs": 1,
+      "imgsMissingAlt": [],
+      "imgsEmptyAlt": 1,
+      "buttonsTotal": 2,
+      "buttonsNoLabel": [],
+      "linksNoText": [],
+      "inputsTotal": 0,
+      "inputsNoLabel": [],
+      "elementsWithOutlineNone": 11,
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:39:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"39\" data-component-file=\"TermsOfService.tsx\" data-compon"
+        },
+        {
+          "tag": "A",
+          "w": 213,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:312:12\" data-lov-name=\"a\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"312\" data-component-file=\"TermsOfService.tsx\" data-compon"
+        },
+        {
+          "tag": "A",
+          "w": 102,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:320:24\" data-lov-name=\"a\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"320\" data-component-file=\"TermsOfService.tsx\" data-compon"
+        },
+        {
+          "tag": "A",
+          "w": 78,
+          "h": 16,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:323:12\" data-lov-name=\"Link\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"323\" data-component-file=\"TermsOfService.tsx\" data-com"
+        },
+        {
+          "tag": "A",
+          "w": 95,
+          "h": 16,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:324:12\" data-lov-name=\"Link\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"324\" data-component-file=\"TermsOfService.tsx\" data-com"
+        }
+      ],
+      "smallTargetsCount": 7,
+      "ariaLiveRegions": 0,
+      "dialogs": [
+        {
+          "ariaLabel": "Analytics consent",
+          "ariaLabelledby": null,
+          "ariaDescribedby": null
+        }
+      ],
+      "divOnClick": 0
+    },
+    "privacy": {
+      "title": "TheWeddingBot - Your Personal Wedding Planning Assistant",
+      "lang": "en",
+      "landmarks": {
+        "main": 0,
+        "nav": 0,
+        "header": 1,
+        "footer": 1
+      },
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Privacy Policy"
+        },
+        {
+          "level": "H2",
+          "text": "1. Summary"
+        },
+        {
+          "level": "H2",
+          "text": "2. Information We Collect"
+        },
+        {
+          "level": "H3",
+          "text": "a. Information you provide"
+        },
+        {
+          "level": "H3",
+          "text": "b. Information we collect automatically"
+        },
+        {
+          "level": "H3",
+          "text": "c. Information from third parties"
+        },
+        {
+          "level": "H2",
+          "text": "3. How We Use Your Information"
+        },
+        {
+          "level": "H2",
+          "text": "4. AI Processing"
+        },
+        {
+          "level": "H2",
+          "text": "5. Legal Bases (EEA, UK, and Similar Regions)"
+        },
+        {
+          "level": "H2",
+          "text": "6. How We Share Information"
+        },
+        {
+          "level": "H2",
+          "text": "7. International Data Transfers"
+        },
+        {
+          "level": "H2",
+          "text": "8. Data Retention"
+        },
+        {
+          "level": "H2",
+          "text": "9. Your Rights and Choices"
+        },
+        {
+          "level": "H2",
+          "text": "10. Security"
+        },
+        {
+          "level": "H2",
+          "text": "11. Children's Privacy"
+        },
+        {
+          "level": "H2",
+          "text": "12. Region-Specific Disclosures"
+        },
+        {
+          "level": "H3",
+          "text": "European Economic Area, United Kingdom, and Switzerland"
+        },
+        {
+          "level": "H3",
+          "text": "California, USA"
+        },
+        {
+          "level": "H3",
+          "text": "India"
+        },
+        {
+          "level": "H2",
+          "text": "13. Changes to This Policy"
+        },
+        {
+          "level": "H2",
+          "text": "14. Contact Us"
+        }
+      ],
+      "h1Count": 1,
+      "firstFocusable": {
+        "tag": "DIV",
+        "text": "",
+        "href": null
+      },
+      "imgs": 1,
+      "imgsMissingAlt": [],
+      "imgsEmptyAlt": 1,
+      "buttonsTotal": 2,
+      "buttonsNoLabel": [],
+      "linksNoText": [],
+      "inputsTotal": 0,
+      "inputsNoLabel": [],
+      "elementsWithOutlineNone": 14,
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:39:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"39\" data-component-file=\"PrivacyPolicy.tsx\" data-component"
+        },
+        {
+          "tag": "A",
+          "w": 124,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:65:12\" data-lov-name=\"Link\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"65\" data-component-file=\"PrivacyPolicy.tsx\" data-componen"
+        },
+        {
+          "tag": "A",
+          "w": 124,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:190:14\" data-lov-name=\"Link\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"190\" data-component-file=\"PrivacyPolicy.tsx\" data-compon"
+        },
+        {
+          "tag": "A",
+          "w": 213,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:358:12\" data-lov-name=\"a\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"358\" data-component-file=\"PrivacyPolicy.tsx\" data-component"
+        },
+        {
+          "tag": "A",
+          "w": 213,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:407:12\" data-lov-name=\"a\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"407\" data-component-file=\"PrivacyPolicy.tsx\" data-component"
+        },
+        {
+          "tag": "A",
+          "w": 213,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:424:12\" data-lov-name=\"a\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"424\" data-component-file=\"PrivacyPolicy.tsx\" data-component"
+        },
+        {
+          "tag": "A",
+          "w": 102,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:432:24\" data-lov-name=\"a\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"432\" data-component-file=\"PrivacyPolicy.tsx\" data-component"
+        },
+        {
+          "tag": "A",
+          "w": 78,
+          "h": 16,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:435:12\" data-lov-name=\"Link\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"435\" data-component-file=\"PrivacyPolicy.tsx\" data-compon"
+        }
+      ],
+      "smallTargetsCount": 11,
+      "ariaLiveRegions": 0,
+      "dialogs": [
+        {
+          "ariaLabel": "Analytics consent",
+          "ariaLabelledby": null,
+          "ariaDescribedby": null
+        }
+      ],
+      "divOnClick": 0
+    },
+    "help": {
+      "title": "TheWeddingBot - Your Personal Wedding Planning Assistant",
+      "lang": "en",
+      "landmarks": {
+        "main": 0,
+        "nav": 0,
+        "header": 1,
+        "footer": 0
+      },
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Help & Feedback"
+        },
+        {
+          "level": "H3",
+          "text": "How do I start planning my wedding?"
+        },
+        {
+          "level": "H3",
+          "text": "What AI modes are available?"
+        },
+        {
+          "level": "H3",
+          "text": "How do I generate wedding images?"
+        },
+        {
+          "level": "H3",
+          "text": "Can I share my conversations?"
+        },
+        {
+          "level": "H3",
+          "text": "How do I track my wedding budget?"
+        },
+        {
+          "level": "H3",
+          "text": "What are the subscription plans?"
+        },
+        {
+          "level": "H3",
+          "text": "How do I invite my partner?"
+        },
+        {
+          "level": "H3",
+          "text": "Is my data private?"
+        },
+        {
+          "level": "H3",
+          "text": "How do I change my AI's tone?"
+        },
+        {
+          "level": "H3",
+          "text": "How do I contact support?"
+        }
+      ],
+      "h1Count": 1,
+      "firstFocusable": {
+        "tag": "DIV",
+        "text": "",
+        "href": null
+      },
+      "imgs": 1,
+      "imgsMissingAlt": [],
+      "imgsEmptyAlt": 1,
+      "buttonsTotal": 14,
+      "buttonsNoLabel": [],
+      "linksNoText": [],
+      "inputsTotal": 0,
+      "inputsNoLabel": [],
+      "elementsWithOutlineNone": 23,
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/Help.tsx:204:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Help.tsx\" data-component-line=\"204\" data-component-file=\"Help.tsx\" data-component-name=\"Link\" data-compone"
+        },
+        {
+          "tag": "A",
+          "w": 102,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/Help.tsx:229:61\" data-lov-name=\"a\" data-component-path=\"src/pages/Help.tsx\" data-component-line=\"229\" data-component-file=\"Help.tsx\" data-component-name=\"a\" data-component-co"
+        },
+        {
+          "tag": "A",
+          "w": 162,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/Help.tsx:229:152\" data-lov-name=\"a\" data-component-path=\"src/pages/Help.tsx\" data-component-line=\"229\" data-component-file=\"Help.tsx\" data-component-name=\"a\" data-component-c"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 356,
+          "h": 40,
+          "html": "<button type=\"button\" role=\"tab\" aria-selected=\"true\" aria-controls=\"radix-:r0:-content-faq\" data-state=\"active\" id=\"radix-:r0:-trigger-faq\" data-lov-id=\"src/pages/Help.tsx:235:12\" data-lov-name=\"Tabs"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 356,
+          "h": 40,
+          "html": "<button type=\"button\" role=\"tab\" aria-selected=\"false\" aria-controls=\"radix-:r0:-content-support\" data-state=\"inactive\" id=\"radix-:r0:-trigger-support\" data-lov-id=\"src/pages/Help.tsx:241:12\" data-lov"
+        }
+      ],
+      "smallTargetsCount": 7,
+      "ariaLiveRegions": 0,
+      "dialogs": [
+        {
+          "ariaLabel": "Analytics consent",
+          "ariaLabelledby": null,
+          "ariaDescribedby": null
+        }
+      ],
+      "divOnClick": 0
+    },
+    "login": {
+      "title": "TheWeddingBot - Your Personal Wedding Planning Assistant",
+      "lang": "en",
+      "landmarks": {
+        "main": 0,
+        "nav": 0,
+        "header": 1,
+        "footer": 0
+      },
+      "headings": [
+        {
+          "level": "H1",
+          "text": "Plan Your Dream Wedding"
+        }
+      ],
+      "h1Count": 1,
+      "firstFocusable": {
+        "tag": "DIV",
+        "text": "",
+        "href": null
+      },
+      "imgs": 1,
+      "imgsMissingAlt": [],
+      "imgsEmptyAlt": 1,
+      "buttonsTotal": 4,
+      "buttonsNoLabel": [],
+      "linksNoText": [],
+      "inputsTotal": 1,
+      "inputsNoLabel": [
+        "<input data-lov-id=\"src/pages/Login.tsx:353:14\" data-lov-name=\"input\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"353\" data-component-file=\"Login.tsx\" data-component-name=\"input\" data-component-content"
+      ],
+      "elementsWithOutlineNone": 11,
+      "smallTargets": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 151,
+          "h": 28,
+          "html": "<a data-lov-id=\"src/pages/Login.tsx:650:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"650\" data-component-file=\"Login.tsx\" data-component-name=\"Link\" data-comp"
+        },
+        {
+          "tag": "A",
+          "w": 61,
+          "h": 16,
+          "html": "<a data-lov-id=\"src/pages/Login.tsx:654:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"654\" data-component-file=\"Login.tsx\" data-component-name=\"Link\" data-comp"
+        },
+        {
+          "tag": "A",
+          "w": 82,
+          "h": 12,
+          "html": "<a data-lov-id=\"src/pages/Login.tsx:671:14\" data-lov-name=\"Link\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"671\" data-component-file=\"Login.tsx\" data-component-name=\"Link\" data-com"
+        },
+        {
+          "tag": "A",
+          "w": 67,
+          "h": 12,
+          "html": "<a data-lov-id=\"src/pages/Login.tsx:675:14\" data-lov-name=\"Link\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"675\" data-component-file=\"Login.tsx\" data-component-name=\"Link\" data-com"
+        }
+      ],
+      "smallTargetsCount": 6,
+      "ariaLiveRegions": 0,
+      "dialogs": [
+        {
+          "ariaLabel": "Analytics consent",
+          "ariaLabelledby": null,
+          "ariaDescribedby": null
+        }
+      ],
+      "divOnClick": 0
+    }
+  },
+  "mobile": {
+    "home": {
+      "total": 49,
+      "small": 36,
+      "samples": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 40,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:335:12\" data-lov-name=\"Button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"335\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 40,
+          "h": 32,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:352:14\" data-lov-name=\"Button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"352\" data-component-file=\"ChatSid"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 22,
+          "h": 54,
+          "html": "<button data-lov-id=\"src/components/chat/ChatSidebar.tsx:500:12\" data-lov-name=\"button\" data-component-path=\"src/components/chat/ChatSidebar.tsx\" data-component-line=\"500\" data-component-file=\"ChatSid"
+        }
+      ]
+    },
+    "pricing": {
+      "total": 17,
+      "small": 7,
+      "samples": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/Pricing.tsx:395:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"395\" data-component-file=\"Pricing.tsx\" data-component-name=\"Link\" dat"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 79,
+          "h": 36,
+          "html": "<button data-lov-id=\"src/pages/Pricing.tsx:424:12\" data-lov-name=\"button\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"424\" data-component-file=\"Pricing.tsx\" data-component-name=\"b"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 154,
+          "h": 36,
+          "html": "<button data-lov-id=\"src/pages/Pricing.tsx:424:12\" data-lov-name=\"button\" data-component-path=\"src/pages/Pricing.tsx\" data-component-line=\"424\" data-component-file=\"Pricing.tsx\" data-component-name=\"b"
+        }
+      ]
+    },
+    "terms": {
+      "total": 9,
+      "small": 7,
+      "samples": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:39:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"39\" data-component-file=\"TermsOfService.tsx\" data-compon"
+        },
+        {
+          "tag": "A",
+          "w": 213,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:312:12\" data-lov-name=\"a\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"312\" data-component-file=\"TermsOfService.tsx\" data-compon"
+        },
+        {
+          "tag": "A",
+          "w": 102,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/TermsOfService.tsx:320:24\" data-lov-name=\"a\" data-component-path=\"src/pages/TermsOfService.tsx\" data-component-line=\"320\" data-component-file=\"TermsOfService.tsx\" data-compon"
+        }
+      ]
+    },
+    "privacy": {
+      "total": 12,
+      "small": 10,
+      "samples": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:39:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"39\" data-component-file=\"PrivacyPolicy.tsx\" data-component"
+        },
+        {
+          "tag": "A",
+          "w": 124,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:190:14\" data-lov-name=\"Link\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"190\" data-component-file=\"PrivacyPolicy.tsx\" data-compon"
+        },
+        {
+          "tag": "A",
+          "w": 213,
+          "h": 18,
+          "html": "<a data-lov-id=\"src/pages/PrivacyPolicy.tsx:358:12\" data-lov-name=\"a\" data-component-path=\"src/pages/PrivacyPolicy.tsx\" data-component-line=\"358\" data-component-file=\"PrivacyPolicy.tsx\" data-component"
+        }
+      ]
+    },
+    "help": {
+      "total": 18,
+      "small": 7,
+      "samples": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 180,
+          "h": 20,
+          "html": "<a data-lov-id=\"src/pages/Help.tsx:204:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Help.tsx\" data-component-line=\"204\" data-component-file=\"Help.tsx\" data-component-name=\"Link\" data-compone"
+        },
+        {
+          "tag": "A",
+          "w": 102,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/Help.tsx:229:61\" data-lov-name=\"a\" data-component-path=\"src/pages/Help.tsx\" data-component-line=\"229\" data-component-file=\"Help.tsx\" data-component-name=\"a\" data-component-co"
+        },
+        {
+          "tag": "A",
+          "w": 162,
+          "h": 15,
+          "html": "<a data-lov-id=\"src/pages/Help.tsx:229:152\" data-lov-name=\"a\" data-component-path=\"src/pages/Help.tsx\" data-component-line=\"229\" data-component-file=\"Help.tsx\" data-component-name=\"a\" data-component-c"
+        }
+      ]
+    },
+    "login": {
+      "total": 10,
+      "small": 6,
+      "samples": [
+        {
+          "tag": "BUTTON",
+          "w": 66,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:72:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"72\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "BUTTON",
+          "w": 65,
+          "h": 28,
+          "html": "<button data-lov-id=\"src/components/AnalyticsConsent.tsx:78:8\" data-lov-name=\"button\" data-component-path=\"src/components/AnalyticsConsent.tsx\" data-component-line=\"78\" data-component-file=\"AnalyticsC"
+        },
+        {
+          "tag": "A",
+          "w": 151,
+          "h": 28,
+          "html": "<a data-lov-id=\"src/pages/Login.tsx:650:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"650\" data-component-file=\"Login.tsx\" data-component-name=\"Link\" data-comp"
+        },
+        {
+          "tag": "A",
+          "w": 61,
+          "h": 16,
+          "html": "<a data-lov-id=\"src/pages/Login.tsx:654:8\" data-lov-name=\"Link\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"654\" data-component-file=\"Login.tsx\" data-component-name=\"Link\" data-comp"
+        },
+        {
+          "tag": "A",
+          "w": 82,
+          "h": 12,
+          "html": "<a data-lov-id=\"src/pages/Login.tsx:671:14\" data-lov-name=\"Link\" data-component-path=\"src/pages/Login.tsx\" data-component-line=\"671\" data-component-file=\"Login.tsx\" data-component-name=\"Link\" data-com"
+        }
+      ]
+    }
+  }
+}

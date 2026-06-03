@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · WE-20260528-1066</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260528-1066 &middot; motion-safe variants on infinite animations (WCAG 2.3.3) <span class="pill P3">P3</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat &middot;
+        <b>Agent</b>: fix-frontend &middot;
+        <b>Branch</b>: <code>fix-WE-20260528-1066</code> &rarr; <code>Bug-Resolve-claude</code> &middot;
+        <b>Worktree</b>: <code>worktrees/fix-WE-20260528-1066</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      Tailwind's <code>animate-pulse</code> and <code>animate-[shimmer_1.8s_ease-in-out_infinite]</code>
+      leak through the global <code>prefers-reduced-motion: reduce</code> reset in <code>src/index.css</code>.
+      The reset clamps <code>animation-duration: 0.01ms</code> and <code>animation-iteration-count: 1</code>,
+      but one full 1.8s cycle of shimmer / one pulse still plays because the reduced
+      iteration count is still &ge; 1. For vestibular-disorder users, one cycle can trigger
+      symptoms. Fix: wrap the animation utilities in Tailwind's <code>motion-safe:</code> variant
+      so they don't apply at all when reduce-motion is set.
+    </p>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-29 (start)</div>
+        <div class="what">Read ticket and confirmed root cause via <code>src/index.css:872-882</code> global reset.</div>
+        <div class="detail">
+          The reset sets <code>animation-iteration-count: 1 !important</code>, which clamps infinite
+          loops to one cycle but does not remove the animation. A 1.8s shimmer cycle still plays.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (grep)</div>
+        <div class="what">Grepped affected files for every animation site within ticket scope.</div>
+        <div class="detail">
+          Found 13 sites across ChatMessages.tsx, ImageCarousel.tsx, GalleryView.tsx. Ticket
+          listed 6 explicit lines; same-pattern siblings (lines 599, 606, 963, 966, 973 in
+          ChatMessages; 216, 244 in ImageCarousel) were patched too &mdash; same bug, same files.
+          Out-of-scope sites (AudioPlayer, ui/skeleton, NoteHeader, BillingSettings) left untouched.
+        </div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (edit)</div>
+        <div class="what">Applied <code>motion-safe:</code> prefix to each animate-* utility class.</div>
+        <div class="detail">Pure className edits. No logic changes. No new dependencies.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (verify)</div>
+        <div class="what">Grep confirms all 13 sites now <code>motion-safe:</code>-prefixed.</div>
+        <div class="detail">See <code>qa-harness/evidence/WE-20260528-1066/screenshots/README.md</code> for full grep output.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-29 (tsc)</div>
+        <div class="what"><code>npx tsc --noEmit -p tsconfig.app.json</code> &mdash; zero new errors from this fix.</div>
+        <div class="detail">
+          Two pre-existing <code>ChatMessages.tsx</code> errors (lines 748, 769) about
+          <code>Property 'calendarAdded' does not exist on type 'Message'</code> are present
+          on <code>Bug-Resolve-claude</code> base branch and are unrelated to animations.
+          Verified by stash + re-run on clean base.
+        </div>
+      </div>
+      <div class="entry warn">
+        <div class="time">2026-05-29 (lint)</div>
+        <div class="what"><code>npm run lint</code> &mdash; pre-existing failure noted in ticket instructions.</div>
+        <div class="detail">
+          ESLint crashes on <code>functions/src/controllers/authController.ts</code> with
+          <code>Cannot read properties of undefined (reading 'allowShortCircuit')</code>.
+          Pre-existing config bug; not chasing per ticket guidance.
+        </div>
+      </div>
+      <div class="entry warn">
+        <div class="time">2026-05-29 (visual)</div>
+        <div class="what">Dev server not running on :8081 or :5173 at fix time; live MCP screenshots skipped.</div>
+        <div class="detail">
+          Static verification is sufficient because the change is pure className editing.
+          Tailwind's <code>motion-safe:</code> compiles to
+          <code>@media (prefers-reduced-motion: no-preference)</code>, which is a published,
+          well-tested mechanism. README.md in screenshots/ documents the suggested manual
+          smoke for Krish.
+        </div>
+      </div>
+    </div>
+
+    <h2>Animation classes touched</h2>
+    <table>
+      <thead><tr><th>File:Line</th><th>Before</th><th>After</th></tr></thead>
+      <tbody>
+        <tr><td><code>ChatMessages.tsx:270</code></td><td><code>animate-in fade-in slide-in-from-top-2 duration-200</code></td><td><code>motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:578</code></td><td><code>animate-in fade-in duration-300</code></td><td><code>motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:589</code></td><td><code>animate-pulse</code></td><td><code>motion-safe:animate-pulse</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:596</code></td><td><code>animate-[shimmer_1.8s_ease-in-out_infinite]</code></td><td><code>motion-safe:animate-[shimmer_1.8s_ease-in-out_infinite]</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:599</code></td><td><code>animate-pulse</code></td><td><code>motion-safe:animate-pulse</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:606</code></td><td><code>animate-[progress_3s_ease-in-out_infinite]</code></td><td><code>motion-safe:animate-[progress_3s_ease-in-out_infinite]</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:963</code></td><td><code>animate-[shimmer_1.8s_ease-in-out_infinite]</code></td><td><code>motion-safe:animate-[shimmer_1.8s_ease-in-out_infinite]</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:966</code></td><td><code>animate-pulse</code></td><td><code>motion-safe:animate-pulse</code></td></tr>
+        <tr><td><code>ChatMessages.tsx:973</code></td><td><code>animate-[progress_3s_ease-in-out_infinite]</code></td><td><code>motion-safe:animate-[progress_3s_ease-in-out_infinite]</code></td></tr>
+        <tr><td><code>ImageCarousel.tsx:78</code></td><td><code>animate-in fade-in duration-200</code></td><td><code>motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200</code></td></tr>
+        <tr><td><code>ImageCarousel.tsx:216</code></td><td><code>animate-in fade-in duration-500</code></td><td><code>motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500</code></td></tr>
+        <tr><td><code>ImageCarousel.tsx:244</code></td><td><code>animate-in fade-in duration-500</code></td><td><code>motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500</code></td></tr>
+        <tr><td><code>GalleryView.tsx:193</code></td><td><code>animate-in fade-in duration-200</code></td><td><code>motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><code>npx tsc --noEmit -p tsconfig.app.json</code></td><td>zero new errors (2 pre-existing on base branch, unrelated)</td></tr>
+        <tr><td>Lint</td><td><code>npm run lint</code></td><td>pre-existing functions/ ESLint config crash (noted in ticket; not chased)</td></tr>
+        <tr><td>Static verify</td><td><code>grep -nE "animate-pulse|animate-\[shimmer|animate-\[progress|animate-in" ...</code></td><td>all 13 sites now motion-safe-prefixed</td></tr>
+        <tr><td>Visual (MCP)</td><td>Chrome DevTools MCP at :8081/:5173</td><td>skipped &mdash; dev server not running</td></tr>
+      </tbody>
+    </table>
+    <pre>git diff --stat:
+ Wedding-Ease-Viva-Chat/src/components/GalleryView.tsx  |  2 +-
+ Wedding-Ease-Viva-Chat/src/components/ImageCarousel.tsx                   |  6 +++---
+ Wedding-Ease-Viva-Chat/src/components/chat/ChatMessages.tsx               | 18 +++++++++---------
+ 3 files changed, 13 insertions(+), 13 deletions(-)</pre>
+
+    <h2>Conflict notes</h2>
+    <ul>
+      <li><code>ChatMessages.tsx</code> is also touched by PR #58 (-1056 lang attr). Changes here are
+        className-only and unlikely to overlap textually, but Krish should expect a clean
+        text-level merge.</li>
+      <li><code>ImageCarousel.tsx</code> is also touched by PR #61 (-1063 aria-labels). Same
+        className-only scope; no overlap expected.</li>
+    </ul>
+
+    <h2>PR</h2>
+    <p>PR URL: <a href="https://github.com/MeghaPatel07/easeBot/pull/73">https://github.com/MeghaPatel07/easeBot/pull/73</a></p>
+
+    <footer>
+      Generated by fix-frontend &middot; Easebot QA Harness &middot; Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

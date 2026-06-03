@@ -1340,3 +1340,91 @@
   background: var(--glass-bg-hover);
   border-color: var(--glass-border-hover);
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   PRINT — Shared transcript / shared note PDF export (WE-20260528-864)
+   Scoped via the `.shared-print-surface` marker on SharedChat.tsx and
+   SharedNote.tsx page roots. Wedding planners share these links with
+   clients who routinely hit Cmd+P to keep an offline copy. Default print
+   output bleeds the decorative gradient, leaks fixed banners (analytics
+   consent, cap-hit warning, toasts), and splits message bubbles mid-
+   sentence. This block normalises everything to a printer-friendly layout
+   without affecting the on-screen experience.
+
+   Note: Tailwind `print:` variants on the pages handle most per-element
+   tweaks; this block covers what Tailwind cannot reach — `::before` /
+   `::after` pseudo-elements on `.gradient-bg`, and globally-mounted
+   `fixed` siblings rendered outside the page tree (CapHitBanner,
+   AnalyticsConsent, Toasters).
+
+   Companion ticket WE-Sprint2-457 (`/privacy`, `/terms`, `/help`) is still
+   open and should add a similar block scoped to those routes.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@media print {
+  /* When the body hosts a shared print surface, neutralise the page chrome. */
+  body:has(.shared-print-surface) {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Kill the decorative gradient/grid/bloom layers on shared transcript pages. */
+  .shared-print-surface.gradient-bg,
+  .shared-print-surface .gradient-bg,
+  .shared-print-surface.gradient-bg-expanded,
+  .shared-print-surface .gradient-bg-expanded {
+    background-color: white !important;
+  }
+  .shared-print-surface.gradient-bg::before,
+  .shared-print-surface.gradient-bg::after,
+  .shared-print-surface .gradient-bg::before,
+  .shared-print-surface .gradient-bg::after,
+  .shared-print-surface.gradient-bg-expanded::before,
+  .shared-print-surface.gradient-bg-expanded::after,
+  .shared-print-surface .gradient-bg-expanded::before,
+  .shared-print-surface .gradient-bg-expanded::after {
+    display: none !important;
+  }
+
+  /* Hide global fixed-position chrome (banners, toasts) that React renders
+     as siblings of the page root. We can't use Tailwind on them from the
+     page, so this is the only place to reach them. */
+  body:has(.shared-print-surface) > [class*="fixed"],
+  body:has(.shared-print-surface) [data-sonner-toaster],
+  body:has(.shared-print-surface) [role="region"][aria-label*="otifications" i],
+  body:has(.shared-print-surface) [role="dialog"][aria-label*="onsent" i] {
+    display: none !important;
+  }
+
+  /* Bubbles, list items, headings — don't split a single thought across pages. */
+  .shared-print-surface .prose,
+  .shared-print-surface .prose > *,
+  .shared-print-surface li,
+  .shared-print-surface img,
+  .shared-print-surface figure,
+  .shared-print-surface table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .shared-print-surface h1,
+  .shared-print-surface h2,
+  .shared-print-surface h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Make sure SharedNote's wine surface prints as white. */
+  .shared-print-surface.bg-surface-note,
+  .shared-print-surface .bg-surface-note {
+    background: white !important;
+  }
+
+  /* Inline anchors: keep the URL visible so a printed PDF still works as a
+     reference document. Skip the in-page back / brand links. */
+  .shared-print-surface a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #555;
+    word-break: break-all;
+  }
+}

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { requireAuthOrGuest } from '../middleware/auth'
 import { handleChat, handleChatStream } from '../controllers/chatController'
 import { validateBody } from '../middleware/validateRequest'
 import { ChatRequestSchema } from '../schemas/chat'
@@ -7,8 +7,11 @@ import { quotaCheck } from '../middleware/quotaMiddleware'
 import { chatBurstRateLimiter } from '../middleware/rateLimiter'
 import { cancel as cancelRequest } from '../services/cancellationRegistry'
 
+// Chat is a quota-burning route that legitimately serves guests. `requireAuthOrGuest`
+// admits a valid Firebase user OR an anonymous caller with a valid guest session
+// (X-Guest-Id); it rejects invalid tokens and fully-anonymous callers (WE-20260527-202).
 const router = Router()
-router.post('/', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), handleChat)
+router.post('/', requireAuthOrGuest, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), handleChat)
 
 /**
  * Explicit cancel endpoint. The frontend calls this when the user clicks Stop,
@@ -17,7 +20,7 @@ router.post('/', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSche
  * `req.on('close')` never fires, and the image pipeline runs to completion
  * (Azure image gen + Firebase Storage upload + Firestore write) regardless.
  */
-router.post('/cancel', requireAuth, (req: Request, res: Response) => {
+router.post('/cancel', requireAuthOrGuest, (req: Request, res: Response) => {
   const { requestId } = (req.body ?? {}) as { requestId?: string }
   if (!requestId || typeof requestId !== 'string') {
     res.status(400).json({ error: 'requestId is required' })
@@ -39,7 +42,11 @@ router.post('/cancel', requireAuth, (req: Request, res: Response) => {
  * `POST /api/chat` route. Pre-fix the stream path silently swallowed unknown
  * `mode` values and defaulted to planner — see WE-20260528-103.
  */
-router.post('/stream', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), (req: Request, res: Response) => {
+ 
+// router.post('/stream', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), (req: Request, res: Response) => {
+ 
+router.post('/stream',requireAuth, requireAuthOrGuest, chatBurstRateLimiter,validateBody(ChatRequestSchema), quotaCheck('chat'), (req: Request, res: Response) => {
+ 
   // ── Last-Event-ID support (log for future replay) ──────────────────────────
   const lastEventId = req.headers['last-event-id'] as string | undefined
   if (lastEventId) {

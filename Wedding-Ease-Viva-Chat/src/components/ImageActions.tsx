@@ -189,6 +189,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" variant="ghost" onClick={handleDownload} disabled={downloading}
+              aria-label="Download image"
               className={variant === 'preview'
                 ? 'h-9 w-9 p-0 rounded-full hover:bg-overlay-surface/20 text-overlay-text'
                 : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text rounded-lg backdrop-blur-sm'
@@ -203,6 +204,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" variant="ghost" onClick={handleCopyImage}
+              aria-label={imageCopied ? 'Image copied' : 'Copy image'}
               className={variant === 'preview'
                 ? 'h-9 w-9 p-0 rounded-full hover:bg-overlay-surface/20 text-overlay-text'
                 : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text rounded-lg backdrop-blur-sm'
@@ -218,6 +220,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); onAttachToChat() }}
+                aria-label="Attach image to chat"
                 className={variant === 'preview'
                   ? 'h-9 w-9 p-0 rounded-full hover:bg-primary/40 text-overlay-text'
                   : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-primary/70 text-overlay-text rounded-lg backdrop-blur-sm'
@@ -234,6 +237,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={() => setShowShareModal(true)}
+                aria-label="Share image"
                 className={variant === 'preview'
                   ? 'h-9 w-9 p-0 rounded-full hover:bg-overlay-surface/20 text-overlay-text'
                   : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text rounded-lg backdrop-blur-sm'
@@ -250,6 +254,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={onSaveToGallery} disabled={isSaved}
+                aria-label={isSaved ? 'Image saved to gallery' : 'Save image to gallery'}
                 className={variant === 'preview'
                   ? `h-9 w-9 p-0 rounded-full ${isSaved ? 'bg-primary/40 text-overlay-text' : 'hover:bg-overlay-surface/20 text-overlay-text'}`
                   : `h-10 w-10 sm:h-7 sm:w-7 p-0 backdrop-blur-sm rounded-lg ${isSaved ? 'bg-primary/50 text-overlay-text' : 'bg-overlay-scrim/50 hover:bg-overlay-scrim/70 text-overlay-text'}`
@@ -266,6 +271,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="ghost" onClick={onDelete}
+                aria-label="Delete image"
                 className={variant === 'preview'
                   ? 'h-9 w-9 p-0 rounded-full hover:bg-destructive/70 text-overlay-text'
                   : 'h-10 w-10 sm:h-7 sm:w-7 p-0 bg-overlay-scrim/50 hover:bg-destructive/70 text-overlay-text rounded-lg backdrop-blur-sm'
@@ -285,7 +291,7 @@ export function ImageActions({ imageUrl, onSaveToGallery, isSaved, onDelete, onA
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground/90">Share image</h3>
-              <button onClick={() => setShowShareModal(false)} className="p-1 rounded-lg text-foreground/40 hover:text-foreground/70 hover:bg-foreground/10 transition-colors">
+              <button onClick={() => setShowShareModal(false)} aria-label="Close share dialog" className="p-1 rounded-lg text-foreground/40 hover:text-foreground/70 hover:bg-foreground/10 transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>

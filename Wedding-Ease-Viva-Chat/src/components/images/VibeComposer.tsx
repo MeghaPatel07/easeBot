@@ -145,6 +145,10 @@ export function VibeComposer({ vibeTitle, onSubmit, isSubmitting }: VibeComposer
           <img
             src={previewUrl}
             alt="Reference preview"
+            width={48}
+            height={48}
+            loading="lazy"
+            decoding="async"
             className="h-12 w-12 rounded object-cover"
           />
           <span className="max-w-[140px] truncate text-xs text-foreground/90">

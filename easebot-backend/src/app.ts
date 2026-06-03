@@ -14,6 +14,7 @@ import feedbackRouter from './routes/feedbackRoutes'
 import healthRouter from './routes/health'
 import ingestRouter from './routes/ingest'
 import { getSpeechToken } from './controllers/speechTokenController'
+import { requireAuthOrGuest } from './middleware/auth'
 import { apiRateLimiter, imageRateLimiter } from './middleware/rateLimiter'
 import { inputSanitizer } from './middleware/inputSanitizer'
 import { promptGuard } from './middleware/promptGuard'
@@ -22,38 +23,71 @@ import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
 
-// --- Trust proxy ---
-// When deployed behind a reverse proxy (Railway, Render, Fly, Cloud Run, nginx, etc.)
-// Express needs this so req.ip and the X-Forwarded-For header are honoured by
-// downstream middleware like express-rate-limit. Configurable via TRUST_PROXY env:
-//   - unset / "1"    → trust first proxy hop (typical PaaS setup)
-//   - "true"         → trust all proxies
-//   - "false" / "0"  → disable (local dev without a proxy)
-//   - any other value → passed through verbatim (e.g. a subnet like "10.0.0.0/8")
-const trustProxyEnv = process.env.TRUST_PROXY ?? '1'
-const trustProxyValue: boolean | number | string =
-  trustProxyEnv === 'true' ? true
-  : trustProxyEnv === 'false' ? false
-  : /^\d+$/.test(trustProxyEnv) ? Number(trustProxyEnv)
-  : trustProxyEnv
+// --- Trust proxy (WE-20260527-1004) ---
+// We must NOT trust X-Forwarded-For blindly (Express default `trust proxy: true`
+// would let any client spoof req.ip and defeat IP-based rate limiting). Set the
+// number of proxy hops we actually run behind via TRUST_PROXY_HOPS (default 1 —
+// one reverse proxy, the typical PaaS setup). For local dev without a proxy set
+// TRUST_PROXY_HOPS=0.
+//
+// TRUST_PROXY (legacy, richer form) is still honoured for backward compat when
+// TRUST_PROXY_HOPS is unset, so existing deploy configs don't break:
+//   - "true"  → trust all proxies (NOT recommended)
+//   - "false"/"0" → disable
+//   - integer → that many hops
+//   - other   → verbatim (e.g. a subnet like "10.0.0.0/8")
+const trustProxyHops = process.env.TRUST_PROXY_HOPS
+const trustProxyLegacy = process.env.TRUST_PROXY
+let trustProxyValue: boolean | number | string
+if (trustProxyHops !== undefined && /^\d+$/.test(trustProxyHops)) {
+  trustProxyValue = Number(trustProxyHops)
+} else if (trustProxyLegacy !== undefined) {
+  trustProxyValue =
+    trustProxyLegacy === 'true' ? true
+    : trustProxyLegacy === 'false' ? false
+    : /^\d+$/.test(trustProxyLegacy) ? Number(trustProxyLegacy)
+    : trustProxyLegacy
+} else {
+  trustProxyValue = 1 // default: one proxy hop
+}
 app.set('trust proxy', trustProxyValue)
 
 // --- Security Headers (helmet) ---
 // Disable contentSecurityPolicy so SSE / EventSource connections are not blocked
 app.use(helmet({ contentSecurityPolicy: false }))
 
-// --- CORS: allow all origins ---
-// NOTE: `Access-Control-Allow-Origin: *` is incompatible with
-// `Access-Control-Allow-Credentials: true` per the CORS spec — browsers reject
-// credentialed requests to a wildcard origin. Since auth flows here use bearer
-// tokens in the Authorization header (not cookies), `credentials: false` is
-// safe and lets us use a true wildcard.
+// --- CORS allowlist (WE-20260527-248 / -1008) ---
+// Replace the previous `Access-Control-Allow-Origin: *` wildcard with a strict
+// allowlist sourced from env ALLOWED_ORIGINS (comma-separated). Unknown origins
+// — including reflective OPTIONS preflights — are rejected (the response simply
+// carries no Access-Control-Allow-Origin header, so the browser blocks it).
+// Requests with no Origin header (curl, server-to-server, same-origin, health
+// probes) are allowed through so non-browser clients keep working.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:8081,http://localhost:8080')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
 app.use(
   cors({
-    origin: '*',
+    origin(origin, callback) {
+      // No Origin header → non-browser / same-origin request. Allow.
+      if (!origin) {
+        callback(null, true)
+        return
+      }
+      if (ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      // Unknown origin: do not reflect it. Signal a CORS error (mapped to 403
+      // by the global error handler) so preflight + actual requests are blocked.
+      callback(new Error('Origin not allowed by CORS'))
+    },
     credentials: false,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Guest-Id', 'x-ph-distinct-id', 'Last-Event-ID'],
+    exposedHeaders: ['X-Guest-Id'],
   }),
 )
 
@@ -96,7 +130,10 @@ const mountRoutes = (prefix: string): void => {
   app.use(`${prefix}/tts`, ttsRouter)
   app.use(`${prefix}/payment`, paymentRouter)
   app.use(`${prefix}/feedback`, feedbackRouter)
-  app.get(`${prefix}/speech-token`, getSpeechToken)
+  // Speech token mints an Azure STS token (short TTL, ~10 min) that the
+  // browser uses for STT. It is quota-relevant, so it must NOT be anonymous
+  // (WE-20260527-001): require a valid Firebase user OR a valid guest session.
+  app.get(`${prefix}/speech-token`, requireAuthOrGuest, getSpeechToken)
 }
 
 mountRoutes('/api')

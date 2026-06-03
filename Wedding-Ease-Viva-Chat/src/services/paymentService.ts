@@ -143,6 +143,51 @@ export async function upgradeSubscription(cycle: BillingCycle): Promise<unknown>
 //   return res.json()
 // }
 
+/**
+ * Schedule a subscription cancellation at the end of the current billing
+ * period. Per WCAG 3.3.4 (Error Prevention, Legal/Financial/Data) the caller
+ * MUST gate this behind an explicit confirm step before invoking — see
+ * <BillingSettings/> AlertDialog flow.
+ *
+ * Backend endpoint: POST /api/payment/subscription/cancel
+ * Body: { clientRequestId } (idempotency key)
+ *
+ * On success the subscription transitions to status='cancel_scheduled' with
+ * cancelAtPeriodEnd=true; the user keeps current-tier access until
+ * currentPeriodEnd, after which they fall back to the free tier.
+ */
+export async function cancelSubscription(clientRequestId: string): Promise<unknown> {
+  const res = await authFetch('/api/payment/subscription/cancel', {
+    method: 'POST',
+    body: JSON.stringify({ clientRequestId }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`cancel_failed:${res.status}:${text}`)
+  }
+  return res.json()
+}
+
+/**
+ * Reverse a previously scheduled cancellation while the period has not yet
+ * ended. Used by the "Resume subscription" button surfaced when
+ * subscription.status === 'cancel_scheduled'. Lets the user undo the
+ * destructive action — important for the WCAG 3.3.4 reversibility leg.
+ *
+ * Backend endpoint: POST /api/payment/subscription/reactivate
+ */
+export async function reactivateSubscription(clientRequestId: string): Promise<unknown> {
+  const res = await authFetch('/api/payment/subscription/reactivate', {
+    method: 'POST',
+    body: JSON.stringify({ clientRequestId }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`reactivate_failed:${res.status}:${text}`)
+  }
+  return res.json()
+}
+
 // ---- Invoices --------------------------------------------------------------
 
 export interface InvoiceSummary {

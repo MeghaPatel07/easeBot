@@ -1,0 +1,9 @@
+=== Step 1: generate image (image mode) ===
+id: 1
+data: {"t":"img","status":"generating"}
+
+: heartbeat
+
+: heartbeat
+
+=== captured URLs ===

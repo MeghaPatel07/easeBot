@@ -1,0 +1,19 @@
+category,sprint_1,sprint_2,sprint_3,total,status
+functional,16,10,11,37,well-covered
+visual_responsive,23,0,50,73,gap closed in S3
+e2e_playwright,10,3,6,19,thin — PayU sandbox blocked
+state_sync,25,25,50,100,very dense — BC arch missing
+edge_security,50,0,10,60,S3 backfilled S2 gap
+a11y,32,24,50,106,very dense — WCAG 2.2 + Voice Control
+performance,25,2,22,49,dense — prod-vs-dev split visible
+eval_safety_trajectory,7,28,0,35,GAP — eval-safety classifier blocked S3 agent
+TOTAL,188,92,199,479,
+severity_P0,14,2,17,33,
+severity_P1,47,27,57,131,
+severity_P2,63,34,57,154,
+severity_P3,34,16,24,74,
+specialist_fix_backend_api,57,30,47,134,
+specialist_fix_frontend,63,27,49,139,
+specialist_fix_state_data,24,18,38,80,
+specialist_fix_performance,14,2,13,29,
+specialist_chairman_krish_only,0,0,4,4,

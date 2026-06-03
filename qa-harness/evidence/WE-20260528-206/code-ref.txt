@@ -1,0 +1,22 @@
+ChatInput.tsx:393-413 (textarea):
+<textarea
+  ref={textareaRef}
+  data-ph-mask
+  value={inputText}
+  onChange={e => onInputChange(e.target.value)}    ← no length guard
+  onKeyDown={e => { ... }}
+  placeholder={...}
+  readOnly={voiceState === 'recording' || voiceState === 'transcribing'}
+  rows={1}
+  className="..."
+  style={{ maxHeight: `${maxHeight}px` }}
+/>
+
+(no maxLength attribute)
+
+easebot-backend/src/schemas/chat.ts:4:
+  message: z.string().min(1).max(10000),
+
+Test:
+$ curl -X POST /api/chat -d '{"message":"AAAA...(10001 As)"}'
+→ HTTP 400 {"error":"Validation failed","details":[{"code":"too_big","maximum":10000,...}]}

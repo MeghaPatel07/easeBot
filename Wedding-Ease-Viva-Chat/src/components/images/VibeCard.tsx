@@ -1,5 +1,6 @@
 import React from 'react'
 import type { VibePreset } from '@/types'
+import { GlossaryText } from './GlossaryText'
 
 interface VibeCardProps {
   preset: VibePreset
@@ -35,7 +36,9 @@ export function VibeCard({ preset, onSelect }: VibeCardProps) {
           {preset.title}
         </span>
         <span className="block truncate text-xs text-foreground/90">
-          {preset.subtitle}
+          {/* Cultural terms preserved; defined inline via native <dfn title> so the
+              card stays a single interactive control (no nested buttons). */}
+          <GlossaryText text={preset.subtitle} inline />
         </span>
       </span>
     </button>

@@ -1,10 +1,27 @@
 // Azure AI Translator REST API v3
 // Docs: https://learn.microsoft.com/azure/ai-services/translator/reference/v3-0-translate
 
-import { withRetry } from '../utils/retry'
+import { withRetry, type RetryOptions } from '../utils/retry'
 import { translatorCircuitBreaker, CircuitBreakerError } from './circuitBreaker'
 
 const TRANSLATOR_BASE = 'https://api.cognitive.microsofttranslator.com'
+
+// Tight retry envelope for translator calls (WE-20260528-1530).
+//
+// Translation sits on the chat critical path: every non-English turn runs BOTH inbound
+// (user → en) and outbound (en → user) translations, so retry cost is paid twice per
+// message. Translator also already sits behind translatorCircuitBreaker — sustained
+// failures roll up to the breaker rather than compounding into multi-second tail
+// latency at the request level.
+//
+// Worst-case wait per call with these settings ≈ 1.5s (vs ~8.5s under the previous
+// {maxRetries: 2, baseDelayMs: 500, maxDelayMs: 4000} envelope). Azure 429 tokens
+// replenish per-second, so a single ~200ms retry recovers transient blips.
+const TRANSLATOR_RETRY_OPTIONS: RetryOptions = {
+  maxRetries: 1,
+  baseDelayMs: 200,
+  maxDelayMs: 800,
+}
 
 interface TranslatorConfig {
   key: string
@@ -49,7 +66,7 @@ export async function detectLanguage(text: string): Promise<string> {
 
         const json = (await res.json()) as any
         return json?.[0]?.language ?? 'en'
-      }, { maxRetries: 2, baseDelayMs: 500, maxDelayMs: 4000 })
+      }, TRANSLATOR_RETRY_OPTIONS)
     )
   } catch (err) {
     if (err instanceof CircuitBreakerError) {
@@ -93,7 +110,7 @@ export async function translateText(text: string, targetLanguage: string): Promi
 
         const json = (await res.json()) as any
         return json?.[0]?.translations?.[0]?.text ?? text
-      }, { maxRetries: 2, baseDelayMs: 500, maxDelayMs: 4000 })
+      }, TRANSLATOR_RETRY_OPTIONS)
     )
   } catch (err) {
     if (err instanceof CircuitBreakerError) {
