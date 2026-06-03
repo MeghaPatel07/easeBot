@@ -415,3 +415,109 @@ export async function getInvoicePdfBase64(uid: string, invoiceId: string): Promi
   if (data.uid !== uid) return null
   return data.pdfBase64 || null
 }
+
+// ---------------------------------------------------------------------------
+// Unified billing / purchase history (Settings → Billing tab)
+//
+// Merges the formal `invoices` (paid cycles, with downloadable PDF) with raw
+// `payments` attempts — including pending / failed / needs_review records that
+// never produced an invoice. invoiceId === txnid === payments doc id, so the
+// two collections join on the document id.
+//
+// Equality-only queries (no orderBy) so NO composite index is required; the
+// list is sorted newest-first and capped in memory.
+// ---------------------------------------------------------------------------
+
+export type BillingHistoryStatus = 'PAID' | 'FAILED' | 'PENDING' | 'REVIEW'
+
+export interface BillingHistoryRow {
+  /** txnid — also the invoice id and the PDF download id. */
+  id: string
+  invoiceNumber: string | null
+  /** ISO timestamp — paidAt when available, else createdAt. */
+  date: string
+  amount: number
+  currencyCode: string
+  status: BillingHistoryStatus
+  plan: string | null
+  cycle: string | null
+  provider: string | null
+  productinfo: string | null
+  hasPdf: boolean
+}
+
+function mapPaymentState(state: string): BillingHistoryStatus {
+  switch (state) {
+    case 'paid':
+      return 'PAID'
+    case 'failed':
+      return 'FAILED'
+    case 'needs_review':
+    case 'unknown':
+      return 'REVIEW'
+    default:
+      return 'PENDING'
+  }
+}
+
+const HISTORY_LIMIT = 100
+
+export async function getBillingHistoryForUser(uid: string): Promise<BillingHistoryRow[]> {
+  try {
+    const [paySnap, invSnap] = await Promise.all([
+      getDocs(query(collection(db, 'payments'), where('uid', '==', uid))),
+      getDocs(query(collection(db, 'invoices'), where('uid', '==', uid))),
+    ])
+
+    const invById = new Map<string, Record<string, unknown>>()
+    for (const d of invSnap.docs) invById.set(d.id, d.data() as Record<string, unknown>)
+
+    const seen = new Set<string>()
+    const rows: BillingHistoryRow[] = []
+
+    for (const d of paySnap.docs) {
+      const p = d.data() as Record<string, unknown>
+      const inv = invById.get(d.id)
+      seen.add(d.id)
+      const ts = (p.paidAt as Timestamp | undefined) ?? (p.createdAt as Timestamp | undefined)
+      rows.push({
+        id: d.id,
+        invoiceNumber: (inv?.invoiceNumber as string) ?? null,
+        date: ts?.toDate?.().toISOString() ?? '',
+        amount: Number(p.amountLocal ?? (inv?.amountLocal as number) ?? 0),
+        currencyCode: String(p.currency ?? inv?.currency ?? 'USD'),
+        status: mapPaymentState(String(p.state ?? '')),
+        plan: (p.plan as string) ?? null,
+        cycle: (p.cycle as string) ?? null,
+        provider: (p.provider as string) ?? null,
+        productinfo: (p.productinfo as string) ?? null,
+        hasPdf: Boolean(inv?.pdfBase64),
+      })
+    }
+
+    // Defensive: surface any invoice without a matching payment doc.
+    for (const [id, inv] of invById) {
+      if (seen.has(id)) continue
+      const ts = inv.createdAt as Timestamp | undefined
+      rows.push({
+        id,
+        invoiceNumber: (inv.invoiceNumber as string) ?? null,
+        date: ts?.toDate?.().toISOString() ?? '',
+        amount: Number(inv.amountLocal ?? 0),
+        currencyCode: String(inv.currency ?? 'USD'),
+        status: String(inv.status ?? '') === 'PAID' ? 'PAID' : 'REVIEW',
+        plan: (inv.plan as string) ?? null,
+        cycle: (inv.cycle as string) ?? null,
+        provider: null,
+        productinfo: null,
+        hasPdf: Boolean(inv.pdfBase64),
+      })
+    }
+
+    rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    return rows.slice(0, HISTORY_LIMIT)
+  } catch (err) {
+    console.warn('[invoiceService.getBillingHistoryForUser] failed', err)
+    return []
+  }
+}

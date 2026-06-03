@@ -471,6 +471,17 @@ export async function handleGetInvoicePdf(req: Request, res: Response): Promise<
   } catch (err) { serverError(res, err) }
 }
 
+// GET /api/account/billing-history — unified invoices + raw payment attempts
+// (paid/pending/failed) for the Settings → Billing purchase-history list.
+export async function handleGetBillingHistory(req: Request, res: Response): Promise<void> {
+  const uid = req.user!.uid
+  try {
+    const { getBillingHistoryForUser } = await import('../services/invoiceService')
+    const history = await getBillingHistoryForUser(uid)
+    res.status(200).json({ history })
+  } catch (err) { serverError(res, err) }
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/account/plan/switch
 // Sets the user's plan tier directly (no third-party billing). Until a real

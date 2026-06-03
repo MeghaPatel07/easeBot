@@ -57,7 +57,13 @@ app.use(
   }),
 )
 
-app.use(express.json({ limit: '20mb' }))
+// Capture the raw JSON bytes so the Razorpay webhook can HMAC the exact body
+// (express.json otherwise discards the buffer after parsing). PayU posts
+// form-urlencoded, so this only affects application/json requests.
+app.use(express.json({
+  limit: '20mb',
+  verify: (req, _res, buf) => { (req as unknown as { rawBody?: Buffer }).rawBody = buf },
+}))
 // PayU posts back to /api/payment/return and /webhook as application/x-www-form-urlencoded.
 // Without this parser those bodies arrive empty and handleReturn falls through to bad_payload.
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))

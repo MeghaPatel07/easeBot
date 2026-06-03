@@ -1,4 +1,4 @@
-import weddingEaseLogo from '@/assets/images/Wedding ease.png'
+import weddingEaseLogo from '@/assets/images/welogofinal.avif'
 import { track } from '@/lib/analytics'
 
 const WEDDINGEASE_URL = 'https://weddingease.ai'

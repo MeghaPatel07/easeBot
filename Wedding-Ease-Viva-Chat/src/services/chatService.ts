@@ -185,6 +185,19 @@ export interface PaginatedMessages {
   firstDoc: DocumentSnapshot | null
 }
 
+/**
+ * Read a thread's owner uid (chats/{threadId}.userId) without loading its
+ * messages. Used to gate access before opening a conversation: a thread is
+ * private to its owner. Firestore rules are currently permissive, so this
+ * client-side check is what stops one account opening another's chat by URL.
+ * True isolation needs Firestore rules — see
+ * PRD-SECURITY-cross-user-access-control.md. Returns null if the thread is gone.
+ */
+export async function getThreadOwnerId(threadId: string): Promise<string | null> {
+  const snap = await getDoc(doc(db, 'chats', threadId))
+  return snap.exists() ? ((snap.data().userId as string | undefined) ?? null) : null
+}
+
 /** Load the latest N messages for a thread */
 export async function loadLatestMessages(threadId: string): Promise<PaginatedMessages> {
   const q = query(

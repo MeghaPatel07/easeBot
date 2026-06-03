@@ -116,6 +116,130 @@ export async function verifyPayment(txnid: string): Promise<unknown> {
   return res.json()
 }
 
+// ---- Razorpay (second gateway) ---------------------------------------------
+
+export interface InitiateRazorpayResponse {
+  txnid: string
+  orderId: string
+  keyId: string
+  amountSubunit: number
+  currency: string
+}
+
+/** Razorpay checkout.js success payload passed to the handler callback. */
+export interface RazorpayHandlerResponse {
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature: string
+}
+
+interface RazorpayCheckoutOptions {
+  key: string
+  amount: number
+  currency: string
+  name: string
+  description?: string
+  order_id: string
+  handler: (resp: RazorpayHandlerResponse) => void
+  prefill?: { name?: string; email?: string; contact?: string }
+  notes?: Record<string, string>
+  theme?: { color?: string }
+  modal?: { ondismiss?: () => void }
+}
+
+interface RazorpayInstance {
+  open: () => void
+  on: (event: 'payment.failed', cb: (resp: { error?: { code?: string; description?: string } }) => void) => void
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayInstance
+  }
+}
+
+const RAZORPAY_CHECKOUT_SRC = 'https://checkout.razorpay.com/v1/checkout.js'
+
+/** Inject checkout.js once; resolves true when window.Razorpay is available. */
+export function loadRazorpayCheckoutJs(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') { resolve(false); return }
+    if (window.Razorpay) { resolve(true); return }
+    const existing = document.getElementById('razorpay-checkout-js') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', () => resolve(true))
+      existing.addEventListener('error', () => resolve(false))
+      return
+    }
+    const s = document.createElement('script')
+    s.id = 'razorpay-checkout-js'
+    s.src = RAZORPAY_CHECKOUT_SRC
+    s.async = true
+    s.onload = () => resolve(true)
+    s.onerror = () => resolve(false)
+    document.body.appendChild(s)
+  })
+}
+
+/** POST /api/payment/razorpay/initiate → creates the order + pending record. */
+export async function initiateRazorpay(
+  body: InitiatePaymentRequest,
+): Promise<InitiateRazorpayResponse> {
+  const res = await authFetch('/api/payment/razorpay/initiate', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`razorpay_initiate_failed:${res.status}:${text}`)
+  }
+  return res.json()
+}
+
+/** POST /api/payment/razorpay/verify → confirms the checkout signature server-side. */
+export async function verifyRazorpay(
+  args: { txnid: string } & RazorpayHandlerResponse,
+): Promise<{ ok: boolean; state: string; provider?: string }> {
+  const res = await authFetch('/api/payment/razorpay/verify', {
+    method: 'POST',
+    body: JSON.stringify(args),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`razorpay_verify_failed:${res.status}:${text}`)
+  }
+  return res.json()
+}
+
+export interface OpenRazorpayArgs {
+  init: InitiateRazorpayResponse
+  name?: string
+  description?: string
+  prefill?: { name?: string; email?: string; contact?: string }
+  onSuccess: (resp: RazorpayHandlerResponse) => void
+  onDismiss?: () => void
+  onFailure?: (err: { code?: string; description?: string }) => void
+}
+
+/** Open the Razorpay Standard Checkout modal for an initiated order. */
+export function openRazorpayModal(args: OpenRazorpayArgs): void {
+  if (!window.Razorpay) throw new Error('razorpay_checkout_not_loaded')
+  const rzp = new window.Razorpay({
+    key: args.init.keyId,
+    amount: args.init.amountSubunit,
+    currency: args.init.currency,
+    name: args.name ?? 'WeddingEase',
+    description: args.description ?? 'Subscription',
+    order_id: args.init.orderId,
+    prefill: args.prefill,
+    theme: { color: '#7c3aed' },
+    handler: (resp) => args.onSuccess(resp),
+    modal: { ondismiss: () => args.onDismiss?.() },
+  })
+  rzp.on('payment.failed', (resp) => args.onFailure?.(resp.error ?? {}))
+  rzp.open()
+}
+
 // ---- Subscription ----------------------------------------------------------
 
 export async function getCurrentSubscription(): Promise<SubscriptionSnapshot> {
@@ -159,6 +283,33 @@ export async function getInvoices(): Promise<InvoiceSummary[]> {
   if (!res.ok) return []
   const json = (await res.json()) as { invoices?: InvoiceSummary[] }
   return json.invoices ?? []
+}
+
+// ---- Purchase / billing history -------------------------------------------
+
+export type BillingHistoryStatus = 'PAID' | 'FAILED' | 'PENDING' | 'REVIEW'
+
+export interface BillingHistoryRow {
+  /** txnid — also the PDF download id when hasPdf is true. */
+  id: string
+  invoiceNumber: string | null
+  date: string
+  amount: number
+  currencyCode: string
+  status: BillingHistoryStatus
+  plan: string | null
+  cycle: string | null
+  provider: string | null
+  productinfo: string | null
+  hasPdf: boolean
+}
+
+/** Unified invoices + raw payment attempts (paid/pending/failed). */
+export async function getBillingHistory(): Promise<BillingHistoryRow[]> {
+  const res = await authFetch('/api/account/billing-history')
+  if (!res.ok) return []
+  const json = (await res.json()) as { history?: BillingHistoryRow[] }
+  return json.history ?? []
 }
 
 export async function downloadInvoicePdf(invoiceId: string): Promise<void> {

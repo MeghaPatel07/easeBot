@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { onAuthStateChanged, type User } from 'firebase/auth'
 import { useQueryClient } from '@tanstack/react-query'
 import { auth } from '@/lib/firebase'
@@ -8,6 +8,10 @@ import {
   initiatePayment,
   autoSubmitToPayu,
   isPaymentEnabled,
+  initiateRazorpay,
+  loadRazorpayCheckoutJs,
+  openRazorpayModal,
+  verifyRazorpay,
   type BillingAddressInput,
   type BillingCycle,
   type Plan,
@@ -16,6 +20,8 @@ import ExchangeRateService from '@/services/exchangeRateService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { cn } from '@/lib/utils'
 import { track } from '@/lib/analytics'
+import payuLogo from '@/assets/images/payu.png'
+import razorpayLogo from '@/assets/images/razorpay.png'
 
 interface CheckoutState {
   plan: Plan | 'topup_2m'
@@ -72,7 +78,11 @@ export default function Checkout() {
   const [gstin, setGstin] = useState('')
   const [rate, setRate] = useState(1)
   const [formError, setFormError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  // Which gateway flow is in flight. We track the specific gateway (not just a
+  // boolean) so the button the user clicked shows the "Processing…" spinner
+  // while the other one is simply disabled — not stuck showing its own label.
+  const [pendingGateway, setPendingGateway] = useState<'payu' | 'razorpay' | 'direct' | null>(null)
+  const submitting = pendingGateway !== null
   const didSubmitRef = useRef(false)
 
   // Wait for Firebase auth to hydrate before deciding whether to render or
@@ -130,6 +140,9 @@ export default function Checkout() {
     return <Navigate to="/login?next=/pricing" replace />
   }
 
+  // Build-time env flag — stable across renders, so read it once.
+  const paymentEnabled = isPaymentEnabled()
+
   const validate = (): string | null => {
     if (!fullName.trim()) return 'Full name is required.'
     if (!email.trim()) return 'Email is required.'
@@ -170,12 +183,12 @@ export default function Checkout() {
     return res.json()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Validate + build the billing payload shared by both gateways. Returns null
+  // (and sets formError) when the form is invalid.
+  const prepare = (): { billingAddress: BillingAddressInput; firstname: string } | null => {
     setFormError(null)
     const err = validate()
-    if (err) { setFormError(err); return }
-
+    if (err) { setFormError(err); return null }
     const billingAddress: BillingAddressInput = {
       name: fullName.trim(),
       country,
@@ -184,18 +197,50 @@ export default function Checkout() {
       postalCode: postalCode.trim(),
       line1: line1.trim(),
     }
+    const firstname = fullName.trim().split(' ')[0] || 'Customer'
+    return { billingAddress, firstname }
+  }
+
+  // Shared error → message mapping for both gateway flows.
+  const handleSubmitError = (submitErr: unknown) => {
+    const msg = submitErr instanceof Error ? submitErr.message : String(submitErr)
+    console.error('[Checkout] submission failed', submitErr)
+    if (msg.includes('409') && msg.includes('already_subscribed')) {
+      navigate('/pricing', { state: { returnReason: 'already_subscribed' } })
+    } else if (msg.includes('409') && msg.includes('upgrade_requires_pro_tier')) {
+      setFormError('Upgrades are only available from the Pro tier.')
+    } else if (msg.includes('503') || msg.includes('rate_api_unavailable')) {
+      setFormError('Currency conversion is temporarily unavailable. Please try again.')
+    } else if (msg.includes('missing_billing_state')) {
+      setFormError('State is required for Indian addresses.')
+    } else if (msg.includes('invalid_gstin')) {
+      setFormError('GSTIN format is invalid.')
+    } else if (msg.includes('activate_failed')) {
+      setFormError('Could not activate plan. Please try again.')
+    } else {
+      setFormError('Could not complete checkout. Please try again.')
+    }
+    setPendingGateway(null)
+  }
+
+  // PayU (or direct activation when payments are disabled). Form submit handler.
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const prep = prepare()
+    if (!prep) return
+    const { billingAddress, firstname } = prep
 
     try {
-      setSubmitting(true)
+      setPendingGateway(paymentEnabled ? 'payu' : 'direct')
       track('checkout_started', {
         tier: state.plan,
         cycle: state.cycle,
         amount: state.priceUsd,
         currency: state.currency,
+        gateway: 'payu',
       })
-      const firstname = fullName.trim().split(' ')[0] || 'Customer'
 
-      if (isPaymentEnabled()) {
+      if (paymentEnabled) {
         const init = await initiatePayment({
           plan: state.plan,
           cycle: state.cycle,
@@ -228,29 +273,87 @@ export default function Checkout() {
         navigate('/', { replace: true })
       }
     } catch (submitErr) {
-      const msg = submitErr instanceof Error ? submitErr.message : String(submitErr)
-      console.error('[Checkout] submission failed', submitErr)
-      if (msg.includes('409') && msg.includes('already_subscribed')) {
-        navigate('/pricing', { state: { returnReason: 'already_subscribed' } })
-      } else if (msg.includes('409') && msg.includes('upgrade_requires_pro_tier')) {
-        setFormError('Upgrades are only available from the Pro tier.')
-      } else if (msg.includes('503') || msg.includes('rate_api_unavailable')) {
-        setFormError('Currency conversion is temporarily unavailable. Please try again.')
-      } else if (msg.includes('missing_billing_state')) {
-        setFormError('State is required for Indian addresses.')
-      } else if (msg.includes('invalid_gstin')) {
-        setFormError('GSTIN format is invalid.')
-      } else if (msg.includes('activate_failed')) {
-        setFormError('Could not activate plan. Please try again.')
-      } else {
-        setFormError('Could not complete checkout. Please try again.')
+      handleSubmitError(submitErr)
+    }
+  }
+
+  // Razorpay: load checkout.js → create order → open modal → verify on success.
+  const handleRazorpay = async () => {
+    const prep = prepare()
+    if (!prep) return
+    const { billingAddress, firstname } = prep
+
+    try {
+      setPendingGateway('razorpay')
+      track('checkout_started', {
+        tier: state.plan,
+        cycle: state.cycle,
+        amount: state.priceUsd,
+        currency: state.currency,
+        gateway: 'razorpay',
+      })
+
+      const loaded = await loadRazorpayCheckoutJs()
+      if (!loaded) {
+        setFormError('Could not load Razorpay checkout. Check your connection and try again.')
+        setPendingGateway(null)
+        return
       }
-      setSubmitting(false)
+
+      const init = await initiateRazorpay({
+        plan: state.plan,
+        cycle: state.cycle,
+        currency: state.currency,
+        firstname,
+        email: email.trim(),
+        billingAddress,
+        gstin: gstin ? gstin.toUpperCase() : undefined,
+        isUpgrade: state.isUpgrade,
+      })
+      track('razorpay_modal_opened', {
+        order_id: init.txnid,
+        tier: state.plan,
+        amount: state.priceUsd,
+        currency: state.currency,
+      })
+
+      openRazorpayModal({
+        init,
+        name: 'WeddingEase',
+        description: state.label,
+        prefill: { name: fullName.trim(), email: email.trim() },
+        onSuccess: async (resp) => {
+          didSubmitRef.current = true
+          try {
+            await verifyRazorpay({ txnid: init.txnid, ...resp })
+          } catch (verifyErr) {
+            // The webhook will finalize authoritatively and the success page
+            // re-verifies, so a hiccup here is non-fatal — just log it.
+            console.warn('[Checkout] razorpay verify call failed (webhook will finalize)', verifyErr)
+          }
+          navigate(`/payment/success?txnid=${encodeURIComponent(init.txnid)}`)
+        },
+        onDismiss: () => {
+          // User closed the modal without paying — let them retry.
+          setPendingGateway(null)
+        },
+        onFailure: () => {
+          setFormError('Payment failed or was declined. Please try again.')
+          setPendingGateway(null)
+        },
+      })
+    } catch (submitErr) {
+      handleSubmitError(submitErr)
     }
   }
 
   const inputCls =
     'min-h-11 w-full rounded-xl border-0 bg-[hsl(22.5deg_25.6%_50.98%/5%)] px-3 text-sm text-soft placeholder-foreground/30 focus:outline-none focus:ring-1 focus:ring-foreground/10 focus:bg-foreground/[0.06] transition-colors'
+
+  // Gateway buttons sit on a white surface so the PayU / Razorpay brand
+  // wordmarks (dark-on-transparent) stay legible against the dark glass card.
+  const gatewayBtnCls =
+    'inline-flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-xl bg-white px-4 text-sm font-semibold text-neutral-900 shadow-sm ring-1 ring-black/5 transition hover:bg-neutral-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none disabled:hover:bg-white sm:flex-1'
 
   return (
     <div className="gradient-bg min-h-screen text-soft">
@@ -285,7 +388,7 @@ export default function Checkout() {
               <p className="font-headline text-2xl text-foreground">{priceDisplay}</p>
             </div>
             <p className="mt-1 text-2xs text-foreground/40">
-              Billed in {state.currency} · locked at checkout · no refunds per terms §6.5
+              Billed in {state.currency} · locked at checkout · no refunds
             </p>
           </div>
 
@@ -419,18 +522,67 @@ export default function Checkout() {
           </label>
 
           <div className="pt-4">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:w-auto transition-colors"
-            >
-              {submitting ? (isPaymentEnabled() ? 'Redirecting to PayU…' : 'Activating plan…') : `${isPaymentEnabled() ? 'Pay' : 'Activate'} ${priceDisplay}`}
-            </button>
+            {paymentEnabled ? (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {/* <button
+                  type="submit"
+                  disabled={submitting}
+                  aria-busy={pendingGateway === 'payu'}
+                  aria-label={`Pay ${priceDisplay} with PayU`}
+                  className={gatewayBtnCls}
+                >
+                  {pendingGateway === 'payu' ? (
+                    <span className="inline-flex items-center gap-2 text-neutral-700">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                    </span>
+                  ) : (
+                    <>
+                      <img src={payuLogo} alt="PayU" className="h-5 w-auto shrink-0 sm:h-6" />
+                      <span aria-hidden className="text-neutral-300">·</span>
+                      <span className="whitespace-nowrap">{priceDisplay}</span>
+                    </>
+                  )}
+                </button> */}
+                <button
+                  type="button"
+                  onClick={handleRazorpay}
+                  disabled={submitting}
+                  aria-busy={pendingGateway === 'razorpay'}
+                  aria-label={`Pay ${priceDisplay} with Razorpay`}
+                  className={gatewayBtnCls}
+                >
+                  {pendingGateway === 'razorpay' ? (
+                    <span className="inline-flex items-center gap-2 text-neutral-700">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                    </span>
+                  ) : (
+                    <>
+                      <img src={razorpayLogo} alt="Razorpay" className="h-5 w-auto shrink-0 sm:h-6" />
+                      <span aria-hidden className="text-neutral-300">·</span>
+                      <span className="whitespace-nowrap">{priceDisplay}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                disabled={submitting}
+                aria-busy={pendingGateway === 'direct'}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:w-auto transition-colors"
+              >
+                {pendingGateway === 'direct' ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Activating plan…</>
+                ) : (
+                  `Activate ${priceDisplay}`
+                )}
+              </button>
+            )}
             <p className="mt-3 text-2xs text-foreground/40">
-              {isPaymentEnabled() ? (
+              {paymentEnabled ? (
                 <>
-                  You&apos;ll be redirected to PayU&apos;s secure sandbox. By continuing
-                  you agree to the <Link to="/terms" className="underline">Terms</Link>{' '}
+                  Choose a gateway to pay securely. By continuing you agree to the{' '}
+                  <Link to="/terms" className="underline">Terms</Link>{' '}
                   and <Link to="/privacy" className="underline">Privacy Policy</Link>.
                 </>
               ) : (
