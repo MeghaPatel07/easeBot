@@ -36,8 +36,17 @@ router.post('/cancel', requireAuthOrGuest, (req: Request, res: Response) => {
 
 /**
  * SSE streaming endpoint with heartbeat, event IDs, and reconnection support.
+ *
+ * Body validation: `validateBody(ChatRequestSchema)` runs BEFORE this handler
+ * so the stream endpoint rejects the same set of inputs as the non-stream
+ * `POST /api/chat` route. Pre-fix the stream path silently swallowed unknown
+ * `mode` values and defaulted to planner — see WE-20260528-103.
  */
-router.post('/stream', requireAuthOrGuest, chatBurstRateLimiter, quotaCheck('chat'), (req: Request, res: Response) => {
+ 
+// router.post('/stream', requireAuth, chatBurstRateLimiter, validateBody(ChatRequestSchema), quotaCheck('chat'), (req: Request, res: Response) => {
+ 
+router.post('/stream',requireAuth, requireAuthOrGuest, chatBurstRateLimiter,validateBody(ChatRequestSchema), quotaCheck('chat'), (req: Request, res: Response) => {
+ 
   // ── Last-Event-ID support (log for future replay) ──────────────────────────
   const lastEventId = req.headers['last-event-id'] as string | undefined
   if (lastEventId) {
@@ -74,9 +83,8 @@ router.post('/stream', requireAuthOrGuest, chatBurstRateLimiter, quotaCheck('cha
   handleChatStream(req, res)
 })
 
-// Also validate stream requests — mount validateBody before the SSE wrapper
-// Note: validation runs inside the stream handler's wrapper above, so we apply
-// it at the route level for the non-stream endpoint only. Stream requests use
-// the same body shape but validation is handled by the controller.
+// Both `/` and `/stream` now share `validateBody(ChatRequestSchema)` so the
+// two endpoints reject the same shape (including unknown `mode` values). See
+// WE-20260528-103 for the prior drift.
 
 export default router
