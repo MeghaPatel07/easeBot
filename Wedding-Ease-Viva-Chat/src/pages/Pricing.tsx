@@ -434,7 +434,7 @@ export default function Pricing() {
               aria-label="Currency"
               value={currency}
               onChange={(e) => handleCurrencyOverride(e.target.value)}
-              className="min-h-9 rounded-xl bg-foreground/[0.04] px-2 text-foreground/90 focus:outline-none focus:ring-1 focus:ring-foreground/10 transition-colors"
+              className="min-h-9 rounded-xl bg-foreground/[0.04] px-2 text-foreground/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 transition-colors"
             >
               {CURRENCY_OPTIONS.map((c) => (
                 <option key={c} value={c}>{c}</option>

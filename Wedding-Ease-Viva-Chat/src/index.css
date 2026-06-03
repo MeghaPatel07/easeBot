@@ -869,6 +869,22 @@
     background-color: hsl(var(--background));
   }
 
+  /* Global :focus-visible fallback — WCAG 1.4.11 + 2.4.7.
+     Ensures any focusable element without explicit focus-visible styles
+     still shows a brand-primary ring with ≥3:1 contrast on both themes. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* Defer to component-level Tailwind focus rings (button/badge/etc.) by
+     suppressing the native outline only when those components have already
+     opted into focus-visible:ring-* — they set their own outline-none. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
 
     *,
