@@ -155,6 +155,19 @@ const App = () => (
               <Route path="/shared/note/:shareId" element={<SharedNote />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
+              {/* WE-20260527-024: long-name SEO aliases for legal pages —
+                  external traffic (search engines, share links) typically
+                  uses the fully-spelled forms. Redirect to canonical. */}
+              <Route path="/privacy-policy" element={<Navigate to="/privacy" replace />} />
+              <Route path="/terms-of-service" element={<Navigate to="/terms" replace />} />
+              {/* WE-20260527-024: /images is canonically /:userId/images, but the
+                  bare path is a common deep-link. Send signed-out users to login,
+                  signed-in users land on / where the app routes them to their
+                  gallery once auth resolves. */}
+              <Route path="/images" element={<Navigate to="/" replace />} />
+              {/* WE-20260527-024: /settings is query-string driven on the index
+                  page. Redirect to the account settings tab by default. */}
+              <Route path="/settings" element={<Navigate to="/?settings=account" replace />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/payment/success" element={<PaymentSuccess />} />
