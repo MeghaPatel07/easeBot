@@ -768,6 +768,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                       value={digit}
                       onChange={e => handleVerifyOtpChange(i, e.target.value)}
                       onKeyDown={e => handleVerifyOtpKeyDown(i, e)}
+                      autoComplete="one-time-code"
                       className="w-11 h-12 sm:w-12 sm:h-14 text-center text-xl font-semibold rounded-xl border-2 border-foreground/20 bg-foreground/[0.06] text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/40 focus:bg-foreground/[0.1] transition-all caret-primary"
                     />
                   ))}
@@ -867,13 +868,13 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-xs text-foreground/50 ml-1">Full name</label>
-                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    <Input value={emailForm.name} onChange={setEmailField('name')} placeholder="Enter your name" autoComplete="name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
                     {emailErrors.name && <p className="text-xs text-destructive">{emailErrors.name}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-xs text-foreground/50 ml-1">Email</label>
-                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    <Input type="email" value={emailForm.email} onChange={setEmailField('email')} placeholder="Enter your mail" autoComplete="email" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
                     {emailErrors.email && <p className="text-xs text-destructive">{emailErrors.email}</p>}
                   </div>
 
@@ -897,6 +898,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                         value={emailForm.password}
                         onChange={setEmailField('password')}
                         placeholder={`Min ${PASSWORD_MIN_LENGTH} characters`}
+                        autoComplete="new-password"
                         className="h-12 pl-4 pr-12 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90"
                       />
                       <button
@@ -914,7 +916,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
 
                   <div className="space-y-2">
                     <label className="text-xs text-foreground/50 ml-1">Confirm password</label>
-                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="Re-enter your password" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    <Input type="password" value={emailForm.confirmPassword} onChange={setEmailField('confirmPassword')} placeholder="Re-enter your password" autoComplete="new-password" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
                     {emailErrors.confirmPassword && <p className="text-xs text-destructive">{emailErrors.confirmPassword}</p>}
                   </div>
 
@@ -957,13 +959,13 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-xs text-foreground/50 ml-1">Full name</label>
-                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Enter your name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    <Input value={phoneForm.name} onChange={setPhoneField('name')} placeholder="Enter your name" autoComplete="name" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
                     {phoneErrors.name && <p className="text-xs text-destructive">{phoneErrors.name}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-xs text-foreground/50 ml-1">Email (for recovery)</label>
-                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="Enter your mail" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
+                    <Input type="email" value={phoneForm.email} onChange={setPhoneField('email')} placeholder="Enter your mail" autoComplete="email" className="h-12 px-4 rounded-2xl bg-transparent border border-foreground/[0.12] focus:border-primary/40 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-foreground/25 text-sm text-foreground/90" />
                     {phoneErrors.email && <p className="text-xs text-destructive">{phoneErrors.email}</p>}
                   </div>
 
@@ -1064,6 +1066,7 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
                     onChange={e => setPhoneOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="6-digit code"
                     maxLength={6}
+                    autoComplete="one-time-code"
                     className="h-12 rounded-2xl bg-transparent border border-foreground/[0.12] text-center tracking-widest text-lg text-foreground/90"
                     onKeyDown={e => e.key === 'Enter' && handlePhoneVerify()}
                   />
