@@ -96,6 +96,9 @@ function parseAttachments(
   return { attachments: valid, error: null }
 }
 
+
+
+
 function logAttachmentsReceived(
   scope: 'chat' | 'chat:stream',
   attachments: ChatAttachment[],
