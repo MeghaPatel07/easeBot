@@ -217,7 +217,7 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
         open ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
-      <div className="w-72 h-full bg-overlay-scrim/40 backdrop-blur-md border-l border-foreground/10 flex flex-col">
+      <div className="w-72 h-full bg-popover/95 backdrop-blur-xl border-l border-border shadow-xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/[0.06] flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -241,8 +241,8 @@ const NoteCommentsSidebar: React.FC<NoteCommentsSidebarProps> = ({
           <div className="p-3 space-y-3">
             {threads.length === 0 && (
               <div className="text-center py-8">
-                <MessageSquare className="h-8 w-8 text-foreground/10 mx-auto mb-2" />
-                <p className="text-xs text-foreground/25 italic">No comments yet</p>
+                <MessageSquare className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground italic">No comments yet</p>
               </div>
             )}
 

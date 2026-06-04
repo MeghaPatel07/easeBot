@@ -55,7 +55,7 @@ Composite indexes are needed where queries order+filter on multiple fields. Fire
 
 ### 2.1 🔴 Subscription scheduler composite index (REQUIRED)
 
-The subscription scheduler tick (`subscriptionStateMachine.scanForPeriodEnd`) runs a `collectionGroup('subscription')` query filtering `where state in ['pro_cancel_scheduled', 'promax_cancel_scheduled'] AND where currentPeriodEnd <= now`. Firestore will reject this at runtime until a composite index exists. Create it in the console:
+The subscription scheduler tick (`subscriptionStateMachine.scanForPeriodEnd`) runs a `collectionGroup('subscription')` query filtering `where state in ['pro_monthly', 'pro_annual', 'promax_monthly', 'promax_annual', 'pro_cancel_scheduled', 'promax_cancel_scheduled'] AND where currentPeriodEnd <= now`. (As of the expiry-sweep change the scan also includes the four **active** paid states so one-time-payment plans expire to Free at period end — there is no auto-renewal/SI mandate. The index is unchanged: it is keyed on the same two fields regardless of the `in` list.) Firestore will reject this at runtime until a composite index exists. Create it in the console:
 
 - **Collection group:** `subscription`
 - **Fields:**
@@ -63,7 +63,7 @@ The subscription scheduler tick (`subscriptionStateMachine.scanForPeriodEnd`) ru
   - `currentPeriodEnd` — Ascending
 - **Query scope:** Collection group
 
-Without this index every scheduler tick will throw a failed-precondition error and period-end downgrades (ProMax→Pro) and cancellations will silently stop advancing. Console path: Firestore → Indexes → Composite → Add index.
+Without this index every scheduler tick will throw a failed-precondition error and **all** period-end transitions — active-plan expiry to Free, ProMax→Pro downgrades, and cancellations — will silently stop advancing (the error is swallowed and the tick returns 0). Console path: Firestore → Indexes → Composite → Add index.
 
 ---
 

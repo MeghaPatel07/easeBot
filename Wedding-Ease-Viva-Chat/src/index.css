@@ -48,8 +48,9 @@
     --dark-muted-foreground: 0 0% 85%;
 
     /* Brand — bronze */
-    --dark-primary: 22 25% 51%;
-    /* #A17A63 */
+    /* Original (reference): --dark-primary: 22 25% 51%; (#A17A63) */
+    --dark-primary: 22 69% 72%;
+    /* #e9aa86 */
     --dark-primary-foreground: 0 0% 100%;
     --dark-primary-muted: 22 20% 65%;
     --dark-primary-hover: 22 26% 43%;

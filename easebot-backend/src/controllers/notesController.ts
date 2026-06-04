@@ -14,6 +14,14 @@ import {
 // Notes CRUD
 // ---------------------------------------------------------------------------
 
+// Permission predicates bridging the two vocabularies checkNoteAccess can
+// return: collaborator perms ('owner'|'editor'|'commenter'|'viewer') and
+// public-link perms ('view'|'comment'|'edit'). The old guards compared against
+// the bare string 'view', which never matched the collaborator value 'viewer',
+// so view-only collaborators could write. Use explicit allow-lists instead.
+const canEditNote = (p: string) => p === 'owner' || p === 'editor' || p === 'edit'
+const canCommentOnNote = (p: string) => canEditNote(p) || p === 'commenter' || p === 'comment'
+
 export async function handleCreateNote(req: Request, res: Response): Promise<void> {
   const uid = req.user?.uid
   const email = req.user?.email
@@ -31,7 +39,7 @@ export async function handleGetNote(req: Request, res: Response): Promise<void> 
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess) { res.status(403).json({ error: 'Forbidden' }); return }
     const note = await getNote(noteId)
     res.status(200).json(note)
@@ -45,8 +53,8 @@ export async function handleUpdateNote(req: Request, res: Response): Promise<voi
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
-    if (!access.hasAccess || access.permission === 'view') {
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
+    if (!access.hasAccess || !canEditNote(access.permission)) {
       res.status(403).json({ error: 'Forbidden' }); return
     }
     await updateNote(noteId, { ...req.body, lastEditedBy: req.user?.email || uid })
@@ -61,7 +69,7 @@ export async function handleDeleteNote(req: Request, res: Response): Promise<voi
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -77,7 +85,7 @@ export async function handleRestoreNote(req: Request, res: Response): Promise<vo
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -93,7 +101,7 @@ export async function handlePermanentDelete(req: Request, res: Response): Promis
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -128,7 +136,7 @@ export async function handleAddCollaborator(req: Request, res: Response): Promis
     res.status(400).json({ error: 'email and permission are required' }); return
   }
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -151,7 +159,7 @@ export async function handleSendInvites(req: Request, res: Response): Promise<vo
     res.status(400).json({ error: 'emails array is required' }); return
   }
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -170,7 +178,7 @@ export async function handleRemoveCollaborator(req: Request, res: Response): Pro
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId, userId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -188,7 +196,7 @@ export async function handleUpdateCollaboratorPermission(req: Request, res: Resp
   const { permission } = req.body
   if (!permission) { res.status(400).json({ error: 'permission is required' }); return }
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -205,7 +213,7 @@ export async function handleEnablePublicLink(req: Request, res: Response): Promi
   const { noteId } = req.params
   const { permission } = req.body
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -221,7 +229,7 @@ export async function handleDisablePublicLink(req: Request, res: Response): Prom
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess || access.permission !== 'owner') {
       res.status(403).json({ error: 'Forbidden' }); return
     }
@@ -256,8 +264,8 @@ export async function handleAddComment(req: Request, res: Response): Promise<voi
   const { content, blockId } = req.body
   if (!content) { res.status(400).json({ error: 'content is required' }); return }
   try {
-    const access = await checkNoteAccess(noteId, uid)
-    if (!access.hasAccess) { res.status(403).json({ error: 'Forbidden' }); return }
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
+    if (!access.hasAccess || !canCommentOnNote(access.permission)) { res.status(403).json({ error: 'Forbidden' }); return }
     const commentId = await addComment(noteId, {
       content,
       authorId: uid,
@@ -275,7 +283,7 @@ export async function handleGetComments(req: Request, res: Response): Promise<vo
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
     if (!access.hasAccess) { res.status(403).json({ error: 'Forbidden' }); return }
     const comments = await getComments(noteId)
     res.status(200).json(comments)
@@ -291,8 +299,8 @@ export async function handleUpdateComment(req: Request, res: Response): Promise<
   const { content } = req.body
   if (!content) { res.status(400).json({ error: 'content is required' }); return }
   try {
-    const access = await checkNoteAccess(noteId, uid)
-    if (!access.hasAccess) { res.status(403).json({ error: 'Forbidden' }); return }
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
+    if (!access.hasAccess || !canCommentOnNote(access.permission)) { res.status(403).json({ error: 'Forbidden' }); return }
     await updateComment(noteId, commentId, content)
     res.status(200).json({ ok: true })
   } catch (err: any) {
@@ -305,8 +313,8 @@ export async function handleDeleteComment(req: Request, res: Response): Promise<
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId, commentId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
-    if (!access.hasAccess) { res.status(403).json({ error: 'Forbidden' }); return }
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
+    if (!access.hasAccess || !canCommentOnNote(access.permission)) { res.status(403).json({ error: 'Forbidden' }); return }
     await deleteComment(noteId, commentId)
     res.status(200).json({ ok: true })
   } catch (err: any) {
@@ -319,8 +327,8 @@ export async function handleResolveComment(req: Request, res: Response): Promise
   if (!uid) { res.status(401).json({ error: 'Unauthorized' }); return }
   const { noteId, commentId } = req.params
   try {
-    const access = await checkNoteAccess(noteId, uid)
-    if (!access.hasAccess) { res.status(403).json({ error: 'Forbidden' }); return }
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
+    if (!access.hasAccess || !canCommentOnNote(access.permission)) { res.status(403).json({ error: 'Forbidden' }); return }
     await resolveComment(noteId, commentId, uid)
     res.status(200).json({ ok: true })
   } catch (err: any) {
@@ -386,8 +394,8 @@ export async function handleMoveNote(req: Request, res: Response): Promise<void>
   const { noteId } = req.params
   const { folderId } = req.body
   try {
-    const access = await checkNoteAccess(noteId, uid)
-    if (!access.hasAccess || access.permission === 'view') {
+    const access = await checkNoteAccess(noteId, uid, req.user?.email, req.user?.emailVerified)
+    if (!access.hasAccess || !canEditNote(access.permission)) {
       res.status(403).json({ error: 'Forbidden' }); return
     }
     await moveNoteToFolder(noteId, folderId ?? null)

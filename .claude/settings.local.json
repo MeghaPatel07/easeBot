@@ -195,7 +195,27 @@
       "Bash(getent hosts *)",
       "Read(//private/etc/**)",
       "Bash(echo \"=== exit: $? ===\")",
-      "Bash(awk '/const mainAreaShell|function mainAreaShell|mainAreaShell =/{f=1} f{print NR\": \"$0} f&&/^\\\\s*\\\\\\);?\\\\s*$/{c++; if\\(c>=1 && /\\\\\\);/\\){exit}}' src/pages/Index.tsx)"
+      "Bash(awk '/const mainAreaShell|function mainAreaShell|mainAreaShell =/{f=1} f{print NR\": \"$0} f&&/^\\\\s*\\\\\\);?\\\\s*$/{c++; if\\(c>=1 && /\\\\\\);/\\){exit}}' src/pages/Index.tsx)",
+      "Bash(grep -nE 'theweddingbot|v1|notes|exports\\\\.|onRequest|onCall|require\\\\\\('\\\\''\\\\./theweddingbot' __TRACKED_VAR__/index.js)",
+      "Read(//Users/krish/Desktop/Admins/wedding-ease-admin/**)",
+      "Bash(sed -n '1,60p' /Users/krish/Desktop/Admins/wedding-ease-admin/functions/theweddingbot/v1/notes/list.js)",
+      "Bash(git ls-tree *)",
+      "Bash(git rev-list *)",
+      "Bash(grep -vE '^\\\\s*$')",
+      "Bash(gcloud functions *)",
+      "Bash(gcloud run *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('functions'\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('main:', d.get\\('main'\\)\\); print\\('engines:', d.get\\('engines'\\)\\)\")",
+      "Bash(cd /Users/krish/Desktop/Admins/wedding-ease-admin/functions)",
+      "Bash(cat index.js)",
+      "Bash(cat theweddingbot/v1/index.js)",
+      "Bash(chmod +x /Users/krish/Desktop/easebot/scripts/grant-functions-invoker.sh)",
+      "Bash(timeout 60 firebase functions:log --only notesShareNotify)",
+      "Bash(firebase functions:log --only notesShareNotify)",
+      "Bash(grep *)",
+      "Bash(rg -n --type ts --type tsx -e '\\\\$[0-9]{1,4}\\\\b' -e 'monthlyUsd|annualUsd|priceUsd|PLAN_USD' -e '\\\\b\\(79|299|14\\\\.99|119\\)\\\\b' Wedding-Ease-Viva-Chat/src)",
+      "Bash(rg -n -g '*.ts' -g '*.tsx' -e '\\\\$[0-9]{1,4}' -e 'monthlyUsd|annualUsd|priceUsd' -e '\\\\b\\(79|299|14\\\\.99|119\\)\\\\b' Wedding-Ease-Viva-Chat/src)",
+      "Bash(rg -n \"\\\\\\\\\\\\$[0-9]+|: ?\\(10|39|79|299\\)\\\\b|monthlyUsd: ?[0-9]|annualUsd: ?[0-9]|priceUsd: ?[0-9]\" src/pages/Pricing.tsx)"
     ]
   },
   "enabledMcpjsonServers": [

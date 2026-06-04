@@ -380,12 +380,30 @@ async function buildSystemPrompt(
 async function getChatHistory(
   threadId: string | undefined,
   providedHistory: HistoryMessage[] | undefined,
+  callerUid: string | null,
   historyLimit = 10
 ): Promise<HistoryMessage[]> {
   if (!threadId && providedHistory && providedHistory.length > 0) {
     return providedHistory.slice(-historyLimit)
   }
   if (threadId) {
+    // Ownership guard. The Admin SDK bypasses Firestore security rules, so
+    // without this a caller could pass ANY threadId and have another user's
+    // private conversation loaded into their LLM context. Verify the caller
+    // owns the thread before reading its messages. Real isolation also needs
+    // Firestore rules — see PRD-SECURITY-cross-user-access-control.md.
+    const threadSnap = await getDoc(doc(db, 'chats', threadId))
+    const ownerId = threadSnap.exists()
+      ? (threadSnap.data()?.userId as string | undefined)
+      : undefined
+    if (!callerUid || ownerId !== callerUid) {
+      console.warn('[getChatHistory] ownership check failed; ignoring threadId history', {
+        threadId,
+        ownerId: ownerId ?? null,
+        callerUid,
+      })
+      return []
+    }
     const q = query(
       collection(db, 'chats', threadId, 'messages'),
       orderBy('timestamp', 'desc'),
@@ -677,7 +695,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     const resolvedLanguage = await resolveRequestLanguage(language, uid)
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
-    const history = await getChatHistory(threadId, providedHistory)
+    const history = await getChatHistory(threadId, providedHistory, uid)
 
     // Fetch user profile for premium status, role, and context
     let isPremium = false
@@ -1183,7 +1201,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     const resolvedLanguage = await resolveRequestLanguage(language, uid)
     const { englishText, detectedLanguage } = await processInbound(message, audioBase64, resolvedLanguage)
     const mode: Mode = requestedMode ?? detectMode(englishText)
-    const history = await getChatHistory(threadId, providedHistory)
+    const history = await getChatHistory(threadId, providedHistory, uid)
 
     let isPremium = false
     let userRole: string | null = null

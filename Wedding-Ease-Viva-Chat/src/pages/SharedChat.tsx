@@ -60,13 +60,13 @@ export default function SharedChat() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-sm font-bold text-foreground/80">{data.threadTitle}</h1>
-            <p className="text-2xs text-foreground/40">
+            <h1 className="text-sm font-bold text-white">{data.threadTitle}</h1>
+            <p className="text-2xs text-white">
               Shared {data.sharedAt.toLocaleDateString()} &middot; Expires {data.expiresAt.toLocaleDateString()}
             </p>
           </div>
         </div>
-        <span className="text-2xs text-foreground/40 bg-foreground/10 px-2 py-1 rounded-full uppercase tracking-wider font-medium">Read-only</span>
+        <span className="text-2xs text-white bg-foreground/10 px-2 py-1 rounded-full uppercase tracking-wider font-medium">Read-only</span>
       </header>
 
       {/* Messages */}
@@ -78,7 +78,7 @@ export default function SharedChat() {
           return (
             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {msg.role === 'user' ? (
-                <div className="max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-secondary text-secondary-foreground shadow-sm">
+                <div className="chat-msg-text max-w-[85vw] sm:max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl rounded-tr-sm bg-foreground/[0.08] backdrop-blur-sm text-foreground/90 shadow-sm border border-foreground/[0.08]">
                   <p className="text-caption leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                 </div>
               ) : (
@@ -88,7 +88,7 @@ export default function SharedChat() {
                       {msg.mode}
                     </span>
                   )}
-                  <div className="mb-1 w-full prose prose-sm max-w-none leading-relaxed bg-foreground/[0.04] backdrop-blur-md p-4 rounded-2xl rounded-tl-sm shadow-glass text-foreground/90 prose-headings:text-foreground/90 prose-strong:text-foreground/95 prose-li:text-foreground/85 prose-p:text-foreground/85 prose-a:text-primary prose-a:no-underline prose-img:my-1">
+                  <div className="chat-msg-text mb-1 w-full prose prose-sm prose-invert max-w-none text-[13px] leading-[1.7] bg-foreground/[0.03] backdrop-blur-md p-4 sm:p-5 rounded-2xl rounded-tl-sm shadow-glass border border-foreground/10 text-muted-foreground prose-headings:text-muted-foreground prose-strong:text-muted-foreground prose-em:text-muted-foreground prose-li:text-muted-foreground prose-p:text-muted-foreground prose-blockquote:text-muted-foreground prose-code:text-muted-foreground prose-a:text-primary prose-a:no-underline prose-img:my-1">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm]}
                       components={{
@@ -220,7 +220,7 @@ export default function SharedChat() {
 
       {/* Footer */}
       <div className="text-center py-8">
-        <p className="text-2xs text-foreground/40 uppercase tracking-[0.2em] font-medium">
+        <p className="text-2xs text-white uppercase tracking-[0.2em] font-medium">
           Shared from TheWeddingBot &mdash; Your Wedding AI Concierge
         </p>
         <Link to="/" className="inline-block mt-2 text-xs text-primary hover:underline">

@@ -15,6 +15,7 @@ import {
   archiveThread as archiveThreadDoc,
   updateThreadTags as updateThreadTagsDoc,
   loadLatestMessages,
+  getThreadOwnerId,
   loadOlderMessages,
   uploadAttachedImage,
   removeMessageImage,
@@ -117,6 +118,7 @@ export interface UseChatResult {
   deleteMessageImage: (messageId: string, imageUrl: string) => Promise<void>
   refetchReminders: () => Promise<void>
   chatLoadError: boolean
+  chatUnavailable: boolean
 }
 
 // Synthesizes clickable chips for artifacts the AI just created or updated.
@@ -178,6 +180,10 @@ function toolActionsToMessageAttachments(
 
 export function useChat(): UseChatResult {
   const { user, profile } = useAuth()
+  // Mirror the current uid into a ref so stable-identity callbacks (loadChat)
+  // can read it without capturing a stale value.
+  const uidRef = useRef<string | null>(null)
+  useEffect(() => { uidRef.current = user?.uid ?? null }, [user?.uid])
 
   const [messages, setMessages] = useState<Message[]>([])
   const [threads, setThreads] = useState<ChatThread[]>([])
@@ -190,6 +196,10 @@ export function useChat(): UseChatResult {
   const [lastToolActions, setLastToolActions] = useState<ToolAction[]>([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [chatLoadError, setChatLoadError] = useState(false)
+  // The thread doc no longer exists (deleted by its owner, or an invalid link).
+  // Distinct from chatLoadError (access denied) so the UI can say "no longer
+  // available" vs "you don't have access". See PRD-SECURITY-cross-user-access-control.md.
+  const [chatUnavailable, setChatUnavailable] = useState(false)
   const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null)
   const [styleMemory, setStyleMemory] = useState<import('@/types').StyleMemory | null>(null)
   const firstDocRef = useRef<DocumentSnapshot | null>(null)
@@ -946,9 +956,31 @@ export function useChat(): UseChatResult {
   const loadChat = useCallback(async (threadId: string) => {
     if (threadId === activeThreadIdRef.current) return
     setChatLoadError(false)
+    setChatUnavailable(false)
     setActiveThreadId(threadId)
     activeThreadIdRef.current = threadId
     try {
+      // Ownership + existence guard. A thread is private to its owner
+      // (chats/{id}.userId). Firestore rules are currently permissive, so
+      // without this anyone with the URL could open another account's
+      // conversation, and a deleted thread would render as a blank chat. Real
+      // isolation needs Firestore rules — see PRD-SECURITY-cross-user-access-control.md.
+      const ownerId = await getThreadOwnerId(threadId)
+      if (ownerId === null) {
+        // Thread no longer exists (owner deleted it, or the link is invalid).
+        setMessages([])
+        setChatUnavailable(true)
+        return
+      }
+      // Deny if the viewer isn't the owner — or if we don't yet know who the
+      // viewer is (never load a thread for an unknown/guest user). loadChat is
+      // gated on auth being resolved (Index), so a logged-in owner's uid is
+      // known here; a null uid means guest → deny.
+      if (!uidRef.current || ownerId !== uidRef.current) {
+        setMessages([])
+        setChatLoadError(true)
+        return
+      }
       const result = await loadLatestMessages(threadId)
       setHasMoreMessages(result.hasMore)
       firstDocRef.current = result.firstDoc
@@ -1017,6 +1049,8 @@ export function useChat(): UseChatResult {
     activeThreadIdRef.current = null
     setLastGeneratedImageUrl(null)
     setStyleMemory(null)
+    setChatLoadError(false)
+    setChatUnavailable(false)
   }, [])
 
   // ── Delete thread ──────────────────────────────────────────────────────────
@@ -1096,5 +1130,6 @@ export function useChat(): UseChatResult {
     deleteMessageImage,
     refetchReminders,
     chatLoadError,
+    chatUnavailable,
   }
 }

@@ -7,6 +7,14 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_STORAGE_BUCKET: string
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string
   readonly VITE_FIREBASE_APP_ID: string
+  // Subscription + top-up prices (USD). Optional — src/config/pricing.ts falls
+  // back to the shipped price when a var is unset. Must mirror the backend's
+  // PRO / PRO_ANNUAL / PRO_MAX / PRO_MAX_ANNUAL / TOPUP env values.
+  readonly VITE_PRO?: string
+  readonly VITE_PRO_ANNUAL?: string
+  readonly VITE_PRO_MAX?: string
+  readonly VITE_PRO_MAX_ANNUAL?: string
+  readonly VITE_TOPUP?: string
 }
 
 interface ImportMeta {

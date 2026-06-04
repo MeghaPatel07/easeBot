@@ -13,6 +13,7 @@ import {
   enablePublicLink,
   disablePublicLink,
   sendNoteInvites,
+  ensurePublicShareId,
 } from '@/services/notesSharingService';
 import {
   subscribeToComments,
@@ -85,7 +86,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   }, [navigate, setActiveNoteId, userId]);
 
   const {
-    note, isSaving, lastSavedAt, hasUnsavedChanges, save,
+    note, noteMissing, isSaving, lastSavedAt, hasUnsavedChanges, save,
     updateContent, updateTitle, uploadImage,
     conflict, dismissConflict, discardLocalEdits,
   } = useNoteEditor(activeNoteId, userId);
@@ -181,6 +182,25 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
         permission,
         addedBy: userId,
       });
+
+      // DEV aid: print the shareable link to the console so the flow can be
+      // tested while the invite-email service is paused. The link is the same
+      // for every role — what makes it editable is signing in as a collaborator
+      // with `editor` rights; the dispatcher resolves that per signed-in user.
+      // Dev-only (stripped from production builds).
+      if (import.meta.env.DEV) {
+        try {
+          const shareId = await ensurePublicShareId(shareNoteId);
+          const url = `${window.location.origin}/shared/note/${shareId}`;
+          const verb = permission === 'editor' ? 'EDIT' : permission === 'commenter' ? 'COMMENT' : 'VIEW';
+          console.log(
+            `%c[notes-share] ${verb} link for ${email}\n${url}\n→ open it and sign in as ${email} to test (granted: ${permission}).`,
+            'color:#c9a26a;font-weight:600',
+          );
+        } catch (e) {
+          console.warn('[notes-share] could not build share link', e);
+        }
+      }
       return true;
     } catch (err: any) {
       toast.error(err?.message || 'Failed to add collaborator');
@@ -325,10 +345,40 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
   const isOwner = note?.ownerId === userId;
   const myCollaborator = note?.collaborators?.find(matchesUser);
-  const isEditor = myCollaborator?.permission === 'editor';
-  const canEdit = tierAllowsEdit && (isOwner || isEditor);
+  const isEditorCollaborator = !isOwner && myCollaborator?.permission === 'editor';
+  // Invited editors can edit a note shared with them regardless of THEIR OWN
+  // plan (Notion / Google-Docs collaboration model — the owner granted access).
+  // NOTE: under the current tierConfig every signed-in tier (free/pro/promax)
+  // already has notesAccess:'full' (only the unauthenticated 'guest' is 'view',
+  // and a routed collaborator is always signed in), so this is a forward-looking
+  // safety net: it only bites if notes editing is later moved behind a paid
+  // tier, at which point invited editors stay editable. Flip to `false` to make
+  // collaborator editing respect the per-user tier gate instead.
+  const COLLAB_EDIT_BYPASSES_TIER = true;
+  const canEdit =
+    (isOwner && tierAllowsEdit) ||
+    (isEditorCollaborator && (COLLAB_EDIT_BYPASSES_TIER || tierAllowsEdit));
   const readOnly = !canEdit;
-  const blockedByTier = !tierAllowsEdit && (isOwner || isEditor);
+
+  // A note opened by id from the URL (/:uid/notes/:noteId) may belong to another
+  // account. Firestore rules are currently permissive, so this client-side check
+  // is what stops cross-account note access in-app: only the owner, a named
+  // collaborator, or a note the owner made public may be opened. Real isolation
+  // needs Firestore rules — see PRD-SECURITY-cross-user-access-control.md.
+  const isUnauthorizedNote =
+    !!note && !isOwner && !myCollaborator && !note.publicAccess?.enabled;
+
+  // The owner deleted (or trashed) this note while a collaborator/viewer had it
+  // open — it must stop being readable and show an unavailable state, not stale
+  // content. Soft-delete keeps the doc with isDeleted=true; permanent delete
+  // removes it (subscription reports it missing). Scoped to non-owners so the
+  // owner's own trash/restore flow is untouched.
+  const isNoteUnavailable =
+    !!activeNoteId && (noteMissing || (!!note && note.isDeleted && !isOwner));
+  // The "upgrade to edit" banner only applies to people whose OWN tier blocks
+  // them: note owners on Free (and invited editors on Free iff the bypass is off).
+  const blockedByTier =
+    !tierAllowsEdit && (isOwner || (isEditorCollaborator && !COLLAB_EDIT_BYPASSES_TIER));
 
   // Resolve the share dialog's target from the live subscribed lists, so it
   // works whether opened from the editor or straight from a gallery card.
@@ -455,6 +505,45 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
             <div className="text-center space-y-3">
               <Loader2 className="h-8 w-8 text-primary/40 mx-auto animate-spin" />
               <p className="text-sm text-foreground/30">Loading notes...</p>
+            </div>
+          </div>
+        ) : note && isUnauthorizedNote ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center space-y-3 max-w-sm">
+              <div className="h-14 w-14 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
+                <AlertTriangle className="h-6 w-6 text-warning/70" />
+              </div>
+              <h2 className="text-lg font-headline text-foreground/70">You don't have access to this note</h2>
+              <p className="text-sm text-foreground/40">
+                This note belongs to another account{userEmail ? <> — you're signed in as {userEmail}</> : null}. Ask
+                its owner to share it with you.
+              </p>
+              <Button
+                variant="outline"
+                className="border-primary/40 text-primary hover:bg-primary/10 mt-2"
+                onClick={() => handleSelectNote(null)}
+              >
+                Back to my notes
+              </Button>
+            </div>
+          </div>
+        ) : isNoteUnavailable ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center space-y-3 max-w-sm">
+              <div className="h-14 w-14 rounded-full bg-foreground/[0.06] flex items-center justify-center mx-auto">
+                <AlertTriangle className="h-6 w-6 text-foreground/40" />
+              </div>
+              <h2 className="text-lg font-headline text-foreground/70">This note is no longer available</h2>
+              <p className="text-sm text-foreground/40">
+                The owner deleted it, so it can't be opened anymore.
+              </p>
+              <Button
+                variant="outline"
+                className="border-primary/40 text-primary hover:bg-primary/10 mt-2"
+                onClick={() => handleSelectNote(null)}
+              >
+                Back to my notes
+              </Button>
             </div>
           </div>
         ) : note ? (

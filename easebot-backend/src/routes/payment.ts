@@ -6,6 +6,9 @@ import {
   handleReturn,
   handleWebhook,
   verify,
+  razorpayInitiate,
+  razorpayVerify,
+  razorpayWebhook,
 } from '../controllers/paymentController'
 import {
   upgrade,
@@ -34,5 +37,11 @@ router.post('/topup', requireAuth, (req, res, next) => {
 // Unauthenticated (PayU is the HTTP client). Hash verification is the gate.
 router.post('/return',  handleReturn)
 router.post('/webhook', handleWebhook)
+
+// Razorpay (second gateway). initiate/verify are user-driven (auth); webhook is
+// called by Razorpay — its x-razorpay-signature HMAC is the gate (no auth).
+router.post('/razorpay/initiate', requireAuth, razorpayInitiate)
+router.post('/razorpay/verify',   requireAuth, razorpayVerify)
+router.post('/razorpay/webhook',  razorpayWebhook)
 
 export default router

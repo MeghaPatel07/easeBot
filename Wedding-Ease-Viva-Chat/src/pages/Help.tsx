@@ -5,6 +5,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { PRICING } from '@/config/pricing'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,7 +51,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What are the subscription plans?',
-    a: 'We offer three tiers: Free (limited messages and basic features), Pro at ₹1/month (higher limits, image generation, priority responses), and Pro Max at $39/month (unlimited messages, all image styles, advanced planning tools, and priority support).',
+    a: `We offer three tiers: Free (limited messages and basic features), Pro at $${PRICING.pro.monthly}/month (higher limits, image generation, priority responses), and Pro Max at $${PRICING.promax.monthly}/month (unlimited messages, all image styles, advanced planning tools, and priority support).`,
   },
   {
     q: 'How do I invite my partner?',

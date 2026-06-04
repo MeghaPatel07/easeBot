@@ -14,6 +14,12 @@ interface VerifyResponse {
   cycle?: string
   amountLocal?: string
   currency?: string
+  provider?: 'payu' | 'razorpay' | string
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  payu: 'PayU',
+  razorpay: 'Razorpay',
 }
 
 export default function PaymentSuccess() {
@@ -85,6 +91,7 @@ export default function PaymentSuccess() {
             </p>
             <p className="mt-1 text-2xs uppercase tracking-wide text-foreground/90">
               {info.state}
+              {info.provider ? ` · ${PROVIDER_LABEL[info.provider] ?? info.provider}` : ''}
             </p>
           </>
         ) : (

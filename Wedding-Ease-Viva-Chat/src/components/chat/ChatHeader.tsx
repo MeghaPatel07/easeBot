@@ -15,7 +15,7 @@ import {
 import type { UserProfile } from '@/types';
 import { MODE_CONFIG, SUPPORTED_LANGUAGES, type ModeOrAuto } from './constants';
 import ThemeToggle from '@/components/ui/theme-toggle';
-import weddingEaseLogo from '@/assets/images/Wedding ease.png';
+import weddingEaseLogo from '@/assets/images/welogofinal.avif';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

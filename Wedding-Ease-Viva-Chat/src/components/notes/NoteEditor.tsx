@@ -229,6 +229,17 @@ export default function NoteEditor({
     if (editor && onEditorReady) onEditorReady(editor);
   }, [editor, onEditorReady]);
 
+  // Keep TipTap's editable flag in sync with readOnly. The editor instance is
+  // created once and reused as the open note changes (content is swapped by the
+  // sync effect above), so without this a note opened read-only could remain
+  // editable after switching from an editable one — letting a viewer type into
+  // a note they shouldn't. `editable` is only read at construction otherwise.
+  useEffect(() => {
+    if (editor && editor.isEditable !== !readOnly) {
+      editor.setEditable(!readOnly);
+    }
+  }, [editor, readOnly]);
+
   if (!editor) {
     return (
       <div className="relative min-h-[500px] flex items-center justify-center">
