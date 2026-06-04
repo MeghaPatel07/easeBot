@@ -181,11 +181,11 @@ export function PricingTierCard({
         </span>
         <span className="text-xs text-foreground/90">/ month</span>
       </div>
-      {/* {currency !== 'USD' && (
+      {currency !== 'USD' && (
         <p className="mt-1 text-3xs text-foreground/90">
           Billed in {currency}. ~${priceUsd} USD.
         </p>
-      )} */}
+      )}
 
       <ul className="mt-6 flex flex-1 flex-col gap-2.5">
         {meta.features.map((feature) => (

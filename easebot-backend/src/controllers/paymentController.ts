@@ -61,6 +61,10 @@ const PRICES: Record<string, PriceRow> = {
   'topup_2m:once':  { plan: 'topup_2m', cycle: 'once',    usd: PRICING.topup,          productinfo: 'Easebot Top-up — 2M tokens' },
 }
 
+
+
+//this to control the visibility of the global floater component on certain routes. We don't want to show it on the checkout/payment pages to avoid distractions during the payment process.
+
 const TOPUP_TOKENS = 2_000_000
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
 
