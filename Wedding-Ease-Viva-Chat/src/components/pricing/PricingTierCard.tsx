@@ -12,6 +12,7 @@
 
 import { Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PRICING } from '@/config/pricing'
 
 export type PricingTier = 'free' | 'pro' | 'promax'
 
@@ -82,7 +83,7 @@ const TIER_META: Record<
       '5 wedding projects',
       'Export to PDF, CSV, JSON + shareable links',
       'Concierge support within 24h',
-      '$10 / 2M token top-up packs',
+      `$${PRICING.topup} / 2M token top-up packs`,
     ],
   },
 }

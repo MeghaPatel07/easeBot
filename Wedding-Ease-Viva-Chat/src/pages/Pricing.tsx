@@ -13,6 +13,7 @@ import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
 import { auth } from '@/lib/firebase'
 import { track } from '@/lib/analytics'
+import { PRICING } from '@/config/pricing'
 
 const SERVICE_NAME = 'TheWeddingBot'
 
@@ -25,11 +26,12 @@ interface TierPricing {
   isRecommended?: boolean
 }
 
-// Canonical prices from PRICING_PRD.md §4
+// Prices are env-driven via @/config/pricing (VITE_PRO / VITE_PRO_ANNUAL /
+// VITE_PRO_MAX / VITE_PRO_MAX_ANNUAL), falling back to the shipped prices.
 const TIERS: TierPricing[] = [
   { tier: 'free', monthlyUsd: 0, annualUsd: 0 },
-  { tier: 'pro', monthlyUsd: 10, annualUsd: 79, isRecommended: true },
-  { tier: 'promax', monthlyUsd: 39, annualUsd: 299 },
+  { tier: 'pro', monthlyUsd: PRICING.pro.monthly, annualUsd: PRICING.pro.annual, isRecommended: true },
+  { tier: 'promax', monthlyUsd: PRICING.promax.monthly, annualUsd: PRICING.promax.annual },
 ]
 
 const CURRENCY_OPTIONS = ['USD', 'INR', 'GBP', 'EUR', 'AED', 'SGD', 'AUD', 'CAD'] as const
@@ -50,7 +52,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How much does it cost to use?',
-    a: 'TheWeddingBot offers a free tier to get started. Pro ($10/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($39/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.',
+    a: `TheWeddingBot offers a free tier to get started. Pro ($${PRICING.pro.monthly}/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($${PRICING.promax.monthly}/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.`,
   },
   {
     q: 'Can I cancel my subscription anytime?',
@@ -90,7 +92,7 @@ const COMPARISON_DATA: ComparisonGroup[] = [
     rows: [
       { feature: 'Monthly pool', free: '300K', pro: '3M', promax: '8M' },
       { feature: 'Daily cap', free: '50K', pro: '300K', promax: '800K' },
-      { feature: 'Token top-up packs', free: false, pro: '$10 / 2M', promax: '$10 / 2M (max 10/mo)' },
+      { feature: 'Token top-up packs', free: false, pro: `$${PRICING.topup} / 2M`, promax: `$${PRICING.topup} / 2M (max 10/mo)` },
     ],
   },
   {
@@ -312,7 +314,7 @@ export default function Pricing() {
         plan: 'topup_2m',
         cycle: 'once',
         currency,
-        priceUsd: 10,
+        priceUsd: PRICING.topup,
         label: 'Token top-up — 2M tokens',
       },
     })
@@ -488,7 +490,7 @@ export default function Pricing() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-baseline gap-3">
                 <span className="font-headline text-3xl text-foreground">
-                  {formatCurrency(10, currency, rate)}
+                  {formatCurrency(PRICING.topup, currency, rate)}
                 </span>
                 <span className="text-xs text-foreground/50">/ 2M tokens, one-time</span>
               </div>

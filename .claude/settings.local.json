@@ -211,7 +211,11 @@
       "Bash(cat theweddingbot/v1/index.js)",
       "Bash(chmod +x /Users/krish/Desktop/easebot/scripts/grant-functions-invoker.sh)",
       "Bash(timeout 60 firebase functions:log --only notesShareNotify)",
-      "Bash(firebase functions:log --only notesShareNotify)"
+      "Bash(firebase functions:log --only notesShareNotify)",
+      "Bash(grep *)",
+      "Bash(rg -n --type ts --type tsx -e '\\\\$[0-9]{1,4}\\\\b' -e 'monthlyUsd|annualUsd|priceUsd|PLAN_USD' -e '\\\\b\\(79|299|14\\\\.99|119\\)\\\\b' Wedding-Ease-Viva-Chat/src)",
+      "Bash(rg -n -g '*.ts' -g '*.tsx' -e '\\\\$[0-9]{1,4}' -e 'monthlyUsd|annualUsd|priceUsd' -e '\\\\b\\(79|299|14\\\\.99|119\\)\\\\b' Wedding-Ease-Viva-Chat/src)",
+      "Bash(rg -n \"\\\\\\\\\\\\$[0-9]+|: ?\\(10|39|79|299\\)\\\\b|monthlyUsd: ?[0-9]|annualUsd: ?[0-9]|priceUsd: ?[0-9]\" src/pages/Pricing.tsx)"
     ]
   },
   "enabledMcpjsonServers": [

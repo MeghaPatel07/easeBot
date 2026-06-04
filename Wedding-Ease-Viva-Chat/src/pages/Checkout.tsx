@@ -524,7 +524,7 @@ export default function Checkout() {
           <div className="pt-4">
             {paymentEnabled ? (
               <div className="flex flex-col gap-3 sm:flex-row">
-                {/* <button
+                <button
                   type="submit"
                   disabled={submitting}
                   aria-busy={pendingGateway === 'payu'}
@@ -542,7 +542,7 @@ export default function Checkout() {
                       <span className="whitespace-nowrap">{priceDisplay}</span>
                     </>
                   )}
-                </button> */}
+                </button>
                 <button
                   type="button"
                   onClick={handleRazorpay}

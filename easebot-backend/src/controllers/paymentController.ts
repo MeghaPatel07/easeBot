@@ -31,6 +31,7 @@ import {
   getRazorpayConfig,
   missingPaymentConfig,
 } from '../lib/paymentConfig'
+import { PRICING } from '../lib/pricing'
 import {
   createOrder as createRazorpayOrder,
   verifyPaymentSignature as verifyRazorpaySignature,
@@ -50,12 +51,14 @@ interface PriceRow {
   productinfo: string
 }
 
+// Amounts are env-driven via ../lib/pricing (PRO / PRO_ANNUAL / PRO_MAX /
+// PRO_MAX_ANNUAL / TOPUP), falling back to the shipped prices when unset.
 const PRICES: Record<string, PriceRow> = {
-  'pro:monthly':    { plan: 'pro',      cycle: 'monthly', usd: 10,    productinfo: 'Easebot Pro — Monthly' },
-  'pro:annual':     { plan: 'pro',      cycle: 'annual',  usd: 79,    productinfo: 'Easebot Pro — Annual' },
-  'promax:monthly': { plan: 'promax',   cycle: 'monthly', usd: 39,    productinfo: 'Easebot Pro Max — Monthly' },
-  'promax:annual':  { plan: 'promax',   cycle: 'annual',  usd: 299,   productinfo: 'Easebot Pro Max — Annual' },
-  'topup_2m:once':  { plan: 'topup_2m', cycle: 'once',    usd: 10,    productinfo: 'Easebot Top-up — 2M tokens' },
+  'pro:monthly':    { plan: 'pro',      cycle: 'monthly', usd: PRICING.pro.monthly,    productinfo: 'Easebot Pro — Monthly' },
+  'pro:annual':     { plan: 'pro',      cycle: 'annual',  usd: PRICING.pro.annual,     productinfo: 'Easebot Pro — Annual' },
+  'promax:monthly': { plan: 'promax',   cycle: 'monthly', usd: PRICING.promax.monthly, productinfo: 'Easebot Pro Max — Monthly' },
+  'promax:annual':  { plan: 'promax',   cycle: 'annual',  usd: PRICING.promax.annual,  productinfo: 'Easebot Pro Max — Annual' },
+  'topup_2m:once':  { plan: 'topup_2m', cycle: 'once',    usd: PRICING.topup,          productinfo: 'Easebot Top-up — 2M tokens' },
 }
 
 const TOPUP_TOKENS = 2_000_000

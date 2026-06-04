@@ -24,6 +24,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { PRICING } from '../lib/pricing'
 import { resetMonthly } from './tokenMeter'
 import { emit } from '../lib/observability'
 import { capture as phCapture } from '../lib/posthog'
@@ -53,9 +54,10 @@ const PERIOD_DAYS: Record<'monthly' | 'annual' | '6mo', number> = {
   '6mo': 182,
 }
 
+// Env-driven via ../lib/pricing (falls back to shipped prices when unset).
 const PLAN_USD: Record<'pro' | 'promax', { monthly: number; annual: number }> = {
-  pro: { monthly: 10, annual: 79 },
-  promax: { monthly: 39, annual: 299 },
+  pro: { monthly: PRICING.pro.monthly, annual: PRICING.pro.annual },
+  promax: { monthly: PRICING.promax.monthly, annual: PRICING.promax.annual },
 }
 
 interface SubscriptionDoc {
@@ -401,7 +403,7 @@ function computeNext(
             nextRenewalAt: Timestamp.fromDate(end),
             cancelAtPeriodEnd: false,
             downgradeToOnPeriodEnd: null,
-            // Consume credit against the $14.99 Pro monthly charge.
+            // Consume credit against the configured Pro monthly charge.
             forwardCreditUsd: Math.max(0, cur.forwardCreditUsd - PLAN_USD.pro.monthly),
             lastTxnid: cur.lastTxnid,
             status: 'active',
