@@ -24,6 +24,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { PRICING } from '../lib/pricing'
 import { resetMonthly } from './tokenMeter'
 import { emit } from '../lib/observability'
 import { capture as phCapture } from '../lib/posthog'
@@ -53,9 +54,10 @@ const PERIOD_DAYS: Record<'monthly' | 'annual' | '6mo', number> = {
   '6mo': 182,
 }
 
+// Env-driven via ../lib/pricing (falls back to shipped prices when unset).
 const PLAN_USD: Record<'pro' | 'promax', { monthly: number; annual: number }> = {
-  pro: { monthly: 10, annual: 79 },
-  promax: { monthly: 39, annual: 299 },
+  pro: { monthly: PRICING.pro.monthly, annual: PRICING.pro.annual },
+  promax: { monthly: PRICING.promax.monthly, annual: PRICING.promax.annual },
 }
 
 interface SubscriptionDoc {
@@ -401,7 +403,7 @@ function computeNext(
             nextRenewalAt: Timestamp.fromDate(end),
             cancelAtPeriodEnd: false,
             downgradeToOnPeriodEnd: null,
-            // Consume credit against the $14.99 Pro monthly charge.
+            // Consume credit against the configured Pro monthly charge.
             forwardCreditUsd: Math.max(0, cur.forwardCreditUsd - PLAN_USD.pro.monthly),
             lastTxnid: cur.lastTxnid,
             status: 'active',
@@ -411,6 +413,23 @@ function computeNext(
         return {
           ...freshFreeDoc(),
           forwardCreditUsd: cur.forwardCreditUsd,
+          updatedAt: nowTs,
+        }
+      }
+      // Active paid plan whose period elapsed with no manual re-payment →
+      // expire to free. No auto-renewal / SI mandate exists, so a lapsed
+      // period is an expiry (no grace; forward credit is preserved, mirroring
+      // renew_fail per spec §8).
+      if (
+        cur.state === 'pro_monthly' ||
+        cur.state === 'pro_annual' ||
+        cur.state === 'promax_monthly' ||
+        cur.state === 'promax_annual'
+      ) {
+        return {
+          ...freshFreeDoc(),
+          forwardCreditUsd: cur.forwardCreditUsd,
+          lastTxnid: cur.lastTxnid,
           updatedAt: nowTs,
         }
       }
@@ -505,8 +524,10 @@ export async function applyTransition(
       trigger === 'upgrade' ||
       trigger === 'renew_success' ||
       trigger === 'renew_fail' ||
-      (trigger === 'period_end' && result.state !== 'free')
+      trigger === 'period_end'
     ) {
+      // period_end → free (expiry/cancel) resets to Free caps too, so an
+      // expired user immediately lands on the Free token pool (spec §8).
       resetMonthly(uid, nextTier).catch((err) =>
         console.error('[stateMachine] resetMonthly failed', { uid, err }),
       )
@@ -649,7 +670,17 @@ export async function scanForPeriodEnd(): Promise<number> {
     const nowTs = Timestamp.now()
     const q = query(
       collectionGroup(db, 'subscription'),
-      where('state', 'in', ['pro_cancel_scheduled', 'promax_cancel_scheduled']),
+      where('state', 'in', [
+        // Active paid plans whose period elapsed without a manual re-payment.
+        // There is no auto-renewal / SI mandate, so a lapsed period == expiry.
+        'pro_monthly',
+        'pro_annual',
+        'promax_monthly',
+        'promax_annual',
+        // Cancel- or downgrade-scheduled plans flip at period end.
+        'pro_cancel_scheduled',
+        'promax_cancel_scheduled',
+      ]),
       where('currentPeriodEnd', '<=', nowTs),
     )
     const snap = await getDocs(q)

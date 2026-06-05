@@ -3,12 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Sparkles, Heart, MessageSquare, Calendar, Lightbulb, Globe,
-  Lock, ArrowLeft, CheckSquare,
-  Bookmark, Image, ShoppingCart, DollarSign, ThumbsUp,
+  Sparkles, Heart, Calendar, CalendarCheck, Globe,
+  Lock, ArrowLeft, CheckSquare, AlertTriangle,
+  Bookmark, Image, ImagePlus, ShoppingCart, DollarSign, ThumbsUp,
   Keyboard, BarChart3, Clock, Bell, Users, FileText,
-  X, Copy, Check, Link, Share2, MessageSquareHeart, RotateCcw,
+  X, Copy, Check, Link, Share2, MessageSquareHeart, MessageCircle,
 } from 'lucide-react';
+import { GiHanger } from 'react-icons/gi';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,7 +73,7 @@ const Index = () => {
     likedProducts, likedProductIds, toggleProductLike,
     sendMessage, stopGeneration, loadChat, startNewChat, deleteThread, renameThread,
     truncateMessages, restoreMessages, toggleLike, pinThread, archiveThread, updateThreadTags,
-    hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError,
+    hasMoreMessages, loadMoreMessages, deleteMessageImage, refetchReminders, chatLoadError, chatUnavailable,
   } = useChat();
 
   // Refetch account query when returning from upgrade/checkout
@@ -104,14 +105,32 @@ const Index = () => {
   }, 0);
 
   // ── URL <-> thread sync ───────────────────────────────────────────────────
+  // Wait for auth to resolve before loading a thread. loadChat's ownership
+  // check needs the current uid; running it while auth is still loading would
+  // skip the check (uid unknown) and open another account's chat — the IDOR bug.
+  // authLoading flips false only AFTER `user` is set (AuthContext), so gating
+  // here guarantees the uid is known. See PRD-SECURITY-cross-user-access-control.md.
   useEffect(() => {
+    if (authLoading) return;
     if (urlThreadId && urlThreadId !== activeThreadId) loadChat(urlThreadId);
     else if (!urlThreadId && activeThreadId) startNewChat();
-  }, [urlThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlThreadId, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (activeThreadId && activeThreadId !== urlThreadId) navigate(`/chat/${activeThreadId}`, { replace: true });
   }, [activeThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Access guard: the per-user routes (/:userId/...) embed an owner uid. If a
+  // signed-in user opens someone else's link, rewrite it into their own space so
+  // they never sit in another account's context (the views already load by the
+  // authed uid, so this is hygiene + closes the logged-out urlUserId fallback).
+  // Data isolation itself needs Firestore rules — see
+  // PRD-SECURITY-cross-user-access-control.md.
+  useEffect(() => {
+    if (urlUserId && user && urlUserId !== user.uid) {
+      navigate(location.pathname.replace(/^\/[^/]+/, `/${user.uid}`), { replace: true });
+    }
+  }, [urlUserId, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── UI-only state ─────────────────────────────────────────────────────────
   const [inputText, setInputText] = useState('');
@@ -794,9 +813,6 @@ const Index = () => {
   // Reset TTS when switching to a different chat thread
   useEffect(() => { resetTts(); }, [activeThreadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Occasion selection state ───────────────────────────────────────────────
-  const [selectedOccasion, setSelectedOccasion] = useState<string | null>(null);
-
   // Reset guest state when user signs in (prevents stale count after sign-up)
   useEffect(() => {
     if (user) {
@@ -868,67 +884,151 @@ const Index = () => {
     return () => window.removeEventListener('beforeunload', cleanup);
   }, [user]);
 
-  const occasions = [
-    'Engagement', 'Haldi', 'Mehendi', 'Sangeet', 'Cocktail', 'Wedding',
-    'Reception', 'Baraat', 'Vidaai', 'Roka', 'Sagai', 'Ganesh Puja',
-    'Bachelor Party', 'Bridal Shower', 'Destination', 'Festive',
+  // Quick-start cards on the empty-state landing (2×2 grid). Each card switches
+  // to the most relevant mode and pre-fills a ready-to-send opener into the
+  // composer — the user can personalise before hitting send.
+  //
+  // "Create an image" has no dedicated mode (image generation is intent-routed
+  // on the backend). Its opener is phrased to match the backend's WANTS_IMAGE_RE
+  // gate ("create … image"), which is what offers the generate_image tool — so
+  // the card reliably produces a picture rather than a text reply.
+  type QuickCard = {
+    icon: React.ElementType;
+    title: string;
+    subtitle: string;
+    mode?: Mode;
+    prompt: string;
+  };
+
+  const quickCards: QuickCard[] = [
+    {
+      icon: CalendarCheck,
+      title: 'Plan my wedding',
+      subtitle: 'checklist, dates & budget',
+      mode: 'planner',
+      prompt: 'Help me plan my wedding — build a checklist, map out the key dates, and set a budget.',
+    },
+    {
+      icon: GiHanger,
+      title: 'Style my looks',
+      subtitle: 'outfits for any function',
+      mode: 'stylist',
+      prompt: 'Help me style my looks — suggest outfit ideas for my wedding functions.',
+    },
+    {
+      icon: ImagePlus,
+      title: 'Create an image',
+      subtitle: 'décor, themes & looks',
+      prompt: 'Create an image of wedding décor and theme inspiration for my celebration.',
+    },
+    {
+      icon: MessageCircle,
+      title: 'Ask anything',
+      subtitle: 'any question, any language',
+      mode: 'knowledge',
+      prompt: 'I have a question about my wedding — can you help?',
+    },
   ];
 
-  // Locked 4-button quick-prompt set, covering the four intents the product
-  // is built around:
-  //   • What should I get → shopping + selection (outfits, jewellery,
-  //     accessories, gifts, favors, stationery). Works across all occasions.
-  //   • Help me plan      → timelines, events, logistics, coordination.
-  //   • Show me ideas     → inspiration, trends, styling, themes (discovery).
-  //   • Ask anything      → rituals, traditions, cultural knowledge, doubts.
-  //
-  // All four auto-scope to the currently selected occasion (Haldi, Mehendi,
-  // Sangeet, Reception, Baraat, etc.) — when none is selected, prompts
-  // default to the umbrella "wedding". Both guest and signed-in users see
-  // the same set; the LLM + guest-limitation suffix handle save-gating.
-  type ActionButton = { icon: typeof Calendar; text: string; action: string };
+  // Sample prompts ("People are asking") shown below the cards. Tapping one
+  // pre-fills the composer; the backend's intent routing handles each (décor
+  // ideas, checklist/reminder writes, language switch, knowledge answers).
+  const examplePrompts: string[] = [
+    'What happens during a haldi?',
+    'Create wedding decoration ideas',
+    'Make my wedding checklist',
+    'Remind me to book the caterer',
+    'Chat with me in Hindi',
+    'What should I wear for my mehendi?',
+  ];
 
-  const buildActionButtons = (occasion?: string | null): ActionButton[] => {
-    const scope = occasion ? `my ${occasion}` : 'my wedding';
-    const topic = occasion ?? 'wedding';
-    return [
-      {
-        icon: ShoppingCart,
-        text: 'What should I get',
-        action: `Help me figure out what to get for ${scope} — outfits, jewellery, accessories, gifts, favors, and stationery.`,
-      },
-      {
-        icon: Calendar,
-        text: 'Help me plan',
-        action: `Help me plan ${scope} — timeline, events, logistics, and coordination.`,
-      },
-      {
-        icon: Lightbulb,
-        text: 'Show me ideas',
-        action: `Show me ${topic} inspiration, trends, styling, and themes.`,
-      },
-      {
-        icon: MessageSquare,
-        text: 'Ask anything',
-        action: `I have questions about ${topic} rituals, traditions, and cultural practices — ask me anything.`,
-      },
-    ];
-  };
-
-  const actionButtons = buildActionButtons(selectedOccasion);
-
-  // The action string is built by buildActionButtons() with the selected
-  // occasion already baked in (e.g. "Help me plan my Mehendi — …"), so this
-  // handler just forwards the prompt into the composer verbatim. Previously
-  // it re-appended "for my {occasion} ceremony", which double-stamped the
-  // occasion when the per-occasion buttons already contained it.
-  const handleQuickPrompt = (action: string) => {
-    setInputText(action);
+  const handleQuickCard = (card: QuickCard) => {
+    if (card.mode) setSelectedMode(card.mode);
+    setInputText(card.prompt);
     track('quick_prompt_clicked', {
-      occasion: selectedOccasion ?? undefined,
-      mode: selectedMode,
+      kind: 'card',
+      label: card.title,
+      mode: card.mode ?? selectedMode,
     });
   };
+
+  const handleExamplePrompt = (prompt: string) => {
+    setInputText(prompt);
+    track('quick_prompt_clicked', { kind: 'example', label: prompt, mode: selectedMode });
+  };
+
+  // Make the prompt slider scrollable with a plain desktop mouse. Touch already
+  // scrolls overflow-x natively (that's why mobile works), but a mouse has no
+  // horizontal gesture, so we wire two affordances. Both live on the element via
+  // a callback ref that re-binds whenever the empty-state slider mounts; the
+  // listeners are GC'd with the element on unmount (no manual cleanup needed).
+  const promptSliderRef = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+
+    // (1) Vertical wheel → horizontal scroll. Non-passive so preventDefault stops
+    // the page from scrolling while the pointer is over the slider.
+    el.addEventListener(
+      'wheel',
+      (e: WheelEvent) => {
+        if (el.scrollWidth <= el.clientWidth) return;
+        if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // let native horizontal scroll win
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      },
+      { passive: false },
+    );
+
+    // (2) Click-and-drag to scroll — the gesture desktop users reach for on a
+    // hidden-scrollbar strip. Mouse only (pointerType === 'mouse'); touch keeps
+    // its native momentum scroll untouched.
+    let pressed = false; // pointer is down on the strip
+    let dragging = false; // movement crossed the threshold → actively drag-scrolling
+    let startX = 0;
+    let startScroll = 0;
+
+    el.addEventListener('pointerdown', (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      if (el.scrollWidth <= el.clientWidth) return;
+      pressed = true;
+      dragging = false;
+      startX = e.clientX;
+      startScroll = el.scrollLeft;
+      // Don't capture yet: capturing on press retargets the click to this
+      // container and would break a chip's tap-to-fill. We capture only once a
+      // real drag begins (below).
+    });
+    el.addEventListener('pointermove', (e: PointerEvent) => {
+      if (!pressed) return;
+      const dx = e.clientX - startX;
+      if (!dragging) {
+        if (Math.abs(dx) <= 4) return; // below threshold: still a click, not a drag
+        dragging = true;
+        el.setPointerCapture(e.pointerId); // now own the gesture (keeps scrolling past the edges)
+      }
+      el.scrollLeft = startScroll - dx;
+    });
+    const endDrag = (e: PointerEvent) => {
+      if (!pressed) return;
+      pressed = false;
+      if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    };
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+    // Swallow the click that follows a real drag so it doesn't fire a chip's
+    // tap-to-fill. Capture phase so it beats the button's own onClick. A plain
+    // click never sets `dragging`, so it passes through untouched.
+    el.addEventListener(
+      'click',
+      (e: MouseEvent) => {
+        if (dragging) {
+          e.preventDefault();
+          e.stopPropagation();
+          dragging = false;
+        }
+      },
+      true,
+    );
+  }, []);
 
   // ── Shortcuts overlay ─────────────────────────────────────────────────────
   const shortcutsOverlayJSX = showShortcuts && (
@@ -1145,19 +1245,88 @@ const Index = () => {
   // If someone navigates to /chat/:threadId without being logged in, or if the
   // logged-in user doesn't own the thread (Firestore returns permission error),
   // show a gate instead of an empty chat.
+  // The chat thread was deleted by its owner (or the link is invalid). Show an
+  // unavailable state to everyone — including a shared viewer who had the link —
+  // instead of a blank chat. See PRD-SECURITY-cross-user-access-control.md.
+  if (urlThreadId && !authLoading && chatUnavailable) {
+    return (
+      <div className="gradient-bg min-h-screen flex flex-col items-center justify-center px-6 text-center">
+        <div className="max-w-sm mx-auto">
+          <AlertTriangle className="h-12 w-12 text-foreground/30 mx-auto mb-4" />
+          <h2 className="font-headline text-xl text-foreground/90 mb-2">This chat is no longer available</h2>
+          <p className="text-sm text-foreground/50 mb-6">It may have been deleted by its owner.</p>
+          <Button onClick={() => navigate('/')} className="rounded-xl px-6">
+            Go to my chats
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (urlThreadId && !authLoading && (!user || chatLoadError)) {
+    const deniedForOtherAccount = !!user && chatLoadError;
     return (
       <div className="gradient-bg min-h-screen flex flex-col items-center justify-center px-6 text-center">
         {authModalsJSX}
         <div className="max-w-sm mx-auto">
           <Lock className="h-12 w-12 text-primary/60 mx-auto mb-4" />
-          <h2 className="font-headline text-xl text-foreground/90 mb-2">You cannot view this chat</h2>
-          <p className="text-sm text-foreground/50 mb-6">Login or signup to view.</p>
+          <h2 className="font-headline text-xl text-foreground/90 mb-2">
+            {deniedForOtherAccount ? 'This chat belongs to another account' : 'You cannot view this chat'}
+          </h2>
+          <p className="text-sm text-foreground/50 mb-6">
+            {deniedForOtherAccount ? "You don't have access to this conversation." : 'Login or signup to view.'}
+          </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button
-              onClick={() => setShowSignInModal(true)}
-              className="rounded-xl px-6"
-            >
+            {deniedForOtherAccount ? (
+              <Button onClick={() => navigate('/')} className="rounded-xl px-6">
+                Go to my chats
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={() => setShowSignInModal(true)}
+                  className="rounded-xl px-6"
+                >
+                  Login
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSignUpModal(true)}
+                  className="rounded-xl px-6"
+                >
+                  Sign up
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Per-user private routes (/:userId/notes, /:userId/budget, /:userId/planner,
+  // …) require auth. A guest who opens one — e.g. a shared note link before
+  // signing in — must see the auth gate, NOT the default chat landing (which is
+  // the bug this fixes). After sign-in the route guard above re-homes them and
+  // the view enforces per-resource ownership. True isolation needs Firestore
+  // rules — see PRD-SECURITY-cross-user-access-control.md.
+  if (urlUserId && !authLoading && !user) {
+    const isNoteRoute = sidebarView === 'notes';
+    return (
+      <div className="gradient-bg min-h-screen flex flex-col items-center justify-center px-6 text-center">
+        {authModalsJSX}
+        <div className="max-w-sm mx-auto">
+          <Lock className="h-12 w-12 text-primary/60 mx-auto mb-4" />
+          <h2 className="font-headline text-xl text-foreground/90 mb-2">
+            {isNoteRoute ? 'Sign in to view this note' : 'Sign in to view this'}
+          </h2>
+          <p className="text-sm text-foreground/50 mb-6">
+            {isNoteRoute
+              ? 'This note is private. Sign in with the account it was shared to.'
+              : 'Please sign in to access this page.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => setShowSignInModal(true)} className="rounded-xl px-6">
               Login
             </Button>
             <Button
@@ -1206,7 +1375,7 @@ const Index = () => {
   }
 
   // ── Helper: main-area shell ───────────────────────────────────────────────
-  const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode) => (
+  const mainAreaShell = (title: string, icon: React.ReactNode, children: React.ReactNode, onBack?: () => void) => (
     <div className={`gradient-bg flex overflow-hidden bg-background transition-all duration-300 ${isSidebarOpen ? '' : 'pl-0'}`} style={{ height: '100dvh' }}>
       {shortcutsOverlayJSX}
       {shareModalJSX}
@@ -1217,7 +1386,7 @@ const Index = () => {
       <main className={`flex-1 flex flex-col overflow-x-hidden overflow-hidden transition-[padding] duration-300 ${isSidebarOpen ? 'md:pl-64' : ''}`}>
         {chatHeaderJSX}
         <div className="flex items-center gap-2 px-3 sm:px-5 h-11 flex-shrink-0 border-b border-border/40">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10">
+          <Button variant="ghost" size="sm" onClick={onBack ?? (() => navigate('/'))} className="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10">
             <ArrowLeft className="h-3.5 w-3.5 text-foreground/60" />
           </Button>
           <h2 className="font-headline text-base text-foreground/90 flex items-center gap-2">{icon}{title}</h2>
@@ -1347,7 +1516,17 @@ const Index = () => {
 
   if (sidebarView === 'notifications' && user) return mainAreaShell('Notifications', <Bell className="h-5 w-5 text-primary" />, <NotificationPanel userId={user.uid} checklists={checklistsData} />);
   if (sidebarView === 'collaborate' && user && profile) return mainAreaShell('Collaborate', <Users className="h-5 w-5 text-primary" />, <InvitePartner userId={user.uid} userEmail={profile.email} userName={profile.name} />);
-  if (sidebarView === 'notes' && user && profile) return mainAreaShell('Notes', <FileText className="h-5 w-5 text-primary" />, <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />);
+  if (sidebarView === 'notes' && user && profile) {
+    // When a note is open (/:userId/notes/:noteId), "back" returns to the notes
+    // listing rather than jumping straight to chat; from the listing it goes to chat.
+    const openNoteId = pathSegments[2] ?? null;
+    return mainAreaShell(
+      'Notes',
+      <FileText className="h-5 w-5 text-primary" />,
+      <NotesView userId={user.uid} userEmail={profile.email} userName={profile.name} />,
+      openNoteId ? () => navigate(`/${activeUserId}/notes`) : undefined,
+    );
+  }
   if (sidebarView === 'gallery' || sidebarView === 'images') return mainAreaShell('Images', <Image className="h-5 w-5 text-primary" />, user ? <ImagesHub sendMessage={sendMessage} startNewChat={startNewChat} /> : <div className="flex flex-col items-center justify-center py-20 text-center text-foreground/40 space-y-2"><Image className="h-10 w-10 opacity-20" /><p className="text-sm">Sign in to view your generated images.</p></div>);
 
   // ── Coming soon views ─────────────────────────────────────────────────────
@@ -1544,9 +1723,11 @@ const Index = () => {
               <h2 className="mt-12 font-headline text-lg sm:text-xl md:text-[1.3rem] text-soft mb-1.5 sm:mb-3 tracking-tight text-center leading-tight">
                 Hi!   <span className='text-primary/80'>I'm here to help...</span>
               </h2>
-              {/* <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-10 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
-                Tell me your event, style or budget — I'll guide you step by step.
-              </p> */}
+              <p className="text-xs sm:text-sm text-soft mb-4 sm:mb-6 leading-relaxed max-w-lg mx-auto text-center font-body px-2">
+                {/* Ask me anything about your wedding */}
+                {/* <br/> */}
+                In any language, by text or voice.
+              </p>
               <div className="glass-action-card hidden sm:flex items-center gap-3 rounded-2xl px-4 py-3 mb-5 max-w-2xl mx-auto w-full">
                 <Sparkles className="w-5 h-5 text-primary/70 flex-shrink-0" />
                 <div className="flex-1 text-left">
@@ -1561,12 +1742,17 @@ const Index = () => {
                 </button>
               </div>
 
-              {/* Quick prompt cards — 2×2 on mobile, 4-across on desktop */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-5 max-w-2xl mx-auto">
-                {actionButtons.map((btn, i) => (
-                  <button key={i} onClick={() => handleQuickPrompt(btn.action)} className="glass-action-card flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 rounded-xl sm:rounded-2xl py-2.5 sm:py-5 px-2 sm:px-3 group cursor-pointer">
-                    <btn.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary/70 group-hover:text-primary transition-colors" />
-                    <span className="text-[11px] sm:text-xs font-medium text-soft text-center leading-tight">{btn.text}</span>
+              {/* Quick-start cards — 2×2 grid, compact, each with title + subtitle. */}
+              <div className="grid grid-cols-2 gap-2 mb-3 sm:mb-4 max-w-md mx-auto w-full">
+                {quickCards.map((card) => (
+                  <button
+                    key={card.title}
+                    onClick={() => handleQuickCard(card)}
+                    className="glass-action-card flex flex-col items-center gap-0.5 rounded-lg sm:rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 group cursor-pointer text-center"
+                  >
+                    <card.icon strokeWidth={2.5} className="w-6 h-6 sm:w-5 sm:h-5 text-primary/80 group-hover:text-primary transition-colors mb-0.5" />
+                    <span className="text-[13px] sm:text-[14px] font-semibold text-soft leading-tight">{card.title}</span>
+                    <span className="text-[10px] sm:text-[11px] text-foreground/50 leading-snug">{card.subtitle}</span>
                   </button>
                 ))}
               </div>
@@ -1598,42 +1784,18 @@ const Index = () => {
             and chat pages share one input position (no floating input in middle). */}
         <div className="flex-shrink-0 px-3 sm:ps-6 pb-3 sm:pb-4 pt-2 relative z-10">
           <div className=" mx-auto w-full">
-            {/* Occasion chips — horizontal scroll. Leading reset button clears
-                the current occasion + mode selection back to the default state. */}
-            <div className="overflow-x-scroll scrollbar-hide  max-w-2xl object-center mb-2 min-w-0 m-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {/* "People are asking" — single-row horizontal slider of tap-to-fill
+                prompts (mirrors the old occasion-chip slider, new content).
+                promptSliderRef enables mouse-wheel horizontal scroll on desktop. */}
+            <div ref={promptSliderRef} className="overflow-x-scroll scrollbar-hide max-w-2xl mb-2 min-w-0 m-auto cursor-grab active:cursor-grabbing select-none" style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2 px-1 pb-1 w-max">
-                {(() => {
-                  const hasSelection = selectedOccasion !== null || selectedMode !== 'auto';
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedOccasion(null);
-                        setSelectedMode('auto');
-                      }}
-                      disabled={!hasSelection}
-                      title={hasSelection ? 'Reset occasion and mode' : 'Nothing to reset'}
-                      aria-label="Reset occasion and mode"
-                      className={`rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 transition-all duration-200 border whitespace-nowrap flex-shrink-0 flex items-center justify-center gap-1 ${hasSelection
-                        ? 'bg-foreground/10 border-foreground/20 text-foreground/90 hover:bg-foreground/15 cursor-pointer'
-                        : 'bg-foreground/[0.03] border-foreground/[0.08] text-foreground/30 cursor-not-allowed'
-                        }`}
-                    >
-                      <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                      <span className="sr-only sm:not-sr-only text-[11px] sm:text-xs font-medium">Reset</span>
-                    </button>
-                  );
-                })()}
-                {occasions.map((occ) => (
+                {examplePrompts.map((p) => (
                   <button
-                    key={occ}
-                    onClick={() => setSelectedOccasion(selectedOccasion === occ ? null : occ)}
-                    className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 ${selectedOccasion === occ
-                      ? 'bg-primary/20 border-primary/40 text-primary'
-                      : 'bg-foreground/[0.06] border-foreground/[0.1] text-soft hover:bg-foreground/10'
-                      }`}
+                    key={p}
+                    onClick={() => handleExamplePrompt(p)}
+                    className="rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-[11px] sm:text-xs font-medium transition-all duration-200 border whitespace-nowrap flex-shrink-0 cursor-pointer bg-foreground/[0.06] border-foreground/[0.1] text-soft hover:bg-foreground/10"
                   >
-                    {occ}
+                    {p}
                   </button>
                 ))}
               </div>

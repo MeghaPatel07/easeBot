@@ -9,6 +9,7 @@ import {
   handleGetUsage,
   handleGetInvoices,
   handleGetInvoicePdf,
+  handleGetBillingHistory,
   handleSwitchPlan,
   handleSoftDelete,
   handleSignOutEverywhere,
@@ -29,6 +30,7 @@ router.get('/plan',   requireStrictAuth, handleGetPlan)
 router.get('/usage',  requireStrictAuth, handleGetUsage)
 router.get('/invoices', requireStrictAuth, handleGetInvoices)
 router.get('/invoices/:id/pdf', requireStrictAuth, handleGetInvoicePdf)
+router.get('/billing-history', requireStrictAuth, handleGetBillingHistory)
 router.get('/export', requireStrictAuth, handleExport)
 
 // --- Routine mutations (rate-limited 10/min/uid) ---

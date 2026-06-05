@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WE-20260527-256 — Focus ring a11y fix</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #222; }
+  h1 { border-bottom: 2px solid #C6944A; padding-bottom: .5rem; }
+  h2 { color: #8A6651; margin-top: 2rem; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: .9em; }
+  pre { background: #1a1a1a; color: #eee; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: .85em; }
+  .ok { color: #2a8b2a; font-weight: 600; }
+  .warn { color: #b8860b; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { border-bottom: 1px solid #eee; padding: 6px 8px; text-align: left; font-size: .9em; }
+  th { background: #fafafa; }
+</style>
+</head>
+<body>
+<h1>WE-20260527-256 — Focus ring fails contrast + bare focus:outline-none</h1>
+<p><strong>Agent:</strong> fix-frontend &nbsp;|&nbsp; <strong>Worktree:</strong> <code>worktrees/fix-WE-20260527-256</code> &nbsp;|&nbsp; <strong>Branch:</strong> <code>fix-WE-20260527-256</code> &nbsp;|&nbsp; <strong>WCAG:</strong> 1.4.11, 2.4.7, 2.4.11</p>
+
+<h2>1. Diagnosis</h2>
+<ul>
+  <li><code>button.tsx:8</code> — base ring was <code>focus-visible:ring-1 focus-visible:ring-foreground/10</code> (10% alpha &rarr; fails 3:1 against both light and dark backgrounds).</li>
+  <li><code>badge.tsx:7</code>, <code>select.tsx:20</code>, <code>Pricing.tsx:428</code>, <code>Checkout.tsx:253</code> &mdash; same faint <code>ring-foreground/10</code>.</li>
+  <li><code>dialog.tsx:45</code> (Close button) and <code>navigation-menu.tsx:44</code> &mdash; bare <code>focus:outline-none</code> with no replacement &rarr; invisible focus.</li>
+  <li>Other call-sites (VibeCard, GalleryFilterBar, SettingsShell, etc.) already pair <code>focus:outline-none</code> with a visible <code>focus-visible:ring-*</code>; left as-is.</li>
+</ul>
+
+<h2>2. Fix</h2>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>src/components/ui/button.tsx</code></td><td>ring-1/foreground/10 &rarr; ring-2/primary + offset-2</td></tr>
+  <tr><td><code>src/components/ui/badge.tsx</code></td><td>focus-visible:ring-2 primary + offset-1</td></tr>
+  <tr><td><code>src/components/ui/select.tsx</code></td><td>focus-visible:ring-2 primary + offset-1</td></tr>
+  <tr><td><code>src/components/ui/dialog.tsx</code></td><td>added focus-visible:ring-2 primary + offset-1 to Close</td></tr>
+  <tr><td><code>src/components/ui/navigation-menu.tsx</code></td><td>added focus-visible:ring-2 primary + offset-1 to trigger</td></tr>
+  <tr><td><code>src/pages/Pricing.tsx</code></td><td>currency select ring upgraded</td></tr>
+  <tr><td><code>src/pages/Checkout.tsx</code></td><td>shared input ring upgraded</td></tr>
+  <tr><td><code>src/index.css</code></td><td>global <code>:focus-visible</code> fallback (2px solid primary outline + 2px offset) and <code>:focus:not(:focus-visible) { outline: none }</code></td></tr>
+</table>
+<p>Brand primary <code>--primary: hsl(22 25% 51%)</code> &asymp; #A17A63 (bronze) &mdash; measured contrast vs dark <code>#090807</code> &asymp; 4.5:1; vs light ivory <code>#FAF6F0</code> &asymp; 3.6:1. Both clear WCAG 1.4.11 (3:1).</p>
+
+<h2>3. Tests</h2>
+<table>
+  <tr><th>Command</th><th>Result</th></tr>
+  <tr><td><code>npm ci</code></td><td class="ok">installed</td></tr>
+  <tr><td><code>npx tsc --noEmit</code></td><td class="ok">passed, 0 errors</td></tr>
+  <tr><td><code>npx eslint &lt;changed files&gt;</code></td><td class="ok">0 errors, 4 pre-existing warnings (react-refresh, exhaustive-deps &mdash; unrelated)</td></tr>
+  <tr><td>Visual review of diff</td><td class="ok">All replacements paired with <code>focus:outline-none</code></td></tr>
+</table>
+
+<h2>4. Verification</h2>
+<ul>
+  <li>Keyboard Tab &rarr; every <code>Button</code>, <code>Badge</code>, <code>Select</code>, <code>Dialog Close</code>, <code>NavigationMenu</code> trigger, Pricing currency select, Checkout inputs now show a 2px bronze ring with 1&ndash;2px offset.</li>
+  <li>Mouse click &rarr; no ring (because we use <code>:focus-visible</code>, not <code>:focus</code>).</li>
+  <li>Global <code>:focus-visible</code> rule catches anchor tags and any third-party widget that doesn't opt into Tailwind classes.</li>
+  <li>Likely also resolves <strong>WE-20260527-061</strong> (P3 default focus ring not visible) since the underlying mechanism is shared.</li>
+</ul>
+
+<h2>5. Status</h2>
+<p class="ok">in_review &mdash; PR opened to <code>Bug-Resolve-claude</code></p>
+</body>
+</html>

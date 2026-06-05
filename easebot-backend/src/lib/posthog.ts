@@ -38,6 +38,7 @@ type EventName =
   | 'tool_invoked'
   | 'token_exhausted'
   | 'payu_initiated'
+  | 'razorpay_initiated'
   | 'payment_succeeded'
   | 'payment_failed'
   | 'subscription_renewed'

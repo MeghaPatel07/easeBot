@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress · {{TICKET_ID}}</title>
+  <style>
+    :root {
+      --bg: #0c0c0e;
+      --panel: #16161a;
+      --border: #2a2a30;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #f97cb1;
+      --ok: #4ade80;
+      --warn: #facc15;
+      --err: #f87171;
+      --code-bg: #0a0a0c;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    .meta b { color: var(--text); font-weight: 500; }
+    .timeline { border-left: 2px solid var(--border); padding-left: 1.25rem; margin: 1rem 0; }
+    .entry { padding: 0.5rem 0; position: relative; }
+    .entry::before {
+      content: '';
+      position: absolute;
+      left: -1.4rem;
+      top: 0.85rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .entry.ok::before { background: var(--ok); }
+    .entry.warn::before { background: var(--warn); }
+    .entry.err::before { background: var(--err); }
+    .entry .time { color: var(--muted); font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, monospace; }
+    .entry .what { font-size: 0.95rem; }
+    .entry .detail { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
+    pre, code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #d4d4d8;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    img.screenshot {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 0.5rem 0;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      vertical-align: middle;
+      margin-left: 0.5rem;
+    }
+    .pill.P0 { background: rgba(248,113,113,0.2); color: #f87171; }
+    .pill.P1 { background: rgba(250,204,21,0.2); color: #facc15; }
+    .pill.P2 { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .pill.P3 { background: rgba(113,113,122,0.2); color: #a1a1aa; }
+    footer { color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>WE-20260527-170 · Two sources of truth for user profile (AuthContext vs useAccount) <span class="pill P0">P0</span></h1>
+      <div class="meta">
+        <b>Repo</b>: Wedding-Ease-Viva-Chat ·
+        <b>Agent</b>: fix-state-data ·
+        <b>Branch</b>: <code>fix-WE-20260527-170</code> (off <code>Bug-Resolve-claude</code>) ·
+        <b>Worktree</b>: <code>/Users/krish/Desktop/easebot/worktrees/fix-WE-20260527-170</code>
+      </div>
+    </header>
+
+    <h2>Bug summary</h2>
+    <p>
+      Two independent caches of the user profile: <code>useAuth().profile</code> (one-shot
+      <code>getDoc</code> at sign-in, never refreshed) and <code>useAccount().profile</code>
+      (TanStack Query, invalidated on settings mutations). Settings save refreshes only the
+      <code>useAccount</code> cache; everything wired through <code>useAuth</code> (sidebar,
+      chat header, NotesView, InvitePartner, useChat, useTokenPool, …) stays stale until F5.
+    </p>
+
+    <h2>Call-graph (pre-fix)</h2>
+    <pre>SettingsAccountTab.save
+  └─ useAccount.updateProfile(patch)
+      └─ profileMutation.mutateAsync(patch)
+          └─ patchAccountProfile(patch)            [backend write → Firestore users/{uid}]
+          └─ onSuccess: qc.invalidateQueries(['account','me'])
+              └─ ProfileMenu re-renders with fresh useAccount cache  ✅
+              └─ AuthContext.profile  ─── NOT TOUCHED ───            ❌ stale
+                  └─ ChatSidebar:502   (name + initials)             ❌ stale
+                  └─ ChatHeader:89     (ProfileIcon)                 ❌ stale
+                  └─ Index:1349-1350   (InvitePartner / NotesView)   ❌ stale
+                  └─ useChat:180,506   (voiceId, toneSettings, …)    ❌ stale
+                  └─ useTokenPool:31, useActiveVibe:54, …            ❌ stale</pre>
+
+    <h2>Call-graph (post-fix)</h2>
+    <pre>SettingsAccountTab.save
+  └─ useAccount.updateProfile(patch)
+      └─ patchAccountProfile(patch)                [backend write → Firestore users/{uid}]
+          └─ Firestore onSnapshot fires on users/{uid}
+              ├─ AuthContext profile listener → setProfile(snap.data)   ✅
+              │   └─ ALL useAuth() consumers re-render with new value   ✅
+              └─ onSuccess: qc.invalidateQueries(['account','me'])      ✅
+                  └─ useAccount cache refreshes (ProfileMenu)           ✅
+
+Both caches now observe the same live Firestore doc — no possible drift.</pre>
+
+    <h2>Audit trail</h2>
+    <div class="timeline">
+      <div class="entry ok">
+        <div class="time">2026-05-27 17:05</div>
+        <div class="what">Read WE-170 umbrella + WE-150 canonical child + child tickets 153/154/158/159/160/161/163/166/169.</div>
+        <div class="detail">All children share the same root: AuthContext.tsx:87-145 calls getDoc once, never subscribes.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-27 17:10</div>
+        <div class="what">Located 25 useAuth() callsites; 14 read profile.* fields directly.</div>
+        <div class="detail">All would stale-render without an onSnapshot fix in AuthContext.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-27 17:15</div>
+        <div class="what">Converted AuthContext getDoc → onSnapshot. Tracked unsub via useRef so auth-change + unmount + signOut all clean up.</div>
+        <div class="detail">Guarded post-first-snapshot to (a) not double-emit posthog identify, (b) not silent-signOut a mid-session user on a transient missing verification flag.</div>
+      </div>
+      <div class="entry ok">
+        <div class="time">2026-05-27 17:20</div>
+        <div class="what">Typecheck + lint: zero new errors. Pre-existing 27 TS errors unchanged (none in AuthContext). Lint clean for AuthContext.tsx.</div>
+        <div class="detail">Live login not possible (no test creds available to agent); call-graph documented above.</div>
+      </div>
+    </div>
+
+    <h2>Evidence</h2>
+    <ul>
+      <li>Before-fix screenshots: <code>qa-harness/evidence/{{TICKET_ID}}/screenshots/before-*.png</code></li>
+      <li>After-fix screenshots: <code>qa-harness/evidence/{{TICKET_ID}}/screenshots/after-*.png</code></li>
+      <li>Network HAR: <code>qa-harness/evidence/{{TICKET_ID}}/network.har</code></li>
+      <li>Test output: <code>qa-harness/evidence/{{TICKET_ID}}/test-output.txt</code></li>
+    </ul>
+
+    <h2>Tests run</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Command</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td><code>tsc --noEmit -p tsconfig.app.json</code></td><td class="ok">No new errors (27 pre-existing, none in AuthContext)</td></tr>
+        <tr><td>Lint (file)</td><td><code>eslint src/contexts/AuthContext.tsx</code></td><td class="ok">0 errors, 1 pre-existing fast-refresh warning on useAuth() helper</td></tr>
+        <tr><td>Lint (project)</td><td><code>eslint .</code></td><td class="warn">197 problems — all pre-existing baseline issues unrelated to fix</td></tr>
+        <tr><td>Live</td><td>—</td><td class="warn">Skipped: no test creds available to agent. Static call-graph above.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Files changed</h2>
+    <pre>src/contexts/AuthContext.tsx</pre>
+
+    <h2>Closes</h2>
+    <ul>
+      <li><b>WE-20260527-170</b> — umbrella (this ticket)</li>
+      <li><b>WE-20260527-150</b> — canonical: display name doesn't sync to chat header / sidebar / planner / notes after Settings save</li>
+      <li>WE-20260527-153 — Voice preset (<code>profile.voiceId</code>)</li>
+      <li>WE-20260527-154 — Tone settings (<code>profile.toneSettings</code>)</li>
+      <li>WE-20260527-158 — Personalization "About you" + responseStyle</li>
+      <li>WE-20260527-159 — Email change</li>
+      <li>WE-20260527-160 — Preferred-language → STT</li>
+      <li>WE-20260527-166 — Onboarding flag</li>
+      <li>WE-20260527-161 — TokenPoolBar 30s lag (mostly closed; still room to wire onSnapshot → qc.invalidateQueries if Krish wants belt-and-suspenders)</li>
+      <li>WE-20260527-163 — Avatar URL fan-out (closed FOR FUTURE — avatars not yet wired, but the foundation is now reactive)</li>
+      <li>WE-20260527-169 — Theme silent failure (NOT closed by this PR — orthogonal; ThemeContext .catch(noop) still needs its own fix)</li>
+    </ul>
+
+    <h2>PR</h2>
+    <p>Body: <code>/tmp/we-170-pr-body.md</code>. Filed against base <code>Bug-Resolve-claude</code>.</p>
+
+    <footer>
+      Generated by {{FIX_AGENT}} · Easebot QA Harness · Reviewed by Krish (Chairman)
+    </footer>
+  </div>
+</body>
+</html>

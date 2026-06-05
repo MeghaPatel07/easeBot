@@ -58,6 +58,24 @@ export async function handleTranscribe(req: Request, res: Response): Promise<voi
         duration_s: durSec,
       })
     }
-    res.status(500).json({ error: err.message ?? 'Transcription failed' })
+    // BUG-BE-20260525-011: ffmpeg failures leaked absolute Windows paths
+    // (C:\Users\..\AppData\Local\Temp\viva-input-<ts>.webm) and raw stderr
+    // verbatim through err.message. Map known audio-decode failure shapes
+    // to a sanitized 400; everything else gets a generic 500 with no
+    // err.message echoed to the client. Server-side log is unchanged.
+    const rawMsg = typeof err?.message === 'string' ? err.message : ''
+    const isAudioDecodeFailure =
+      rawMsg.includes('ffmpeg') ||
+      rawMsg.includes('Audio conversion failed') ||
+      rawMsg.includes('Error opening input file') ||
+      rawMsg.includes('Invalid data found when processing input')
+    if (isAudioDecodeFailure) {
+      res.status(400).json({
+        error: 'audio_decode_failed',
+        message: 'Could not decode audio. Send a valid webm, ogg, wav, or m4a payload.',
+      })
+      return
+    }
+    res.status(500).json({ error: 'Transcription failed' })
   }
 }

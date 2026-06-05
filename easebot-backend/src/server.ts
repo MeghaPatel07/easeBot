@@ -17,6 +17,18 @@ const HOST = '0.0.0.0'
 
 const server = http.createServer(app)
 
+// BUG-BE-20260525-012: defence-in-depth idle timeouts. Without these, a
+// client can open a TCP, send Content-Length headers, and then dribble
+// the body (or never send it) — slowloris pattern. Production behind
+// nginx/Cloudflare absorbs this, but the bare Node listener should evict
+// stalled connections on its own.
+//   - headersTimeout: bound time spent receiving request headers
+//   - requestTimeout: total time the request is allowed to take
+//   - keepAliveTimeout: how long an idle keep-alive connection lingers
+server.headersTimeout = 30_000
+server.requestTimeout = 60_000
+server.keepAliveTimeout = 65_000
+
 server.listen(PORT, HOST, () => {
   console.log(`[easebot] Server running on http://${HOST}:${PORT}`)
   console.log(

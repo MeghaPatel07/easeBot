@@ -13,6 +13,7 @@ import {
   enablePublicLink,
   disablePublicLink,
   sendNoteInvites,
+  ensurePublicShareId,
 } from '@/services/notesSharingService';
 import {
   subscribeToComments,
@@ -25,6 +26,7 @@ import {
 } from '@/services/notesCommentsService';
 import type { NoteComment, NotePermission, NoteCategory, NoteTemplate } from '@/types/notes';
 import NotesSidebar from '@/components/notes/NotesSidebar';
+import NotesHome from '@/components/notes/NotesHome';
 import NoteHeader from '@/components/notes/NoteHeader';
 import NoteEditor from '@/components/notes/NoteEditor';
 import NoteShareDialog from '@/components/notes/NoteShareDialog';
@@ -66,13 +68,15 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
     moveNoteToFolder,
   } = useNotes(userId, userEmail);
 
-  // Sync activeNoteId with URL :noteId param — lets /:userId/notes/:noteId
-  // deeplinks (e.g. from the AI message chip) open the target note.
+  // The URL is the source of truth for which note is open: mirror the
+  // :noteId segment into activeNoteId whenever it changes — opening a note,
+  // deep-linking (e.g. from the AI message chip), or backing out to the
+  // listing (which drops the segment and must close the editor). Keyed on
+  // urlNoteId only so a freshly-created note — which sets activeNoteId
+  // directly before the URL catches up — isn't immediately cleared.
   useEffect(() => {
-    if (urlNoteId && urlNoteId !== activeNoteId) {
-      setActiveNoteId(urlNoteId);
-    }
-  }, [urlNoteId, activeNoteId, setActiveNoteId]);
+    setActiveNoteId(urlNoteId ?? null);
+  }, [urlNoteId, setActiveNoteId]);
 
   // Keep URL in sync when the user selects a different note in the sidebar.
   const handleSelectNote = useCallback((nextId: string | null) => {
@@ -82,13 +86,15 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   }, [navigate, setActiveNoteId, userId]);
 
   const {
-    note, isSaving, lastSavedAt, hasUnsavedChanges, save,
+    note, noteMissing, isSaving, lastSavedAt, hasUnsavedChanges, save,
     updateContent, updateTitle, uploadImage,
     conflict, dismissConflict, discardLocalEdits,
   } = useNoteEditor(activeNoteId, userId);
 
   // Local state
-  const [showShareDialog, setShowShareDialog] = useState(false);
+  // The note the share dialog targets. Independent of the open note so notes
+  // can be shared straight from the gallery without navigating into them.
+  const [shareNoteId, setShareNoteId] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [comments, setComments] = useState<NoteComment[]>([]);
@@ -111,15 +117,24 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   }, [tier]);
 
   const guardedCreateNote = useCallback(
-    (folderId?: string) => {
+    async (folderId?: string) => {
       if (!tierAllowsEdit) {
         openPaywall('create');
         return;
       }
-      createNote(folderId ? { folderId } : undefined);
+      const created = await createNote(folderId ? { folderId } : undefined);
+      // Route to the new note so the URL stays authoritative (back returns here).
+      if (created) handleSelectNote(created.id);
     },
-    [tierAllowsEdit, createNote, openPaywall],
+    [tierAllowsEdit, createNote, openPaywall, handleSelectNote],
   );
+  const handleNewFromTemplate = useCallback(() => {
+    if (!tierAllowsEdit) {
+      openPaywall('template');
+      return;
+    }
+    setShowTemplateDialog(true);
+  }, [tierAllowsEdit, openPaywall]);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const handleEditorReady = useCallback((editor: Editor) => setEditorInstance(editor), []);
 
@@ -143,13 +158,14 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
       return;
     }
     try {
-      await createNote({
+      const created = await createNote({
         title: template.title,
         content: template.content,
         icon: template.icon,
         category: template.category,
       });
       setShowTemplateDialog(false);
+      if (created) handleSelectNote(created.id);
     } catch (err) {
       toast.error('Failed to create note from template');
     }
@@ -157,15 +173,34 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
   // Sharing handlers
   const handleAddCollaborator = async (email: string, permission: NotePermission): Promise<boolean> => {
-    if (!activeNoteId) return false;
+    if (!shareNoteId) return false;
     try {
-      await addCollaborator(activeNoteId, {
+      await addCollaborator(shareNoteId, {
         userId: '',
         email,
         name: email.split('@')[0],
         permission,
         addedBy: userId,
       });
+
+      // DEV aid: print the shareable link to the console so the flow can be
+      // tested while the invite-email service is paused. The link is the same
+      // for every role — what makes it editable is signing in as a collaborator
+      // with `editor` rights; the dispatcher resolves that per signed-in user.
+      // Dev-only (stripped from production builds).
+      if (import.meta.env.DEV) {
+        try {
+          const shareId = await ensurePublicShareId(shareNoteId);
+          const url = `${window.location.origin}/shared/note/${shareId}`;
+          const verb = permission === 'editor' ? 'EDIT' : permission === 'commenter' ? 'COMMENT' : 'VIEW';
+          console.log(
+            `%c[notes-share] ${verb} link for ${email}\n${url}\n→ open it and sign in as ${email} to test (granted: ${permission}).`,
+            'color:#c9a26a;font-weight:600',
+          );
+        } catch (e) {
+          console.warn('[notes-share] could not build share link', e);
+        }
+      }
       return true;
     } catch (err: any) {
       toast.error(err?.message || 'Failed to add collaborator');
@@ -174,9 +209,9 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   };
 
   const handleSendInvites = async (emails: string[]) => {
-    if (!activeNoteId || emails.length === 0) return;
+    if (!shareNoteId || emails.length === 0) return;
     try {
-      const result = await sendNoteInvites(activeNoteId, emails);
+      const result = await sendNoteInvites(shareNoteId, emails);
       if (result.sent.length > 0) {
         toast.success(
           result.sent.length === 1
@@ -193,32 +228,32 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   };
 
   const handleRemoveCollaborator = async (collaboratorUserId: string) => {
-    if (!activeNoteId) return;
+    if (!shareNoteId) return;
     try {
-      await removeCollaborator(activeNoteId, collaboratorUserId);
+      await removeCollaborator(shareNoteId, collaboratorUserId);
     } catch (err) {
       toast.error('Failed to remove collaborator');
     }
   };
 
   const handleUpdateCollaboratorPermission = async (collaboratorUserId: string, permission: NotePermission) => {
-    if (!activeNoteId) return;
+    if (!shareNoteId) return;
     try {
-      await updateCollaboratorPermission(activeNoteId, collaboratorUserId, permission);
+      await updateCollaboratorPermission(shareNoteId, collaboratorUserId, permission);
     } catch (err) {
       toast.error('Failed to update permission');
     }
   };
 
   const handleEnablePublicLink = async (permission: 'view' | 'comment' | 'edit') => {
-    if (!activeNoteId) return '';
+    if (!shareNoteId) return '';
     // Shareable links are Pro Max only (PRICING_PRD §4)
     if (!getLimits(tier).shareableLinks) {
       toast.error('Shareable links are a Pro Max feature. Upgrade to create read-only links.');
       return '';
     }
     try {
-      return await enablePublicLink(activeNoteId, permission);
+      return await enablePublicLink(shareNoteId, permission);
     } catch (err) {
       toast.error('Failed to enable public link');
       return '';
@@ -226,9 +261,9 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   };
 
   const handleDisablePublicLink = async () => {
-    if (!activeNoteId) return;
+    if (!shareNoteId) return;
     try {
-      await disablePublicLink(activeNoteId);
+      await disablePublicLink(shareNoteId);
     } catch (err) {
       toast.error('Failed to disable public link');
     }
@@ -271,12 +306,26 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   // Duplicate handler
   const handleDuplicateNote = async (noteId: string) => {
     try {
-      await duplicateNote(noteId);
+      const copy = await duplicateNote(noteId);
       toast.success('Note duplicated');
+      if (copy) handleSelectNote(copy.id);
     } catch (err) {
       toast.error('Failed to duplicate note');
     }
   };
+
+  // Deleting the note that's currently open returns to the listing so the URL
+  // doesn't linger on a trashed note (which would re-open it on reload).
+  const handleDeleteNote = useCallback(async (noteId: string) => {
+    await deleteNote(noteId);
+    if (noteId === activeNoteId) handleSelectNote(null);
+  }, [deleteNote, activeNoteId, handleSelectNote]);
+
+  // Share from the gallery without opening the note — the dialog targets
+  // shareNoteId directly (resolved from the subscribed lists below).
+  const handleShareNote = useCallback((noteId: string) => {
+    setShareNoteId(noteId);
+  }, []);
 
   // Restore handler
   const handleRestoreNote = async (noteId: string) => {
@@ -296,10 +345,46 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
 
   const isOwner = note?.ownerId === userId;
   const myCollaborator = note?.collaborators?.find(matchesUser);
-  const isEditor = myCollaborator?.permission === 'editor';
-  const canEdit = tierAllowsEdit && (isOwner || isEditor);
+  const isEditorCollaborator = !isOwner && myCollaborator?.permission === 'editor';
+  // Invited editors can edit a note shared with them regardless of THEIR OWN
+  // plan (Notion / Google-Docs collaboration model — the owner granted access).
+  // NOTE: under the current tierConfig every signed-in tier (free/pro/promax)
+  // already has notesAccess:'full' (only the unauthenticated 'guest' is 'view',
+  // and a routed collaborator is always signed in), so this is a forward-looking
+  // safety net: it only bites if notes editing is later moved behind a paid
+  // tier, at which point invited editors stay editable. Flip to `false` to make
+  // collaborator editing respect the per-user tier gate instead.
+  const COLLAB_EDIT_BYPASSES_TIER = true;
+  const canEdit =
+    (isOwner && tierAllowsEdit) ||
+    (isEditorCollaborator && (COLLAB_EDIT_BYPASSES_TIER || tierAllowsEdit));
   const readOnly = !canEdit;
-  const blockedByTier = !tierAllowsEdit && (isOwner || isEditor);
+
+  // A note opened by id from the URL (/:uid/notes/:noteId) may belong to another
+  // account. Firestore rules are currently permissive, so this client-side check
+  // is what stops cross-account note access in-app: only the owner, a named
+  // collaborator, or a note the owner made public may be opened. Real isolation
+  // needs Firestore rules — see PRD-SECURITY-cross-user-access-control.md.
+  const isUnauthorizedNote =
+    !!note && !isOwner && !myCollaborator && !note.publicAccess?.enabled;
+
+  // The owner deleted (or trashed) this note while a collaborator/viewer had it
+  // open — it must stop being readable and show an unavailable state, not stale
+  // content. Soft-delete keeps the doc with isDeleted=true; permanent delete
+  // removes it (subscription reports it missing). Scoped to non-owners so the
+  // owner's own trash/restore flow is untouched.
+  const isNoteUnavailable =
+    !!activeNoteId && (noteMissing || (!!note && note.isDeleted && !isOwner));
+  // The "upgrade to edit" banner only applies to people whose OWN tier blocks
+  // them: note owners on Free (and invited editors on Free iff the bypass is off).
+  const blockedByTier =
+    !tierAllowsEdit && (isOwner || (isEditorCollaborator && !COLLAB_EDIT_BYPASSES_TIER));
+
+  // Resolve the share dialog's target from the live subscribed lists, so it
+  // works whether opened from the editor or straight from a gallery card.
+  const shareTargetNote = shareNoteId
+    ? (notes.find(n => n.id === shareNoteId) ?? sharedNotes.find(n => n.id === shareNoteId) ?? null)
+    : null;
 
   // Conflict display name: look up the remote editor in owner/collaborators,
   // fall back to the raw id if we can't match (e.g. stale collaborator list).
@@ -345,6 +430,12 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
   // Trashed notes count
   const trashedCount = notes.filter(n => n.isDeleted).length;
 
+  // When no note is open, show the notes-home gallery if the user has any
+  // notes (owned or shared); only fall back to the first-run empty state when
+  // they genuinely have none. Prevents returning users from seeing a blank
+  // "create one" screen while their notes sit hidden in the picker dropdown.
+  const hasAnyNotes = notes.some(n => !n.isDeleted) || sharedNotes.length > 0;
+
   return (
     <div className="flex flex-col h-[calc(100vh-7.5rem)] h-[calc(100dvh-7.5rem)] -m-3 sm:-m-5 rounded-xl overflow-hidden border border-foreground/[0.06]">
       {/* Centered editor-panel controls — Google-Docs-style file picker.
@@ -379,7 +470,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                 onSearchChange={setSearchQuery}
                 onSelectNote={(noteId) => { handleSelectNote(noteId); setNotesPickerOpen(false); }}
                 onCreateNote={(folderId) => { guardedCreateNote(folderId); setNotesPickerOpen(false); }}
-                onDeleteNote={deleteNote}
+                onDeleteNote={handleDeleteNote}
                 onRenameNote={(noteId, title) => updateNote(noteId, { title })}
                 onRestoreNote={handleRestoreNote}
                 onDuplicateNote={handleDuplicateNote}
@@ -416,6 +507,45 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               <p className="text-sm text-foreground/30">Loading notes...</p>
             </div>
           </div>
+        ) : note && isUnauthorizedNote ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center space-y-3 max-w-sm">
+              <div className="h-14 w-14 rounded-full bg-warning/10 flex items-center justify-center mx-auto">
+                <AlertTriangle className="h-6 w-6 text-warning/70" />
+              </div>
+              <h2 className="text-lg font-headline text-foreground/70">You don't have access to this note</h2>
+              <p className="text-sm text-foreground/40">
+                This note belongs to another account{userEmail ? <> — you're signed in as {userEmail}</> : null}. Ask
+                its owner to share it with you.
+              </p>
+              <Button
+                variant="outline"
+                className="border-primary/40 text-primary hover:bg-primary/10 mt-2"
+                onClick={() => handleSelectNote(null)}
+              >
+                Back to my notes
+              </Button>
+            </div>
+          </div>
+        ) : isNoteUnavailable ? (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center space-y-3 max-w-sm">
+              <div className="h-14 w-14 rounded-full bg-foreground/[0.06] flex items-center justify-center mx-auto">
+                <AlertTriangle className="h-6 w-6 text-foreground/40" />
+              </div>
+              <h2 className="text-lg font-headline text-foreground/70">This note is no longer available</h2>
+              <p className="text-sm text-foreground/40">
+                The owner deleted it, so it can't be opened anymore.
+              </p>
+              <Button
+                variant="outline"
+                className="border-primary/40 text-primary hover:bg-primary/10 mt-2"
+                onClick={() => handleSelectNote(null)}
+              >
+                Back to my notes
+              </Button>
+            </div>
+          </div>
         ) : note ? (
           <>
             <NoteHeader
@@ -424,8 +554,8 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               onUpdateIcon={(icon: string) => updateNote(note.id, { icon })}
               onUpdateCategory={(category: NoteCategory) => updateNote(note.id, { category })}
               onToggleFavorite={() => handleToggleFavorite(note.id, !note.favorited)}
-              onShare={() => setShowShareDialog(true)}
-              onDelete={() => deleteNote(note.id)}
+              onShare={() => setShareNoteId(note.id)}
+              onDelete={() => handleDeleteNote(note.id)}
               onSave={save}
               isSaving={isSaving}
               lastSavedAt={lastSavedAt}
@@ -608,12 +738,27 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
               </div>
             )}
           </>
+        ) : hasAnyNotes ? (
+          <NotesHome
+            notes={notes}
+            sharedNotes={sharedNotes}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSelectNote={handleSelectNote}
+            onCreateNote={() => guardedCreateNote()}
+            onCreateFromTemplate={handleNewFromTemplate}
+            onToggleFavorite={handleToggleFavorite}
+            onRenameNote={(noteId, title) => updateNote(noteId, { title })}
+            onDuplicateNote={handleDuplicateNote}
+            onDeleteNote={handleDeleteNote}
+            onShareNote={handleShareNote}
+          />
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-4">
               <FileText className="h-16 w-16 text-foreground/10 mx-auto" />
               <h3 className="text-lg font-headline text-foreground/40">
-                Select a note or create a new one
+                Create your first note
               </h3>
               <div className="flex gap-2 justify-center">
                 <Button
@@ -624,10 +769,7 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
                   <Plus className="h-4 w-4 mr-2" /> New Note
                 </Button>
                 <Button
-                  onClick={() => {
-                    if (!tierAllowsEdit) { openPaywall('template'); return; }
-                    setShowTemplateDialog(true);
-                  }}
+                  onClick={handleNewFromTemplate}
                   variant="ghost"
                   className="text-foreground/60 hover:text-foreground"
                 >
@@ -688,12 +830,12 @@ export default function NotesView({ userId, userEmail, userName }: NotesViewProp
       )}
 
       {/* Dialogs */}
-      {activeNoteId && note && (
+      {shareTargetNote && (
         <NoteShareDialog
-          open={showShareDialog}
-          onClose={() => setShowShareDialog(false)}
-          note={note}
-          isOwner={isOwner}
+          open={shareNoteId !== null}
+          onClose={() => setShareNoteId(null)}
+          note={shareTargetNote}
+          isOwner={shareTargetNote.ownerId === userId}
           onAddCollaborator={handleAddCollaborator}
           onRemoveCollaborator={handleRemoveCollaborator}
           onUpdatePermission={handleUpdateCollaboratorPermission}

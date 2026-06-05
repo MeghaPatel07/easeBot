@@ -1,0 +1,5 @@
+Excerpt of the regex error from POST /api/chat with forceImageGeneration on a guest user:
+
+{"error":"Invalid regular expression: /!\[[^\]]*\]\(data:image\/png;base64,/9j/2wBDAAMDAwMDAwMDAwMEBAQEBAYFBQUFBgkGBwYHBgkOCAoICAoIDgwPDAsMDwwWEQ8PERYZFRQVGR4bGx4mJCYyMkP… [truncated ~600KB of base64]"}
+
+HTTP 500. Triggered by guest user POST with forceImageGeneration:true.

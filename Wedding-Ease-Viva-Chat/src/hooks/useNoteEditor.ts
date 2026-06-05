@@ -69,6 +69,11 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [conflict, setConflict] = useState<RemoteConflict | null>(null)
+  // True once the subscription has fired and the note doc does not exist
+  // (permanently deleted, or never existed). Distinguishes "gone" from "still
+  // loading" so a viewer whose shared note was deleted sees an unavailable
+  // state instead of stale content. See PRD-SECURITY-cross-user-access-control.md.
+  const [noteMissing, setNoteMissing] = useState(false)
 
   // Buffered local edits (not yet persisted)
   const pendingUpdatesRef = useRef<Partial<Note>>({})
@@ -121,12 +126,14 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
       pendingUpdatesRef.current = {}
       prevRemoteContentRef.current = null
       setConflict(null)
+      setNoteMissing(false)
       return
     }
     // Reset the remote-snapshot tracker when switching notes so the first
     // subscription event on a fresh note doesn't register as a conflict.
     prevRemoteContentRef.current = null
     setConflict(null)
+    setNoteMissing(false)
 
     const unsub = subscribeToNote(noteId, (n) => {
       if (n) {
@@ -142,6 +149,8 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
         prevRemoteContentRef.current = n.content
       }
       setNote(n)
+      // n === null means the doc no longer exists (permanent delete).
+      setNoteMissing(!n)
     })
     return () => unsub()
   }, [noteId])
@@ -373,6 +382,7 @@ export function useNoteEditor(noteId: string | null, userId: string | null) {
 
   return {
     note,
+    noteMissing,
     isSaving,
     lastSavedAt,
     hasUnsavedChanges,

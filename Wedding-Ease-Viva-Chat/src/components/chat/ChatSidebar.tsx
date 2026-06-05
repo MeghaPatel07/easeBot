@@ -394,7 +394,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                 )}
 
                 {/* Recent Threads */}
-                <h3 className="uppercase tracking-[0.12em] text-2xs text-foreground/35 mb-2 px-2 font-semibold">Recent</h3>
+                <h3 className=" tracking-[0.12em] text-2xs text-foreground/35 mb-2 px-2 font-semibold">Recent</h3>
                 <div>
                   {sortedGroupKeys.length === 0 && pinnedThreads.length === 0 && !searchQuery && <p className="text-2xs text-foreground/30 text-center py-4 px-3 italic">Your conversations will appear here.</p>}
                   {sortedGroupKeys.length === 0 && searchQuery && <p className="text-xs text-foreground/35 text-center py-3">No chats found for "{searchQuery}"</p>}

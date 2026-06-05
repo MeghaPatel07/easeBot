@@ -393,7 +393,7 @@ export async function verifyPhoneOtp(
 // emails it, and issues a short-lived `resetToken` after the OTP is verified.
 // We keep `sendForgotPasswordEmail` (Firebase magic-link) below as a fallback.
 
-const FORGOT_API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://easebot-production.up.railway.app'
+const FORGOT_API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   let res: Response

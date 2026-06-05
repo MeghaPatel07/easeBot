@@ -12,6 +12,7 @@ import {
   computeUpgradeCredit,
   queueSyntheticInvoice,
 } from '../services/subscriptionStateMachine'
+import { PRICING } from '../lib/pricing'
 import { emit } from '../lib/observability'
 
 function requireUid(req: Request, res: Response): string | null {
@@ -48,8 +49,8 @@ export async function upgrade(
       res.status(409).json({ error: 'no_active_period' }); return
     }
     const currentPlanUsd =
-      sub.billingCycle === 'annual' ? 79 : 10
-    const targetPlanUsd = cycle === 'annual' ? 299 : 39
+      sub.billingCycle === 'annual' ? PRICING.pro.annual : PRICING.pro.monthly
+    const targetPlanUsd = cycle === 'annual' ? PRICING.promax.annual : PRICING.promax.monthly
     const credit = computeUpgradeCredit({
       currentPlanUsd,
       targetPlanUsd,

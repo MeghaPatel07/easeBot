@@ -19,7 +19,11 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     proxy: {
       '/ingest': {
-        target: 'http://localhost:3001',
+        // Backend (easebot-backend) binds IPv4 only (0.0.0.0:3001). With
+        // "localhost", Node resolves ::1 first and the proxy hits ECONNREFUSED
+        // on the absent IPv6 listener. Pin to 127.0.0.1 so the dev proxy always
+        // reaches the backend's PostHog /ingest relay.
+        target: 'http://127.0.0.1:3001',
         changeOrigin: true,
       },
     },

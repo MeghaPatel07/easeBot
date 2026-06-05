@@ -522,6 +522,8 @@ export async function moveNoteToFolder(noteId: string, folderId: string | null):
 export async function checkNoteAccess(
   noteId: string,
   userId: string,
+  userEmail?: string | null,
+  emailVerified?: boolean,
 ): Promise<{ hasAccess: boolean; permission: string }> {
   const note = await getNote(noteId)
 
@@ -530,8 +532,25 @@ export async function checkNoteAccess(
     return { hasAccess: true, permission: 'owner' }
   }
 
-  // Check collaborators
-  const collab = (note.collaborators || []).find((c: any) => c.userId === userId)
+  // Check collaborators. Match by uid OR by email (case-insensitive): invitees
+  // added before they had an account are stored with `userId === email`, so a
+  // uid-only match would drop their grant the moment they sign up with a real
+  // Firebase uid. Matching on the token email makes the access survive the
+  // unregistered -> registered transition.
+  //
+  // SECURITY: only honour the email match when the token's email is VERIFIED.
+  // Firebase lets anyone register an account with an arbitrary email
+  // (email_verified=false until they prove ownership), so matching on an
+  // unverified email would let an attacker claim a note shared to someone
+  // else's address (authorization bypass). Unverified/absent email → no email
+  // match; the uid path still works and it fails closed.
+  // See PRD-SECURITY-cross-user-access-control.md.
+  const normalizedEmail = emailVerified ? (userEmail || '').trim().toLowerCase() : ''
+  const collab = (note.collaborators || []).find(
+    (c: any) =>
+      c.userId === userId ||
+      (!!normalizedEmail && (c.email || '').trim().toLowerCase() === normalizedEmail),
+  )
   if (collab) {
     return { hasAccess: true, permission: collab.permission }
   }

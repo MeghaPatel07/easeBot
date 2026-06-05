@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "description": "Live docs for React, Vite, TypeScript, Tailwind, shadcn/ui, Radix, TipTap, Firebase, Express, OpenAI, Azure Cognitive Services Speech, TanStack Query, Zod"
+    },
+    "firebase": {
+      "command": "npx",
+      "args": ["-y", "@gannonh/firebase-mcp@latest"],
+      "env": {
+        "SERVICE_ACCOUNT_KEY_PATH": "${SERVICE_ACCOUNT_KEY_PATH}",
+        "FIREBASE_STORAGE_BUCKET": "${FIREBASE_STORAGE_BUCKET}"
+      },
+      "description": "Firestore + Auth + Storage MCP. Set SERVICE_ACCOUNT_KEY_PATH to your wedding-ease-dc99a-firebase-adminsdk-*.json file path. Use read-only operations by default; ask before any write."
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "description": "Browser automation for Wedding-Ease-Viva-Chat manual QA + qa-screenshots.mjs replacement. Use for visual regression, flow capture, and codegen."
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"],
+      "description": "Official Chrome DevTools MCP (ChromeDevTools/chrome-devtools-mcp). Full DevTools: network panel, console, performance traces, Lighthouse, screenshots. Pair with Playwright MCP — Playwright drives, DevTools observes."
+    },
+    "posthog": {
+      "type": "http",
+      "url": "https://mcp.posthog.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${POSTHOG_PERSONAL_API_KEY}"
+      },
+      "description": "Official PostHog MCP (HTTP transport, replaces deprecated @posthog/agent-toolkit npm package). Auth via personal API key (phx_*) from POSTHOG_PERSONAL_API_KEY env var (set in ~/.claude/settings.json env block)."
+    }
+  }
+}

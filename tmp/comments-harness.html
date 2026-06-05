@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="file:///Users/krish/Desktop/easebot/Wedding-Ease-Viva-Chat/dist/assets/index-Chylhr5N.css" />
+<style>
+  body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; }
+  .stage { display:flex; }
+  .col { flex:1; height:760px; position:relative; overflow:hidden; }
+  .col.light { background: hsl(40 100% 97%); }   /* light note-editor surface */
+  .col.dark  { background: hsl(20 13% 3%); }      /* dark note-editor surface */
+  .tag { position:absolute; top:8px; left:12px; z-index:50; font:600 11px ui-sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+  .col.light .tag { color:#7a5c44; }
+  .col.dark  .tag { color:#b89382; }
+  /* panel is normally fixed right:0; in the harness pin it inside the column */
+  .panelwrap { position:absolute; inset:0; }
+  .panelwrap > div { position:absolute !important; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <!-- ════════════ LIGHT ════════════ -->
+  <div class="col light">
+    <span class="tag">light — empty</span>
+    <div class="panelwrap" id="L1"></div>
+  </div>
+  <div class="col light">
+    <span class="tag">light — populated</span>
+    <div class="panelwrap" id="L2"></div>
+  </div>
+  <!-- ════════════ DARK ════════════ -->
+  <div class="col dark">
+    <span class="tag">dark — empty</span>
+    <div class="panelwrap" id="D1"></div>
+  </div>
+  <div class="col dark">
+    <span class="tag">dark — populated</span>
+    <div class="panelwrap" id="D2"></div>
+  </div>
+</div>
+
+<script>
+// Panel markup as a template. {{BODY}} is swapped for empty vs populated.
+const HEADER = `
+  <div class="flex items-center justify-between px-4 py-3 border-b border-foreground/[0.06] flex-shrink-0">
+    <div class="flex items-center gap-2">
+      <svg class="h-4 w-4 text-primary/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <h3 class="text-sm font-medium text-foreground/80">Comments
+        <span class="ml-1.5 text-[10px] bg-primary/20 text-primary rounded-full px-1.5 py-0.5">2</span>
+      </h3>
+    </div>
+    <button class="h-7 w-7 p-0 rounded-lg hover:bg-foreground/10 text-foreground/40 inline-flex items-center justify-center">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>`;
+
+const EMPTY = `
+  <div class="flex-1 min-h-0 overflow-auto"><div class="p-3 space-y-3">
+    <div class="text-center py-8">
+      <svg class="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <p class="text-xs text-muted-foreground italic">No comments yet</p>
+    </div>
+  </div></div>`;
+
+const THREAD = `
+  <div class="flex-1 min-h-0 overflow-auto"><div class="p-3 space-y-3">
+    <div class="rounded-lg border p-3 space-y-2 border-foreground/10 bg-foreground/[0.04]">
+      <div class="flex items-start gap-1.5 pb-1.5 border-b border-foreground/[0.06]">
+        <span class="text-[10px] text-primary/50 mt-0.5">|</span>
+        <p class="text-[10px] text-foreground/30 italic line-clamp-2">"red Kanjivaram silk with heavy gold zari borders"</p>
+      </div>
+      <div class="space-y-1">
+        <div class="flex items-center gap-1.5">
+          <div class="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center text-[8px] text-primary font-medium">P</div>
+          <span class="text-[10px] font-medium text-foreground/60 truncate">Priya</span>
+          <span class="text-[9px] text-foreground/20">2h ago</span>
+        </div>
+        <p class="text-xs text-foreground/70 leading-relaxed">Should we add a maang tikka to complete the look?</p>
+      </div>
+      <div class="flex items-center gap-1 flex-wrap pt-1">
+        <button class="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md border transition-colors border-primary/30 bg-primary/10 text-primary"><span>👍</span><span>2</span></button>
+        <button class="text-[10px] px-1.5 py-0.5 rounded-md border border-foreground/10 bg-foreground/[0.03] text-foreground/30">+</button>
+      </div>
+      <div class="ml-4 pl-2 border-l border-foreground/[0.08] space-y-1">
+        <div class="flex items-center gap-1.5">
+          <div class="h-4 w-4 rounded-full bg-foreground/10 flex items-center justify-center text-[7px] text-foreground/50 font-medium">R</div>
+          <span class="text-[10px] font-medium text-foreground/50 truncate">Riya</span>
+          <span class="text-[9px] text-foreground/20">1h ago</span>
+        </div>
+        <p class="text-[11px] text-foreground/60 leading-relaxed">Yes, and jhumkas to match.</p>
+      </div>
+      <div class="flex items-center gap-1.5 pt-1">
+        <button class="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md transition-colors text-foreground/30 hover:bg-foreground/[0.06]"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>Resolve</button>
+        <button class="flex items-center gap-1 text-[10px] text-foreground/30 px-2 py-0.5 rounded-md"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>Reply</button>
+      </div>
+    </div>
+  </div></div>`;
+
+const FOOTER = `
+  <div class="flex-shrink-0 border-t border-foreground/[0.06] p-3 space-y-2">
+    <label class="text-[10px] text-foreground/30 font-medium uppercase tracking-wider">Add comment</label>
+    <div class="flex items-center gap-1.5">
+      <input placeholder="Write a comment..." class="flex-1 text-xs px-2.5 py-2 rounded-lg bg-foreground/[0.06] border border-foreground/10 text-foreground/80 placeholder-foreground/25 outline-none" />
+      <button class="p-2 rounded-lg bg-primary/20 text-primary"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button>
+    </div>
+  </div>`;
+
+function panel(body){
+  return `<div class="w-72 h-full bg-popover/95 backdrop-blur-xl border-l border-border shadow-xl flex flex-col" style="right:0;top:0;height:760px;">${HEADER}${body}${FOOTER}</div>`;
+}
+document.getElementById('L1').innerHTML = panel(EMPTY);
+document.getElementById('L2').innerHTML = panel(THREAD);
+document.getElementById('D1').innerHTML = panel(EMPTY);
+document.getElementById('D2').innerHTML = panel(THREAD);
+</script>
+</body>
+</html>
