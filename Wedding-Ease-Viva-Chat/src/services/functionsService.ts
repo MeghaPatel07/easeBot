@@ -74,12 +74,40 @@ export async function chatViaBackend(
   return post<ChatFunctionResponse>('/api/chat', payload, signal)
 }
 
+// Hard ceiling on a transcription request so a stalled STT call can't hang the
+// mic UI forever. Combines a caller's cancel signal with a timeout: a user
+// cancel aborts with AbortError (silent in useVoice), a timeout aborts with a
+// TimeoutError DOMException (surfaced to the user).
+const STT_REQUEST_TIMEOUT_MS = 20_000
+
+function withTimeoutSignal(
+  signal: AbortSignal | undefined,
+  ms: number,
+): { signal: AbortSignal; clear: () => void } {
+  const ctrl = new AbortController()
+  const onAbort = (reason: unknown) => { try { ctrl.abort(reason) } catch { /* noop */ } }
+  const id = setTimeout(
+    () => onAbort(new DOMException('Voice request timed out', 'TimeoutError')),
+    ms,
+  )
+  if (signal) {
+    if (signal.aborted) onAbort(signal.reason)
+    else signal.addEventListener('abort', () => onAbort(signal.reason), { once: true })
+  }
+  return { signal: ctrl.signal, clear: () => clearTimeout(id) }
+}
+
 export async function transcribeViaBackend(
   audioBase64: string,
   signal?: AbortSignal,
   language?: string
-): Promise<{ text: string; detectedLanguage: string }> {
-  return post('/api/transcribe', { audioBase64, language }, signal)
+): Promise<{ text: string; detectedLanguage: string; reason?: string }> {
+  const t = withTimeoutSignal(signal, STT_REQUEST_TIMEOUT_MS)
+  try {
+    return await post('/api/transcribe', { audioBase64, language }, t.signal)
+  } finally {
+    t.clear()
+  }
 }
 
 // ── Firebase httpsCallable (available, not currently active) ──────────────────

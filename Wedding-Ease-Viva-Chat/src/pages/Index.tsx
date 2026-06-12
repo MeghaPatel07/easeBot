@@ -475,24 +475,31 @@ const Index = () => {
     }
   };
 
+  const showVoiceToast = (message: string) => {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-destructive/90 text-destructive-foreground text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-in fade-in';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  };
+
   const handleMicClick = async () => {
     if (voiceError) clearVoiceError();
     if (voiceState === 'recording') {
       const result = await stopRecording();
-      if (result?.text) {
+      if (result.ok) {
         setInputText(result.text);
         setVoiceLanguage(result.detectedLanguage);
-        track('voice_input_used', { duration_s: (result as { durationSeconds?: number }).durationSeconds ?? null });
+        track('voice_input_used', { duration_s: result.durationSeconds ?? null });
+      } else if (result.reason === 'no_speech') {
+        showVoiceToast("Didn't catch that — please try again.");
+      } else if (result.reason === 'error') {
+        showVoiceToast(result.message);
       }
+      // 'cancelled' → stay silent (user cancelled, or quota UI took over)
     } else if (voiceState === 'idle') {
       const err = await startRecording();
-      if (err) {
-        const toast = document.createElement('div');
-        toast.textContent = `Mic: ${err}`;
-        toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-destructive/90 text-destructive-foreground text-xs px-4 py-2 rounded-full shadow-lg z-50 animate-in fade-in';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-      }
+      if (err) showVoiceToast(`Mic: ${err}`);
     }
   };
 

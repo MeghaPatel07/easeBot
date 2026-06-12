@@ -47,6 +47,14 @@ export async function handleTranscribe(req: Request, res: Response): Promise<voi
     res.status(200).json({ text: result.text, detectedLanguage: result.detectedLanguageCode.split('-')[0] })
   } catch (err: any) {
     if (qc) await qc.reconcile({ skip: true }).catch(() => {})
+    // I-4: "no speech recognized" is a soft, retryable outcome — the user spoke
+    // but Azure couldn't make out words. Return 200 with empty text + a reason
+    // so the client shows a gentle "didn't catch that" prompt instead of a hard
+    // error, and don't bill it (reconcile already skipped above).
+    if (err?.code === 'no_speech') {
+      res.status(200).json({ text: '', detectedLanguage: 'en', reason: 'no_speech' })
+      return
+    }
     console.error('[transcribeController]', err)
     const phDistinctId = req.phDistinctId ?? req.user?.uid
     if (phDistinctId) {
