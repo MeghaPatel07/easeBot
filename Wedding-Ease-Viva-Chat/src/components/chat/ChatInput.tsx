@@ -266,7 +266,7 @@ const ChatInput = ({
         </div>
 
         {/* ── Input pill ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 bg-foreground/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-foreground/[0.12] input-glow transition-shadow duration-300">
+        <div className="chat-input-surface flex-1 min-w-0 bg-foreground/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-foreground/[0.12] input-glow transition-shadow duration-300">
 
           {/* ── ChatGPT-style voice recording panel — replaces the composer
                while recording / requesting mic / transcribing. ─────────── */}
