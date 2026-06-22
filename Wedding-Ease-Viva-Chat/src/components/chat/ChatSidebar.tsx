@@ -309,7 +309,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {deleteConfirmModal}
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-30 font-body ${isOpen ? 'w-64' : 'w-0'} overflow-hidden`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-primary/15 backdrop-blur-2xl bg-foreground/[0.04] overflow-hidden">
+        <div className="ml-2.5 mt-3 h-[calc(100%-24px)] flex flex-col rounded-2xl border border-primary/15 backdrop-blur-2xl bg-foreground/[0.02] overflow-hidden">
 
           {/* Top bar: close + search + new chat */}
           <div className="flex items-center justify-between px-3 pt-3 pb-1 flex-shrink-0">
