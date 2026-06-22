@@ -43,6 +43,20 @@ const MAX_RECORDING_DURATION = 60
 
 export type VoiceState = 'idle' | 'requesting' | 'recording' | 'transcribing'
 
+/**
+ * Outcome of a stop+transcribe. Discriminated so the caller reacts to each case
+ * explicitly instead of silently dropping a null/empty transcript:
+ *   - ok        → fill the input with `text`
+ *   - no_speech → recorded but nothing usable (too short / Azure NoMatch); show
+ *                 a gentle "didn't catch that" prompt
+ *   - error     → a real failure (timeout / service); show `message`
+ *   - cancelled → user cancelled, or quota UI took over; stay silent
+ */
+export type VoiceStopResult =
+  | { ok: true; text: string; detectedLanguage: string; durationSeconds: number }
+  | { ok: false; reason: 'no_speech' | 'cancelled' }
+  | { ok: false; reason: 'error'; message: string }
+
 export interface UseVoiceResult {
   voiceState: VoiceState
   /** Kept for back-compat with existing ChatInput prop contract. */
@@ -55,8 +69,8 @@ export interface UseVoiceResult {
   amplitudes: number[]
   /** Begin recording. Returns error message string on failure, else null. */
   startRecording: () => Promise<string | null>
-  /** Stop + transcribe. Resolves with final text + detected language. */
-  stopRecording: () => Promise<{ text: string; detectedLanguage: string } | null>
+  /** Stop + transcribe. Resolves with a discriminated VoiceStopResult. */
+  stopRecording: () => Promise<VoiceStopResult>
   /** Abort recording + any in-flight transcription without throwing. */
   cancelRecording: () => void
   clearError: () => void
@@ -83,7 +97,7 @@ export function useVoice(): UseVoiceResult {
   const recorderRef = useRef<VoiceRecorder | null>(null)
   const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const maxDurationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const stopRecordingRef = useRef<() => Promise<{ text: string; detectedLanguage: string } | null>>()
+  const stopRecordingRef = useRef<() => Promise<VoiceStopResult>>()
   const cancelledRef = useRef<boolean>(false)
   const rafRef = useRef<number | null>(null)
   const abortCtrlRef = useRef<AbortController | null>(null)
@@ -184,10 +198,10 @@ export function useVoice(): UseVoiceResult {
     }
   }, [voiceState, startTimers, startAmplitudeLoop])
 
-  const stopRecording = useCallback(async (): Promise<{ text: string; detectedLanguage: string } | null> => {
+  const stopRecording = useCallback(async (): Promise<VoiceStopResult> => {
     const recorder = recorderRef.current
     if (!recorder || (voiceState !== 'recording' && voiceState !== 'requesting')) {
-      return null
+      return { ok: false, reason: 'cancelled' }
     }
 
     clearTimers()
@@ -204,14 +218,14 @@ export function useVoice(): UseVoiceResult {
       if (cancelledRef.current) {
         setVoiceState('idle')
         setRecordingDuration(0)
-        return null
+        return { ok: false, reason: 'cancelled' }
       }
 
       // Guard: extremely short recordings almost always produce empty transcripts.
       if (!audioBase64 || audioBase64.length < 500) {
         setVoiceState('idle')
         setRecordingDuration(0)
-        return { text: '', detectedLanguage: 'en' }
+        return { ok: false, reason: 'no_speech' }
       }
 
       const controller = new AbortController()
@@ -223,20 +237,42 @@ export function useVoice(): UseVoiceResult {
       abortCtrlRef.current = null
       setVoiceState('idle')
       setRecordingDuration(0)
+
+      const text = (result.text ?? '').trim()
+      // Backend returns reason:'no_speech' when it heard audio but no words, or
+      // simply empty text — either way show a gentle retry, never dead air.
+      if (!text || result.reason === 'no_speech') {
+        return { ok: false, reason: 'no_speech' }
+      }
       return {
-        text: result.text ?? '',
+        ok: true,
+        text,
         detectedLanguage: result.detectedLanguage ?? 'en',
+        durationSeconds: capturedDuration,
       }
     } catch (err: any) {
       abortCtrlRef.current = null
-      // User-initiated aborts should not surface as errors.
-      if (err?.name === 'AbortError' || cancelledRef.current) {
+      // User-initiated aborts (cancel button / unmount) stay silent.
+      if (cancelledRef.current || err?.name === 'AbortError') {
         setVoiceState('idle')
         setRecordingDuration(0)
         // Preserve the warmed recorder on aborts; only drop on real errors.
-        return null
+        return { ok: false, reason: 'cancelled' }
       }
-      const msg = err?.message ?? 'Could not transcribe'
+      // Quota exhaustion drives its own global UI (QUOTA_EVENT → upgrade modal);
+      // don't double up with an error toast.
+      if (err?.code === 'quota_exceeded') {
+        setVoiceState('idle')
+        setRecordingDuration(0)
+        return { ok: false, reason: 'cancelled' }
+      }
+      const isTimeout = err?.name === 'TimeoutError'
+      const raw = (typeof err?.message === 'string' && err.message) || ''
+      const message = isTimeout
+        ? 'Voice service timed out. Please try again.'
+        : /transcription failed|decode|could not transcribe/i.test(raw)
+          ? 'Could not understand the audio. Please try again.'
+          : raw || 'Voice input failed. Please try again.'
       const errorCode: string | undefined =
         (typeof err?.code === 'string' && err.code) ||
         (typeof err?.name === 'string' && err.name) ||
@@ -246,15 +282,14 @@ export function useVoice(): UseVoiceResult {
         ...(errorCode ? { error_code: errorCode.slice(0, 64) } : {}),
         duration_s: capturedDuration,
       })
-      setError(msg)
+      setError(message)
       setVoiceState('idle')
       setRecordingDuration(0)
       // Something genuinely went wrong — tear down and let the next recording
       // re-acquire the mic cleanly.
       try { recorderRef.current?.cancel() } catch { /* noop */ }
       recorderRef.current = null
-      // Surface to the UI via toast in the caller; return null so callers skip fill.
-      return null
+      return { ok: false, reason: 'error', message }
     }
     // Duration state is read inside this callback — intentional, we want the
     // latest value each stop. React's setState closure semantics handle that

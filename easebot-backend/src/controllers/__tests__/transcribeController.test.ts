@@ -213,13 +213,30 @@ test('missing audioBase64 → 400, no STT call, no pref lookup', async () => {
   assert.equal(eventsOf('stt.pref_cache').length, 0)
 })
 
-test('STT throws → 500 with message, request error path clean', async () => {
+test('STT throws → 500 generic error, raw message NOT leaked to client', async () => {
   __setFirestoreFetcherForTests(fetcher({ exists: false }))
   sttImpl = async () => { throw new Error('azure outage') }
   const res = mkRes()
   await handleTranscribe(mkReq({ uid: 'u' }), res as any)
   assert.equal(res.statusCode, 500)
-  assert.ok(JSON.stringify(res.body).includes('azure outage'))
+  assert.equal((res.body as any).error, 'Transcription failed')
+  // BUG-BE-20260525-011: the raw error (which can carry temp paths / stderr)
+  // must NOT reach the client.
+  assert.ok(!JSON.stringify(res.body).includes('azure outage'), 'raw error must not leak')
+})
+
+test("STT NoMatch (code 'no_speech') → soft 200 with reason, not a 500", async () => {
+  __setFirestoreFetcherForTests(fetcher({ exists: false }))
+  sttImpl = async () => {
+    const e = new Error('Speech could not be recognized') as Error & { code?: string }
+    e.code = 'no_speech'
+    throw e
+  }
+  const res = mkRes()
+  await handleTranscribe(mkReq({ uid: 'u' }), res as any)
+  assert.equal(res.statusCode, 200, 'no_speech is a soft, retryable outcome — not a 500')
+  assert.equal((res.body as any).reason, 'no_speech')
+  assert.equal((res.body as any).text, '')
 })
 
 // ────────────────────────────────────────────────────────────────────────────

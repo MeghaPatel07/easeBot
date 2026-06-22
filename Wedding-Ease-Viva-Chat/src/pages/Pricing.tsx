@@ -52,7 +52,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'How much does it cost to use?',
-    a: `TheWeddingBot offers a free tier to get started. Pro ($${PRICING.pro.monthly}/mo) adds more tokens, image generation, and advanced planning tools. Pro Max ($${PRICING.promax.monthly}/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.`,
+    a: `TheWeddingBot offers a free tier to get started. Pro ($${PRICING.pro.monthly}/mo) adds much more usage, image generation, and advanced planning tools. Pro Max ($${PRICING.promax.monthly}/mo) is for power planners with the highest limits and priority support. Annual billing saves ~34%.`,
   },
   {
     q: 'Can I cancel my subscription anytime?',
@@ -88,11 +88,11 @@ interface ComparisonGroup {
 
 const COMPARISON_DATA: ComparisonGroup[] = [
   {
-    heading: 'Token Pool',
+    heading: 'Usage',
     rows: [
-      { feature: 'Monthly pool', free: '300K', pro: '3M', promax: '8M' },
-      { feature: 'Daily cap', free: '50K', pro: '300K', promax: '800K' },
-      { feature: 'Token top-up packs', free: false, pro: `$${PRICING.topup} / 2M`, promax: `$${PRICING.topup} / 2M (max 10/mo)` },
+      { feature: 'Monthly usage', free: 'Baseline', pro: '10× Free', promax: '~3× Pro' },
+      { feature: 'Daily ceiling', free: 'Baseline', pro: '6× Free', promax: '~3× Pro' },
+      { feature: 'Token top-up packs', free: false, pro: `$${PRICING.topup} pack`, promax: `$${PRICING.topup} pack (max 10/mo)` },
     ],
   },
   {
@@ -315,7 +315,7 @@ export default function Pricing() {
         cycle: 'once',
         currency,
         priceUsd: PRICING.topup,
-        label: 'Token top-up — 2M tokens',
+        label: 'Token top-up pack',
       },
     })
   }
@@ -482,22 +482,22 @@ export default function Pricing() {
             aria-label="Token top-up pack"
             className="mb-12 rounded-2xl bg-foreground/[0.03] backdrop-blur-sm p-6 border border-foreground/[0.06]"
           >
-            <h2 className="font-headline text-xl text-foreground mb-1">Need More Tokens?</h2>
+            <h2 className="font-headline text-xl text-foreground mb-1">Need More Headroom?</h2>
             <p className="text-xs text-foreground/50 mb-4">
-              Buy a 2 million token top-up pack — tokens are added to your existing
-              pool instantly (stackable, max 10 / month). No refunds.
+              Buy a top-up pack — extra headroom is added to your existing
+              allowance instantly (stackable, max 10 / month). No refunds.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-baseline gap-3">
                 <span className="font-headline text-3xl text-foreground">
                   {formatCurrency(PRICING.topup, currency, rate)}
                 </span>
-                <span className="text-xs text-foreground/50">/ 2M tokens, one-time</span>
+                <span className="text-xs text-foreground/50">/ top-up pack, one-time</span>
               </div>
               <button
                 type="button"
                 onClick={handleTopup}
-                aria-label="Buy 2 million token top-up pack"
+                aria-label="Buy a token top-up pack"
                 className="min-h-11 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 Buy Top-Up

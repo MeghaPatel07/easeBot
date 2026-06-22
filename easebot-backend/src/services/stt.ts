@@ -24,6 +24,23 @@ const DEFAULT_SUPPORTED_LANGUAGES = [
   'es-ES',   // Spanish
 ]
 
+// App-level ceiling for the Azure recognize call. The SDK's internal timeouts
+// don't cover every stall (TLS/connect hangs, multi-language LID indecision),
+// so without this a hung recognize would never resolve and the request hangs.
+const AZURE_RECOGNIZE_TIMEOUT_MS = Number(process.env.STT_RECOGNIZE_TIMEOUT_MS) || 12_000
+
+// Resolve the no-preference auto-detect candidate set. Azure "at-start" LID
+// supports at most 4 candidates. Override the default via
+// STT_AUTODETECT_LANGUAGES (comma-separated BCP-47), capped to 4. NOTE: true
+// universal auto-detect (90+ languages) lands in Phase 1 when STT moves to
+// Azure OpenAI gpt-4o-transcribe — see PRD-STT-auto-language-detection.md.
+function resolveAutodetectLanguages(): string[] {
+  const raw = process.env.STT_AUTODETECT_LANGUAGES
+  if (!raw) return DEFAULT_SUPPORTED_LANGUAGES
+  const parsed = raw.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 4)
+  return parsed.length > 0 ? parsed : DEFAULT_SUPPORTED_LANGUAGES
+}
+
 // Map loose BCP-47 codes (e.g. 'en', 'en-US', 'hi') to Azure-preferred locales.
 // Auto-detect misidentifies Indian-English speech as Gujarati/Hindi when given
 // no preference, so callers who know the language should pass it for strict mode.
@@ -34,6 +51,9 @@ const LOCALE_ALIASES: Record<string, string> = {
   es: 'es-ES',
   fr: 'fr-FR',
   de: 'de-DE',
+  ar: 'ar-SA',   // Arabic — picker offered it but mapped to en-US before (silent downgrade)
+  pt: 'pt-BR',   // Portuguese — ditto
+  zh: 'zh-CN',   // Chinese — ditto
   ta: 'ta-IN',
   bn: 'bn-IN',
   mr: 'mr-IN',
@@ -86,8 +106,12 @@ function timeoutPromise(ms: number, label: string): Promise<never> {
   })
 }
 
-// Narrow class of errors that should NOT trigger a retry: user/input problems.
-function isUserInputError(err: unknown): boolean {
+// Errors that should NOT trigger a retry: user/input problems (bad audio,
+// nothing recognized) and hard timeouts (retrying a stalled connection only
+// burns the latency budget). Checks an explicit `code` first, then message.
+function isNonRetryableError(err: unknown): boolean {
+  const code = (err as { code?: string } | null)?.code
+  if (code === 'no_speech' || code === 'timeout') return true
   const msg = err instanceof Error ? err.message : String(err ?? '')
   return /Audio conversion failed|NoMatch|could not be recognized|bad audio|invalid audio/i.test(msg)
 }
@@ -103,7 +127,7 @@ async function withRetry<T>(
       return await fn()
     } catch (err) {
       lastErr = err
-      if (isUserInputError(err) || attempt === retries) throw err
+      if (isNonRetryableError(err) || attempt === retries) throw err
       if (counter) counter.retries += 1
       console.warn('[stt] transient error, retrying once:', err instanceof Error ? err.message : err)
     }
@@ -180,7 +204,7 @@ export async function transcribeAudio(
       ? ['en-US']
       : [preferredLocale, 'en-US']
   } else {
-    candidateLocales = DEFAULT_SUPPORTED_LANGUAGES
+    candidateLocales = resolveAutodetectLanguages()
   }
 
   const azureCall = (): Promise<STTResult> =>
@@ -197,6 +221,27 @@ export async function transcribeAudio(
         const autoDetect = sdk.AutoDetectSourceLanguageConfig.fromLanguages(candidateLocales)
         recognizer = sdk.SpeechRecognizer.FromConfig(speechConfig, autoDetect, audioConfig)
       }
+
+      // Single-settle guard + hard timeout. Whichever of {success, NoMatch,
+      // cancel, error, timeout} fires first wins; the rest are ignored and the
+      // recognizer is closed exactly once. Without the timeout a stalled
+      // recognize (common in multi-language auto-detect) would hang forever.
+      let settled = false
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const finish = (fn: () => void): void => {
+        if (settled) return
+        settled = true
+        if (timer) { clearTimeout(timer); timer = null }
+        try { recognizer.close() } catch { /* already closed */ }
+        fn()
+      }
+      timer = setTimeout(() => {
+        finish(() => {
+          const e = new Error(`STT recognize timed out after ${AZURE_RECOGNIZE_TIMEOUT_MS}ms`) as Error & { code?: string }
+          e.code = 'timeout'
+          reject(e)
+        })
+      }, AZURE_RECOGNIZE_TIMEOUT_MS)
 
       // Attach domain Phrase List (wedding vocabulary). Free, synchronous.
       // Azure caps at 1024 phrases/grammar; we stay well under.
@@ -218,22 +263,27 @@ export async function transcribeAudio(
 
       recognizer.recognizeOnceAsync(
         (result) => {
-          recognizer.close()
           if (result.reason === sdk.ResultReason.RecognizedSpeech) {
             const detectedLanguageCode = candidateLocales.length === 1
               ? candidateLocales[0]
               : sdk.AutoDetectSourceLanguageResult.fromResult(result).language ?? 'en-US'
-            resolve({ text: result.text, detectedLanguageCode })
+            finish(() => resolve({ text: result.text, detectedLanguageCode }))
           } else if (result.reason === sdk.ResultReason.NoMatch) {
-            reject(new Error('Speech could not be recognized'))
+            // Audio captured but nothing intelligible — a soft, retryable state,
+            // NOT a service error. Tagged so the controller returns a gentle
+            // "didn't catch that" instead of a hard 500 (and skips billing).
+            finish(() => {
+              const e = new Error('Speech could not be recognized') as Error & { code?: string }
+              e.code = 'no_speech'
+              reject(e)
+            })
           } else {
             const details = sdk.CancellationDetails.fromResult(result)
-            reject(new Error(`STT cancelled: ${details.errorDetails}`))
+            finish(() => reject(new Error(`STT cancelled: ${details.errorDetails}`)))
           }
         },
         (err) => {
-          recognizer.close()
-          reject(new Error(`STT error: ${err}`))
+          finish(() => reject(new Error(`STT error: ${err}`)))
         },
       )
     })

@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useUsageStats } from '@/hooks/useUsageStats'
-import { formatTokenCount, getLimits, resolveTier } from '@/config/tierConfig'
+import { getLimits, resolveTier } from '@/config/tierConfig'
 import { onQuotaExceeded, type QuotaExceededPayload } from '@/services/accountService'
 
 export interface TokenPoolState {
@@ -16,9 +16,9 @@ export interface TokenPoolState {
   monthlyPct: number
   /** Daily usage as percentage (0–100) */
   dailyPct: number
-  /** Formatted strings for display */
-  monthlyLabel: string   // e.g. "250K / 3M"
-  dailyLabel: string     // e.g. "12K / 300K"
+  /** Formatted strings for display — percentage only, no raw token counts */
+  monthlyLabel: string   // e.g. "62%"
+  dailyLabel: string     // e.g. "40%"
   /** Warning level based on monthly usage */
   level: 'ok' | 'warning' | 'critical' | 'exceeded'
   /** Set when the most recent backend call returned 402 — pins the relevant bar to 100% */
@@ -62,8 +62,8 @@ export function useTokenPool(): TokenPoolState {
       error: error as Error | null,
       monthlyPct: 0,
       dailyPct: 0,
-      monthlyLabel: `0 / ${formatTokenCount(limits.monthlyTokenPool)}`,
-      dailyLabel: `0 / ${formatTokenCount(limits.dailyTokenCap)}`,
+      monthlyLabel: '0%',
+      dailyLabel: '0%',
       level: 'ok',
       cappedReason: null,
       refetch,
@@ -108,8 +108,8 @@ export function useTokenPool(): TokenPoolState {
     error: error as Error | null,
     monthlyPct,
     dailyPct,
-    monthlyLabel: `${formatTokenCount(monthlyUsed)} / ${formatTokenCount(monthlyPool)}`,
-    dailyLabel: `${formatTokenCount(dailyUsed)} / ${formatTokenCount(dailyCap)}`,
+    monthlyLabel: `${monthlyPct}%`,
+    dailyLabel: `${dailyPct}%`,
     level,
     cappedReason,
     refetch,

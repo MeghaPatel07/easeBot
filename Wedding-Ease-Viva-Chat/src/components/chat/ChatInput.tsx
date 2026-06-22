@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Send, Image as ImageIcon, StopCircle, Mic, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
   Paperclip, FileText, ListChecks, Calendar, File as FileIcon, ArrowUp,
@@ -87,9 +87,31 @@ const ChatInput = ({
 
   // Auto-resize textarea to fit content, up to maxHeight then scroll.
   // Track when content exceeds the collapsed cap to show the expand button.
-  useEffect(() => {
+  //
+  // useLayoutEffect (not useEffect) so the height is recalculated before the
+  // browser paints, avoiding a flash at the old height.
+  useLayoutEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+
+    // Empty input (e.g. just cleared on send): collapse straight back to the
+    // single-line CSS height (rows=1 + min-h) and bail. We must NOT measure-and-
+    // set here — `scrollHeight` is never smaller than the element's current
+    // `clientHeight`, so if the textarea is still rendered tall from a long
+    // message, the read returns that tall value and pins the EMPTY box open at
+    // maxHeight. Clearing the inline height sidesteps the measurement entirely.
+    // Empty input (e.g. just cleared on send): collapse straight back to the
+    // single-line CSS height (rows=1 + min-h) and bail. We must NOT measure-and-
+    // set here — `scrollHeight` is never smaller than the element's current
+    // `clientHeight`, so if the textarea is still rendered tall from a long
+    // message, the read returns that tall value and pins the EMPTY box open at
+    // maxHeight. Clearing the inline height sidesteps the measurement entirely.
+    if (!inputText) {
+      el.style.height = '';
+      setIsOverflowing(false);
+      return;
+    }
+
     el.style.height = 'auto';
     const sh = el.scrollHeight;
     el.style.height = `${Math.min(sh, maxHeight)}px`;

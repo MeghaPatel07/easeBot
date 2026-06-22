@@ -229,6 +229,9 @@
     "firebase",
     "playwright",
     "chrome-devtools",
-    "posthog"
+    "posthog",
+    "github",
+    "sequential-thinking",
+    "stripe"
   ]
 }

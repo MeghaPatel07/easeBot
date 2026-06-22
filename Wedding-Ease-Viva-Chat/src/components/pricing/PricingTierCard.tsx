@@ -42,7 +42,7 @@ const TIER_META: Record<
     name: 'Free',
     tagline: 'Your planning notebook.',
     features: [
-      '300K tokens / month (50K daily)',
+      'Baseline monthly usage',
       'All 3 AI modes — Planner, Stylist, Knowledge',
       'Voice, vision & image generation',
       'Moodboards & vibe boards',
@@ -57,7 +57,7 @@ const TIER_META: Record<
     name: 'Pro',
     tagline: 'Your wedding co-pilot.',
     features: [
-      '3M tokens / month (300K daily)',
+      '10× the Free monthly usage',
       'All 3 AI modes',
       'Voice, vision & image gen — no watermarks',
       'Moodboards & vibe boards',
@@ -73,7 +73,7 @@ const TIER_META: Record<
     name: 'Pro Max',
     tagline: 'The crunch-mode concierge.',
     features: [
-      '8M tokens / month (800K daily)',
+      '~3× the Pro monthly usage',
       'All 3 AI modes + priority routing',
       'Voice & vision — priority queue',
       'Moodboards & vibe boards',
@@ -83,7 +83,7 @@ const TIER_META: Record<
       '5 wedding projects',
       'Export to PDF, CSV, JSON + shareable links',
       'Concierge support within 24h',
-      `$${PRICING.topup} / 2M token top-up packs`,
+      `$${PRICING.topup} top-up packs for extra headroom`,
     ],
   },
 }
