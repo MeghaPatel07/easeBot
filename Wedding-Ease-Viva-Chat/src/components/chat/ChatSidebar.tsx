@@ -548,7 +548,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                   </p>
                   <button
                     onClick={onShowSignIn}
-                    className="mt-2.5 w-full rounded-xl bg-foreground/[0.9] py-2 text-xs font-semibold text-card-elevated hover:bg-foreground transition-colors"
+                    className="mt-2.5 w-full hover:text-primary rounded-xl bg-primary/70 hover:bg-primary/30 py-2 text-xs font-semibold text-card-elevated hover:bg-foreground transition-colors"
                   >
                     Log In
                   </button>
