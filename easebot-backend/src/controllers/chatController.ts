@@ -780,6 +780,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       threadId,
       previousAssistantText,
       previousUserText,
+      history: effectiveHistory,
     })
 
     // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
@@ -1290,6 +1291,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       threadId,
       previousAssistantText,
       previousUserText,
+      history: effectiveHistory,
     })
 
     // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
