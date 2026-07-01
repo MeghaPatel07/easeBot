@@ -13,12 +13,12 @@ export interface ProductResult {
 
 // Keywords that suggest the user is looking for a product category
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  dress:   ['dress', 'gown', 'lehenga', 'bridal wear', 'outfit', 'attire', 'wear', 'clothing'],
-  rings:   ['ring', 'rings', 'band', 'engagement', 'jewelry', 'jewellery'],
-  venue:   ['venue', 'hall', 'banquet', 'location', 'place', 'garden', 'resort'],
+  dress: ['dress', 'gown', 'lehenga', 'bridal wear', 'outfit', 'attire', 'wear', 'clothing'],
+  rings: ['ring', 'rings', 'band', 'engagement', 'jewelry', 'jewellery'],
+  venue: ['venue', 'hall', 'banquet', 'location', 'place', 'garden', 'resort'],
   florist: ['flower', 'floral', 'bouquet', 'centerpiece', 'decoration', 'decor'],
-  cake:    ['cake', 'dessert', 'sweet', 'bakery'],
-  photo:   ['photo', 'photograph', 'camera', 'videograph', 'film'],
+  cake: ['cake', 'dessert', 'sweet', 'bakery'],
+  photo: ['photo', 'photograph', 'camera', 'videograph', 'film'],
 }
 
 function extractCategories(userMessage: string): string[] {
@@ -57,7 +57,7 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
       currency: data.currency ?? 'INR',
       vendor: data.vendor ?? '',
       tags: data.tags ?? [],
-      productUrl: `https://migration-testshiv97.web.app/product-detail/${d.id}`,
+      productUrl: `https://weddingease.ai/product-detail/${d.id}`,
     }
   })
 }

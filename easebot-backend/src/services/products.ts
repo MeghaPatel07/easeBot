@@ -17,17 +17,17 @@ export interface ProductResult {
 
 // Keywords that suggest the user is looking for a product category
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  dress:   ['dress', 'gown', 'lehenga', 'bridal wear', 'outfit', 'attire', 'wear', 'clothing',
-            'haldi', 'mehndi', 'mehandi', 'mehendi', 'sangeet', 'reception', 'saree', 'sari', 'sharara', 'anarkali',
-            'sherwani', 'kurta', 'dupatta', 'blouse', 'bridesmaid', 'groomsmen'],
-  rings:   ['ring', 'rings', 'band', 'engagement', 'jewelry', 'jewellery', 'necklace', 'earring',
-            'mangalsutra', 'bangles', 'choker', 'maang tikka'],
-  venue:   ['venue', 'hall', 'banquet', 'location', 'place', 'garden', 'resort', 'farmhouse',
-            'palace', 'rooftop', 'destination'],
+  dress: ['dress', 'gown', 'lehenga', 'bridal wear', 'outfit', 'attire', 'wear', 'clothing',
+    'haldi', 'mehndi', 'mehandi', 'mehendi', 'sangeet', 'reception', 'saree', 'sari', 'sharara', 'anarkali',
+    'sherwani', 'kurta', 'dupatta', 'blouse', 'bridesmaid', 'groomsmen'],
+  rings: ['ring', 'rings', 'band', 'engagement', 'jewelry', 'jewellery', 'necklace', 'earring',
+    'mangalsutra', 'bangles', 'choker', 'maang tikka'],
+  venue: ['venue', 'hall', 'banquet', 'location', 'place', 'garden', 'resort', 'farmhouse',
+    'palace', 'rooftop', 'destination'],
   florist: ['flower', 'floral', 'bouquet', 'centerpiece', 'decoration', 'decor', 'garland',
-            'marigold', 'mandap', 'flowerwork'],
-  cake:    ['cake', 'dessert', 'sweet', 'bakery', 'mithai', 'ladoo', 'barfi'],
-  photo:   ['photo', 'photograph', 'camera', 'videograph', 'film', 'cinemat', 'candid', 'reel'],
+    'marigold', 'mandap', 'flowerwork'],
+  cake: ['cake', 'dessert', 'sweet', 'bakery', 'mithai', 'ladoo', 'barfi'],
+  photo: ['photo', 'photograph', 'camera', 'videograph', 'film', 'cinemat', 'candid', 'reel'],
 }
 
 function toProduct(d: any, variantImageUrl?: string): ProductResult {
@@ -41,7 +41,7 @@ function toProduct(d: any, variantImageUrl?: string): ProductResult {
     currency: data.currency ?? 'INR',
     vendor: data.vendor ?? '',
     tags: data.tags ?? [],
-    productUrl: `https://migration-testshiv97.web.app/product-detail/${d.id}`,
+    productUrl: `https://weddingease.ai/product-detail/${d.id}`,
     imageUrl: data.imageUrl || variantImageUrl || '',
     rating: data.rating ?? 0,
   }

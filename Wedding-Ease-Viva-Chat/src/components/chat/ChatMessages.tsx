@@ -663,11 +663,10 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                             <button
                               onClick={() => onToggleProductLike?.(p)}
                               aria-label={isLiked ? 'Unlike' : 'Like'}
-                              className={`flex-shrink-0 p-2 rounded-lg transition-all ${
-                                isLiked
-                                  ? 'text-primary'
-                                  : 'text-foreground/40 hover:text-primary hover:bg-primary/10'
-                              }`}
+                              className={`flex-shrink-0 p-2 rounded-lg transition-all ${isLiked
+                                ? 'text-primary'
+                                : 'text-foreground/40 hover:text-primary hover:bg-primary/10'
+                                }`}
                               title={isLiked ? 'Unlike' : 'Like'}
                             >
                               <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
@@ -886,8 +885,8 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       onClick={() => handleShareArtifact(
                         (message.imageUrl || message.imageUrls?.length) ? 'image'
                           : message.checklistData ? 'checklist'
-                          : message.calendarEvent ? 'calendar'
-                          : 'message'
+                            : message.calendarEvent ? 'calendar'
+                              : 'message'
                       )}
                       aria-label="Share this artifact"
                       tabIndex={0}

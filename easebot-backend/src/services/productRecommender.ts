@@ -1,7 +1,8 @@
 import { getRelevantProductsViaHybridSearch } from './hybridSearchProducts'
 import { stashRemaining, popNextBatch, hasStash } from './productStash'
+import { callAzureAI } from './azureAI'
 import type { ProductResult } from './products'
-import type { Mode } from '../types'
+import type { Mode, HistoryMessage } from '../types'
 
 // Explicit shopping verbs. Broadened to cover plural forms ("products ideas",
 // "products suggestions") and "give me / show me options" patterns which users
@@ -19,7 +20,9 @@ const PRODUCT_INTENT_VERB_RE = /\b(show me products?|recommend\s+(?:a |some )?pr
 // ("earing", "sarre", "lehnga", "shervani") so a single missing/extra letter
 // doesn't kill the recommender. Keep this list tight — every entry is a word
 // whose presence should trigger a product fetch (on turn >= 2).
-const PRODUCT_NOUN_RE = /\b(lehenga|lehngas?|lengha|lehanga|saree|sarees|sari|saris|sarre|saari|sareh|sharara|shararas?|anarkali|gharara|ghagra|sherwani|shervani|sherwanis?|kurta|kurti|kurtas|kurtis|achkan|nehru jacket|indo[- ]?western|gown|dress|outfit|attire|bridesmaid|groomsmen|blouse|dupatta|stole|veil|mangalsutra|mangalsootra|necklace|earring|earrings|earing|earings|jhumka|jhumkas|maang ?tikka|tikka|bangle|bangles|bracelet|chooda|kaleere|nath|ring|mandap|bouquet|centerpiece|garland|marigold|clutch|purse|potli|heels|footwear|juttis?|mojaris?)\b/i
+// Decor nouns like mandap, bouquet, centerpiece, garland, marigold are excluded.
+// Gifting and wedding stationery nouns are included.
+const PRODUCT_NOUN_RE = /\b(lehenga|lehngas?|lengha|lehanga|saree|sarees|sari|saris|sarre|saari|sareh|sharara|shararas?|anarkali|gharara|ghagra|sherwani|shervani|sherwanis?|kurta|kurti|kurtas|kurtis|achkan|nehru jacket|indo[- ]?western|gown|dress|outfit|attire|bridesmaid|groomsmen|blouse|dupatta|stole|veil|mangalsutra|mangalsootra|necklace|earring|earrings|earing|earings|jhumka|jhumkas|maang ?tikka|tikka|bangle|bangles|bracelet|chooda|kaleere|nath|ring|clutch|purse|potli|heels|footwear|juttis?|mojaris?|gift|gifts|favor|favors|invitation|invitations|card|cards|stationery|stationeries|rsvp|signage)\b/i
 
 // Soft product-shopping signals. Alone these are ambiguous ("I have ideas
 // about color"), but combined with stylist/auto mode on turn >= 2 they're a
@@ -51,7 +54,37 @@ export interface RecommendInput {
   /** The most recent user message prior to the current one — used to inherit
    *  product-noun context on affirmative-only turns. */
   previousUserText?: string
+  history?: HistoryMessage[]
 }
+
+const RECOMMENDATION_CLASSIFIER_PROMPT = `You are a strict classifier that determines if the user is asking for:
+1. A styling tip
+2. A product tip
+3. A tip or question related specifically to one of these 4 categories of Wedding-Ease:
+   - Attire (e.g., clothing, dresses, outfits, sarees, lehengas, sherwanis, suits, sherwani, kurta, etc.)
+   - Jewelry and Accessories (e.g., jewellery, ornaments, necklaces, earrings, bangles, rings, footwear, shoes, juttis, clutches, bags, etc.)
+   - Gifting and Favors (e.g., wedding favors, guest gifts, return gifts, bridesmaid gifts, etc.)
+   - Wedding Stationery (e.g., wedding invitations, cards, RSVP cards, menu cards, wedding signage, etc.)
+
+We ONLY recommend products from the catalogue for these topics.
+Crucially, do NOT match if the user is asking about or talking about:
+- Decor (e.g., mandap, stage, flowers, centerpieces, ceiling decor, lighting, balloons, table settings, room decor, floral setups, decoration ideas, themes, etc.)
+- Planning, catering, photography, venues, timelines, music, budget, etc.
+- Any other topic not directly related to styling tips, product tips, or the 4 categories above.
+
+STREAM GATING RULE:
+We should NOT recommend products on the first or second query of a topic stream. We only recommend products on or after the THIRD consecutive user message about the allowed categories/tips.
+Look at the user's current message and the previous user messages in the history:
+1. Count how many consecutive user messages (including the current one) have been about the allowed categories or styling/product tips, without any interruptions by other topics (like decor, venue, budget, or planning).
+2. If this count is at least 3 (meaning this is the 3rd or later consecutive user message on these allowed topics), and the current message is about an allowed category:
+   - Output "MATCH: YES"
+   - Generate a highly relevant search query of 4-5 words maximum to search for matching products in the catalog. The search query must be specific, contextual, and optimized for search (e.g. "bridal red lehenga", "groomsmen return gifts", "gold necklace set", "wedding invitation card"). Do not include filler words like "find", "search", "show me", "please". Keep it to 4-5 words max.
+3. Otherwise (if the count is less than 3, or if the current message is not about an allowed category, or if the stream was broken by a non-allowed topic like decor or venue):
+   - Output "MATCH: NO"
+
+Your response must strictly follow this format:
+MATCH: <YES or NO>
+QUERY: <4-5 words search query if MATCH is YES, otherwise leave empty>`
 
 export interface RecommendResult {
   products: ProductResult[]
@@ -115,39 +148,106 @@ export async function maybeRecommendProducts(
     }
   }
 
-  const stylistContext = mode === 'stylist' || requestedMode === undefined || requestedMode === 'stylist'
-  const explicit = hasExplicitIntent(userMessage)
-  const hasNoun = mentionsProductNoun(userMessage)
-  const softSignal = hasSoftProductSignal(userMessage)
-  const affirmativeOnly = isAffirmativeOnly(userMessage)
+  // Stream gating: Only show recommendations on or after the 3rd user message.
+  if (turnNumber < 3) return null
 
-  // Build a search query. When the user sent just "yes"/"more"/"options"/etc.
-  // with no concrete noun, inherit the last user message that DID carry a
-  // noun so the Algolia query is still targeted (e.g. "earrings for white
-  // saree" instead of a bare "yes").
-  let searchQuery = userMessage
-  const previousUserHasNoun = previousUserText ? mentionsProductNoun(previousUserText) : false
-  if (previousUserHasNoun && (affirmativeOnly || !hasNoun)) {
-    searchQuery = previousUserText as string
+  let isMatch = false
+  let searchQuery = ''
+
+  // Build a local history context if none is provided.
+  const chatHistory: HistoryMessage[] = input.history || []
+  if (chatHistory.length === 0) {
+    if (previousUserText) {
+      chatHistory.push({ role: 'user', content: previousUserText })
+    }
+    if (previousAssistantText) {
+      chatHistory.push({ role: 'assistant', content: previousAssistantText })
+    }
   }
 
-  let shouldFetch = false
-  if (explicit) {
-    // Any turn, any mode (except planner/knowledge already gated out).
-    shouldFetch = true
-  } else if (hasNoun && turnNumber >= 2 && stylistContext) {
-    // Concrete item on turn 2+ in stylist/auto context.
-    shouldFetch = true
-  } else if (softSignal && previousUserHasNoun && turnNumber >= 2 && stylistContext) {
-    // User says "give me ideas/options/suggestions" and the context already
-    // established a concrete item. Fetch using the inherited query.
-    shouldFetch = true
-  } else if (affirmativeOnly && aiOfferedProductHelp(previousAssistantText) && previousUserHasNoun) {
-    // AI offered to help find/source products → user said "yes" → fetch.
-    shouldFetch = true
+  try {
+    // Call the LLM classifier to determine match & query
+    const classifierResult = await callAzureAI(
+      chatHistory,
+      userMessage,
+      RECOMMENDATION_CLASSIFIER_PROMPT,
+      [],
+      undefined,
+      0.1 // Use low temperature for high determinism
+    )
+
+    const text = classifierResult.text.trim()
+    const matchLine = text.match(/MATCH:\s*(YES|NO)/i)
+    const queryLine = text.match(/QUERY:\s*(.*)/i)
+
+    if (matchLine && matchLine[1].toUpperCase() === 'YES') {
+      isMatch = true
+      searchQuery = queryLine ? queryLine[1].trim() : ''
+    }
+  } catch (err) {
+    console.error('[productRecommender] LLM classification failed, falling back to regex rules:', err)
+
+    const stylistContext = mode === 'stylist' || requestedMode === undefined || requestedMode === 'stylist'
+    const explicit = hasExplicitIntent(userMessage)
+    const hasNoun = mentionsProductNoun(userMessage)
+    const softSignal = hasSoftProductSignal(userMessage)
+    const affirmativeOnly = isAffirmativeOnly(userMessage)
+
+    // Check consecutive user messages in the history to ensure at least 3 consecutive allowed queries.
+    let consecutiveCount = 1 // count the current userMessage
+    const userHistory = chatHistory.filter((m) => m.role === 'user')
+    for (let i = userHistory.length - 1; i >= 0; i--) {
+      const msg = userHistory[i].content
+      if (mentionsProductNoun(msg) || hasExplicitIntent(msg) || hasSoftProductSignal(msg)) {
+        consecutiveCount++
+      } else {
+        break
+      }
+    }
+
+    let shouldFetchFallback = false
+    if (consecutiveCount >= 3) {
+      let fallbackQuery = userMessage
+      const previousUserHasNoun = previousUserText ? mentionsProductNoun(previousUserText) : false
+      if (previousUserHasNoun && (affirmativeOnly || !hasNoun)) {
+        fallbackQuery = previousUserText as string
+      }
+
+      if (explicit) {
+        shouldFetchFallback = true
+      } else if (hasNoun && stylistContext) {
+        shouldFetchFallback = true
+      } else if (softSignal && previousUserHasNoun && stylistContext) {
+        shouldFetchFallback = true
+      } else if (affirmativeOnly && aiOfferedProductHelp(previousAssistantText) && previousUserHasNoun) {
+        shouldFetchFallback = true
+      }
+
+      if (shouldFetchFallback) {
+        isMatch = true
+        const nounMatch = fallbackQuery.match(PRODUCT_NOUN_RE)
+        if (nounMatch) {
+          searchQuery = nounMatch[0]
+        } else {
+          searchQuery = fallbackQuery
+        }
+      }
+    }
   }
 
-  if (!shouldFetch) return null
+  if (!isMatch) return null
+
+  // Ensure searchQuery has at least something if LLM returned YES but no query
+  if (!searchQuery) {
+    const nounMatch = userMessage.match(PRODUCT_NOUN_RE)
+    searchQuery = nounMatch ? nounMatch[0] : userMessage.split(/\s+/).slice(0, 5).join(' ')
+  }
+
+  // Ensure search query is optimized and does not exceed 5 words max.
+  const words = searchQuery.split(/\s+/).filter(Boolean)
+  if (words.length > 5) {
+    searchQuery = words.slice(0, 5).join(' ')
+  }
 
   try {
     // Fetch a pool via hybridSearch (lexical + vector), slice 3 for this
