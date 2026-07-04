@@ -1,6 +1,7 @@
 import { AzureOpenAI } from 'openai'
 import type { ChatCompletionTool, ChatCompletionMessageParam, ChatCompletionContentPart } from 'openai/resources/chat/completions'
 import type { HistoryMessage } from '../types'
+import { azureHttpAgent } from '../lib/azureHttpAgent'
 
 // ── Mode-specific temperature map ──────────────────────────────────────────────
 export const MODE_TEMPERATURES: Record<string, number> = {
@@ -29,6 +30,7 @@ export function getClient(): AzureOpenAI {
     apiKey,
     deployment,
     apiVersion: '2024-08-01-preview',
+    httpAgent: azureHttpAgent,
   })
 }
 
