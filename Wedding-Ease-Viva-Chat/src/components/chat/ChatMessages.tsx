@@ -114,6 +114,16 @@ const TypewriterMarkdown: React.FC<{
   )
 }
 
+// Follow-up chip strip only ever renders when the turn produced at least one
+// usable suggestion. Any generation error, timeout, or empty result already
+// collapses `suggestions` to undefined upstream (followUpSuggestions.ts
+// swallows failures → [], useChat.ts collapses [] → undefined), and an error
+// reply bubble never has the field set at all — so checking length here is
+// sufficient to guarantee "no error, no empty state" without a partial strip.
+function hasFollowUpSuggestions(message: Message): boolean {
+  return Array.isArray(message.suggestions) && message.suggestions.length > 0;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
@@ -950,7 +960,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                   the latest reply once streaming is done; they vanish when the
                   user sends the next message (no longer the last message).
                   Tapping a capsule drops the question into the input box (not sent). */}
-              {msgIndex === messages.length - 1 && !isTyping && message.suggestions && message.suggestions.length > 0 && (
+              {msgIndex === messages.length - 1 && !isTyping && hasFollowUpSuggestions(message) && (
                 <div className="not-prose mt-3 flex flex-wrap gap-2 animate-in fade-in slide-in-from-bottom-1 duration-300">
                   {message.suggestions.map((q, i) => (
                     <button
