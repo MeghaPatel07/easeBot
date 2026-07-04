@@ -118,7 +118,8 @@ export interface UserProfile {
   usage: TokenUsage | null
   createdAt: Timestamp
   lastLoginAt: Timestamp | null
-  forgotPasswordOtp: number | null
+  forgotPasswordOtp: string | null
+  forgotPasswordOtpExpiry?: Timestamp | null
   nickname?: string
   voiceId?: string
   toneSettings?: ToneSettings
