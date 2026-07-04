@@ -841,6 +841,25 @@ export function useChat(): UseChatResult {
       }
       console.error('[useChat] sendMessage error:', err)
 
+      // The model may have already produced a real reply before the stream
+      // died (e.g. a transient upstream network blip mid-generation, such as
+      // "Premature close"). Treat that like a manual stop rather than a hard
+      // failure: keep the partial reply as the final bubble and persist it —
+      // previously it stayed on screen but was never saved to Firestore, so
+      // it silently vanished on refresh.
+      if (streamedText.trim().length > 0) {
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1]
+          if (lastMsg && lastMsg.sender === 'ai') {
+            return [...prev.slice(0, -1), { ...lastMsg, text: streamedText, imageGenerating: false }]
+          }
+          return prev
+        })
+        await persistStoppedMessage(streamedText)
+        toast.error('Connection interrupted — the reply above may be incomplete.')
+        return
+      }
+
       // Drop the empty placeholder AI message before appending the error bubble,
       // otherwise the user sees a blank assistant message followed by the error.
       let errorText = 'Something went wrong. Please try again.'
