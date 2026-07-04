@@ -856,7 +856,7 @@ export function useChat(): UseChatResult {
           return prev
         })
         await persistStoppedMessage(streamedText)
-        toast.error('Connection interrupted — the reply above may be incomplete.')
+        // toast.error('Connection interrupted — the reply above may be incomplete.')
         return
       }
 
