@@ -221,7 +221,9 @@
       "Bash(cloudflared --version)",
       "Bash(rm -f /tmp/cf-tunnel.log)",
       "Bash(cloudflared tunnel *)",
-      "Bash(timeout 30 sh -c 'tail -n +1 -f /tmp/cf-tunnel.log | grep -m1 \"trycloudflare.com\"')"
+      "Bash(timeout 30 sh -c 'tail -n +1 -f /tmp/cf-tunnel.log | grep -m1 \"trycloudflare.com\"')",
+      "WebFetch(domain:docs.railway.com)",
+      "WebFetch(domain:station.railway.com)"
     ]
   },
   "enabledMcpjsonServers": [

@@ -57,9 +57,16 @@ router.post('/stream', requireAuth, chatBurstRateLimiter, quotaCheck('chat'), (r
   } as typeof res.write
 
   // ── Heartbeat: keep connection alive ───────────────────────────────────────
+  // Railway's edge proxy (and similar managed-platform proxies) enforce a
+  // ~5-minute idle timeout on HTTP/SSE connections, independent of the app —
+  // this doesn't exist for local dev, which talks to Node directly. A bare
+  // SSE comment line isn't guaranteed to count as "data transferred" for
+  // every proxy's idle-reset logic (Railway users report streams still
+  // getting cut despite comment-only heartbeats); a real `data:` frame
+  // removes that ambiguity. The frontend safely ignores the unrecognized
+  // `t: 'hb'` event type — it falls through with no side effects.
   const heartbeatInterval = setInterval(() => {
-    // SSE comment — ignored by EventSource clients but keeps proxies/LBs happy
-    originalWrite(`: heartbeat\n\n`)
+    originalWrite(`data: ${JSON.stringify({ t: 'hb' })}\n\n`)
   }, 15_000)
 
   // ── Cleanup on connection close ────────────────────────────────────────────
