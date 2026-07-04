@@ -858,6 +858,8 @@ export function useChat(): UseChatResult {
       setMessages((prev) => {
         const next = [...prev]
         const last = next[next.length - 1]
+
+        
         if (last && last.sender === 'ai' && !last.text) next.pop()
         next.push({
           id: (Date.now() + 1).toString(),
