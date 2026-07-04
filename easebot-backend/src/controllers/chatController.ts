@@ -14,6 +14,7 @@ import { storeMultipleImages } from '../services/imageStorage'
 import { register as registerCancellation, unregister as unregisterCancellation } from '../services/cancellationRegistry'
 import { getTier as meterGetTier } from '../services/tokenMeter'
 import { maybeRecommendProducts } from '../services/productRecommender'
+import { generateFollowUpSuggestions } from '../services/followUpSuggestions'
 import type { ProductResult } from '../services/products'
 import { detectMode } from '../modeRouter'
 import { getPlannerPrompt } from '../prompts/planner'
@@ -779,6 +780,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       threadId,
       previousAssistantText,
       previousUserText,
+      history: effectiveHistory,
     })
 
     // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
@@ -1289,6 +1291,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       threadId,
       previousAssistantText,
       previousUserText,
+      history: effectiveHistory,
     })
 
     // Build tools array — per-mode curated tool set. IMAGE_TOOL is always in base.
@@ -1649,6 +1652,17 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
 
     // responseLanguage = the language the AI actually responded in.
     const responseLanguage = targetLanguage !== 'en' ? targetLanguage : detectedLanguage
+
+    // Kick off follow-up suggestion generation NOW so it runs in parallel with
+    // TTS + product recommendation below. Best-effort + timeout-bounded — it can
+    // never block or break the stream. Emitted on the `d` event, never stored.
+    const suggestionsPromise = generateFollowUpSuggestions({
+      userMessage: message ?? '',
+      assistantReply: fullText,
+      language: responseLanguage,
+      signal: streamAbort.signal,
+    })
+
     // TTS after full text is ready — keyed on responseLanguage so the audio
     // matches the AI's output language (not the input-detection result).
     const { audioUrl } = await processOutbound(fullText, responseLanguage)
@@ -1684,7 +1698,15 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       console.warn('[chatController:stream] product recommender failed (swallowed):', err)
     }
 
-    sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory, products: recommendedProducts, productsHasMore })
+    // Resolve follow-up suggestions (kicked off in parallel above). Best-effort.
+    let suggestions: string[] = []
+    try {
+      suggestions = await suggestionsPromise
+    } catch {
+      suggestions = []
+    }
+
+    sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory, products: recommendedProducts, productsHasMore, suggestions })
     res.end()
 
     if (phDistinctId) {

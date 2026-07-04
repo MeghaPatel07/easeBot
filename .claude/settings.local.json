@@ -216,7 +216,12 @@
       "Bash(grep *)",
       "Bash(rg -n --type ts --type tsx -e '\\\\$[0-9]{1,4}\\\\b' -e 'monthlyUsd|annualUsd|priceUsd|PLAN_USD' -e '\\\\b\\(79|299|14\\\\.99|119\\)\\\\b' Wedding-Ease-Viva-Chat/src)",
       "Bash(rg -n -g '*.ts' -g '*.tsx' -e '\\\\$[0-9]{1,4}' -e 'monthlyUsd|annualUsd|priceUsd' -e '\\\\b\\(79|299|14\\\\.99|119\\)\\\\b' Wedding-Ease-Viva-Chat/src)",
-      "Bash(rg -n \"\\\\\\\\\\\\$[0-9]+|: ?\\(10|39|79|299\\)\\\\b|monthlyUsd: ?[0-9]|annualUsd: ?[0-9]|priceUsd: ?[0-9]\" src/pages/Pricing.tsx)"
+      "Bash(rg -n \"\\\\\\\\\\\\$[0-9]+|: ?\\(10|39|79|299\\)\\\\b|monthlyUsd: ?[0-9]|annualUsd: ?[0-9]|priceUsd: ?[0-9]\" src/pages/Pricing.tsx)",
+      "mcp__playwright__browser_navigate",
+      "Bash(cloudflared --version)",
+      "Bash(rm -f /tmp/cf-tunnel.log)",
+      "Bash(cloudflared tunnel *)",
+      "Bash(timeout 30 sh -c 'tail -n +1 -f /tmp/cf-tunnel.log | grep -m1 \"trycloudflare.com\"')"
     ]
   },
   "enabledMcpjsonServers": [
@@ -224,6 +229,9 @@
     "firebase",
     "playwright",
     "chrome-devtools",
-    "posthog"
+    "posthog",
+    "github",
+    "sequential-thinking",
+    "stripe"
   ]
 }

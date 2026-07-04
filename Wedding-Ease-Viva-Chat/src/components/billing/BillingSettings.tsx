@@ -204,11 +204,11 @@ export function BillingSettings({ className }: { className?: string }) {
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-primary" />
             <p className="text-sm font-medium text-foreground/90">
-              Top-up balance: {extras.toLocaleString()} tokens
+              Top-up pack active
             </p>
           </div>
           <p className="mt-1 text-xs text-foreground/90">
-            Top-up tokens drain after your monthly pool. They never expire.
+            Extra headroom on top of your monthly allowance — it drains after your monthly pool and never expires.
           </p>
         </div>
       )}

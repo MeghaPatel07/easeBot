@@ -43,7 +43,7 @@ export function TokenPoolBar({ className }: { className?: string }) {
       {/* Monthly pool */}
       <div>
         <div className="flex items-center justify-between text-2xs text-foreground/60 mb-1">
-          <span>Monthly tokens</span>
+          <span>Monthly usage</span>
           <span className={cn(
             level === 'exceeded' && 'text-destructive font-medium',
             level === 'critical' && 'text-warning font-medium',
@@ -97,19 +97,19 @@ export function TokenPoolBar({ className }: { className?: string }) {
       {/* Warning / upgrade prompt */}
       {level === 'warning' && (
         <p className="text-2xs text-warning">
-          You've used 75%+ of your monthly tokens.{' '}
+          You've used 75%+ of your monthly allowance.{' '}
           <Link to="/pricing" className="underline hover:text-warning-subtle">View usage</Link>
         </p>
       )}
       {level === 'critical' && (
         <p className="text-2xs text-warning font-medium">
-          90%+ of your monthly pool used. Expensive actions (images, voice) will use remaining tokens quickly.{' '}
+          90%+ of your monthly allowance used. Expensive actions (images, voice) will use it up quickly.{' '}
           <Link to="/pricing" className="underline hover:text-warning-subtle">Upgrade or top up</Link>
         </p>
       )}
       {level === 'exceeded' && (
         <p className="text-2xs text-destructive font-medium">
-          Monthly token pool exhausted.{' '}
+          Monthly allowance used up.{' '}
           {(snapshot as any).extrasBucket > 0 || (snapshot as any).topUpBalance > 0 ? null : (
             <Link to="/pricing" className="underline hover:text-destructive/80">Upgrade or buy a top-up pack</Link>
           )}

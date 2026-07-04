@@ -170,6 +170,9 @@ export interface StreamDoneEvent {
   styleMemory?: { descriptors: string[]; colorPalette: string[]; aestheticRegister: string; culturalContext: string; lastGeneratedImageUrl: string | null }
   products?: StreamProductCard[]
   productsHasMore?: boolean
+  /** Ephemeral follow-up question chips for this reply — held in memory only,
+   * never persisted. Empty/absent when generation was skipped or failed. */
+  suggestions?: string[]
 }
 export interface StreamErrorEvent { t: 'e'; msg: string }
 export interface StreamImageEvent { t: 'img'; status: 'generating' | 'partial'; data?: string }

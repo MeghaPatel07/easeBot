@@ -50,19 +50,19 @@ function barTone(state: UsageMeterState): string {
   }
 }
 
-function stateCopy(state: UsageMeterState, pct: number): string {
+function stateCopy(state: UsageMeterState): string {
   switch (state) {
     case 'warn':
-      return `${pct}% used`
+      return 'Approaching limit'
     case 'crit':
-      return `${pct}% used — approaching limit`
+      return 'Almost at your limit'
     case 'daily_hit':
       return 'Daily limit reached. Resets at midnight UTC.'
     case 'depleted':
       return 'Monthly pool used up.'
     case 'ok':
     default:
-      return `${pct}% used`
+      return 'Monthly usage'
   }
 }
 
@@ -120,7 +120,7 @@ export function UsageMeter({
   const dailyTone =
     state === 'daily_hit' ? 'bg-destructive' : 'bg-primary/60'
 
-  const copy = label ?? stateCopy(state, monthlyPct)
+  const copy = label ?? stateCopy(state)
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -132,8 +132,7 @@ export function UsageMeter({
           </span>
         </div>
         <span className="text-2xs text-foreground/90">
-          {usedMonthly.toLocaleString()} / {capMonthly.toLocaleString()}
-          {extras > 0 && ` (+${extras.toLocaleString()})`}
+          {monthlyPct}%{extras > 0 && ' · + top-up'}
         </span>
       </div>
 
@@ -175,9 +174,7 @@ export function UsageMeter({
       </div>
       <div className="flex justify-between text-3xs text-foreground/90">
         <span>Daily</span>
-        <span>
-          {usedDaily.toLocaleString()} / {capDaily.toLocaleString()}
-        </span>
+        <span>{dailyPct}%</span>
       </div>
     </div>
   )

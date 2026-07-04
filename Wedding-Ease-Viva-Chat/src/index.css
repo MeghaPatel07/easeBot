@@ -245,7 +245,8 @@
     /* #8B6F5C */
 
     /* Brand */
-    --light-primary: 22 25% 51%;
+    /* Brighter terracotta (was 22 25% 51% muted brown) — warmer text/icon/link accent */
+    --light-primary: 22 46% 62%;
     --light-primary-foreground: 0 0% 100%;
     --light-primary-muted: 22 20% 58%;
     --light-primary-hover: 22 26% 43%;
@@ -374,7 +375,7 @@
     --light-overlay-text: 0 0% 100%;
 
     /* Glass surfaces — solid card on ivory; retains warm-brown border accent */
-    --light-glass-bg: rgb(248 248 248 / 75%);
+    --light-glass-bg: rgb(255 255 255 / 75%);
     --light-glass-bg-hover: rgb(255 255 255 / 0.95);
     --light-glass-border: rgb(138 95 70 / 0.18);
     --light-glass-border-hover: rgb(161 122 99 / 0.45);
@@ -1318,6 +1319,59 @@
   border-color: var(--glass-border-hover);
   transform: translateY(-2px);
   box-shadow: var(--shadow-card-hover);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   LIGHT-MODE SURFACE OVERRIDES
+   The chat composer + faint elevation surfaces were tuned for dark mode
+   (translucent white tint + dark drop shadow). In light mode --foreground is
+   dark coffee, so bg-foreground/[x] renders as a muddy tint and shadow-black
+   reads as a heavy grey. These overrides swap them for the warm light palette
+   (white/ivory surfaces + soft warm shadows). Dark mode is untouched.
+   NOTE: only the *resting* utility selectors are overridden here; the separate
+   `hover:` variant selectors are left intact, so hover affordances still work.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Non-input [0.08] surfaces (attachment chips, audio player) — faint neutral
+   tint. Declared BEFORE .chat-input-surface so the composer (which also carries
+   bg-foreground/[0.08]) keeps its solid white card via the later, equal-specificity rule. */
+.light .bg-foreground\/\[0\.08\] {
+  background-color: hsl(0deg 0% 94.21% / 8%);
+}
+
+/* Chat composer pill — clean elevated white card on ivory */
+.light .chat-input-surface {
+  background: hsl(var(--light-card));
+  border-color: hsl(var(--light-border));
+  box-shadow: var(--light-shadow-md);
+}
+
+.light .chat-input-surface:focus-within {
+  border-color: hsl(var(--light-primary) / 0.5);
+  box-shadow: var(--light-shadow-input-focus);
+}
+
+/* Faint elevation surfaces → subtle warm-ivory fills (was coffee tint) */
+.light .bg-foreground\/\[0\.03\] {
+  background-color: hsl(0deg 0% 98.86%);
+}
+
+.light .bg-foreground\/\[0\.04\] {
+  background-color: hsl(0deg 0% 98.57%);
+}
+
+.light .bg-foreground\/\[0\.05\] {
+  background-color: hsl(0deg 0% 98.29%);
+}
+
+.light .bg-foreground\/\[0\.06\] {
+  background-color: hsl(0deg 0% 98.12%);
+}
+
+/* Glass action cards — a touch more frost so they read on the warm bg */
+.light .glass-action-card {
+  backdrop-filter: blur(33px);
+  -webkit-backdrop-filter: blur(33px);
 }
 
 /* Event chip pill */

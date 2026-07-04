@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Send, Image as ImageIcon, StopCircle, Mic, Loader2, ChevronDown, ChevronUp, X, Check, Plus,
   Paperclip, FileText, ListChecks, Calendar, File as FileIcon, ArrowUp,
@@ -87,9 +87,31 @@ const ChatInput = ({
 
   // Auto-resize textarea to fit content, up to maxHeight then scroll.
   // Track when content exceeds the collapsed cap to show the expand button.
-  useEffect(() => {
+  //
+  // useLayoutEffect (not useEffect) so the height is recalculated before the
+  // browser paints, avoiding a flash at the old height.
+  useLayoutEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+
+    // Empty input (e.g. just cleared on send): collapse straight back to the
+    // single-line CSS height (rows=1 + min-h) and bail. We must NOT measure-and-
+    // set here — `scrollHeight` is never smaller than the element's current
+    // `clientHeight`, so if the textarea is still rendered tall from a long
+    // message, the read returns that tall value and pins the EMPTY box open at
+    // maxHeight. Clearing the inline height sidesteps the measurement entirely.
+    // Empty input (e.g. just cleared on send): collapse straight back to the
+    // single-line CSS height (rows=1 + min-h) and bail. We must NOT measure-and-
+    // set here — `scrollHeight` is never smaller than the element's current
+    // `clientHeight`, so if the textarea is still rendered tall from a long
+    // message, the read returns that tall value and pins the EMPTY box open at
+    // maxHeight. Clearing the inline height sidesteps the measurement entirely.
+    if (!inputText) {
+      el.style.height = '';
+      setIsOverflowing(false);
+      return;
+    }
+
     el.style.height = 'auto';
     const sh = el.scrollHeight;
     el.style.height = `${Math.min(sh, maxHeight)}px`;
@@ -244,7 +266,7 @@ const ChatInput = ({
         </div>
 
         {/* ── Input pill ───────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 bg-foreground/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-foreground/[0.12] input-glow transition-shadow duration-300">
+        <div className="chat-input-surface flex-1 min-w-0 bg-foreground/[0.08] backdrop-blur-xl rounded-[22px] sm:rounded-2xl  sm:p-1.5 shadow-lg shadow-black/20 border border-foreground/[0.12] input-glow transition-shadow duration-300">
 
           {/* ── ChatGPT-style voice recording panel — replaces the composer
                while recording / requesting mic / transcribing. ─────────── */}
