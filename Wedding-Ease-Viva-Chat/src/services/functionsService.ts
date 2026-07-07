@@ -153,7 +153,7 @@ export interface StreamProductCard {
   currency?: string
 }
 export interface StreamChunkEvent { t: 'c'; v: string }
-export interface StreamProductsEvent { t: 'p'; products: StreamProductCard[]; hasMore: boolean }
+export interface StreamProductsEvent { t: 'p'; products: StreamProductCard[]; hasMore: boolean; productsQuery?: string }
 export interface StreamDoneEvent {
   t: 'd'
   text: string
@@ -170,6 +170,7 @@ export interface StreamDoneEvent {
   styleMemory?: { descriptors: string[]; colorPalette: string[]; aestheticRegister: string; culturalContext: string; lastGeneratedImageUrl: string | null }
   products?: StreamProductCard[]
   productsHasMore?: boolean
+  productsQuery?: string
   /** Ephemeral follow-up question chips for this reply — held in memory only,
    * never persisted. Empty/absent when generation was skipped or failed. */
   suggestions?: string[]

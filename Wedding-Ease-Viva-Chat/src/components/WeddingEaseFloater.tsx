@@ -18,8 +18,8 @@ export default function WeddingEaseFloater({ isFixed = true, className = "" }: W
 
   return (
     <a
-      // href={WEDDINGEASE_URL}
-      href="#"
+      href={WEDDINGEASE_URL}
+      // href="#"
       // target="_blank"
       rel="noopener noreferrer"
       // onClick={handleClick}

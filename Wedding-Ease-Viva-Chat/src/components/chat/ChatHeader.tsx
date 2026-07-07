@@ -209,8 +209,8 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <ThemeToggle size="sm" />
         {/* Mobile-only: header logo. Desktop shows the bottom-right floater instead. */}
         <a
-          // href="https://weddingease.ai"
-          href="#"
+          href="https://weddingease.ai"
+          // href="#"
           // target="_blank"
           rel="noopener noreferrer"
           aria-label="Open WeddingEase in a new tab"

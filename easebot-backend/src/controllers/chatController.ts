@@ -1108,11 +1108,13 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // products is a valid response.
     let recommendedProducts: ProductResult[] = []
     let productsHasMore = false
+    let productsQuery = ''
     try {
       const rec = await productsPromise
       if (rec && rec.products.length > 0) {
         recommendedProducts = rec.products
         productsHasMore = rec.hasMore
+        productsQuery = rec.query
       }
     } catch (err) {
       console.warn('[chatController] product recommender failed (swallowed):', err)
@@ -1131,6 +1133,7 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
       toolErrors: collectedToolErrors.length > 0 ? collectedToolErrors : undefined,
       products: recommendedProducts.length > 0 ? recommendedProducts : undefined,
       productsHasMore: recommendedProducts.length > 0 ? productsHasMore : undefined,
+      productsQuery: recommendedProducts.length > 0 ? productsQuery : undefined,
     }
     res.status(200).json(response)
   } catch (err: any) {
@@ -1705,12 +1708,14 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // the message bubble. Failures are swallowed — products are non-essential.
     let recommendedProducts: ProductResult[] = []
     let productsHasMore = false
+    let productsQuery = ''
     try {
       const rec = await productsPromise
       if (rec && rec.products.length > 0) {
         recommendedProducts = rec.products
         productsHasMore = rec.hasMore
-        sse({ t: 'p', products: rec.products, hasMore: rec.hasMore })
+        productsQuery = rec.query
+        sse({ t: 'p', products: rec.products, hasMore: rec.hasMore, productsQuery: rec.query })
       }
     } catch (err) {
       console.warn('[chatController:stream] product recommender failed (swallowed):', err)
@@ -1724,7 +1729,7 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
       suggestions = []
     }
 
-    sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory, products: recommendedProducts, productsHasMore, suggestions })
+    sse({ t: 'd', text: textForClient, toolActions, mode, detectedLanguage, responseLanguage, audioUrl, imageUrl: imageUrls[0] ?? null, imageUrls, styleMemory: imageToolStyleMemory, products: recommendedProducts, productsHasMore, productsQuery, suggestions })
     res.end()
 
     if (phDistinctId) {

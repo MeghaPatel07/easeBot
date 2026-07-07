@@ -1,5 +1,5 @@
 import { getRelevantProductsViaHybridSearch } from './hybridSearchProducts'
-import { stashRemaining, popNextBatch, hasStash } from './productStash'
+import { stashRemaining, popNextBatch, hasStash, getStashQuery } from './productStash'
 import { callAzureAI } from './azureAI'
 import type { ProductResult } from './products'
 import type { Mode, HistoryMessage } from '../types'
@@ -22,7 +22,7 @@ const PRODUCT_INTENT_VERB_RE = /\b(show me products?|recommend\s+(?:a |some )?pr
 // whose presence should trigger a product fetch (on turn >= 2).
 // Decor nouns like mandap, bouquet, centerpiece, garland, marigold are excluded.
 // Gifting and wedding stationery nouns are included.
-const PRODUCT_NOUN_RE = /\b(lehenga|lehngas?|lengha|lehanga|saree|sarees|sari|saris|sarre|saari|sareh|sharara|shararas?|anarkali|gharara|ghagra|sherwani|shervani|sherwanis?|kurta|kurti|kurtas|kurtis|achkan|nehru jacket|indo[- ]?western|gown|dress|outfit|attire|bridesmaid|groomsmen|blouse|dupatta|stole|veil|mangalsutra|mangalsootra|necklace|earring|earrings|earing|earings|jhumka|jhumkas|maang ?tikka|tikka|bangle|bangles|bracelet|chooda|kaleere|nath|ring|clutch|purse|potli|heels|footwear|juttis?|mojaris?|gift|gifts|favor|favors|invitation|invitations|card|cards|stationery|stationeries|rsvp|signage)\b/i
+const PRODUCT_NOUN_RE = /\b(lehengas?|lehngas?|lengha|lehanga|saree|sarees|sari|saris|sarre|saari|sareh|sharara|shararas?|anarkali|gharara|ghagra|sherwani|shervani|sherwanis?|kurta|kurti|kurtas|kurtis|achkan|nehru jacket|indo[- ]?western|gowns?|dress(?:es)?|outfits?|attire|clothes|clothing|bridesmaid|groomsmen|blouses?|dupattas?|stole|veil|mangalsutra|mangalsootra|necklace|earring|earrings|earing|earings|jhumka|jhumkas|maang ?tikka|tikka|bangle|bangles|bracelet|chooda|kaleere|nath|ring|clutch|purse|potli|heels|footwear|juttis?|mojaris?|festive wear|accessor(?:y|ies)|gift|gifts|favor|favors|invitation|invitations|card|cards|stationery|stationeries|rsvp|signage)\b/i
 
 // Soft product-shopping signals. Alone these are ambiguous ("I have ideas
 // about color"), but combined with stylist/auto mode on turn >= 2 they're a
@@ -33,11 +33,21 @@ const SOFT_PRODUCT_SIGNAL_RE = /\b(options?|ideas?|suggestions?|recommendations?
 // "ideas"/"choices"/"suggestions"/"recommendations" — those over-match
 // planning chatter ("give me some ideas for guest games") and are left to
 // SOFT_PRODUCT_SIGNAL_RE + the normal stream gate instead.
-const CATALOGUE_NOUN_RE = /\b(products?|catalogue|catalog|collections?|options?|items?|selection|range|designs?|picks?)\b/i
+const CATALOGUE_NOUN_RE = /\b(products?|catalogue|catalog|collections?|options?|items?|selection|range|designs?|picks?|events?|occasions?)\b/i
 
 // Verbs that signal the user is upfront asking to be shown something right
-// now, as opposed to chatting about style in the abstract.
-const REQUEST_VERB_RE = /\b(show|give|find|get|display|list|pull up|bring up|send|fetch)\b/i
+// now, as opposed to chatting about style in the abstract. Includes "can/
+// could I/we see" — a question-phrased request ("Can I see matching
+// accessories?") that means exactly the same thing as "show me" — and
+// "suggest", which combined with a product noun ("suggest accessories") is
+// just as direct an ask as "show me accessories" (bare "suggest" with no
+// product/catalogue noun, e.g. "suggest what colors would work", still
+// requires the noun check in hasExplicitProductRequest, so it stays inert).
+// NOTE: deliberately excludes "recommend" — "what do you recommend" is used
+// in ordinary conversational questions ("what invitation cards do you
+// recommend?") that should still go through the normal 3-consecutive-topic
+// stream gate rather than bypassing it outright.
+const REQUEST_VERB_RE = /\b(show|give|find|get|display|list|pull up|bring up|send|fetch|suggest|can\s+(?:i|we)\s+see|could\s+(?:i|we)\s+see)\b/i
 
 // AI offered help with shopping in the previous turn. When the user then
 // says "yes/sure/ok" alone, treat that as an accept-and-show-products.
@@ -101,6 +111,10 @@ export interface RecommendResult {
   hasMore: boolean
   algoliaQueried: boolean
   source: 'stash' | 'fresh'
+  /** The resolved search query behind this batch — surfaced to the frontend
+   *  so "See more options" can deep-link into the WeddingEase catalogue with
+   *  the same search context instead of a generic/empty search. */
+  query: string
 }
 
 function isShowMoreRequest(msg: string): boolean {
@@ -142,12 +156,83 @@ function hasExplicitProductRequest(msg: string): boolean {
   return CATALOGUE_NOUN_RE.test(msg) || PRODUCT_NOUN_RE.test(msg)
 }
 
-// Search query for an explicit request: prefer the concrete product noun
-// ("saree") so it maps cleanly through the keyword directory; otherwise fall
-// back to the trimmed raw message so Algolia's typo tolerance can still help.
-function buildExplicitSearchQuery(msg: string): string {
+// Generic, catch-all product words that are too broad to search alone — the
+// catalogue tags all sorts of unrelated items under these ("accessories"
+// matches a USB-cable organizer, bare "outfit" surfaced a wall-decor mirror
+// panel for "suggest outfit ideas for my wedding functions"). Anchor these to
+// a specific garment when one is known, or an occasion/style qualifier
+// otherwise, instead of searching the bare generic word.
+const GENERIC_ATTIRE_RE = /\b(accessor(?:y|ies)|outfits?|dress(?:es)?|attire|clothes|clothing)\b/i
+
+// Core garment nouns used purely to anchor a generic term ("accessories",
+// "outfit") to the specific piece in play — deliberately excludes "dress"/
+// "outfit" themselves (those ARE the generic terms being anchored) and
+// jewelry/footwear/gift nouns already covered elsewhere in PRODUCT_NOUN_RE.
+const GARMENT_ANCHOR_RE = /\b(lehengas?|lehngas?|lengha|lehanga|saree|sarees|sari|saris|sarre|saari|sareh|sharara|shararas?|anarkali|gharara|ghagra|sherwani|shervani|sherwanis?|kurta|kurti|kurtas|kurtis|achkan|nehru jacket|indo[- ]?western|gowns?|blouses?|dupattas?)\b/i
+
+// Occasion/style qualifiers used to anchor a generic term when no specific
+// garment is mentioned anywhere in context — "suggest outfit ideas for my
+// wedding functions" has no garment to anchor to, but does have "wedding",
+// so it resolves to "wedding outfit" instead of a bare, noisy "outfit".
+const OCCASION_QUALIFIER_RE = /\b(wedding|reception|sangeet|mehndi|mehandi|mehendi|haldi|engagement|sagai|cocktail|pre-?wedding|bridal|groom|festive|regal)\b/i
+
+// Looks for a garment mention, checking the current message first, then the
+// last user message, then the last assistant message — covers "matching
+// accessories for THIS", where "this" only resolves via recent conversation
+// (e.g. the assistant's own previous reply describing "the ivory sherwani").
+function findGarmentAnchor(...texts: (string | undefined)[]): string | null {
+  for (const text of texts) {
+    if (!text) continue
+    const m = text.match(GARMENT_ANCHOR_RE)
+    if (m) return m[0].toLowerCase()
+  }
+  return null
+}
+
+function findOccasionQualifier(...texts: (string | undefined)[]): string | null {
+  for (const text of texts) {
+    if (!text) continue
+    const m = text.match(OCCASION_QUALIFIER_RE)
+    if (m) return m[0].toLowerCase()
+  }
+  return null
+}
+
+// Resolves the best product noun to search for out of a message, anchoring
+// bare generic terms ("accessories", "outfit") to a nearby garment or, failing
+// that, an occasion/style qualifier — so the search stays specific instead of
+// falling back to a single vague word. Shared by the explicit-request path,
+// the regex-classifier fallback, and the final "ensure searchQuery has
+// something" safety net further below.
+function resolveProductNoun(
+  msg: string,
+  previousUserText?: string,
+  previousAssistantText?: string,
+): string | null {
   const nounMatch = msg.match(PRODUCT_NOUN_RE)
-  if (nounMatch) return nounMatch[0]
+  if (!nounMatch) return null
+  if (!GENERIC_ATTIRE_RE.test(nounMatch[0])) return nounMatch[0]
+
+  const generic = nounMatch[0].toLowerCase()
+  const garment = findGarmentAnchor(msg, previousUserText, previousAssistantText)
+  if (garment) return `${garment} ${generic}`
+
+  const occasion = findOccasionQualifier(msg, previousUserText, previousAssistantText)
+  if (occasion) return `${occasion} ${generic}`
+
+  return nounMatch[0]
+}
+
+// Search query for an explicit request: prefer the concrete (garment-anchored)
+// product noun so it maps cleanly through the keyword directory; otherwise
+// fall back to the trimmed raw message so Algolia's typo tolerance can help.
+function buildExplicitSearchQuery(
+  msg: string,
+  previousUserText?: string,
+  previousAssistantText?: string,
+): string {
+  const resolved = resolveProductNoun(msg, previousUserText, previousAssistantText)
+  if (resolved) return resolved
   return msg.split(/\s+/).filter(Boolean).slice(0, 5).join(' ')
 }
 
@@ -166,6 +251,7 @@ export async function maybeRecommendProducts(
 
   // Show-more follow-up: pop next batch from stash, skip Algolia.
   if (threadId && hasStash(threadId) && isShowMoreRequest(userMessage)) {
+    const stashedQuery = getStashQuery(threadId)
     const batch = popNextBatch(threadId, PRODUCTS_PER_TURN)
     if (batch.length > 0) {
       return {
@@ -173,6 +259,7 @@ export async function maybeRecommendProducts(
         hasMore: hasStash(threadId),
         algoliaQueried: false,
         source: 'stash',
+        query: stashedQuery ?? userMessage,
       }
     }
   }
@@ -190,7 +277,7 @@ export async function maybeRecommendProducts(
 
   if (explicitRequest) {
     isMatch = true
-    searchQuery = buildExplicitSearchQuery(userMessage)
+    searchQuery = buildExplicitSearchQuery(userMessage, previousUserText, previousAssistantText)
   } else {
     // Build a local history context if none is provided.
     const chatHistory: HistoryMessage[] = input.history || []
@@ -263,12 +350,8 @@ export async function maybeRecommendProducts(
 
         if (shouldFetchFallback) {
           isMatch = true
-          const nounMatch = fallbackQuery.match(PRODUCT_NOUN_RE)
-          if (nounMatch) {
-            searchQuery = nounMatch[0]
-          } else {
-            searchQuery = fallbackQuery
-          }
+          const resolved = resolveProductNoun(fallbackQuery, previousUserText, previousAssistantText)
+          searchQuery = resolved ?? fallbackQuery
         }
       }
     }
@@ -278,8 +361,8 @@ export async function maybeRecommendProducts(
 
   // Ensure searchQuery has at least something if LLM returned YES but no query
   if (!searchQuery) {
-    const nounMatch = userMessage.match(PRODUCT_NOUN_RE)
-    searchQuery = nounMatch ? nounMatch[0] : userMessage.split(/\s+/).slice(0, 5).join(' ')
+    const resolved = resolveProductNoun(userMessage, previousUserText, previousAssistantText)
+    searchQuery = resolved ?? userMessage.split(/\s+/).slice(0, 5).join(' ')
   }
 
   // Ensure search query is optimized and does not exceed 5 words max.
@@ -296,13 +379,14 @@ export async function maybeRecommendProducts(
 
     const firstBatch = products.slice(0, PRODUCTS_PER_TURN)
     const remaining = products.slice(PRODUCTS_PER_TURN)
-    if (threadId) stashRemaining(threadId, remaining)
+    if (threadId) stashRemaining(threadId, remaining, searchQuery)
 
     return {
       products: firstBatch,
       hasMore: remaining.length > 0,
       algoliaQueried: true,
       source: 'fresh',
+      query: searchQuery,
     }
   } catch (err) {
     console.error('[productRecommender] hybridSearch fetch failed:', err)

@@ -72,7 +72,6 @@ export interface ChatMessagesProps {
   likedProductIds?: Set<string>;
   onToggleProductLike?: (product: MessageProductCard) => void;
   onShareProduct?: (productTitle: string) => void;
-  onRequestMoreProducts?: () => void;
   onOpenPlanner: (checklistId: string) => void;
   onShowSignIn: () => void;
   onDeleteImage?: (messageId: string, imageUrl: string) => void;
@@ -94,6 +93,16 @@ export interface ChatMessagesProps {
   // vs "Deleted artifact" in the user message trail. Defaults to empty sets
   // (all chips resolve as deleted) when the caller hasn't wired this yet.
   knownArtifactIds?: KnownArtifactIds;
+}
+
+const WEDDINGEASE_PRODUCTS_URL = 'https://weddingease.ai/products';
+
+// Deep-links "See more options" into the WeddingEase catalogue with the same
+// search context that produced the cards shown in-chat, instead of a bare
+// (unscoped) products page.
+function buildWeddingEaseSearchUrl(query?: string): string {
+  if (!query) return WEDDINGEASE_PRODUCTS_URL;
+  return `${WEDDINGEASE_PRODUCTS_URL}?search=${encodeURIComponent(query)}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,7 +134,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
   onLoadMoreMessages, onCopyMessage, onDownloadMessage, onToggleLike, onRegenerateMessage,
   onContinueGenerating, onToneModifier, onConvertToTable, onSaveProduct,
   likedProductIds, onToggleProductLike,
-  onShareProduct, onRequestMoreProducts,
+  onShareProduct,
   onOpenPlanner, onShowSignIn, onDeleteImage,
   ttsLoadingId, ttsActiveId, ttsAudioUrls, onTtsPlay, onTtsClose,
   copiedMsgId, savedProductIds,
@@ -684,13 +693,16 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({
                       );
                     })}
                   </div>
-                  {message.productsHasMore && onRequestMoreProducts && (
-                    <button
-                      onClick={onRequestMoreProducts}
-                      className="mt-2 text-xs text-primary font-semibold hover:underline"
+                  {message.productsHasMore && (
+                    <a
+                      href={buildWeddingEaseSearchUrl(message.productsQuery)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => track('see_more_options_clicked', { query: message.productsQuery ?? null })}
+                      className="mt-2 inline-block text-xs text-primary font-semibold hover:underline"
                     >
                       See more options
-                    </button>
+                    </a>
                   )}
                 </div>
               )}

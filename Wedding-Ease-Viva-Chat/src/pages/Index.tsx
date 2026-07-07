@@ -1638,15 +1638,6 @@ const Index = () => {
                 console.error('[share:product] error:', err);
               }
             }}
-            onRequestMoreProducts={() => {
-              if (!checkAndBumpGuestCount()) return;
-              const mode = selectedMode === 'auto' ? undefined : selectedMode;
-              sendMessage('show more', {
-                mode,
-                language: langHint,
-                ...(guestImageLimitReached ? { skipImageGeneration: true } : {}),
-              });
-            }}
             onOpenPlanner={(checklistId) => { navigate(`/${activeUserId}/planner/${checklistId}`); setSelectedChecklistId(checklistId); }}
             onShowSignIn={() => setShowSignInModal(true)}
             onDeleteImage={deleteMessageImage}
