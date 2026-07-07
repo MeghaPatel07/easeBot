@@ -154,6 +154,20 @@ function userWantsImageOutput(userMessage: string): boolean {
   return WANTS_IMAGE_RE.test(userMessage || '')
 }
 
+// Covers the "clarifying question" flow: user asks for an image with no
+// details ("generate an image"), the LLM asks what to include instead of
+// calling the tool, and the user's NEXT message is just the answer to that
+// question ("a red lehenga for my reception") with no generate/show/draw verb
+// of its own. Without this, WANTS_IMAGE_RE fails on that reply and the hard
+// gate below strips generate_image on exactly the turn meant to fulfill the
+// request — the LLM then has no tool left and hallucinates an excuse (e.g.
+// telling a guest they need to sign in, which isn't actually true). Bounded
+// to a single turn of lookback since previousUserText is only the immediately
+// preceding user message.
+function continuingImageRequest(previousUserText: string | undefined): boolean {
+  return Boolean(previousUserText) && userWantsImageOutput(previousUserText as string)
+}
+
 // Hard gate for write-producing tools (notes, reminders, checklists, timeline
 // events). When the user has NOT explicitly asked to save/remind/list/schedule
 // anything, strip these tools so the LLM can't "be helpful" by quietly
@@ -802,8 +816,10 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     // isn't asking for a visual. Prompt-level gating alone is unreliable —
     // GPT-4o will happily call the tool on "show me some ideas" even when
     // the prompt says not to. Keep it when: photo attached (vision edit),
-    // Images Hub explicit force, or the message matches WANTS_IMAGE_RE.
-    const imageAllowed = Boolean(visionData) || forceImageGeneration === true || userWantsImageOutput(englishText)
+    // Images Hub explicit force, the message matches WANTS_IMAGE_RE, or the
+    // user is answering our own clarifying question from an image ask one
+    // turn ago (continuingImageRequest).
+    const imageAllowed = Boolean(visionData) || forceImageGeneration === true || userWantsImageOutput(englishText) || continuingImageRequest(previousUserText)
     if (!imageAllowed) {
       tools = tools.filter(t => !(t.type === 'function' && t.function.name === 'generate_image'))
     }
@@ -1310,7 +1326,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     // Hard gate: strip generate_image from the toolset unless the user is
     // clearly asking for a visual. Prevents the LLM from turning replies like
     // "elegant, and show me some ideas also" into an image-generation call.
-    const imageAllowed = Boolean(visionData) || forceImageGeneration === true || userWantsImageOutput(englishText)
+    // Also stays open when the user is answering our own clarifying question
+    // from an image ask one turn ago (continuingImageRequest).
+    const imageAllowed = Boolean(visionData) || forceImageGeneration === true || userWantsImageOutput(englishText) || continuingImageRequest(previousUserText)
     if (!imageAllowed) {
       tools = tools.filter(t => !(t.type === 'function' && t.function.name === 'generate_image'))
     }

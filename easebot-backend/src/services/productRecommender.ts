@@ -29,6 +29,16 @@ const PRODUCT_NOUN_RE = /\b(lehenga|lehngas?|lengha|lehanga|saree|sarees|sari|sa
 // reliable "user wants to see products" cue.
 const SOFT_PRODUCT_SIGNAL_RE = /\b(options?|ideas?|suggestions?|recommendations?|picks?|choices?|shortlist|styles?)\b/i
 
+// Generic words for "the product list" itself. Deliberately excludes bare
+// "ideas"/"choices"/"suggestions"/"recommendations" — those over-match
+// planning chatter ("give me some ideas for guest games") and are left to
+// SOFT_PRODUCT_SIGNAL_RE + the normal stream gate instead.
+const CATALOGUE_NOUN_RE = /\b(products?|catalogue|catalog|collections?|options?|items?|selection|range|designs?|picks?)\b/i
+
+// Verbs that signal the user is upfront asking to be shown something right
+// now, as opposed to chatting about style in the abstract.
+const REQUEST_VERB_RE = /\b(show|give|find|get|display|list|pull up|bring up|send|fetch)\b/i
+
 // AI offered help with shopping in the previous turn. When the user then
 // says "yes/sure/ok" alone, treat that as an accept-and-show-products.
 const AI_PRODUCT_OFFER_RE = /\b(help\s+(?:you\s+)?(?:sourc\w*|find\w*|shortlist\w*|pick\w*)|source\s+(?:particular\s+)?items?|shortlist\s+(?:online\s+)?stores?|narrow\s+(?:them\s+)?down|help\s+with\s+sourcing|find\s+specific\s+(?:stores?|vendors?)|would\s+you\s+like\s+(?:me\s+)?(?:to\s+)?(?:help|suggest|match|find|shortlist|show|visualize|recommend))/i
@@ -122,6 +132,25 @@ function hasSoftProductSignal(msg: string): boolean {
   return SOFT_PRODUCT_SIGNAL_RE.test(msg)
 }
 
+// An explicit, upfront ask — "show me sarees", "give me the catalogue",
+// "find me a lehenga" — always bypasses the 3-turn stream gate. The gate
+// exists to stop the assistant from pushing products during ordinary
+// styling chat; a direct request should never be blocked by it, regardless
+// of which turn of the conversation it lands on.
+function hasExplicitProductRequest(msg: string): boolean {
+  if (!REQUEST_VERB_RE.test(msg)) return false
+  return CATALOGUE_NOUN_RE.test(msg) || PRODUCT_NOUN_RE.test(msg)
+}
+
+// Search query for an explicit request: prefer the concrete product noun
+// ("saree") so it maps cleanly through the keyword directory; otherwise fall
+// back to the trimmed raw message so Algolia's typo tolerance can still help.
+function buildExplicitSearchQuery(msg: string): string {
+  const nounMatch = msg.match(PRODUCT_NOUN_RE)
+  if (nounMatch) return nounMatch[0]
+  return msg.split(/\s+/).filter(Boolean).slice(0, 5).join(' ')
+}
+
 // Decide whether this turn should show products, and return them if so.
 // Returns null when the gate is closed.
 export async function maybeRecommendProducts(
@@ -148,88 +177,98 @@ export async function maybeRecommendProducts(
     }
   }
 
-  // Stream gating: Only show recommendations on or after the 3rd user message.
-  if (turnNumber < 3) return null
+  // An explicit, upfront ask ("show me sarees", "give me the catalogue")
+  // always bypasses the stream gate below — see hasExplicitProductRequest.
+  const explicitRequest = hasExplicitProductRequest(userMessage)
+
+  // Stream gating: for ordinary styling chat (no direct ask), only show
+  // recommendations on or after the 3rd user message.
+  if (!explicitRequest && turnNumber < 3) return null
 
   let isMatch = false
   let searchQuery = ''
 
-  // Build a local history context if none is provided.
-  const chatHistory: HistoryMessage[] = input.history || []
-  if (chatHistory.length === 0) {
-    if (previousUserText) {
-      chatHistory.push({ role: 'user', content: previousUserText })
-    }
-    if (previousAssistantText) {
-      chatHistory.push({ role: 'assistant', content: previousAssistantText })
-    }
-  }
-
-  try {
-    // Call the LLM classifier to determine match & query
-    const classifierResult = await callAzureAI(
-      chatHistory,
-      userMessage,
-      RECOMMENDATION_CLASSIFIER_PROMPT,
-      [],
-      undefined,
-      0.1 // Use low temperature for high determinism
-    )
-
-    const text = classifierResult.text.trim()
-    const matchLine = text.match(/MATCH:\s*(YES|NO)/i)
-    const queryLine = text.match(/QUERY:\s*(.*)/i)
-
-    if (matchLine && matchLine[1].toUpperCase() === 'YES') {
-      isMatch = true
-      searchQuery = queryLine ? queryLine[1].trim() : ''
-    }
-  } catch (err) {
-    console.error('[productRecommender] LLM classification failed, falling back to regex rules:', err)
-
-    const stylistContext = mode === 'stylist' || requestedMode === undefined || requestedMode === 'stylist'
-    const explicit = hasExplicitIntent(userMessage)
-    const hasNoun = mentionsProductNoun(userMessage)
-    const softSignal = hasSoftProductSignal(userMessage)
-    const affirmativeOnly = isAffirmativeOnly(userMessage)
-
-    // Check consecutive user messages in the history to ensure at least 3 consecutive allowed queries.
-    let consecutiveCount = 1 // count the current userMessage
-    const userHistory = chatHistory.filter((m) => m.role === 'user')
-    for (let i = userHistory.length - 1; i >= 0; i--) {
-      const msg = userHistory[i].content
-      if (mentionsProductNoun(msg) || hasExplicitIntent(msg) || hasSoftProductSignal(msg)) {
-        consecutiveCount++
-      } else {
-        break
+  if (explicitRequest) {
+    isMatch = true
+    searchQuery = buildExplicitSearchQuery(userMessage)
+  } else {
+    // Build a local history context if none is provided.
+    const chatHistory: HistoryMessage[] = input.history || []
+    if (chatHistory.length === 0) {
+      if (previousUserText) {
+        chatHistory.push({ role: 'user', content: previousUserText })
+      }
+      if (previousAssistantText) {
+        chatHistory.push({ role: 'assistant', content: previousAssistantText })
       }
     }
 
-    let shouldFetchFallback = false
-    if (consecutiveCount >= 3) {
-      let fallbackQuery = userMessage
-      const previousUserHasNoun = previousUserText ? mentionsProductNoun(previousUserText) : false
-      if (previousUserHasNoun && (affirmativeOnly || !hasNoun)) {
-        fallbackQuery = previousUserText as string
-      }
+    try {
+      // Call the LLM classifier to determine match & query
+      const classifierResult = await callAzureAI(
+        chatHistory,
+        userMessage,
+        RECOMMENDATION_CLASSIFIER_PROMPT,
+        [],
+        undefined,
+        0.1 // Use low temperature for high determinism
+      )
 
-      if (explicit) {
-        shouldFetchFallback = true
-      } else if (hasNoun && stylistContext) {
-        shouldFetchFallback = true
-      } else if (softSignal && previousUserHasNoun && stylistContext) {
-        shouldFetchFallback = true
-      } else if (affirmativeOnly && aiOfferedProductHelp(previousAssistantText) && previousUserHasNoun) {
-        shouldFetchFallback = true
-      }
+      const text = classifierResult.text.trim()
+      const matchLine = text.match(/MATCH:\s*(YES|NO)/i)
+      const queryLine = text.match(/QUERY:\s*(.*)/i)
 
-      if (shouldFetchFallback) {
+      if (matchLine && matchLine[1].toUpperCase() === 'YES') {
         isMatch = true
-        const nounMatch = fallbackQuery.match(PRODUCT_NOUN_RE)
-        if (nounMatch) {
-          searchQuery = nounMatch[0]
+        searchQuery = queryLine ? queryLine[1].trim() : ''
+      }
+    } catch (err) {
+      console.error('[productRecommender] LLM classification failed, falling back to regex rules:', err)
+
+      const stylistContext = mode === 'stylist' || requestedMode === undefined || requestedMode === 'stylist'
+      const explicit = hasExplicitIntent(userMessage)
+      const hasNoun = mentionsProductNoun(userMessage)
+      const softSignal = hasSoftProductSignal(userMessage)
+      const affirmativeOnly = isAffirmativeOnly(userMessage)
+
+      // Check consecutive user messages in the history to ensure at least 3 consecutive allowed queries.
+      let consecutiveCount = 1 // count the current userMessage
+      const userHistory = chatHistory.filter((m) => m.role === 'user')
+      for (let i = userHistory.length - 1; i >= 0; i--) {
+        const msg = userHistory[i].content
+        if (mentionsProductNoun(msg) || hasExplicitIntent(msg) || hasSoftProductSignal(msg)) {
+          consecutiveCount++
         } else {
-          searchQuery = fallbackQuery
+          break
+        }
+      }
+
+      let shouldFetchFallback = false
+      if (consecutiveCount >= 3) {
+        let fallbackQuery = userMessage
+        const previousUserHasNoun = previousUserText ? mentionsProductNoun(previousUserText) : false
+        if (previousUserHasNoun && (affirmativeOnly || !hasNoun)) {
+          fallbackQuery = previousUserText as string
+        }
+
+        if (explicit) {
+          shouldFetchFallback = true
+        } else if (hasNoun && stylistContext) {
+          shouldFetchFallback = true
+        } else if (softSignal && previousUserHasNoun && stylistContext) {
+          shouldFetchFallback = true
+        } else if (affirmativeOnly && aiOfferedProductHelp(previousAssistantText) && previousUserHasNoun) {
+          shouldFetchFallback = true
+        }
+
+        if (shouldFetchFallback) {
+          isMatch = true
+          const nounMatch = fallbackQuery.match(PRODUCT_NOUN_RE)
+          if (nounMatch) {
+            searchQuery = nounMatch[0]
+          } else {
+            searchQuery = fallbackQuery
+          }
         }
       }
     }

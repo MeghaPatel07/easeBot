@@ -82,3 +82,41 @@ test('Product Recommender - Non-consecutive stream (broken by venue) should NOT 
   })
   assert.equal(result, null)
 })
+
+test('Product Recommender - Explicit "show me products for the saree" on Turn 1 SHOULD bypass gating', async () => {
+  const result = await maybeRecommendProducts({
+    userMessage: 'show me the products for the saree',
+    mode: 'stylist',
+    requestedMode: undefined,
+    turnNumber: 1,
+    threadId: 'test-thread-explicit-1',
+    history: []
+  })
+  assert.ok(result !== null)
+  assert.ok(result!.products.length > 0)
+})
+
+test('Product Recommender - Explicit "give me the catalogue" on Turn 1 SHOULD bypass gating', async () => {
+  const result = await maybeRecommendProducts({
+    userMessage: 'give me the catalogue for lehengas',
+    mode: 'stylist',
+    requestedMode: undefined,
+    turnNumber: 1,
+    threadId: 'test-thread-explicit-2',
+    history: []
+  })
+  assert.ok(result !== null)
+  assert.ok(result!.products.length > 0)
+})
+
+test('Product Recommender - Explicit ask for decor (no product noun) on Turn 1 should still NOT bypass gating', async () => {
+  const result = await maybeRecommendProducts({
+    userMessage: 'show me some mandap decoration ideas',
+    mode: 'stylist',
+    requestedMode: undefined,
+    turnNumber: 1,
+    threadId: 'test-thread-explicit-3',
+    history: []
+  })
+  assert.equal(result, null)
+})
