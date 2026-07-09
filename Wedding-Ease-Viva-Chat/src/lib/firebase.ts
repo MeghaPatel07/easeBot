@@ -15,6 +15,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 
+// Non-prod deployments (Vercel Preview, local dev) log the active project so
+// it's obvious in devtools whether a build loaded dev or prod Firebase config.
+if (!import.meta.env.PROD) {
+  console.log(`[firebase] project: ${firebaseConfig.projectId}`)
+}
+
 export const auth = getAuth(app)
 // `ignoreUndefinedProperties: true` so writes don't throw when a document
 // carries an undefined field (e.g. older messages without `mode`, or a

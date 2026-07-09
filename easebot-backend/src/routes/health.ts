@@ -34,6 +34,9 @@ healthRouter.get('/ready', async (_req: Request, res: Response) => {
     checks: {
       firestore: firestoreStatus,
     },
+    // Confirms which Firebase project this deployment is wired to — the
+    // fast way to verify a dev vs. prod Railway service didn't cross-wire.
+    firebaseProjectId: process.env.FIREBASE_PROJECT_ID ?? null,
   })
 })
 
