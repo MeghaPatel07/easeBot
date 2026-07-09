@@ -118,7 +118,8 @@ export interface UserProfile {
   usage: TokenUsage | null
   createdAt: Timestamp
   lastLoginAt: Timestamp | null
-  forgotPasswordOtp: number | null
+  forgotPasswordOtp: string | null
+  forgotPasswordOtpExpiry?: Timestamp | null
   nickname?: string
   voiceId?: string
   toneSettings?: ToneSettings
@@ -231,6 +232,9 @@ export interface ChatMessage {
   // Recommended products sidecar — rendered as a card strip below the bubble.
   products?: ChatProductCard[]
   productsHasMore?: boolean
+  // The resolved search query behind `products` — used by "See more options"
+  // to deep-link into the WeddingEase catalogue with the same context.
+  productsQuery?: string
 }
 
 export interface Product {

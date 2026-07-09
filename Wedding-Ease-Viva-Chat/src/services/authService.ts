@@ -34,7 +34,8 @@ import {
   where,
   serverTimestamp,
 } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase'
+import { httpsCallable } from 'firebase/functions'
+import { auth, db, functions } from '@/lib/firebase'
 import type { UserProfile, AuthFlowError } from '@/types'
 
 export const SESSION_KEY = 'wedding_ease_user'
@@ -67,6 +68,11 @@ export function mapAuthError(code: string): string {
     'PHONE_DUPLICATE': 'An account with this phone number already exists',
     'PHONE_NOT_FOUND': 'No account found with this phone number',
     'USER_NOT_FOUND': 'No account found with this email address',
+    'USER_PROFILE_NOT_FOUND': 'No account found with this email address',
+    'OTP_NOT_FOUND': 'No reset request found. Please request a new code.',
+    'OTP_EXPIRED': 'Code has expired. Please request a new one.',
+    'OTP_INVALID': 'Incorrect code. Please try again.',
+    'RESET_TOKEN_INVALID': 'Reset session expired. Please start over.',
     'EMAIL_OWNED_BY_GOOGLE': 'This email is already registered with Google. Please continue with Google.',
     'LINK_GOOGLE_TO_PASSWORD': 'This email already has a password account. Enter your password to link Google.',
     'WEAK_PASSWORD_POLICY': 'Password does not meet strength requirements',
@@ -386,45 +392,70 @@ export async function verifyPhoneOtp(
   return profile
 }
 
-// ── Forgot Password (authflow.md §6) — Backend OTP flow ─────────────────────
+// ── Forgot Password (authflow.md §6) — Cloud Function OTP flow ──────────────
 //
-// 4-step flow: send-otp → verify-otp → reset-password. The backend (mounted at
-// `${VITE_API_BASE_URL}/api/auth/forgot-password/*`) generates a 6-digit code,
-// emails it, and issues a short-lived `resetToken` after the OTP is verified.
+// 3-step flow: send-otp → verify-otp → reset-password, backed by the
+// `sendForgotPasswordOtp` / `updateUserAccountPassword` callables (same
+// wedding-ease-dc99a project, deployed from functions/mail.js). Those
+// callables generate the OTP and read/clear it on the `users/{uid}` doc
+// directly — there is no companion "verify" callable, so verification reads
+// `forgotPasswordOtp` / `forgotPasswordOtpExpiry` off that doc client-side.
+// A short-lived, in-memory reset token then gates the final call so the UI
+// layer (SignInModal) doesn't need to change its 3-call contract.
 // We keep `sendForgotPasswordEmail` (Firebase magic-link) below as a fallback.
 
-const FORGOT_API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
-
-async function postJson<T>(path: string, body: unknown): Promise<T> {
-  let res: Response
-  try {
-    res = await fetch(`${FORGOT_API_BASE}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-  } catch {
-    throw makeAuthError('NETWORK_ERROR')
-  }
-  let data: { error?: string } & Record<string, unknown> = {}
-  try { data = await res.json() } catch { /* empty body */ }
-  if (!res.ok) {
-    const err = new Error(data.error ?? 'Request failed') as AuthFlowError
-    err.code = data.error ?? 'FORGOT_PASSWORD_ERROR'
-    throw err
-  }
-  return data as T
+interface SendForgotPasswordOtpResponse {
+  success: boolean
+  message: string
+  code?: string
+  errorCode?: string
 }
 
+interface UpdateUserAccountPasswordResponse {
+  success: boolean
+}
+
+const RESET_TOKEN_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const forgotPasswordVerifications = new Map<string, { token: string; expiresAt: number }>()
+
 export async function sendForgotPasswordOtp(email: string): Promise<void> {
-  await postJson<{ message: string }>('/api/auth/forgot-password/send-otp', { email })
+  const normalized = email.trim().toLowerCase()
+  const sendOtp = httpsCallable<{ email: string }, SendForgotPasswordOtpResponse>(
+    functions, 'sendForgotPasswordOtp',
+  )
+  let data: SendForgotPasswordOtpResponse
+  try {
+    ;({ data } = await sendOtp({ email: normalized }))
+  } catch (err: unknown) {
+    throw makeAuthError((err as { code?: string }).code ?? 'FORGOT_PASSWORD_ERROR')
+  }
+  if (!data.success) {
+    throw makeAuthError(data.code ?? 'FORGOT_PASSWORD_ERROR')
+  }
 }
 
 export async function verifyForgotPasswordOtp(
   email: string,
   otp: string,
 ): Promise<{ resetToken: string }> {
-  return postJson<{ resetToken: string }>('/api/auth/forgot-password/verify-otp', { email, otp })
+  const normalized = email.trim().toLowerCase()
+  const snap = await getDocs(query(collection(db, 'users'), where('email', '==', normalized)))
+  if (snap.empty) throw makeAuthError('USER_NOT_FOUND')
+
+  const profile = snap.docs[0].data() as UserProfile
+  if (!profile.forgotPasswordOtp || !profile.forgotPasswordOtpExpiry) {
+    throw makeAuthError('OTP_NOT_FOUND')
+  }
+  if (profile.forgotPasswordOtpExpiry.toDate().getTime() < Date.now()) {
+    throw makeAuthError('OTP_EXPIRED')
+  }
+  if (profile.forgotPasswordOtp !== otp.trim()) {
+    throw makeAuthError('OTP_INVALID')
+  }
+
+  const resetToken = crypto.randomUUID()
+  forgotPasswordVerifications.set(normalized, { token: resetToken, expiresAt: Date.now() + RESET_TOKEN_TTL_MS })
+  return { resetToken }
 }
 
 export async function updatePasswordByEmail(
@@ -432,9 +463,25 @@ export async function updatePasswordByEmail(
   resetToken: string,
   newPassword: string,
 ): Promise<void> {
-  await postJson<{ message: string }>('/api/auth/forgot-password/reset-password', {
-    email, resetToken, newPassword,
-  })
+  const normalized = email.trim().toLowerCase()
+  const verification = forgotPasswordVerifications.get(normalized)
+  if (!verification || verification.token !== resetToken || verification.expiresAt < Date.now()) {
+    throw makeAuthError('RESET_TOKEN_INVALID')
+  }
+  if (!validatePassword(newPassword).ok) {
+    throw makeAuthError('WEAK_PASSWORD_POLICY')
+  }
+
+  const updatePassword = httpsCallable<
+    { email: string; newPassword: string },
+    UpdateUserAccountPasswordResponse
+  >(functions, 'updateUserAccountPassword')
+  try {
+    await updatePassword({ email: normalized, newPassword })
+  } catch (err: unknown) {
+    throw makeAuthError((err as { code?: string }).code ?? 'FORGOT_PASSWORD_ERROR')
+  }
+  forgotPasswordVerifications.delete(normalized)
 }
 
 // Firebase magic-link reset email — kept as a fallback only.

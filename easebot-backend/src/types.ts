@@ -121,6 +121,10 @@ export interface ChatResponse {
   products?: ChatProductCard[]
   /** Whether more products are available on a follow-up "show more" turn. */
   productsHasMore?: boolean
+  /** The resolved search query behind `products` — used by the frontend's
+   *  "See more options" link to deep-link into the WeddingEase catalogue
+   *  search with the same context instead of a generic/empty search. */
+  productsQuery?: string
 }
 
 export interface HistoryMessage {

@@ -1,5 +1,6 @@
 import { AzureOpenAI } from 'openai'
 import type { Mode } from '../types'
+import { azureHttpAgent } from '../lib/azureHttpAgent'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -202,6 +203,7 @@ export async function expandWithPromptArchitect(
       apiKey,
       deployment,
       apiVersion: '2024-08-01-preview',
+      httpAgent: azureHttpAgent,
     })
 
     const userPrompt = buildArchitectUserPrompt(input)

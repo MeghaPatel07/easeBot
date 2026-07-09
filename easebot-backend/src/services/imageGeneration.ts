@@ -23,6 +23,7 @@ import sharp from 'sharp'
 import type { HistoryMessage } from '../types'
 import { withRetry } from '../utils/retry'
 import { capture as phCapture } from '../lib/posthog'
+import { azureHttpAgent } from '../lib/azureHttpAgent'
 
 // ── Constants ───────────────────────────────────────────────────────────────────
 
@@ -517,6 +518,7 @@ export async function analyzeImage(
     apiKey,
     deployment,
     apiVersion: '2024-08-01-preview',
+    httpAgent: azureHttpAgent,
   })
 
   const IMAGE_ANALYSIS_SYSTEM = `You are Viva, a wedding and cultural celebration visual expert.

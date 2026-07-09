@@ -55,10 +55,20 @@ function searchItemToProduct(item: SearchItem): ProductResult {
   }
 }
 
-export async function getRelevantProductsViaHybridSearch(
-  userMessage: string,
-  limit: number = DEFAULT_LIMIT,
-): Promise<ProductResult[]> {
+// The search backend's relevance is imperfect for attire/accessory queries —
+// even a well-anchored query like "wedding outfit" can surface unrelated
+// non-fashion items (a wall-decor mirror panel, a USB-cable organizer tagged
+// "accessories"). Every caller into the product recommender is already gated
+// to attire/jewelry/gifting/stationery intent — decor and electronics topics
+// never legitimately reach here — so any match below is always a mismatch
+// and safe to drop rather than show.
+const DECOR_MISMATCH_RE = /\b(mirror panel|wall decor(?:ation)?|backdrop|centerpiece|mandap|stencil|mdf panel|stage decor|ceiling decor|table decor|photo booth panel|usb cable|cable organizer|charger|electronic accessories|phone case|laptop)\b/i
+
+function isLikelyMismatch(p: ProductResult): boolean {
+  return DECOR_MISMATCH_RE.test(p.name) || DECOR_MISMATCH_RE.test(p.description)
+}
+
+async function fetchViaHybridSearch(userMessage: string, limit: number): Promise<ProductResult[]> {
   const query = resolveAlgoliaQuery(userMessage)
 
   try {
@@ -103,4 +113,12 @@ export async function getRelevantProductsViaHybridSearch(
     console.error('[hybridSearchProducts] Search API call failed, falling back to Firestore:', err)
     return getRelevantProducts(userMessage)
   }
+}
+
+export async function getRelevantProductsViaHybridSearch(
+  userMessage: string,
+  limit: number = DEFAULT_LIMIT,
+): Promise<ProductResult[]> {
+  const products = await fetchViaHybridSearch(userMessage, limit)
+  return products.filter((p) => !isLikelyMismatch(p))
 }

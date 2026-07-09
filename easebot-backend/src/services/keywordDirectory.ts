@@ -380,6 +380,16 @@ export const KEYWORD_DIRECTORY: KeywordEntry[] = [
 export function resolveAlgoliaQuery(userMessage: string): string {
   const lower = userMessage.toLowerCase()
 
+  // A garment-anchored accessories query (e.g. "sherwani accessories",
+  // produced upstream by productRecommender's garment-anchoring logic) is
+  // already specific. Resolving it through the shorter, bare "sherwani"
+  // trigger below would strip the "accessories" qualifier and search the
+  // garment itself instead of its accessories — pass it through untouched.
+  const trimmedLower = lower.trim()
+  if (/\baccessor(?:y|ies)\b/i.test(lower) && trimmedLower !== 'accessories' && trimmedLower !== 'accessory') {
+    return userMessage
+  }
+
   // Sort entries so that longer triggers are checked first (phrase > keyword)
   const sorted = [...KEYWORD_DIRECTORY].sort(
     (a, b) => Math.max(...b.triggers.map(t => t.length)) - Math.max(...a.triggers.map(t => t.length))

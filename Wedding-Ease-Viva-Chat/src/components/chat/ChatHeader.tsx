@@ -211,7 +211,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <a
           href="https://weddingease.ai"
           // href="#"
-          target="_blank"
+          // target="_blank"
           rel="noopener noreferrer"
           aria-label="Open WeddingEase in a new tab"
           title="Visit WeddingEase"

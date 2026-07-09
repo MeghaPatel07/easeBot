@@ -20,7 +20,7 @@ export default function WeddingEaseFloater({ isFixed = true, className = "" }: W
     <a
       href={WEDDINGEASE_URL}
       // href="#"
-      target="_blank"
+      // target="_blank"
       rel="noopener noreferrer"
       // onClick={handleClick}
       aria-label="Open WeddingEase in a new tab"

@@ -17,7 +17,7 @@ function defaultRetryable(error: any): boolean {
   const code = error?.code
   if (code && ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'EPIPE'].includes(code)) return true
   // Retry on generic fetch failures
-  if (error?.message && /fetch failed|network|socket hang up/i.test(error.message)) return true
+  if (error?.message && /fetch failed|network|socket hang up|premature close/i.test(error.message)) return true
   return false
 }
 
