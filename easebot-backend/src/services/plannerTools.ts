@@ -1,10 +1,10 @@
 import type { ChatCompletionTool } from 'openai/resources/chat/completions'
 import {
-  createChecklist, editChecklistItem, toggleItemDone,
+  createChecklist, editChecklistItem, addChecklistItem, toggleItemDone,
   getChecklistStats, countChecklists,
 } from './checklistService'
 import { createReminderDoc } from './reminderService'
-import { createNote, appendToNote } from './notesService'
+import { createNote, appendToNote, replaceNoteContent } from './notesService'
 import { createTimelineEvent } from './timelineService'
 import { humanizeLeadTime } from '../utils/dateTime'
 import { plainTextToEditorContent } from '../utils/noteContent'
@@ -52,7 +52,7 @@ export const EDIT_CHECKLIST_ITEM_TOOL: ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'edit_checklist_item',
-    description: 'Update the text of a specific task in a checklist. Accepts either the UUID or a natural-language identifier — checklist_id may be the checklist title (e.g. "Wedding To-Dos") and item_id may be the item text (e.g. "Hire a caterer"). If you do not know the exact id, pass the closest title / text you have.',
+    description: 'Rewrite the text of a specific EXISTING task in a checklist — use ONLY when the user wants to change/correct an item that is already on the list. Do NOT call this to add a new item (that would silently overwrite an unrelated existing item instead of growing the list) — use add_checklist_item for that. Accepts either the UUID or a natural-language identifier — checklist_id may be the checklist title (e.g. "Wedding To-Dos") and item_id may be the item text (e.g. "Hire a caterer"). If you do not know the exact id, pass the closest title / text you have.',
     parameters: {
       type: 'object',
       properties: {
@@ -61,6 +61,22 @@ export const EDIT_CHECKLIST_ITEM_TOOL: ChatCompletionTool = {
         new_text: { type: 'string', description: 'The new text for the item' },
       },
       required: ['checklist_id', 'item_id', 'new_text'],
+    },
+  },
+}
+
+export const ADD_CHECKLIST_ITEM_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'add_checklist_item',
+    description: 'Append a brand-new task to an EXISTING checklist. Call this when the user says "add one more item", "add a task to my list", or names a new item number/entry that is not already on the checklist. Do NOT use edit_checklist_item for this — that overwrites an existing item instead of adding a new one.',
+    parameters: {
+      type: 'object',
+      properties: {
+        checklist_id: { type: 'string', description: 'Checklist UUID or title' },
+        item_text: { type: 'string', description: 'Text of the new task to add' },
+      },
+      required: ['checklist_id', 'item_text'],
     },
   },
 }
@@ -135,7 +151,7 @@ export const APPEND_TO_NOTE_TOOL: ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'append_to_note',
-    description: "Append prose and/or images to an EXISTING note the user already owns. Call this whenever the user asks to 'add to my note', 'add this image to the bottom of the timeline note', 'append X to the vendor-notes note', etc. Do NOT call create_note for this — that would create a duplicate. Accepts either the note UUID or a natural-language title (e.g. 'Wedding Planning Timeline'); when unsure of the exact title, pass the closest title you have. image_urls MUST be valid http(s) URLs — source them from (a) a prior generate_image tool result in THIS turn, or (b) the 'url:' line of any Image attachment listed in the [Attached context] block at the top of the user message. Never invent URLs and never pass an empty array when the user asked you to attach an image.",
+    description: "Append prose and/or images to an EXISTING note the user already owns, keeping everything already in the note. Call this whenever the user asks to 'add to my note', 'add this image to the bottom of the timeline note', 'append X to the vendor-notes note', etc. Do NOT call create_note for this — that would create a duplicate. Do NOT use this to fix/replace/reword something already in the note — that would just pile new text under the old, unedited text; use edit_note for that instead. Accepts either the note UUID or a natural-language title (e.g. 'Wedding Planning Timeline'); when unsure of the exact title, pass the closest title you have. image_urls MUST be valid http(s) URLs — source them from (a) a prior generate_image tool result in THIS turn, or (b) the 'url:' line of any Image attachment listed in the [Attached context] block at the top of the user message. Never invent URLs and never pass an empty array when the user asked you to attach an image.",
     parameters: {
       type: 'object',
       properties: {
@@ -145,6 +161,28 @@ export const APPEND_TO_NOTE_TOOL: ChatCompletionTool = {
           type: 'array',
           items: { type: 'string' },
           description: 'Optional image URLs to embed as block images at the bottom. Use exact URLs from a prior generate_image tool call.',
+        },
+      },
+      required: ['note_id'],
+    },
+  },
+}
+
+export const EDIT_NOTE_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'edit_note',
+    description: "Rewrite/replace the content and/or title of an EXISTING note the user already owns. Use this when the user wants to correct, reword, or replace something already in the note (e.g. 'fix the third point', 'reword this note', 'rename this note to X') — NOT to add new content on top of what's there (use append_to_note for that; it keeps existing content and adds more below it). Passing `body` REPLACES the entire note content, so include everything that should remain, not just the changed part. Accepts either the note UUID or a natural-language title (e.g. 'Wedding Planning Timeline'); when unsure of the exact title, pass the closest title you have.",
+    parameters: {
+      type: 'object',
+      properties: {
+        note_id: { type: 'string', description: 'Note UUID or title (fuzzy-matched)' },
+        title:   { type: 'string', description: 'Optional new title to rename the note' },
+        body:    { type: 'string', description: 'New full body text/markdown that REPLACES the existing content. Include everything that should remain — this is not additive. Omit if only renaming.' },
+        image_urls: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Optional image URLs to include in the replaced content. Use exact URLs from a prior generate_image tool call.',
         },
       },
       required: ['note_id'],
@@ -235,20 +273,32 @@ async function __executeToolCallInner(
           }
         }
       }
-      const checklist = await createChecklist(uid, args.title, args.items)
-      // Surface per-item ids so the LLM can reference individual items on the
-      // same turn (history omits tool messages, so ids are otherwise lost).
-      const itemLines = checklist.items
-        .map(i => `- ${i.text} [item_id: ${i.id}]`)
-        .join('\n')
-      return {
-        result: `Checklist "${checklist.title}" saved (checklist_id: ${checklist.id}).\nItems:\n${itemLines}`,
-        action: {
-          tool: 'create_checklist',
-          checklistId: checklist.id,
-          checklistTitle: checklist.title,
-          checklistItems: checklist.items.map(i => i.text),
-        },
+      try {
+        const checklist = await createChecklist(uid, args.title, args.items)
+        // Surface per-item ids so the LLM can reference individual items on the
+        // same turn (history omits tool messages, so ids are otherwise lost).
+        const itemLines = checklist.items
+          .map(i => `- ${i.text} [item_id: ${i.id}]`)
+          .join('\n')
+        return {
+          result: `Checklist "${checklist.title}" saved (checklist_id: ${checklist.id}).\nItems:\n${itemLines}`,
+          action: {
+            tool: 'create_checklist',
+            ok: true,
+            checklistId: checklist.id,
+            checklistTitle: checklist.title,
+            checklistItems: checklist.items.map(i => i.text),
+          },
+        }
+      } catch (err: any) {
+        const msg = err?.message ?? 'unknown error'
+        console.error('[tool:create_checklist] error:', msg, err)
+        return {
+          result: `Could not create checklist: ${msg}`,
+          action: { tool: 'create_checklist', ok: false },
+          ok: false,
+          errorMessage: msg,
+        }
       }
     }
     case 'edit_checklist_item': {
@@ -256,13 +306,37 @@ async function __executeToolCallInner(
         const r = await editChecklistItem(uid, args.checklist_id, args.item_id, args.new_text)
         return {
           result: `Updated "${r.checklistTitle}" — item now reads "${args.new_text}".`,
-          action: { tool: 'edit_checklist_item', checklistId: r.checklistId, itemId: r.itemId },
+          action: { tool: 'edit_checklist_item', ok: true, checklistId: r.checklistId, itemId: r.itemId },
         }
       } catch (err: any) {
         const msg = err?.message ?? 'unknown error'
         return {
           result: `Could not edit checklist item: ${msg}`,
-          action: { tool: 'edit_checklist_item', checklistId: args.checklist_id, itemId: args.item_id },
+          // Do NOT echo args.checklist_id/item_id here — they're unresolved,
+          // possibly-hallucinated identifiers, not confirmed real ids. The
+          // frontend renders an attachment chip from any populated id field,
+          // so leaking them here surfaced as a misleading "Deleted checklist"
+          // badge for an artifact that may never have existed.
+          action: { tool: 'edit_checklist_item', ok: false },
+          ok: false,
+          errorMessage: msg,
+        }
+      }
+    }
+    case 'add_checklist_item': {
+      try {
+        const r = await addChecklistItem(uid, args.checklist_id, args.item_text)
+        return {
+          result: `Added "${args.item_text}" to "${r.checklistTitle}" (item_id: ${r.itemId}).`,
+          action: { tool: 'add_checklist_item', ok: true, checklistId: r.checklistId, itemId: r.itemId, checklistTitle: r.checklistTitle },
+        }
+      } catch (err: any) {
+        const msg = err?.message ?? 'unknown error'
+        return {
+          result: `Could not add checklist item: ${msg}`,
+          action: { tool: 'add_checklist_item', ok: false },
+          ok: false,
+          errorMessage: msg,
         }
       }
     }
@@ -271,13 +345,16 @@ async function __executeToolCallInner(
         const r = await toggleItemDone(uid, args.checklist_id, args.item_id)
         return {
           result: `"${r.itemText}" in "${r.checklistTitle}" marked as ${r.completed ? 'completed ✅' : 'incomplete'}.`,
-          action: { tool: 'mark_as_done', checklistId: r.checklistId, itemId: r.itemId },
+          action: { tool: 'mark_as_done', ok: true, checklistId: r.checklistId, itemId: r.itemId },
         }
       } catch (err: any) {
         const msg = err?.message ?? 'unknown error'
         return {
           result: `Could not toggle item: ${msg}`,
-          action: { tool: 'mark_as_done', checklistId: args.checklist_id, itemId: args.item_id },
+          // See edit_checklist_item above — never echo unresolved args as ids.
+          action: { tool: 'mark_as_done', ok: false },
+          ok: false,
+          errorMessage: msg,
         }
       }
     }
@@ -285,7 +362,7 @@ async function __executeToolCallInner(
       const stats = await getChecklistStats(uid)
       return {
         result: `${stats.todo} To-Do, ${stats.completed} Completed, ${stats.total} total tasks.`,
-        action: { tool: 'get_checklist_stats' },
+        action: { tool: 'get_checklist_stats', ok: true },
       }
     }
     // `save_reminder` kept as an alias to avoid breaking the planner prompt
@@ -308,7 +385,7 @@ async function __executeToolCallInner(
         const channelLabel = channel === 'email' ? 'email' : 'WhatsApp'
         return {
           result: `Reminder set — we'll notify you via ${channelLabel} ${humanLead} before "${args.title}".`,
-          action: { tool: 'create_reminder', reminderId: id, reminderTitle: args.title },
+          action: { tool: 'create_reminder', ok: true, reminderId: id, reminderTitle: args.title },
         }
       } catch (err: any) {
         const msg = err?.message ?? 'unknown error'
@@ -321,7 +398,7 @@ async function __executeToolCallInner(
               : `Sorry, I couldn't save that reminder: ${msg}`
         return {
           result: `Could not create reminder: ${msg}`,
-          action: { tool: 'create_reminder' },
+          action: { tool: 'create_reminder', ok: false },
           ok: false,
           errorCode,
           errorMessage: msg,
@@ -356,14 +433,16 @@ async function __executeToolCallInner(
         const imgSuffix = imageUrls.length > 0 ? ` with ${imageUrls.length} image${imageUrls.length > 1 ? 's' : ''}` : ''
         return {
           result: `Note "${note.title}" saved to Notes${imgSuffix}.`,
-          action: { tool: 'create_note', noteId: note.id, noteTitle: note.title },
+          action: { tool: 'create_note', ok: true, noteId: note.id, noteTitle: note.title },
         }
       } catch (err: any) {
         const msg = err?.message ?? 'unknown error'
         console.error('[tool:create_note] error:', msg, err)
         return {
           result: `Could not create note: ${msg}`,
-          action: { tool: 'create_note' },
+          action: { tool: 'create_note', ok: false },
+          ok: false,
+          errorMessage: msg,
         }
       }
     }
@@ -392,7 +471,8 @@ async function __executeToolCallInner(
           console.warn('[tool:append_to_note] empty payload — returning error to LLM')
           return {
             result: "append_to_note failed: no content to append. Pass either `body` (text) or `image_urls` (http(s) URLs). If the user attached an image, copy the url from the [Attached context] block of the user message into image_urls.",
-            action: { tool: 'append_to_note' },
+            action: { tool: 'append_to_note', ok: false },
+            ok: false,
           }
         }
         const r = await appendToNote(uid, args.note_id, { body, imageUrls })
@@ -402,14 +482,49 @@ async function __executeToolCallInner(
           : ''
         return {
           result: `Appended${imgSuffix} to note "${r.title}" (note_id: ${r.id}).`,
-          action: { tool: 'append_to_note', noteId: r.id, noteTitle: r.title },
+          action: { tool: 'append_to_note', ok: true, noteId: r.id, noteTitle: r.title },
         }
       } catch (err: any) {
         const msg = err?.message ?? 'unknown error'
         console.error('[tool:append_to_note] error:', msg, err)
         return {
           result: `Could not append to note: ${msg}`,
-          action: { tool: 'append_to_note' },
+          action: { tool: 'append_to_note', ok: false },
+          ok: false,
+          errorMessage: msg,
+        }
+      }
+    }
+    case 'edit_note': {
+      try {
+        let imageUrls = Array.isArray(args.image_urls)
+          ? args.image_urls.filter(isLikelyRealImageUrl)
+          : []
+        if (imageUrls.length === 0 && context?.turnImageUrls?.length) {
+          imageUrls = context.turnImageUrls.slice()
+        }
+        const title = typeof args.title === 'string' ? args.title : undefined
+        const body = typeof args.body === 'string' ? args.body : undefined
+        console.log('[tool:edit_note]', {
+          noteIdArg: args.note_id,
+          hasTitle: !!title,
+          bodyLen: body?.length ?? 0,
+          finalImageUrls: imageUrls.length,
+        })
+        const r = await replaceNoteContent(uid, args.note_id, { title, body, imageUrls })
+        console.log('[tool:edit_note] success', { noteId: r.id, title: r.title })
+        return {
+          result: `Updated note "${r.title}" (note_id: ${r.id}).`,
+          action: { tool: 'edit_note', ok: true, noteId: r.id, noteTitle: r.title },
+        }
+      } catch (err: any) {
+        const msg = err?.message ?? 'unknown error'
+        console.error('[tool:edit_note] error:', msg, err)
+        return {
+          result: `Could not update note: ${msg}`,
+          action: { tool: 'edit_note', ok: false },
+          ok: false,
+          errorMessage: msg,
         }
       }
     }
@@ -423,13 +538,15 @@ async function __executeToolCallInner(
         })
         return {
           result: `Timeline event "${ev.title}" added for ${ev.date}.`,
-          action: { tool: 'create_timeline_event', timelineEventId: ev.id, timelineEventTitle: ev.title },
+          action: { tool: 'create_timeline_event', ok: true, timelineEventId: ev.id, timelineEventTitle: ev.title },
         }
       } catch (err: any) {
         const msg = err?.message ?? 'unknown error'
         return {
           result: `Could not add timeline event: ${msg}`,
-          action: { tool: 'create_timeline_event' },
+          action: { tool: 'create_timeline_event', ok: false },
+          ok: false,
+          errorMessage: msg,
         }
       }
     }

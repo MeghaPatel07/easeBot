@@ -1,37 +1,34 @@
-import {
-  collection, doc, setDoc, updateDoc, deleteDoc,
-  getDocs, getDoc, query, where, orderBy, serverTimestamp,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { FieldValue } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 import { sendEmailNotification, buildNoteInviteEmail } from './emailService'
-import { parseMarkdownBlocks } from '../utils/noteContent'
+import { parseMarkdownBlocks, plainTextToEditorContent } from '../utils/noteContent'
 
 // ---------------------------------------------------------------------------
 // Collection helpers
 // ---------------------------------------------------------------------------
 
 function notesCol() {
-  return collection(db, 'notes')
+  return adminDb.collection('notes')
 }
 
 function noteRef(noteId: string) {
-  return doc(db, 'notes', noteId)
+  return adminDb.doc(`notes/${noteId}`)
 }
 
 function commentsCol(noteId: string) {
-  return collection(db, 'notes', noteId, 'comments')
+  return adminDb.collection(`notes/${noteId}/comments`)
 }
 
 function commentRef(noteId: string, commentId: string) {
-  return doc(db, 'notes', noteId, 'comments', commentId)
+  return adminDb.doc(`notes/${noteId}/comments/${commentId}`)
 }
 
 function foldersCol() {
-  return collection(db, 'noteFolders')
+  return adminDb.collection('noteFolders')
 }
 
 function folderRef(folderId: string) {
-  return doc(db, 'noteFolders', folderId)
+  return adminDb.doc(`noteFolders/${folderId}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -44,7 +41,7 @@ export async function createNote(
   data?: any,
 ): Promise<any> {
   const id = crypto.randomUUID()
-  const now = serverTimestamp()
+  const now = FieldValue.serverTimestamp()
   const noteData: any = {
     id,
     title: data?.title ?? '',
@@ -72,18 +69,18 @@ export async function createNote(
     sourceType: data?.sourceType ?? null,
     templateId: data?.templateId ?? null,
   }
-  await setDoc(noteRef(id), noteData)
+  await noteRef(id).set(noteData)
   return { ...noteData, createdAt: null, updatedAt: null }
 }
 
 export async function getNote(noteId: string): Promise<any> {
-  const snap = await getDoc(noteRef(noteId))
-  if (!snap.exists()) throw new Error('Note not found')
+  const snap = await noteRef(noteId).get()
+  if (!snap.exists) throw new Error('Note not found')
   return snap.data()
 }
 
 export async function updateNote(noteId: string, updates: any): Promise<void> {
-  await updateDoc(noteRef(noteId), { ...updates, updatedAt: serverTimestamp() })
+  await noteRef(noteId).update({ ...updates, updatedAt: FieldValue.serverTimestamp() })
 }
 
 // Normalize for fuzzy note-title matching — lowercase, collapse whitespace.
@@ -104,8 +101,8 @@ export async function resolveNote(
   const q = (idOrTitle || '').trim()
   if (q) {
     // Fast path — exact id lookup.
-    const byId = await getDoc(noteRef(q))
-    if (byId.exists()) {
+    const byId = await noteRef(q).get()
+    if (byId.exists) {
       const d = byId.data() as any
       if (!d.isDeleted && d.ownerId === userId) return { id: byId.id, data: d }
     }
@@ -115,7 +112,7 @@ export async function resolveNote(
   // anyway. Avoids depending on the (ownerId ASC, updatedAt DESC) composite
   // index that the GET /api/notes list endpoint needs, so the tool works
   // even if the index is still building.
-  const ownedSnap = await getDocs(query(notesCol(), where('ownerId', '==', userId)))
+  const ownedSnap = await notesCol().where('ownerId', '==', userId).get()
   const notes = ownedSnap.docs.map((d) => d.data())
   const live = notes.filter((n: any) => !n.isDeleted)
   if (live.length === 0) return null
@@ -213,9 +210,9 @@ export async function appendToNote(
     contentLen: serialized.length,
   })
   try {
-    await updateDoc(noteRef(resolved.id), {
+    await noteRef(resolved.id).update({
       content: serialized,
-      updatedAt: serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
       lastEditedBy: resolved.data.ownerEmail || null,
     })
   } catch (err) {
@@ -226,45 +223,78 @@ export async function appendToNote(
   return { id: resolved.id, title: resolved.data.title || 'Note', appendedImages: images.length }
 }
 
+/**
+ * Replace an existing note's title and/or body content. Distinct from
+ * appendToNote, which only ever grows the content array — this is for
+ * correcting/rewriting content that's already there (e.g. "fix the third
+ * point", "reword this note"). Whichever of title/body is omitted is left
+ * untouched; at least one must be provided.
+ */
+export async function replaceNoteContent(
+  userId: string,
+  idOrTitle: string,
+  updates: { title?: string | null; body?: string | null; imageUrls?: string[] | null },
+): Promise<{ id: string; title: string }> {
+  const resolved = await resolveNote(userId, idOrTitle)
+  if (!resolved) throw new Error(`Note not found: "${idOrTitle}"`)
+
+  const hasTitle = typeof updates.title === 'string' && updates.title.trim().length > 0
+  const hasBody = typeof updates.body === 'string'
+  const images = (updates.imageUrls ?? []).filter(
+    (u): u is string => typeof u === 'string' && u.length > 0,
+  )
+  if (!hasTitle && !hasBody && images.length === 0) {
+    throw new Error('Nothing to update — provide a new title and/or body.')
+  }
+
+  const patch: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+    lastEditedBy: resolved.data.ownerEmail || null,
+  }
+  if (hasTitle) patch.title = updates.title!.trim()
+  if (hasBody || images.length > 0) {
+    patch.content = plainTextToEditorContent(updates.body ?? '', images)
+  }
+
+  await noteRef(resolved.id).update(patch)
+  return { id: resolved.id, title: hasTitle ? (patch.title as string) : (resolved.data.title || 'Note') }
+}
+
 export async function softDeleteNote(noteId: string): Promise<void> {
-  await updateDoc(noteRef(noteId), {
+  await noteRef(noteId).update({
     isDeleted: true,
-    deletedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    deletedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
 export async function restoreNote(noteId: string): Promise<void> {
-  await updateDoc(noteRef(noteId), {
+  await noteRef(noteId).update({
     isDeleted: false,
     deletedAt: null,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
 export async function permanentDeleteNote(noteId: string): Promise<void> {
   // Delete comments subcollection first
-  const commentsSnap = await getDocs(commentsCol(noteId))
-  const deletePromises = commentsSnap.docs.map(d => deleteDoc(d.ref))
+  const commentsSnap = await commentsCol(noteId).get()
+  const deletePromises = commentsSnap.docs.map(d => d.ref.delete())
   await Promise.all(deletePromises)
-  await deleteDoc(noteRef(noteId))
+  await noteRef(noteId).delete()
 }
 
 export async function getUserNotes(userId: string): Promise<any[]> {
-  const q = query(
-    notesCol(),
-    where('ownerId', '==', userId),
-    orderBy('updatedAt', 'desc'),
-  )
-  const snap = await getDocs(q)
+  const snap = await notesCol()
+    .where('ownerId', '==', userId)
+    .orderBy('updatedAt', 'desc')
+    .get()
   const owned = snap.docs.map(d => d.data())
 
   // Also fetch notes where user is a collaborator
-  const collabQ = query(
-    notesCol(),
-    where('collaboratorEmails', 'array-contains', userId),
-  )
-  const collabSnap = await getDocs(collabQ)
+  const collabSnap = await notesCol()
+    .where('collaboratorEmails', 'array-contains', userId)
+    .get()
   const collaborated = collabSnap.docs.map(d => d.data())
 
   // Merge and deduplicate
@@ -309,10 +339,10 @@ export async function addCollaborator(
     collaboratorEmails.push(normalizedEmail)
   }
 
-  await updateDoc(noteRef(noteId), {
+  await noteRef(noteId).update({
     collaborators,
     collaboratorEmails,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
@@ -372,10 +402,10 @@ export async function removeCollaborator(noteId: string, userId: string): Promis
     (e: string) => e !== removed?.email,
   )
 
-  await updateDoc(noteRef(noteId), {
+  await noteRef(noteId).update({
     collaborators,
     collaboratorEmails,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
@@ -388,30 +418,29 @@ export async function updateCollaboratorPermission(
   const collaborators = (note.collaborators || []).map((c: any) =>
     c.userId === userId ? { ...c, permission } : c,
   )
-  await updateDoc(noteRef(noteId), { collaborators, updatedAt: serverTimestamp() })
+  await noteRef(noteId).update({ collaborators, updatedAt: FieldValue.serverTimestamp() })
 }
 
 export async function enablePublicLink(noteId: string, permission: string): Promise<string> {
   const shareId = crypto.randomUUID()
-  await updateDoc(noteRef(noteId), {
+  await noteRef(noteId).update({
     publicAccess: { enabled: true, permission, shareId },
     publicShareId: shareId,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
   return shareId
 }
 
 export async function disablePublicLink(noteId: string): Promise<void> {
-  await updateDoc(noteRef(noteId), {
+  await noteRef(noteId).update({
     publicAccess: { enabled: false, permission: 'view', shareId: null },
     publicShareId: null,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
 export async function getNoteByShareId(shareId: string): Promise<any> {
-  const q = query(notesCol(), where('publicShareId', '==', shareId))
-  const snap = await getDocs(q)
+  const snap = await notesCol().where('publicShareId', '==', shareId).get()
   if (snap.empty) throw new Error('Shared note not found')
   return snap.docs[0].data()
 }
@@ -422,7 +451,7 @@ export async function getNoteByShareId(shareId: string): Promise<any> {
 
 export async function addComment(noteId: string, comment: any): Promise<string> {
   const id = crypto.randomUUID()
-  const now = serverTimestamp()
+  const now = FieldValue.serverTimestamp()
   const commentData = {
     id,
     noteId,
@@ -437,12 +466,12 @@ export async function addComment(noteId: string, comment: any): Promise<string> 
     createdAt: now,
     updatedAt: now,
   }
-  await setDoc(commentRef(noteId, id), commentData)
+  await commentRef(noteId, id).set(commentData)
   return id
 }
 
 export async function getComments(noteId: string): Promise<any[]> {
-  const snap = await getDocs(commentsCol(noteId))
+  const snap = await commentsCol(noteId).get()
   return snap.docs.map(d => d.data())
 }
 
@@ -451,14 +480,14 @@ export async function updateComment(
   commentId: string,
   content: string,
 ): Promise<void> {
-  await updateDoc(commentRef(noteId, commentId), {
+  await commentRef(noteId, commentId).update({
     content,
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
 export async function deleteComment(noteId: string, commentId: string): Promise<void> {
-  await deleteDoc(commentRef(noteId, commentId))
+  await commentRef(noteId, commentId).delete()
 }
 
 export async function resolveComment(
@@ -466,11 +495,11 @@ export async function resolveComment(
   commentId: string,
   resolvedBy: string,
 ): Promise<void> {
-  await updateDoc(commentRef(noteId, commentId), {
+  await commentRef(noteId, commentId).update({
     resolved: true,
     resolvedBy,
-    resolvedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    resolvedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
@@ -484,7 +513,7 @@ export async function createFolder(
   icon?: string,
 ): Promise<any> {
   const id = crypto.randomUUID()
-  const now = serverTimestamp()
+  const now = FieldValue.serverTimestamp()
   const folderData: any = {
     id,
     name,
@@ -493,26 +522,25 @@ export async function createFolder(
     createdAt: now,
     updatedAt: now,
   }
-  await setDoc(folderRef(id), folderData)
+  await folderRef(id).set(folderData)
   return { ...folderData, createdAt: null, updatedAt: null }
 }
 
 export async function getUserFolders(userId: string): Promise<any[]> {
-  const q = query(foldersCol(), where('ownerId', '==', userId))
-  const snap = await getDocs(q)
+  const snap = await foldersCol().where('ownerId', '==', userId).get()
   return snap.docs.map(d => d.data())
 }
 
 export async function updateFolder(folderId: string, updates: any): Promise<void> {
-  await updateDoc(folderRef(folderId), { ...updates, updatedAt: serverTimestamp() })
+  await folderRef(folderId).update({ ...updates, updatedAt: FieldValue.serverTimestamp() })
 }
 
 export async function deleteFolder(folderId: string): Promise<void> {
-  await deleteDoc(folderRef(folderId))
+  await folderRef(folderId).delete()
 }
 
 export async function moveNoteToFolder(noteId: string, folderId: string | null): Promise<void> {
-  await updateDoc(noteRef(noteId), { folderId, updatedAt: serverTimestamp() })
+  await noteRef(noteId).update({ folderId, updatedAt: FieldValue.serverTimestamp() })
 }
 
 // ---------------------------------------------------------------------------

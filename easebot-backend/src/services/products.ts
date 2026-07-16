@@ -1,5 +1,4 @@
-import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { adminDb } from '../lib/firebaseAdmin'
 
 export interface ProductResult {
   uid: string
@@ -41,7 +40,7 @@ function toProduct(d: any, variantImageUrl?: string): ProductResult {
     currency: data.currency ?? 'INR',
     vendor: data.vendor ?? '',
     tags: data.tags ?? [],
-    productUrl: `https://migration-testshiv97.web.app/product-detail/${d.id}`,
+    productUrl: `https://weddingease.ai/product-detail/${d.id}`,
     imageUrl: data.imageUrl || variantImageUrl || '',
     rating: data.rating ?? 0,
   }
@@ -50,9 +49,7 @@ function toProduct(d: any, variantImageUrl?: string): ProductResult {
 /** Fetch first variant image for a product when the product doc has no imageUrl */
 async function fetchFirstVariantImage(productId: string): Promise<string> {
   try {
-    const snap = await getDocs(
-      query(collection(db, 'variants'), where('productId', '==', productId), limit(1))
-    )
+    const snap = await adminDb.collection('variants').where('productId', '==', productId).limit(1).get()
     if (snap.empty) return ''
     const images = snap.docs[0].data()?.images as string[] | undefined
     return images?.[0] ?? ''
@@ -85,16 +82,14 @@ export async function getRelevantProducts(userMessage: string): Promise<ProductR
   const categories = extractCategories(userMessage)
 
   if (categories.length > 0) {
-    const categorySnap = await getDocs(
-      query(collection(db, 'products'), where('category', '==', categories[0]), limit(8))
-    )
+    const categorySnap = await adminDb.collection('products').where('category', '==', categories[0]).limit(8).get()
     // If category-specific query has results, use them; otherwise fall back to any products
     if (categorySnap.docs.length > 0) {
       return resolveProductImages(categorySnap.docs)
     }
   }
 
-  const snap = await getDocs(query(collection(db, 'products'), limit(8)))
+  const snap = await adminDb.collection('products').limit(8).get()
   return resolveProductImages(snap.docs)
 }
 

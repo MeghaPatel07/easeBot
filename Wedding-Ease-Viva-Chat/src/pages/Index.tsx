@@ -668,6 +668,13 @@ const Index = () => {
   };
   const handleLoadChat = (threadId: string) => { setBranchMap({}); navigate(`/chat/${threadId}`); };
 
+  // Signing out while viewing /chat/:threadId must land on a fresh new chat,
+  // not leave the user stuck on the now-inaccessible thread's auth-wall screen.
+  const handleSignOut = async () => {
+    await signOut();
+    startNewChat(); setInputText(''); setSelectedChecklistId(null); setBranchMap({}); navigate('/');
+  };
+
   const copyMessage = async (text: string, msgId: string) => {
     try {
       const html = markdownToHtml(text);
@@ -1204,7 +1211,7 @@ const Index = () => {
       onShowSettings={() => setShowSettingsModal(true)}
       onShowSignIn={() => setShowSignInModal(true)}
       onShowSignUp={() => setShowSignUpModal(true)}
-      onSignOut={signOut}
+      onSignOut={handleSignOut}
       onShowNotifications={() => setSidebarView('reminders')}
       allLikedMessagesCount={allLikedMessages.length + likedProducts.length}
       calendarEventsCount={reminders.length}
@@ -1237,7 +1244,7 @@ const Index = () => {
       onShowReminders={() => setSidebarView('reminders')}
       onShowSignIn={() => setShowSignInModal(true)}
       onShowSignUp={() => setShowSignUpModal(true)}
-      onSignOut={signOut}
+      onSignOut={handleSignOut}
       onShowSettings={() => setShowSettingsModal(true)}
       showSignInModal={showSignInModal}
       onShowSignInModalChange={setShowSignInModal}

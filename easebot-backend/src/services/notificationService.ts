@@ -5,8 +5,8 @@
  * NotificationsView renders.
  */
 
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { FieldValue } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 
 export type AppNotificationType = 'reminder' | 'info' | 'overdue'
 
@@ -22,13 +22,13 @@ export async function writeAppNotification(
   uid: string,
   input: WriteNotificationInput,
 ): Promise<void> {
-  await addDoc(collection(db, 'users', uid, 'notifications'), {
+  await adminDb.collection(`users/${uid}/notifications`).add({
     title: input.title,
     body: input.body,
     type: input.type,
     relatedId: input.relatedId ?? null,
     relatedType: input.relatedType ?? null,
     read: false,
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   })
 }

@@ -1,5 +1,4 @@
-import { collection, doc, getDocs, orderBy, query, limit, getDoc } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { adminDb } from '../lib/firebaseAdmin'
 import { capture as phCapture } from '../lib/posthog'
 import { Request, Response } from 'express'
 import { processInbound } from '../pipeline/inbound'
@@ -27,11 +26,13 @@ import {
   executeToolCall,
   CREATE_CHECKLIST_TOOL,
   EDIT_CHECKLIST_ITEM_TOOL,
+  ADD_CHECKLIST_ITEM_TOOL,
   MARK_AS_DONE_TOOL,
   GET_CHECKLIST_STATS_TOOL,
   CREATE_REMINDER_TOOL,
   CREATE_NOTE_TOOL,
   APPEND_TO_NOTE_TOOL,
+  EDIT_NOTE_TOOL,
   CREATE_TIMELINE_EVENT_TOOL,
 } from '../services/plannerTools'
 import { chargeTokens, refundTokens } from '../services/tokenMeter'
@@ -293,18 +294,20 @@ function getToolsForMode(mode: string, isLoggedIn: boolean): ChatCompletionTool[
         CREATE_TIMELINE_EVENT_TOOL,
         CREATE_NOTE_TOOL,
         APPEND_TO_NOTE_TOOL,
+        EDIT_NOTE_TOOL,
         EDIT_CHECKLIST_ITEM_TOOL,
+        ADD_CHECKLIST_ITEM_TOOL,
         MARK_AS_DONE_TOOL,
         GET_CHECKLIST_STATS_TOOL,
       ]
     case 'stylist':
     // case 'therapist': // disabled
     case 'knowledge':
-      return [...base, CREATE_NOTE_TOOL, APPEND_TO_NOTE_TOOL]
+      return [...base, CREATE_NOTE_TOOL, APPEND_TO_NOTE_TOOL, EDIT_NOTE_TOOL]
     // case 'consultant': // disabled
     //   return [...base, CREATE_NOTE_TOOL, CREATE_REMINDER_TOOL]
     default:
-      return [...base, CREATE_NOTE_TOOL, APPEND_TO_NOTE_TOOL]
+      return [...base, CREATE_NOTE_TOOL, APPEND_TO_NOTE_TOOL, EDIT_NOTE_TOOL]
   }
 }
 
@@ -410,8 +413,8 @@ async function getChatHistory(
     // private conversation loaded into their LLM context. Verify the caller
     // owns the thread before reading its messages. Real isolation also needs
     // Firestore rules — see PRD-SECURITY-cross-user-access-control.md.
-    const threadSnap = await getDoc(doc(db, 'chats', threadId))
-    const ownerId = threadSnap.exists()
+    const threadSnap = await adminDb.doc(`chats/${threadId}`).get()
+    const ownerId = threadSnap.exists
       ? (threadSnap.data()?.userId as string | undefined)
       : undefined
     if (!callerUid || ownerId !== callerUid) {
@@ -422,12 +425,11 @@ async function getChatHistory(
       })
       return []
     }
-    const q = query(
-      collection(db, 'chats', threadId, 'messages'),
-      orderBy('timestamp', 'desc'),
-      limit(historyLimit)
-    )
-    const snap = await getDocs(q)
+    const snap = await adminDb
+      .collection(`chats/${threadId}/messages`)
+      .orderBy('timestamp', 'desc')
+      .limit(historyLimit)
+      .get()
     return snap.docs
       .reverse()
       .map(d => ({ role: d.data().role as 'user' | 'assistant', content: d.data().content as string }))
@@ -720,9 +722,9 @@ export async function handleChat(req: Request, res: Response): Promise<void> {
     let userRole: string | null = null
     let userProfile: UserProfileContext | null = null
     if (isLoggedIn) {
-      const profileSnap = await getDoc(doc(db, 'users', uid))
-      if (profileSnap.exists()) {
-        const data = profileSnap.data()
+      const profileSnap = await adminDb.doc(`users/${uid}`).get()
+      if (profileSnap.exists) {
+        const data = profileSnap.data() ?? {}
         isPremium = data.isPremium ?? false
         userRole = data.role ?? null
         userProfile = {
@@ -1231,9 +1233,9 @@ export async function handleChatStream(req: Request, res: Response): Promise<voi
     let userRole: string | null = null
     let userProfile: UserProfileContext | null = null
     if (isLoggedIn) {
-      const profileSnap = await getDoc(doc(db, 'users', uid))
-      if (profileSnap.exists()) {
-        const data = profileSnap.data()
+      const profileSnap = await adminDb.doc(`users/${uid}`).get()
+      if (profileSnap.exists) {
+        const data = profileSnap.data() ?? {}
         isPremium = data.isPremium ?? false
         userRole = data.role ?? null
         userProfile = {

@@ -51,7 +51,10 @@ export interface ChatPayload {
 }
 
 export interface ToolAction {
-  tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'create_reminder' | 'generate_image' | 'create_note' | 'append_to_note' | 'create_timeline_event'
+  tool: 'create_checklist' | 'edit_checklist_item' | 'add_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'create_reminder' | 'generate_image' | 'create_note' | 'append_to_note' | 'edit_note' | 'create_timeline_event'
+  /** false when the tool call failed — checklistId/noteId/etc. are only ever
+   *  populated on a confirmed success, never echoed from unresolved args. */
+  ok?: boolean
   checklistId?: string
   itemId?: string
   checklistTitle?: string

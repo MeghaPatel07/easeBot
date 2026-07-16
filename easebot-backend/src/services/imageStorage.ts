@@ -3,8 +3,13 @@
  * and saves metadata to Firestore `userImages` collection.
  */
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
-import { collection, doc, setDoc, getDocs, query, where, orderBy, limit as fsLimit, deleteDoc, updateDoc, Timestamp } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { Timestamp } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
+// Side-effect import: getStorage() below resolves the client Firebase app via
+// getApp(), which throws unless lib/firebase.ts's initializeApp() has run.
+// Firestore access in this file uses adminDb now, so this is the only
+// remaining reason to load that module.
+import '../lib/firebase'
 import type { Mode } from '../types'
 import crypto from 'crypto'
 
@@ -155,7 +160,7 @@ export async function storeGeneratedImage(
       vibeDescriptors: metadata.vibeDescriptors ?? null,
     }
 
-    await setDoc(doc(db, 'userImages', imageId), imageDoc)
+    await adminDb.doc(`userImages/${imageId}`).set(imageDoc)
 
     return { url, imageId }
   } catch (err) {
@@ -203,22 +208,16 @@ export async function getUserImages(
   options: GetUserImagesOptions = {}
 ): Promise<UserImage[]> {
   try {
-    const constraints: any[] = [
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-    ]
+    let q = adminDb.collection('userImages').where('userId', '==', userId) as FirebaseFirestore.Query
 
     if (options.category) {
-      constraints.push(where('category', '==', options.category))
+      q = q.where('category', '==', options.category)
     }
     if (options.pinned !== undefined) {
-      constraints.push(where('pinned', '==', options.pinned))
+      q = q.where('pinned', '==', options.pinned)
     }
 
-    constraints.push(fsLimit(options.maxResults ?? 50))
-
-    const q = query(collection(db, 'userImages'), ...constraints)
-    const snap = await getDocs(q)
+    const snap = await q.orderBy('createdAt', 'desc').limit(options.maxResults ?? 50).get()
 
     return snap.docs.map(d => d.data() as UserImage)
   } catch (err) {
@@ -232,7 +231,7 @@ export async function getUserImages(
  */
 export async function updateImagePin(imageId: string, pinned: boolean): Promise<void> {
   try {
-    await updateDoc(doc(db, 'userImages', imageId), { pinned })
+    await adminDb.doc(`userImages/${imageId}`).update({ pinned })
   } catch (err) {
     console.error('[imageStorage] updateImagePin error:', err)
     throw err
@@ -244,7 +243,7 @@ export async function updateImagePin(imageId: string, pinned: boolean): Promise<
  */
 export async function updateImageCategory(imageId: string, category: ImageCategory): Promise<void> {
   try {
-    await updateDoc(doc(db, 'userImages', imageId), { category })
+    await adminDb.doc(`userImages/${imageId}`).update({ category })
   } catch (err) {
     console.error('[imageStorage] updateImageCategory error:', err)
     throw err
@@ -257,7 +256,7 @@ export async function updateImageCategory(imageId: string, category: ImageCatego
  */
 export async function deleteImage(imageId: string): Promise<void> {
   try {
-    await deleteDoc(doc(db, 'userImages', imageId))
+    await adminDb.doc(`userImages/${imageId}`).delete()
   } catch (err) {
     console.error('[imageStorage] deleteImage error:', err)
     throw err

@@ -31,7 +31,7 @@ function uninstallLogCapture(): void {
   console.log = origLog
 }
 
-// Import after log capture is installed. The module loads firebase/firestore
+// Import after log capture is installed. The module loads firebase-admin/firestore
 // but defaultFirestoreFetcher is never called when tests inject a fake.
 import {
   getCachedUserLanguage,

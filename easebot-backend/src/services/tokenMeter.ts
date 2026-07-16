@@ -1,22 +1,22 @@
 /**
  * tokenMeter — single source of truth for every cost-bearing call.
  *
- * Sprint 2: real implementation per .orchestrator/specs/token-meter.md §3-§6.
+ * Uses the Admin SDK (adminDb), which bypasses Firestore rules entirely —
+ * matching every other Firestore consumer in accountController.ts and the
+ * sibling Cloud Functions implementations (Wedding-Ease-Viva-Chat/functions,
+ * theweddingbot v1). This reverses the original Sprint 2 override that pinned
+ * this file to the client SDK purely to avoid a Firebase console change
+ * (.orchestrator/specs/token-meter.md, "Sprint 2 architectural overrides" #1);
+ * that override assumed the target project's rules would stay wide open,
+ * which broke once a second, properly-locked-down Firestore project
+ * (weddingease-1) came online for local dev.
  *
- * Hard constraints (per Sprint 2 overrides at top of the spec):
- *   - Client Firestore SDK only. No firebase-admin.
- *   - Tier read path: users/{uid}.tierMirror. NOT custom claims.
- *   - Guest TTL 7d. Written here; console TTL enablement is human action.
+ * Tier read path: users/{uid}.tierMirror. NOT custom claims.
+ * Guest TTL 7d. Written here; console TTL enablement is human action.
  */
 
-import {
-  doc,
-  getDoc,
-  runTransaction,
-  Timestamp,
-  serverTimestamp,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { Timestamp } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 import { emit } from '../lib/observability'
 import type {
   Principal,
@@ -188,8 +188,8 @@ export async function getTier(uid: string): Promise<Tier> {
     return cached.tier
   }
   try {
-    const snap = await getDoc(doc(db, 'users', uid))
-    const raw = snap.exists() ? (snap.data()?.tierMirror as string | undefined) : undefined
+    const snap = await adminDb.doc(`users/${uid}`).get()
+    const raw = snap.exists ? (snap.data()?.tierMirror as string | undefined) : undefined
     const tier: Tier =
       raw === 'pro' || raw === 'promax' || raw === 'free' ? raw : 'free'
     tierCache.set(uid, { tier, fetchedAt: Date.now() })
@@ -244,8 +244,8 @@ export async function estimateCost(input: EstimateInput): Promise<EstimateResult
   const estimatedTokens = rawToTokens(raw)
 
   if (principal.kind === 'guest') {
-    const guestSnap = await getDoc(doc(db, 'guests', principal.id)).catch(() => null)
-    const counters: GuestDoc['counters'] = guestSnap?.exists()
+    const guestSnap = await adminDb.doc(`guests/${principal.id}`).get().catch(() => null)
+    const counters: GuestDoc['counters'] = guestSnap?.exists
       ? ((guestSnap.data() as GuestDoc).counters ?? {
           msgCount: 0,
           imgCount: 0,
@@ -275,16 +275,16 @@ export async function estimateCost(input: EstimateInput): Promise<EstimateResult
   }
 
   const monthKey = currentUtcYearMonth()
-  const userRef = doc(db, 'users', principal.id)
-  const monthRef = doc(db, 'users', principal.id, 'usage', monthKey)
+  const userRef = adminDb.doc(`users/${principal.id}`)
+  const monthRef = adminDb.doc(`users/${principal.id}/usage/${monthKey}`)
 
   const [userSnap, monthSnap] = await Promise.all([
-    getDoc(userRef).catch(() => null),
-    getDoc(monthRef).catch(() => null),
+    userRef.get().catch(() => null),
+    monthRef.get().catch(() => null),
   ])
 
   const extras = Number((userSnap?.data() as { extrasBucket?: number } | undefined)?.extrasBucket ?? 0)
-  const month = monthSnap?.exists() ? (monthSnap.data() as MonthDoc) : null
+  const month = monthSnap?.exists ? (monthSnap.data() as MonthDoc) : null
 
   const dailyCap = DAILY_CAPS[principal.tier]
   const monthlyCap = MONTHLY_CAPS[principal.tier]
@@ -381,10 +381,10 @@ async function chargeUser(subject: Subject, raw: RawCost): Promise<ChargeResult>
   }
 
   const monthKey = currentUtcYearMonth()
-  const userRef = doc(db, 'users', subject.id)
-  const monthRef = doc(db, 'users', subject.id, 'usage', monthKey)
+  const userRef = adminDb.doc(`users/${subject.id}`)
+  const monthRef = adminDb.doc(`users/${subject.id}/usage/${monthKey}`)
 
-  return runTransaction(db, async (tx) => {
+  return adminDb.runTransaction(async (tx) => {
     const [userSnap, monthSnap] = await Promise.all([tx.get(userRef), tx.get(monthRef)])
     const now = new Date()
     const nowTs = Timestamp.fromDate(now)
@@ -394,7 +394,7 @@ async function chargeUser(subject: Subject, raw: RawCost): Promise<ChargeResult>
     const monthlyCap = MONTHLY_CAPS[tier]
 
     let month: MonthDoc
-    if (monthSnap.exists()) {
+    if (monthSnap.exists) {
       month = monthSnap.data() as MonthDoc
       const ms = month.dailyResetAt?.toMillis?.() ?? 0
       if (!ms || now.getTime() >= ms) {
@@ -443,7 +443,7 @@ async function chargeUser(subject: Subject, raw: RawCost): Promise<ChargeResult>
 
     tx.set(monthRef, month, { merge: true })
     if (fromExtras > 0) {
-      if (userSnap.exists()) {
+      if (userSnap.exists) {
         tx.update(userRef, { extrasBucket: extras - fromExtras })
       } else {
         tx.set(userRef, { extrasBucket: Math.max(0, extras - fromExtras) }, { merge: true })
@@ -474,16 +474,16 @@ async function chargeGuest(subject: Subject, raw: RawCost): Promise<ChargeResult
     return fail('guest_limit_exceeded', 0, 0, 0)
   }
 
-  const guestRef = doc(db, 'guests', subject.id)
+  const guestRef = adminDb.doc(`guests/${subject.id}`)
 
-  return runTransaction(db, async (tx) => {
+  return adminDb.runTransaction(async (tx) => {
     const snap = await tx.get(guestRef)
     const now = new Date()
     const nowTs = Timestamp.fromDate(now)
     const ttlTs = Timestamp.fromDate(new Date(now.getTime() + GUEST_TTL_MS))
 
     let g: GuestDoc
-    if (snap.exists()) {
+    if (snap.exists) {
       g = snap.data() as GuestDoc
       if (!g.counters) {
         g.counters = { msgCount: 0, imgCount: 0, voiceCount: 0, visionCount: 0 }
@@ -560,8 +560,8 @@ export async function chargeTokensAsSystem(
 
 export async function getUsage(subject: Subject): Promise<UsageSnapshot> {
   if (subject.kind === 'guest') {
-    const snap = await getDoc(doc(db, 'guests', subject.id))
-    const counters = snap.exists()
+    const snap = await adminDb.doc(`guests/${subject.id}`).get()
+    const counters = snap.exists
       ? (snap.data() as GuestDoc).counters ?? {
           msgCount: 0,
           imgCount: 0,
@@ -584,15 +584,15 @@ export async function getUsage(subject: Subject): Promise<UsageSnapshot> {
   }
 
   const monthKey = currentUtcYearMonth()
-  const userRef = doc(db, 'users', subject.id)
-  const monthRef = doc(db, 'users', subject.id, 'usage', monthKey)
-  const [userSnap, monthSnap] = await Promise.all([getDoc(userRef), getDoc(monthRef)])
+  const userRef = adminDb.doc(`users/${subject.id}`)
+  const monthRef = adminDb.doc(`users/${subject.id}/usage/${monthKey}`)
+  const [userSnap, monthSnap] = await Promise.all([userRef.get(), monthRef.get()])
 
   const extras = Number((userSnap.data() as { extrasBucket?: number } | undefined)?.extrasBucket ?? 0)
   const tier = subject.tier
   const monthlyCap = MONTHLY_CAPS[tier]
 
-  if (!monthSnap.exists()) {
+  if (!monthSnap.exists) {
     return {
       tier,
       monthlyTokensUsed: 0,
@@ -639,14 +639,14 @@ export async function addExtras(
     throw new Error('addExtras requires positive token count')
   }
   const monthKey = currentUtcYearMonth()
-  const userRef = doc(db, 'users', uid)
-  const monthRef = doc(db, 'users', uid, 'usage', monthKey)
+  const userRef = adminDb.doc(`users/${uid}`)
+  const monthRef = adminDb.doc(`users/${uid}/usage/${monthKey}`)
   // P1-2: permanent per-txn idempotency record. Sharded per uid, keyed by
   // PayU txnid so replays (controller retry, webhook double-fire, resumed
   // status poll) are a no-op regardless of how old the first run was.
-  const txnRef = doc(db, 'users', uid, 'extrasTxns', txnid)
+  const txnRef = adminDb.doc(`users/${uid}/extrasTxns/${txnid}`)
 
-  return runTransaction(db, async (tx) => {
+  return adminDb.runTransaction(async (tx) => {
     const [userSnap, monthSnap, txnSnap] = await Promise.all([
       tx.get(userRef),
       tx.get(monthRef),
@@ -659,7 +659,7 @@ export async function addExtras(
       (userSnap.data() as { extrasBucket?: number } | undefined)?.extrasBucket ?? 0,
     )
     let month: MonthDoc
-    if (monthSnap.exists()) {
+    if (monthSnap.exists) {
       month = monthSnap.data() as MonthDoc
     } else {
       // Read tier from the userSnap already loaded via tx.get() above —
@@ -684,7 +684,7 @@ export async function addExtras(
     // P1-2: month-scoped lookup replaces the fragile 20-slot lastTxnIds
     // rolling window. If this exact txnid was already credited, return
     // current balances unchanged.
-    if (txnSnap.exists()) {
+    if (txnSnap.exists) {
       return {
         newExtrasBalance: currentExtras,
         extrasPurchasedThisMonth: month.extrasPurchasedThisMonth ?? 0,
@@ -706,7 +706,7 @@ export async function addExtras(
       creditedAt: nowTs,
       monthKey,
     })
-    if (userSnap.exists()) {
+    if (userSnap.exists) {
       tx.update(userRef, { extrasBucket: newExtras })
     } else {
       tx.set(userRef, { extrasBucket: newExtras }, { merge: true })
@@ -726,12 +726,12 @@ export async function addExtras(
 
 export async function resetMonthly(uid: string, tier: Tier): Promise<void> {
   const monthKey = currentUtcYearMonth()
-  const monthRef = doc(db, 'users', uid, 'usage', monthKey)
-  await runTransaction(db, async (tx) => {
+  const monthRef = adminDb.doc(`users/${uid}/usage/${monthKey}`)
+  await adminDb.runTransaction(async (tx) => {
     const snap = await tx.get(monthRef)
     const now = new Date()
     const nowTs = Timestamp.fromDate(now)
-    const base: MonthDoc = snap.exists()
+    const base: MonthDoc = snap.exists
       ? (snap.data() as MonthDoc)
       : {
           tier,
@@ -774,12 +774,12 @@ export async function refundTokens(
   if (!Number.isFinite(tokens) || tokens <= 0) return
 
   const monthKey = currentUtcYearMonth()
-  const userRef = doc(db, 'users', subject.id)
-  const monthRef = doc(db, 'users', subject.id, 'usage', monthKey)
+  const userRef = adminDb.doc(`users/${subject.id}`)
+  const monthRef = adminDb.doc(`users/${subject.id}/usage/${monthKey}`)
 
-  await runTransaction(db, async (tx) => {
+  await adminDb.runTransaction(async (tx) => {
     const [userSnap, monthSnap] = await Promise.all([tx.get(userRef), tx.get(monthRef)])
-    if (!monthSnap.exists()) return
+    if (!monthSnap.exists) return
     const month = monthSnap.data() as MonthDoc
 
     // Reverse in opposite order: extras first, then monthly.
@@ -807,7 +807,7 @@ export async function refundTokens(
       const extras = Number(
         (userSnap.data() as { extrasBucket?: number } | undefined)?.extrasBucket ?? 0,
       )
-      if (userSnap.exists()) {
+      if (userSnap.exists) {
         tx.update(userRef, { extrasBucket: extras + toExtras })
       } else {
         tx.set(userRef, { extrasBucket: extras + toExtras }, { merge: true })
@@ -822,5 +822,3 @@ export async function refundTokens(
     service,
   })
 }
-
-void serverTimestamp // kept imported for potential future use

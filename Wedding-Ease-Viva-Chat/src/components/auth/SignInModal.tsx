@@ -648,7 +648,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
                     {error && <p className="text-sm text-destructive text-center">{error}</p>}
                     <Button className="w-full h-12 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg shadow-primary/20 hover:bg-primary/90" onClick={handleFpVerifyOtp} disabled={loading || fpOtp.join('').length !== 6}>
                       {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Verify Code
+                      Verify Codes
                     </Button>
                     <div className="text-center">
                       {fpResendTimer > 0 ? (

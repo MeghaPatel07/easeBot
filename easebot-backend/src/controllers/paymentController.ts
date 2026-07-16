@@ -1,23 +1,17 @@
 /**
- * paymentController — PayU integration surface.
+ * paymentController — PayU + Razorpay integration surface.
  *
  * Sprint 2 (PAY-010/011): real implementation of initiate / return / webhook
- * / verify. Client SDK only for Firestore (no Admin SDK, per sprint guardrail).
+ * / verify. Uses the Admin SDK (adminDb) for Firestore — see tokenMeter.ts
+ * for why the original client-SDK-only guardrail was reversed.
  *
  * Spec: .orchestrator/specs/payu-contract.md
  */
 
 import type { Request, Response, NextFunction } from 'express'
 import crypto from 'crypto'
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-  Timestamp,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { Timestamp, FieldValue } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 import { getLockedRate } from '../services/exchangeRateService'
 import { addExtras } from '../services/tokenMeter'
 import { applyTransition, readSubscription, InvalidTransitionError } from '../services/subscriptionStateMachine'
@@ -242,7 +236,7 @@ export async function initiate(
       salt: cfg.salt,
     })
 
-    await setDoc(doc(db, 'payments', txnid), {
+    await adminDb.doc(`payments/${txnid}`).set({
       txnid,
       uid,
       plan: row.plan,
@@ -261,8 +255,8 @@ export async function initiate(
       paymentEnv: getPaymentEnv(),
       state: 'pending',
       pendingStateMachineTransition: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     })
 
     emit('payment_initiate', { uid, txnid, plan: row.plan, cycle: row.cycle, currency: toCurrency, usd: row.usd, provider: 'payu' })
@@ -344,9 +338,9 @@ interface NormalizedFinalize {
 }
 
 async function finalizePaymentCore(n: NormalizedFinalize): Promise<FinalizeResult> {
-  const ref = doc(db, 'payments', n.txnid)
-  const snap = await getDoc(ref)
-  if (!snap.exists()) throw new Error('unknown_txnid')
+  const ref = adminDb.doc(`payments/${n.txnid}`)
+  const snap = await ref.get()
+  if (!snap.exists) throw new Error('unknown_txnid')
   const stored = snap.data() as Record<string, unknown>
   const currentState = String(stored.state ?? 'pending')
   if (currentState === 'paid' || currentState === 'failed') {
@@ -355,7 +349,7 @@ async function finalizePaymentCore(n: NormalizedFinalize): Promise<FinalizeResul
 
   // Amount verify (LH-25): PayU sends `amount` as a local-currency string.
   if (n.amount != null && String(n.amount) !== String(stored.amountLocal)) {
-    await updateDoc(ref, { state: 'unknown', reason: 'amount_mismatch', updatedAt: serverTimestamp() })
+    await ref.update({ state: 'unknown', reason: 'amount_mismatch', updatedAt: FieldValue.serverTimestamp() })
     return { kind: 'amount_mismatch' }
   }
 
@@ -378,7 +372,7 @@ async function finalizePaymentCore(n: NormalizedFinalize): Promise<FinalizeResul
   emit('payment_webhook_received', { txnid: n.txnid, status: n.providerStatus, provider: n.provider, source: n.source })
 
   if (n.status !== 'success') {
-    await updateDoc(ref, { state: 'failed', ...providerFields, updatedAt: serverTimestamp() })
+    await ref.update({ state: 'failed', ...providerFields, updatedAt: FieldValue.serverTimestamp() })
     emit('payment_failure', { txnid: n.txnid, status: n.providerStatus, provider: n.provider, uid: String(stored.uid) })
     phCapture(String(stored.uid), 'payment_failed', {
       tier: String(stored.plan),
@@ -457,12 +451,12 @@ async function finalizePaymentCore(n: NormalizedFinalize): Promise<FinalizeResul
           txnid: n.txnid, uid, plan, error: err.message,
         })
         try {
-          await updateDoc(ref, {
+          await ref.update({
             state: 'needs_review',
             reason: 'transition_conflict',
             transitionError: err.message,
             ...providerFields,
-            updatedAt: serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
           })
         } catch (innerErr) {
           console.error('[paymentController.finalize] needs_review write failed', innerErr)
@@ -478,12 +472,12 @@ async function finalizePaymentCore(n: NormalizedFinalize): Promise<FinalizeResul
     }
   }
 
-  await updateDoc(ref, {
+  await ref.update({
     state: 'paid',
     ...providerFields,
     pendingStateMachineTransition: false,
-    paidAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    paidAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 
   queueInvoice({ jobId: n.txnid, kind: 'render_invoice', invoiceId: n.txnid, uid }).catch((err) =>
@@ -655,8 +649,8 @@ export async function verify(
     const txnid = String(req.query.txnid || '')
     if (!txnid) { res.status(400).json({ error: 'missing_txnid' }); return }
 
-    const snap = await getDoc(doc(db, 'payments', txnid))
-    if (!snap.exists()) { res.status(404).json({ error: 'unknown_txnid' }); return }
+    const snap = await adminDb.doc(`payments/${txnid}`).get()
+    if (!snap.exists) { res.status(404).json({ error: 'unknown_txnid' }); return }
     const data = snap.data() as Record<string, unknown>
     if (String(data.uid) !== uid) { res.status(403).json({ error: 'forbidden' }); return }
 
@@ -730,7 +724,7 @@ export async function razorpayInitiate(
       res.status(502).json({ error: 'razorpay_order_failed' }); return
     }
 
-    await setDoc(doc(db, 'payments', txnid), {
+    await adminDb.doc(`payments/${txnid}`).set({
       txnid,
       uid,
       plan: row.plan,
@@ -750,8 +744,8 @@ export async function razorpayInitiate(
       razorpayOrderId: order.orderId,
       state: 'pending',
       pendingStateMachineTransition: false,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     })
 
     emit('payment_initiate', { uid, txnid, plan: row.plan, cycle: row.cycle, currency: toCurrency, usd: row.usd, provider: 'razorpay' })
@@ -804,8 +798,8 @@ export async function razorpayVerify(
       res.status(400).json({ error: 'missing_fields' }); return
     }
 
-    const snap = await getDoc(doc(db, 'payments', txnid))
-    if (!snap.exists()) { res.status(404).json({ error: 'unknown_txnid' }); return }
+    const snap = await adminDb.doc(`payments/${txnid}`).get()
+    if (!snap.exists) { res.status(404).json({ error: 'unknown_txnid' }); return }
     const stored = snap.data() as Record<string, unknown>
     if (String(stored.uid) !== uid) { res.status(403).json({ error: 'forbidden' }); return }
     if (String(stored.provider) !== 'razorpay') { res.status(400).json({ error: 'provider_mismatch' }); return }
@@ -890,15 +884,15 @@ export async function razorpayWebhook(
     // Subunit amount integrity for success events: the captured amount must
     // equal what we'd charge for the stored plan/currency.
     if (isSuccess && paymentEntity) {
-      const snap = await getDoc(doc(db, 'payments', txnid))
-      if (snap.exists()) {
+      const snap = await adminDb.doc(`payments/${txnid}`).get()
+      if (snap.exists) {
         const stored = snap.data() as Record<string, unknown>
         const expected = toSubunit(String(stored.amountLocal ?? ''), String(stored.currency ?? 'INR'))
         const got = Number(paymentEntity.amount)
         if (Number.isFinite(got) && got !== expected) {
           emit('payment.razorpay.amount_mismatch', { txnid, expected, got })
-          await updateDoc(doc(db, 'payments', txnid), {
-            state: 'unknown', reason: 'amount_mismatch', updatedAt: serverTimestamp(),
+          await adminDb.doc(`payments/${txnid}`).update({
+            state: 'unknown', reason: 'amount_mismatch', updatedAt: FieldValue.serverTimestamp(),
           }).catch((err) => console.error('[paymentController.razorpayWebhook] amount_mismatch write failed', err))
           res.status(400).json({ error: 'amount_mismatch' }); return
         }

@@ -78,7 +78,7 @@ async function getRelevantProducts(userMessage) {
             currency: data.currency ?? 'INR',
             vendor: data.vendor ?? '',
             tags: data.tags ?? [],
-            productUrl: `https://migration-testshiv97.web.app/product-detail/${d.id}`,
+            productUrl: `https://weddingease.ai/product-detail/${d.id}`,
         };
     });
 }

@@ -32,6 +32,7 @@ import {
   collection,
   query,
   where,
+  limit,
   serverTimestamp,
 } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
@@ -101,7 +102,7 @@ function buildNewUserDoc(
   phone: string | null,
   isVerified: boolean,
   authMethod: 'email' | 'phone' = 'email',
-): Omit<UserProfile, 'createdAt' | 'lastLoginAt' | 'verifiedAt'> & {
+): Omit<UserProfile, 'createdAt' | 'lastLoginAt' | 'verifiedAt' | 'usage'> & {
   createdAt: ReturnType<typeof serverTimestamp>
   lastLoginAt: null
   verifiedAt: null
@@ -134,7 +135,10 @@ function buildNewUserDoc(
     preferredLanguage: 'en',
     isPremium: false,
     role: null,
-    usage: null,
+    // Deliberately omitted: draft Firestore rules block `usage` (alongside
+    // subscription/tokenBalance/plan) from client create payloads — it's
+    // server-managed billing state. accountController.ts already defaults
+    // a missing `usage` field to zero, so omitting it here is safe.
     createdAt: serverTimestamp(),
     lastLoginAt: null,
     forgotPasswordOtp: null,
@@ -179,7 +183,7 @@ export async function signUpWithEmail(
   try {
     // Phone duplicate check
     if (phone) {
-      const snap = await getDocs(query(collection(db, 'users'), where('phone', '==', phone)))
+      const snap = await getDocs(query(collection(db, 'users'), where('phone', '==', phone), limit(1)))
       if (!snap.empty) {
         await firebaseSignOut(auth)
         throw makeAuthError('PHONE_DUPLICATE')
@@ -219,7 +223,7 @@ export async function signInWithEmail(email: string, password: string) {
   } catch (err: any) {
     // Check Firestore to distinguish "not found" vs "wrong password"
     if (err.code === 'auth/invalid-credential') {
-      const snap = await getDocs(query(collection(db, 'users'), where('email', '==', email)))
+      const snap = await getDocs(query(collection(db, 'users'), where('email', '==', email), limit(1)))
       if (snap.empty) throw makeAuthError('auth/user-not-found')
     }
     throw makeAuthError(err.code ?? err.message)
@@ -368,7 +372,7 @@ export async function verifyPhoneOtp(
   const user = credential.user
 
   const snap = await getDocs(
-    query(collection(db, 'users'), where('phone', '==', user.phoneNumber))
+    query(collection(db, 'users'), where('phone', '==', user.phoneNumber), limit(1))
   )
   if (snap.empty) {
     await firebaseSignOut(auth)
@@ -439,7 +443,7 @@ export async function verifyForgotPasswordOtp(
   otp: string,
 ): Promise<{ resetToken: string }> {
   const normalized = email.trim().toLowerCase()
-  const snap = await getDocs(query(collection(db, 'users'), where('email', '==', normalized)))
+  const snap = await getDocs(query(collection(db, 'users'), where('email', '==', normalized), limit(1)))
   if (snap.empty) throw makeAuthError('USER_NOT_FOUND')
 
   const profile = snap.docs[0].data() as UserProfile
@@ -486,7 +490,7 @@ export async function updatePasswordByEmail(
 
 // Firebase magic-link reset email — kept as a fallback only.
 export async function sendForgotPasswordEmail(email: string): Promise<void> {
-  const snap = await getDocs(query(collection(db, 'users'), where('email', '==', email)))
+  const snap = await getDocs(query(collection(db, 'users'), where('email', '==', email), limit(1)))
   if (snap.empty) throw makeAuthError('USER_NOT_FOUND')
   try {
     const methods = await fetchSignInMethodsForEmail(auth, email)

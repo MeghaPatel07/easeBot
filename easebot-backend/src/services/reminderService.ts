@@ -2,29 +2,13 @@
  * First-party reminders service.
  *
  * Replaces the old Google Calendar integration. Writes reminder docs to
- * users/{uid}/reminders via the Firebase Web SDK (same SDK the rest of this
- * backend uses). The companion in-process scheduler in
- * src/services/reminderScheduler.ts polls these docs and dispatches the
+ * users/{uid}/reminders via the Admin SDK. The companion in-process scheduler
+ * in src/services/reminderScheduler.ts polls these docs and dispatches the
  * notifications.
  */
 
-import {
-  collection,
-  collectionGroup,
-  query,
-  where,
-  orderBy,
-  limit as fsLimit,
-  getDocs,
-  addDoc,
-  doc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-  Timestamp,
-  getDoc,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { Timestamp, FieldValue } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 import { computeEventInstant } from '../utils/dateTime'
 
 export type ReminderChannel = 'email' | 'whatsapp'
@@ -86,8 +70,8 @@ export class ReminderError extends Error {
 }
 
 async function fetchUserProfile(uid: string): Promise<UserProfileLite | null> {
-  const snap = await getDoc(doc(db, 'users', uid))
-  if (!snap.exists()) return null
+  const snap = await adminDb.doc(`users/${uid}`).get()
+  if (!snap.exists) return null
   return snap.data() as UserProfileLite
 }
 
@@ -129,17 +113,15 @@ export async function createReminderDoc(
   const notifyAtDate = new Date(eventAtDate.getTime() - leadTimeMinutes * 60_000)
 
   // Enforce per-user pending cap (max 100 pending reminders).
-  const remindersCol = collection(db, 'users', input.userId, 'reminders')
-  const pendingSnap = await getDocs(
-    query(remindersCol, where('status', '==', 'pending')),
-  )
+  const remindersCol = adminDb.collection(`users/${input.userId}/reminders`)
+  const pendingSnap = await remindersCol.where('status', '==', 'pending').get()
   if (pendingSnap.size >= MAX_PENDING_PER_USER) {
     throw new Error(
       `pending reminder limit reached (${MAX_PENDING_PER_USER}). Please cancel or wait for existing reminders to fire before adding more.`,
     )
   }
 
-  const ref = await addDoc(remindersCol, {
+  const ref = await remindersCol.add({
     userId: input.userId,
     title: input.title,
     description: input.description ?? null,
@@ -155,12 +137,12 @@ export async function createReminderDoc(
     lastError: null,
     sentAt: null,
     source: input.source,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 
   // Echo the generated id back into the doc body so frontend reads have it.
-  await setDoc(ref, { id: ref.id }, { merge: true })
+  await ref.set({ id: ref.id }, { merge: true })
 
   return { id: ref.id, channel, notifyAt: notifyAtDate }
 }
@@ -182,14 +164,13 @@ export async function listPendingDueReminders(
   limit = 100,
 ): Promise<PendingReminderRow[]> {
   const nowTs = Timestamp.fromDate(new Date())
-  const q = query(
-    collectionGroup(db, 'reminders'),
-    where('status', '==', 'pending'),
-    where('notifyAt', '<=', nowTs),
-    orderBy('notifyAt', 'asc'),
-    fsLimit(limit),
-  )
-  const snap = await getDocs(q)
+  const snap = await adminDb
+    .collectionGroup('reminders')
+    .where('status', '==', 'pending')
+    .where('notifyAt', '<=', nowTs)
+    .orderBy('notifyAt', 'asc')
+    .limit(limit)
+    .get()
   return snap.docs.map((d) => ({
     path: d.ref.path,
     data: { ...(d.data() as Reminder), id: d.id },
@@ -197,10 +178,10 @@ export async function listPendingDueReminders(
 }
 
 export async function markReminderSent(path: string): Promise<void> {
-  await updateDoc(doc(db, path), {
+  await adminDb.doc(path).update({
     status: 'sent' as ReminderStatus,
-    sentAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    sentAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }
 
@@ -210,10 +191,10 @@ export async function markReminderFailed(
   attemptCount: number,
 ): Promise<void> {
   const finalStatus: ReminderStatus = attemptCount >= 3 ? 'failed' : 'pending'
-  await updateDoc(doc(db, path), {
+  await adminDb.doc(path).update({
     status: finalStatus,
     attemptCount,
     lastError: errorMsg.slice(0, 500),
-    updatedAt: serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
 }

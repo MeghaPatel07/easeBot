@@ -8,8 +8,7 @@
 // call invalidateUserLanguage(uid) from that code path.
 
 import { LRUCache } from 'lru-cache'
-import { doc, getDoc } from 'firebase/firestore'
-import { db } from './firebase'
+import { adminDb } from './firebaseAdmin'
 import { emit } from './observability'
 
 // We wrap in an object because LRUCache v10 rejects null values.
@@ -37,8 +36,8 @@ export interface UserLangSnapshot {
 export type FirestoreFetcher = (uid: string) => Promise<UserLangSnapshot>
 
 async function defaultFirestoreFetcher(uid: string): Promise<UserLangSnapshot> {
-  const snap = await getDoc(doc(db, 'users', uid))
-  if (!snap.exists()) return { exists: false }
+  const snap = await adminDb.doc(`users/${uid}`).get()
+  if (!snap.exists) return { exists: false }
   return { exists: true, data: snap.data() as UserLangSnapshot['data'] }
 }
 

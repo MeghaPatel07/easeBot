@@ -49,7 +49,7 @@ function searchItemToProduct(item: SearchItem): ProductResult {
     currency: 'INR',
     vendor: '',
     tags: [],
-    productUrl: `https://migration-testshiv97.web.app/product-detail/${productDocId}`,
+    productUrl: `https://weddingease.ai/product-detail/${productDocId}`,
     imageUrl: item.image_url ?? '',
     rating: 0,
   }
@@ -70,6 +70,7 @@ function isLikelyMismatch(p: ProductResult): boolean {
 
 async function fetchViaHybridSearch(userMessage: string, limit: number): Promise<ProductResult[]> {
   const query = resolveAlgoliaQuery(userMessage)
+  console.log('[hybridSearchProducts] search query', { userMessage, query, limit })
 
   try {
     const response = await fetch(SEARCH_API_URL, {

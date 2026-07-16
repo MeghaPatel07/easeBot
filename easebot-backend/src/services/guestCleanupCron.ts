@@ -10,16 +10,8 @@
  * concurrently with Firestore's native TTL sweep — both just delete.
  */
 
-import {
-  collection,
-  query,
-  where,
-  limit,
-  getDocs,
-  deleteDoc,
-  Timestamp,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { Timestamp } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000 // 1h
 const MAX_DELETES_PER_TICK = 50
@@ -30,17 +22,16 @@ let timer: NodeJS.Timeout | null = null
 async function tick(): Promise<void> {
   try {
     const now = Timestamp.fromDate(new Date())
-    const q = query(
-      collection(db, 'guests'),
-      where('ttlExpiresAt', '<', now),
-      limit(MAX_DELETES_PER_TICK),
-    )
-    const snap = await getDocs(q)
+    const snap = await adminDb
+      .collection('guests')
+      .where('ttlExpiresAt', '<', now)
+      .limit(MAX_DELETES_PER_TICK)
+      .get()
     if (snap.empty) return
     let deleted = 0
     for (const docSnap of snap.docs) {
       try {
-        await deleteDoc(docSnap.ref)
+        await docSnap.ref.delete()
         deleted++
       } catch (err) {
         console.warn('[guestCleanupCron] delete failed', docSnap.id, err)

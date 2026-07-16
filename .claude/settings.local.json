@@ -226,7 +226,13 @@
       "Bash(gh api *)",
       "Bash(command -v railway)",
       "Bash(railway --version)",
-      "Bash(railway whoami *)"
+      "Bash(railway whoami *)",
+      "Bash(lsof -nP -iTCP:3001 -sTCP:LISTEN)",
+      "Bash(ls -la .env)",
+      "Bash(wc -l .env)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(python3 -c ' *)",
+      "Bash(echo \"EXIT_CODE=$?\")"
     ]
   },
   "enabledMcpjsonServers": [

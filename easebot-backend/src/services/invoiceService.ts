@@ -7,28 +7,16 @@
  * PDF bytes as base64 in Firestore `invoices/{id}.pdfBase64` (small — typical
  * invoice is 8–20 KB, comfortably under Firestore's 1 MB doc cap).
  *
- * Client SDK only. No Firebase Storage Admin required.
+ * Uses the Admin SDK (adminDb) — see tokenMeter.ts for why the original
+ * client-SDK-only guardrail was reversed.
  *
  * Grounded in: .orchestrator/specs/invoice-format.md (§3 fields, §7 numbering,
  * §9 currency, §10 tax branches).
  */
 
-import {
-  doc,
-  getDoc,
-  setDoc,
-  getDocs,
-  collection,
-  query,
-  where,
-  orderBy,
-  limit as fsLimit,
-  serverTimestamp,
-  runTransaction,
-  Timestamp,
-} from 'firebase/firestore'
+import { Timestamp, FieldValue } from 'firebase-admin/firestore'
 import PDFDocument from 'pdfkit'
-import { db } from '../lib/firebase'
+import { adminDb } from '../lib/firebaseAdmin'
 import { sendEmailNotification, buildInvoiceEmail } from './emailService'
 import { emit } from '../lib/observability'
 
@@ -115,12 +103,12 @@ function currentYearMonth(): string {
 
 async function allocateInvoiceNumber(): Promise<string> {
   const ym = currentYearMonth()
-  const ref = doc(db, 'counters', `invoices_${ym}`)
-  const next = await runTransaction(db, async (tx) => {
+  const ref = adminDb.doc(`counters/invoices_${ym}`)
+  const next = await adminDb.runTransaction(async (tx) => {
     const snap = await tx.get(ref)
-    const cur = snap.exists() ? Number((snap.data() as { n?: number }).n ?? 0) : 0
+    const cur = snap.exists ? Number((snap.data() as { n?: number }).n ?? 0) : 0
     const n = cur + 1
-    tx.set(ref, { n, updatedAt: serverTimestamp() }, { merge: true })
+    tx.set(ref, { n, updatedAt: FieldValue.serverTimestamp() }, { merge: true })
     return n
   })
   const padded = String(next).padStart(6, '0')
@@ -247,9 +235,9 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
 
   // Idempotency: if an invoice doc already exists in a non-failed state, skip.
   // Only re-render if it previously failed (for retry from the queue runner).
-  const invRef = doc(db, 'invoices', job.invoiceId)
-  const existing = await getDoc(invRef)
-  if (existing.exists()) {
+  const invRef = adminDb.doc(`invoices/${job.invoiceId}`)
+  const existing = await invRef.get()
+  if (existing.exists) {
     const cur = existing.data() as { status?: string; uid?: string }
     if (cur.uid && cur.uid !== job.uid) {
       emit('invoice.authz_denied', { invoiceId: job.invoiceId, callerUid: job.uid })
@@ -260,9 +248,9 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
     }
   }
 
-  const payRef = doc(db, 'payments', job.invoiceId)
-  const paySnap = await getDoc(payRef)
-  if (!paySnap.exists()) {
+  const payRef = adminDb.doc(`payments/${job.invoiceId}`)
+  const paySnap = await payRef.get()
+  if (!paySnap.exists) {
     console.warn('[invoiceService] missing payment doc', { jobId: job.jobId })
     return
   }
@@ -295,7 +283,7 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
     // P0-2: do NOT mark PAID, do NOT email. The queue runner (future work)
     // will retry FAILED invoices by re-invoking queueInvoice for the same id.
     // Invoices are legally required to persist — never delete.
-    await setDoc(invRef, {
+    await invRef.set({
       invoiceId: job.invoiceId,
       invoiceNumber,
       uid: p.uid,
@@ -313,8 +301,8 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
       pdfBase64: null,
       status: 'FAILED',
       lastRenderError: renderError?.message ?? 'unknown',
-      lastRenderErrorAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
+      lastRenderErrorAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     }, { merge: true })
 
     emit('invoice.render_failed', {
@@ -327,7 +315,7 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
   }
 
   // Invoices are legally required to persist — never delete.
-  await setDoc(invRef, {
+  await invRef.set({
     invoiceId: job.invoiceId,
     invoiceNumber,
     uid: p.uid,
@@ -345,7 +333,7 @@ export async function queueInvoice(job: InvoiceJob): Promise<void> {
     pdfBase64,
     status: 'PAID',
     lastRenderError: null,
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   }, { merge: true })
 
   const email = p.buyer?.email
@@ -380,13 +368,12 @@ export async function renderInvoicePdf(_jobId: string): Promise<string> {
 
 export async function getInvoicesForUser(uid: string): Promise<InvoiceSummary[]> {
   try {
-    const q = query(
-      collection(db, 'invoices'),
-      where('uid', '==', uid),
-      orderBy('createdAt', 'desc'),
-      fsLimit(50),
-    )
-    const snap = await getDocs(q)
+    const snap = await adminDb
+      .collection('invoices')
+      .where('uid', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(50)
+      .get()
     return snap.docs.map((d) => {
       const data = d.data() as Record<string, unknown>
       const createdAt = data.createdAt as Timestamp | undefined
@@ -409,8 +396,8 @@ export async function getInvoicesForUser(uid: string): Promise<InvoiceSummary[]>
 }
 
 export async function getInvoicePdfBase64(uid: string, invoiceId: string): Promise<string | null> {
-  const snap = await getDoc(doc(db, 'invoices', invoiceId))
-  if (!snap.exists()) return null
+  const snap = await adminDb.doc(`invoices/${invoiceId}`).get()
+  if (!snap.exists) return null
   const data = snap.data() as { uid?: string; pdfBase64?: string }
   if (data.uid !== uid) return null
   return data.pdfBase64 || null
@@ -465,8 +452,8 @@ const HISTORY_LIMIT = 100
 export async function getBillingHistoryForUser(uid: string): Promise<BillingHistoryRow[]> {
   try {
     const [paySnap, invSnap] = await Promise.all([
-      getDocs(query(collection(db, 'payments'), where('uid', '==', uid))),
-      getDocs(query(collection(db, 'invoices'), where('uid', '==', uid))),
+      adminDb.collection('payments').where('uid', '==', uid).get(),
+      adminDb.collection('invoices').where('uid', '==', uid).get(),
     ])
 
     const invById = new Map<string, Record<string, unknown>>()

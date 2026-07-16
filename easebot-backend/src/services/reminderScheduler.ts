@@ -6,7 +6,6 @@
  * AND the agent that authored this change cannot deploy Firebase functions,
  * we implement the same logic in-process with `setInterval`. The trade-off:
  *   + No deploy needed; runs wherever the Express server runs.
- *   + Reuses the existing Firebase Web SDK (same as the rest of this backend).
  *   - If the backend is not running, reminders won't dispatch.
  *
  * Idempotency is enforced by the `status == 'pending'` guard in the query
@@ -14,8 +13,7 @@
  * if two ticks overlap.
  */
 
-import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { adminDb } from '../lib/firebaseAdmin'
 import {
   listPendingDueReminders,
   markReminderFailed,
@@ -77,8 +75,8 @@ function shouldSendNotification(
 
 async function loadUserContact(uid: string): Promise<UserContact> {
   try {
-    const snap = await getDoc(doc(db, 'users', uid))
-    if (!snap.exists())
+    const snap = await adminDb.doc(`users/${uid}`).get()
+    if (!snap.exists)
       return { email: null, phone: null, name: null, notificationPrefs: null }
     const data = snap.data() as Record<string, unknown>
     const email = (data.email as string | undefined) ?? null

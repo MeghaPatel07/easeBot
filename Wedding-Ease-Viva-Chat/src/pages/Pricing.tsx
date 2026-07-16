@@ -106,13 +106,13 @@ const COMPARISON_DATA: ComparisonGroup[] = [
     heading: 'Voice & Vision',
     rows: [
       { feature: 'Voice TTS + STT', free: true, pro: true, promax: 'Priority queue' },
-      { feature: 'Vision / photo upload', free: true, pro: true, promax: true },
+      // { feature: 'Vision / photo upload', free: true, pro: true, promax: true },
     ],
   },
   {
     heading: 'Image Generation',
     rows: [
-      { feature: 'AI image generation', free: true, pro: true, promax: true },
+      // { feature: 'AI image generation', free: true, pro: true, promax: true },
       { feature: 'Watermark-free images', free: false, pro: true, promax: true },
     ],
   },

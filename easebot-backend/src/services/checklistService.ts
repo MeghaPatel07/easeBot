@@ -1,8 +1,5 @@
-import {
-  collection, doc, setDoc, updateDoc, deleteDoc,
-  getDocs, getDoc, serverTimestamp,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { FieldValue } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 
 export interface ChecklistItem {
   id: string
@@ -27,11 +24,11 @@ export interface ChecklistStats {
 }
 
 function checklistsCol(userId: string) {
-  return collection(db, 'users', userId, 'checklists')
+  return adminDb.collection(`users/${userId}/checklists`)
 }
 
 function checklistRef(userId: string, checklistId: string) {
-  return doc(db, 'users', userId, 'checklists', checklistId)
+  return adminDb.doc(`users/${userId}/checklists/${checklistId}`)
 }
 
 export async function createChecklist(
@@ -46,9 +43,9 @@ export async function createChecklist(
     completed: false,
     vendorRef: null,
   }))
-  const now = serverTimestamp()
+  const now = FieldValue.serverTimestamp()
   const data: any = { id, userId, title, items, createdAt: now, updatedAt: now }
-  await setDoc(checklistRef(userId, id), data)
+  await checklistRef(userId, id).set(data)
   return { ...data, createdAt: null, updatedAt: null } as Checklist
 }
 
@@ -75,11 +72,11 @@ async function resolveChecklist(
   const q = (idOrTitle || '').trim()
   if (q) {
     // Fast path — exact id lookup first.
-    const byId = await getDoc(checklistRef(userId, q))
-    if (byId.exists()) return { id: byId.id, data: byId.data() as Checklist }
+    const byId = await checklistRef(userId, q).get()
+    if (byId.exists) return { id: byId.id, data: byId.data() as Checklist }
   }
 
-  const all = await getDocs(checklistsCol(userId))
+  const all = await checklistsCol(userId).get()
   if (all.empty) return null
 
   if (q) {
@@ -160,8 +157,34 @@ export async function editChecklistItem(
   const nextItems = items.map(item =>
     item.id === target.id ? { ...item, text: newText } : item,
   )
-  await updateDoc(checklistRef(userId, resolved.id), { items: nextItems, updatedAt: serverTimestamp() })
+  await checklistRef(userId, resolved.id).update({ items: nextItems, updatedAt: FieldValue.serverTimestamp() })
   return { checklistId: resolved.id, itemId: target.id, checklistTitle: resolved.data.title }
+}
+
+/**
+ * Append a brand-new item to an existing checklist. Distinct from
+ * editChecklistItem, which only ever overwrites an EXISTING item's text —
+ * calling that for "add one more item" silently mutates an unrelated item
+ * instead of growing the list (LH: user asked to add item 11, editChecklistItem
+ * fuzzy-matched an existing item and appended the new text onto it instead).
+ */
+export async function addChecklistItem(
+  userId: string,
+  checklistIdOrTitle: string,
+  itemText: string,
+): Promise<{ checklistId: string; itemId: string; checklistTitle: string }> {
+  const resolved = await resolveChecklist(userId, checklistIdOrTitle)
+  if (!resolved) throw new Error(`Checklist not found: "${checklistIdOrTitle}"`)
+  const items = resolved.data.items || []
+  const newItem: ChecklistItem = {
+    id: crypto.randomUUID(),
+    text: itemText,
+    completed: false,
+    vendorRef: null,
+  }
+  const nextItems = [...items, newItem]
+  await checklistRef(userId, resolved.id).update({ items: nextItems, updatedAt: FieldValue.serverTimestamp() })
+  return { checklistId: resolved.id, itemId: newItem.id, checklistTitle: resolved.data.title }
 }
 
 /**
@@ -184,26 +207,26 @@ export async function toggleItemDone(
     completed = !item.completed
     return { ...item, completed }
   })
-  await updateDoc(checklistRef(userId, resolved.id), { items: nextItems, updatedAt: serverTimestamp() })
+  await checklistRef(userId, resolved.id).update({ items: nextItems, updatedAt: FieldValue.serverTimestamp() })
   return { completed, checklistId: resolved.id, itemId: target.id, checklistTitle: resolved.data.title, itemText: target.text }
 }
 
 export async function deleteChecklist(userId: string, checklistId: string): Promise<void> {
-  await deleteDoc(checklistRef(userId, checklistId))
+  await checklistRef(userId, checklistId).delete()
 }
 
 export async function getChecklistCount(userId: string): Promise<number> {
-  const snap = await getDocs(checklistsCol(userId))
+  const snap = await checklistsCol(userId).get()
   return snap.size
 }
 
 export async function countChecklists(userId: string): Promise<number> {
-  const snap = await getDocs(checklistsCol(userId))
+  const snap = await checklistsCol(userId).get()
   return snap.size
 }
 
 export async function getChecklistStats(userId: string): Promise<ChecklistStats> {
-  const snap = await getDocs(checklistsCol(userId))
+  const snap = await checklistsCol(userId).get()
   let todo = 0
   let completed = 0
   snap.docs.forEach(d => {

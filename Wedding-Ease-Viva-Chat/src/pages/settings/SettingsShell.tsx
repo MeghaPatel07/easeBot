@@ -18,7 +18,7 @@
 // bg-muted / text-foreground/90 / accent tokens — no hard-coded colours.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   User as UserIcon,
   CreditCard,
@@ -103,6 +103,13 @@ interface SettingsShellProps {
 
 export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps) {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  // Signing out while viewing /chat/:threadId must land on a fresh new chat,
+  // not leave the user stuck on the now-inaccessible thread's auth-wall screen.
+  const handleSignOut = useCallback(async () => {
+    await signOut()
+    navigate('/')
+  }, [signOut, navigate])
   const TABS = useMemo(
     () => ALL_TABS.filter(t => !t.authRequired || !!user),
     [user],
@@ -268,7 +275,7 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
             user={user}
             onShowSignIn={onShowSignIn}
             onShowSignUp={onShowSignUp}
-            onSignOut={signOut}
+            onSignOut={handleSignOut}
           />
           <div className="flex-1 min-w-0 overflow-y-auto p-8 bg-transparent">
             <ActiveComponent />
@@ -287,7 +294,7 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
             user={user}
             onShowSignIn={onShowSignIn}
             onShowSignUp={onShowSignUp}
-            onSignOut={signOut}
+            onSignOut={handleSignOut}
           />
           <div className="flex-1 min-w-0 overflow-y-auto p-6 bg-transparent">
             <ActiveComponent />
@@ -310,7 +317,7 @@ export function SettingsShell({ onShowSignIn, onShowSignUp }: SettingsShellProps
               user={user}
               onShowSignIn={onShowSignIn}
               onShowSignUp={onShowSignUp}
-              onSignOut={signOut}
+              onSignOut={handleSignOut}
             />
           ) : (
             <>

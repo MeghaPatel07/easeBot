@@ -5,25 +5,16 @@
  * Sprint 3: real Firestore implementation per
  * .orchestrator/specs/subscription-state.md §3, §6, §7, §8, §9.
  *
- * Client SDK only (no firebase-admin, per sprint guardrail). Tier read path
+ * Uses the Admin SDK (adminDb) — see tokenMeter.ts for why the original
+ * client-SDK-only guardrail was reversed (it broke once a second, properly
+ * locked-down Firestore project came online for local dev). Tier read path
  * stays `users/{uid}.tierMirror`; custom claims are NOT touched.
  *
  * Non-goals: refunds, grace states, dunning retries.
  */
 
-import {
-  doc,
-  runTransaction,
-  Timestamp,
-  getDoc,
-  setDoc,
-  collectionGroup,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { Timestamp, FieldValue } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 import { PRICING } from '../lib/pricing'
 import { resetMonthly } from './tokenMeter'
 import { emit } from '../lib/observability'
@@ -450,12 +441,12 @@ export async function applyTransition(
   payload: SubscriptionTransitionPayload,
 ): Promise<TransitionResult> {
   const transitionId = computeTransitionId(uid, trigger, payload)
-  const currentRef = doc(db, 'users', uid, 'subscription', 'current')
-  const historyRef = doc(db, 'users', uid, 'subscription', 'history_' + transitionId)
+  const currentRef = adminDb.doc(`users/${uid}/subscription/current`)
+  const historyRef = adminDb.doc(`users/${uid}/subscription/history_${transitionId}`)
 
-  const result = await runTransaction(db, async (tx) => {
+  const result = await adminDb.runTransaction(async (tx) => {
     const histSnap = await tx.get(historyRef)
-    if (histSnap.exists()) {
+    if (histSnap.exists) {
       const curSnap = await tx.get(currentRef)
       const cur = (curSnap.data() as SubscriptionDoc | undefined) ?? freshFreeDoc()
       return { applied: false, state: cur.state, next: cur, prev: cur }
@@ -506,14 +497,12 @@ export async function applyTransition(
       })
     }
     try {
-      const userRef = doc(db, 'users', uid)
-      const userSnap = await getDoc(userRef)
-      if (userSnap.exists()) {
-        const { updateDoc, serverTimestamp } = await import('firebase/firestore')
-        await updateDoc(userRef, { tierMirror: nextTier, tierUpdatedAt: serverTimestamp() })
+      const userRef = adminDb.doc(`users/${uid}`)
+      const userSnap = await userRef.get()
+      if (userSnap.exists) {
+        await userRef.update({ tierMirror: nextTier, tierUpdatedAt: FieldValue.serverTimestamp() })
       } else {
-        const { setDoc, serverTimestamp } = await import('firebase/firestore')
-        await setDoc(userRef, { tierMirror: nextTier, tierUpdatedAt: serverTimestamp() }, { merge: true })
+        await userRef.set({ tierMirror: nextTier, tierUpdatedAt: FieldValue.serverTimestamp() }, { merge: true })
       }
     } catch (err) {
       console.error('[stateMachine] tierMirror flip failed', { uid, err })
@@ -608,8 +597,8 @@ export async function queueSyntheticInvoice(args: SyntheticInvoiceArgs): Promise
   let buyer: { firstname?: string; email?: string } | undefined
   let billingAddress: Record<string, unknown> | undefined
   try {
-    const userSnap = await getDoc(doc(db, 'users', args.uid))
-    if (userSnap.exists()) {
+    const userSnap = await adminDb.doc(`users/${args.uid}`).get()
+    if (userSnap.exists) {
       const u = userSnap.data() as Record<string, unknown>
       const email = typeof u.email === 'string' ? u.email : undefined
       const name =
@@ -625,7 +614,7 @@ export async function queueSyntheticInvoice(args: SyntheticInvoiceArgs): Promise
     console.warn('[stateMachine] synthetic invoice user lookup failed', { uid: args.uid, err })
   }
 
-  await setDoc(doc(db, 'payments', args.txnid), {
+  await adminDb.doc(`payments/${args.txnid}`).set({
     txnid: args.txnid,
     uid: args.uid,
     plan: args.plan,
@@ -639,9 +628,9 @@ export async function queueSyntheticInvoice(args: SyntheticInvoiceArgs): Promise
     synthetic: true,
     ...(buyer ? { buyer } : {}),
     ...(billingAddress ? { billingAddress } : {}),
-    createdAt: serverTimestamp(),
-    paidAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
+    paidAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   })
   await queueInvoice({ jobId: args.txnid, kind: 'render_invoice', invoiceId: args.txnid, uid: args.uid })
 }
@@ -651,8 +640,8 @@ export async function queueSyntheticInvoice(args: SyntheticInvoiceArgs): Promise
 // ---------------------------------------------------------------------------
 
 export async function readSubscription(uid: string): Promise<SubscriptionDoc> {
-  const snap = await getDoc(doc(db, 'users', uid, 'subscription', 'current'))
-  return snap.exists() ? (snap.data() as SubscriptionDoc) : freshFreeDoc()
+  const snap = await adminDb.doc(`users/${uid}/subscription/current`).get()
+  return snap.exists ? (snap.data() as SubscriptionDoc) : freshFreeDoc()
 }
 
 // ---------------------------------------------------------------------------
@@ -668,9 +657,9 @@ export async function scanForPeriodEnd(): Promise<number> {
   //   fields: state ASC, currentPeriodEnd ASC
   try {
     const nowTs = Timestamp.now()
-    const q = query(
-      collectionGroup(db, 'subscription'),
-      where('state', 'in', [
+    const snap = await adminDb
+      .collectionGroup('subscription')
+      .where('state', 'in', [
         // Active paid plans whose period elapsed without a manual re-payment.
         // There is no auto-renewal / SI mandate, so a lapsed period == expiry.
         'pro_monthly',
@@ -680,10 +669,9 @@ export async function scanForPeriodEnd(): Promise<number> {
         // Cancel- or downgrade-scheduled plans flip at period end.
         'pro_cancel_scheduled',
         'promax_cancel_scheduled',
-      ]),
-      where('currentPeriodEnd', '<=', nowTs),
-    )
-    const snap = await getDocs(q)
+      ])
+      .where('currentPeriodEnd', '<=', nowTs)
+      .get()
     let ticked = 0
     for (const d of snap.docs) {
       // path = users/{uid}/subscription/current

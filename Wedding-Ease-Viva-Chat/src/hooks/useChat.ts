@@ -144,6 +144,13 @@ function toolActionsToMessageAttachments(
     out.push(att)
   }
   for (const a of actions) {
+    // Defense-in-depth: never render an attachment chip for a tool call that
+    // didn't actually succeed, even if some id field ends up populated. The
+    // backend no longer echoes unresolved args as ids on failure, but this
+    // guard means a future regression there degrades silently (no chip)
+    // instead of showing a misleading "Deleted X" badge for an artifact that
+    // was never really touched.
+    if (a.ok === false) continue
     switch (a.tool) {
       case 'create_checklist':
         if (a.checklistId) {
@@ -156,6 +163,7 @@ function toolActionsToMessageAttachments(
         }
         break
       case 'edit_checklist_item':
+      case 'add_checklist_item':
       case 'mark_as_done':
         if (a.checklistId) {
           push({ kind: 'checklist', id: a.checklistId, title: a.checklistTitle || 'Checklist' })
@@ -163,6 +171,7 @@ function toolActionsToMessageAttachments(
         break
       case 'create_note':
       case 'append_to_note':
+      case 'edit_note':
         if (a.noteId) {
           push({ kind: 'note', id: a.noteId, title: a.noteTitle || 'Note' })
         }
@@ -691,7 +700,7 @@ export function useChat(): UseChatResult {
       if (user && finalMeta.toolActions?.length) {
         const touchedChecklistIds = new Set<string>()
         for (const a of finalMeta.toolActions as Array<{ tool?: string; checklistId?: string }>) {
-          if ((a.tool === 'edit_checklist_item' || a.tool === 'mark_as_done') && a.checklistId) {
+          if ((a.tool === 'edit_checklist_item' || a.tool === 'add_checklist_item' || a.tool === 'mark_as_done') && a.checklistId) {
             touchedChecklistIds.add(a.checklistId)
           }
         }
@@ -762,8 +771,14 @@ export function useChat(): UseChatResult {
           case 'append_to_note':
             if (a.noteId) track('ai_note_appended', { note_id: a.noteId })
             break
+          case 'edit_note':
+            if (a.noteId) track('ai_note_edited', { note_id: a.noteId })
+            break
           case 'edit_checklist_item':
             if (a.checklistId) track('ai_checklist_item_edited', { checklist_id: a.checklistId })
+            break
+          case 'add_checklist_item':
+            if (a.checklistId) track('ai_checklist_item_added', { checklist_id: a.checklistId })
             break
           case 'mark_as_done':
             if (a.checklistId) track('ai_checklist_item_marked_done', { checklist_id: a.checklistId })

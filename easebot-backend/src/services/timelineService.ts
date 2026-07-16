@@ -1,18 +1,16 @@
-import {
-  collection, doc, setDoc, serverTimestamp,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { FieldValue } from 'firebase-admin/firestore'
+import { adminDb } from '../lib/firebaseAdmin'
 
 // ---------------------------------------------------------------------------
 // Collection helpers
 // ---------------------------------------------------------------------------
 
 function timelineEventsCol() {
-  return collection(db, 'timelineEvents')
+  return adminDb.collection('timelineEvents')
 }
 
 function timelineEventRef(eventId: string) {
-  return doc(db, 'timelineEvents', eventId)
+  return adminDb.doc(`timelineEvents/${eventId}`)
 }
 
 // ---------------------------------------------------------------------------
@@ -32,7 +30,7 @@ export async function createTimelineEvent(
   data: CreateTimelineEventInput,
 ): Promise<any> {
   const id = crypto.randomUUID()
-  const now = serverTimestamp()
+  const now = FieldValue.serverTimestamp()
   const eventData: any = {
     id,
     title: data.title,
@@ -46,7 +44,7 @@ export async function createTimelineEvent(
     isDeleted: false,
     source: 'chat',
   }
-  await setDoc(timelineEventRef(id), eventData)
+  await timelineEventRef(id).set(eventData)
   return { ...eventData, createdAt: null, updatedAt: null }
 }
 

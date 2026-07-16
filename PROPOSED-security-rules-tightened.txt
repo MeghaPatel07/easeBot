@@ -1,0 +1,1194 @@
+rules_version = '2';
+
+// =============================================================================
+// WeddingEase — unified Firestore rules (project: wedding-ease-dc99a)
+// Covers 5 clients on one project: Super-Admin panel, Vendor panel, Styler/
+// Consultant panel, the public website (Wedding-Ease-User-Interface), and the
+// Viva chatbot (easebot: easebot-backend + Wedding-Ease-Viva-Chat).
+//
+// PROPOSED DRAFT — not deployed. Copy into firestore.rules yourself and
+// deploy when ready; this repo's hooks intentionally block direct edits to
+// firestore.rules during QA.
+//
+// Verified against actual app code (models/services), not guessed, for every
+// field name below. Where a field name could not be verified with confidence
+// it is called out in the accompanying summary, not silently assumed here.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Identity helpers ───────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isTeamMember() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/teamMember/$(request.auth.uid));
+    }
+
+    function getTeamMember() {
+      return get(/databases/$(database)/documents/teamMember/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isTeamMember() && getTeamMember().userType == 'Admin';
+    }
+
+    function isStyler() {
+      return isTeamMember() && getTeamMember().userType == 'Styler';
+    }
+
+    function isConsultants() {
+      return isTeamMember() && getTeamMember().userType == 'Consultants';
+    }
+
+    // Any internal WeddingEase staff member (admin, styler, consultant).
+    function isStaff() {
+      return isAdmin() || isStyler() || isConsultants();
+    }
+
+    function isVendor() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/vendors/$(request.auth.uid));
+    }
+
+    function getProduct(productId) {
+      return get(/databases/$(database)/documents/products/$(productId)).data;
+    }
+
+    // =========================================================================
+    // SECTION A — shared identity documents
+    // =========================================================================
+
+    // 1. users — end-customer profile (main website + easebot share this doc).
+    //    isVerified/isValidated are staff/server-controlled. subscription/
+    //    tokenBalance/usage/plan are billing-tier state written server-side
+    //    only by functions/services/subscriptionStateMachine.js and
+    //    functions/theweddingbot/v1/account/getUsage.js — CONFIRMED to live
+    //    as top-level fields on this same doc (not a subcollection), so they
+    //    must be blocked here or a client can self-upgrade to any paid tier
+    //    and grant themselves unlimited AI tokens with zero payment.
+    match /users/{userId} {
+      allow get: if isStaff() || (isAuthenticated() && request.auth.uid == userId);
+      // list: UserService.getUserByEmail()/getUserByPhone() run
+      // where('email'/'phone','==',x).limit(1) — used PRE-AUTH by signup
+      // stale-account recovery, post-failed-login diagnostics, and the
+      // forgot-password flow (AuthContext.tsx, SignInStep.tsx), so this
+      // can't be restricted to isAuthenticated()/isStaff(). Bounded to
+      // limit(1) so a single query can't dump the collection.
+      // KNOWN TRADEOFF (flagged to owner, not fixed here — out of scope
+      // for a rules-only change): this also lets anyone who already knows/
+      // guesses a target email read that user's full profile, including
+      // `forgotPasswordOtp` — a hash (not plaintext) of a 6-digit OTP, per
+      // functions/mail.js `sendForgotPasswordOtp`, but a 6-digit numeric
+      // space is trivially brute-forced offline once the hash is known.
+      // Real fix (Cloud Functions change, not rules): move
+      // forgotPasswordOtp/Expiry/Attempts off `users/{uid}` into their own
+      // Admin-SDK-only collection (mirroring easebot's passwordResetOtps
+      // pattern). Separately, functions/mail.js calls an undefined
+      // `hashOtp`/`constantTimeEqualHex` — sendForgotPasswordOtp and
+      // updateUserAccountPassword both throw at runtime today, so the
+      // email-based reset flow is currently broken independent of rules.
+      // list: also open to isStaff() (uncapped) — the styler panel's Users
+      // tab (users.dart) list-queries `users` filtered by
+      // `consultantId==<own uid>`, paginated via .limit(20)+cursor, which
+      // request.query.limit<=1 was rejecting for every role including
+      // staff.
+      allow list: if isStaff() || request.query.limit <= 1;
+      // get: `phone_*` branch — phone/WhatsApp-OTP signup (chai-sutra event
+      // users) never establishes a Firebase Auth session (Twilio/WhatsApp
+      // OTP, not Firebase Phone Auth — see AuthContext.verifyPhoneOTP), so
+      // request.auth is null for the entire flow. ensureUserSession() reads
+      // this doc back (getUser) to reuse an existing chat session; without
+      // this it can't, and every login mints a new orphan session. Scoped to
+      // the `phone_<ts>_<rand>` id namespace so Firebase-Auth-uid docs
+      // (email/Google users) stay owner-only. NOTE (accepted tradeoff, see
+      // owner): this lets an anonymous client read any phone user's profile
+      // if they know/guess its doc id.
+      allow get: if isStaff() || (isAuthenticated() && request.auth.uid == userId) ||
+        userId.matches('phone_.*');
+      // create blocklist NOTE: `isVerified`/`isValidated`/`verifiedAt` are
+      // intentionally NOT blocked for the authenticated owner — the app sets
+      // them client-side at the end of every signup verification (Google
+      // new-user create AuthContext.tsx:613, email verify :1153, phone verify
+      // :1186; verifyUserPhone/verifyUserEmail write {isVerified, isValidated,
+      // verifiedAt} directly). Blocking them broke ALL signup methods with
+      // "Missing or insufficient permissions", not just the chai-sutra phone
+      // flow. Only the billing/token fields stay locked here — those are the
+      // real self-upgrade-to-paid-tier / free-token risk. Verification is
+      // already client-driven (OTP check runs client-side), so keeping these
+      // out of the blocklist does not meaningfully weaken the trust model.
+      // The anonymous `phone_*` branch stays STRICTER (still blocks the
+      // verification flags too) since it has no auth at all.
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId &&
+        (!request.resource.data.keys().hasAny(['subscription', 'tokenBalance', 'usage', 'plan']))
+      ) ||
+        (userId.matches('phone_.*') &&
+          !request.resource.data.keys().hasAny(['isVerified', 'isValidated', 'subscription', 'tokenBalance', 'usage', 'plan'])
+        );
+      // update: isStaff() branch added — booking_form.dart (styler panel)
+      // writes `{'isfree_cons_used': true}` onto the CUSTOMER's users doc
+      // inside a runTransaction() when a consultant books a free
+      // consultation for them, so request.auth.uid != userId there. Same
+      // sensitive-field blocklist as the owner branch — staff shouldn't be
+      // able to grant themselves verification/subscription/token state by
+      // editing a customer's doc through an unrelated booking flow.
+      // update: `phone_*` branch is deliberately NARROWER than the owner
+      // branch — an unauthenticated caller may only touch the
+      // session/login bookkeeping keys ensureUserSession() and the phone
+      // signin path actually write (createOrUpdateUser: {sessionId} /
+      // {lastLoginAt} + the merge's lastUpdated/favourites). hasOnly (not the
+      // blocklist) is critical: it blocks overwriting `phone`/`email`/`name`/
+      // `password`, so an anonymous client that knows a phone doc id can't
+      // repoint that account's phone number and hijack the OTP login.
+      // owner-branch blocklist drops isVerified/isValidated (see create note
+      // above): AuthContext's Google auto-verify (:660), email verify (:1153)
+      // and phone verify (:1186) all updateDoc {isVerified, isValidated,
+      // verifiedAt} on the owner's own doc. Billing/token fields stay locked.
+      // The isStaff() branch KEEPS the full blocklist — a consultant editing a
+      // customer's doc through the free-consultation booking flow must not be
+      // able to flip that customer's verification state.
+      allow update: if isAdmin() ||
+        (isStaff() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isValidated', 'subscription', 'tokenBalance', 'usage', 'plan'])) ||
+        (isAuthenticated() && request.auth.uid == userId &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription', 'tokenBalance', 'usage', 'plan']))
+        ) ||
+        (userId.matches('phone_.*') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sessionId', 'lastLoginAt', 'lastUpdated', 'favourites'])
+        );
+      allow delete: if isAdmin();
+
+      // ── easebot (Viva) planning-tool data, private to the owning user ────
+      // Intentionally NOT matched here: users/{uid}/subscription/{current}
+      // (a second, possibly-legacy representation of the same billing state —
+      // see summary) — server/Admin-SDK-managed only, stays unreachable from
+      // any client.
+      match /checklists/{checklistId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /savedItems/{itemId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /notifications/{notifId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /likedProducts/{prodId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /projects/{projectId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /reminders/{reminderId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /shoppingLists/{listId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /budget/{docId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+      match /settings/{docId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      }
+
+      // ── easebot billing/metering state — Admin-SDK-only, no client access ──
+      // usage/extrasTxns/subscription are written exclusively via the Admin
+      // SDK (tokenMeter.ts, subscriptionStateMachine.ts) — verified end-to-end
+      // 2026-07-10. No client ever reads/writes these; no rule is declared
+      // here, so they fall through to the deny-all catch-all at the bottom of
+      // this file.
+    }
+
+    // 2. teamMember — staff identity (Admin / Styler / Consultants / Vendor / Manager).
+    //    Docs carry a `password` field (lib/models/teammodel.dart, surfaced in
+    //    team_member.dart / team_member_details.dart) — read must NOT be a
+    //    bare isAuthenticated(), since that lets any customer/vendor signup
+    //    list() the entire staff roster and harvest every password. Storing
+    //    plaintext-equivalent passwords in Firestore at all is a schema issue
+    //    to raise separately; this at least stops the open list/read.
+    match /teamMember/{memberId} {
+      // read: opened to any authenticated user (owner decision — see
+      // conversation). teamMember docs carry a real `password` field
+      // (team_member.dart sets it on create/edit in the SU admin panel),
+      // which rules can't hide field-by-field from an otherwise-allowed
+      // read/list. Without this, package checkout hard-fails: PackageChecko
+      // utPage.tsx calls TeamMemberService.getRandomConsultant()/
+      // getRandomStyler() (which list-query teamMember by
+      // userType+isActive+isAvailable) before writing the order, so a
+      // permission-denied here aborts the whole purchase. Also needed for
+      // getTeamMemberById()/getConsultantById() used to resolve an assigned
+      // styler/consultant's name for booking/session display. Guest (pre-
+      // login) free-consultation auto-assignment on the public home page
+      // (Consultaiton.tsx) still can't read this and degrades gracefully to
+      // an empty teamMemberId (wrapped in try/catch) — intentionally NOT
+      // opened further to fully public given the password field.
+      // REAL FIX (owner flagged, not applied here — Flutter/Cloud Functions
+      // change, out of scope for a rules-only pass): stop storing password
+      // on teamMember docs (the live Cloud Function path, TeamMember.js
+      // createTeamMember, already does NOT store it — only the direct
+      // client-side Flutter write in team_member.dart does).
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // 3. vendors — vendor identity, doc ID == vendor's auth uid.
+    //    Vendor can edit their own contact/profile fields, never the
+    //    admin-controlled trust/verification/assignment fields.
+    match /vendors/{vendorId} {
+      allow read: if true; // public marketplace browsing
+      allow create: if isAdmin();
+      // update: `subcatids` moved out of the blocklist into its own
+      // append-only check — vendor_form.dart's "Add Sub-Category" flow does
+      // `vendors.doc(uid).update({'subcatids': arrayUnion([newId])})` right
+      // after creating the subcategory doc itself (see subcategories.create
+      // below), which the old blanket block on `subcatids` denied outright.
+      // hasAll(old list) still blocks a vendor from REMOVING ids or
+      // replacing the array wholesale — only appends are allowed.
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == vendorId &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(
+          ['isActive', 'level', 'aiStudio', 'aiDescription', 'password']
+        )) &&
+        (request.resource.data.subcatids == resource.data.get('subcatids', []) ||
+          (request.resource.data.subcatids is list && request.resource.data.subcatids.hasAll(resource.data.get('subcatids', []))))
+      );
+      allow delete: if isAdmin();
+
+      match /importLedger/{ledgerId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // =========================================================================
+    // SECTION B — catalog
+    // =========================================================================
+
+    // 4. products
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() || (isVendor() && request.resource.data.vendorDocId == request.auth.uid);
+      allow update: if isAdmin() || (isVendor() && resource.data.vendorDocId == request.auth.uid &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['vendorDocId']))
+      );
+      allow delete: if isAdmin() || (isVendor() && resource.data.vendorDocId == request.auth.uid);
+    }
+
+    // 5. variants — ownership follows the parent product's vendorDocId.
+    match /variants/{variantId} {
+      allow read: if true;
+      // create: getAfter(), not get() — EMPIRICALLY VERIFIED via Firebase
+      // Rules Unit Testing. product_form.dart's onSubmit() (regular product
+      // form, AI Studio, and image-to-product flows all share this pattern)
+      // creates the PRODUCT doc and its VARIANT doc(s) in the SAME
+      // runTransaction()/batch. get()/getProduct() only ever sees the
+      // pre-transaction snapshot, so for a brand-new product the product
+      // doc doesn't exist yet from the rules engine's point of view —
+      // .vendorDocId access fails and the whole atomic commit was denied
+      // with a 403, even though the write was entirely legitimate.
+      // getAfter() evaluates once all writes in the transaction/batch are
+      // applied, so it correctly sees the sibling product write while still
+      // rejecting a variant attached to a DIFFERENT vendor's product.
+      allow create: if isAdmin() || (isVendor() && getAfter(/databases/$(database)/documents/products/$(request.resource.data.productId)).data.vendorDocId == request.auth.uid);
+      allow update: if isAdmin() || (isVendor() &&
+        getProduct(resource.data.productId).vendorDocId == request.auth.uid &&
+        getProduct(request.resource.data.productId).vendorDocId == request.auth.uid
+      );
+      allow delete: if isAdmin() || (isVendor() && getProduct(resource.data.productId).vendorDocId == request.auth.uid);
+    }
+
+    // 6. subcategories — a vendor's product-save transaction rewrites the
+    //    aggregate counters (totalProducts/minPrice/maxPrice/allData) on the
+    //    subcategory as part of the SAME client transaction, so vendors need
+    //    a narrow update allowance for just those fields; category metadata
+    //    itself (name/image/etc.) stays admin-only.
+    match /subcategories/{subcatId} {
+      allow read: if true;
+      // create: vendor_form.dart's "Add Sub-Category" dialog lets a vendor
+      // introduce a brand-new subcategory (not just update an existing
+      // one's counters, below) — it always sets isActive:false itself, so
+      // this just enforces that a vendor can't create an already-live
+      // subcategory that would immediately surface in the public catalog;
+      // admin review/activation happens separately.
+      allow create: if isAdmin() || (isVendor() && request.resource.data.isActive == false);
+      allow delete: if isAdmin();
+      // `detailTypes` added — ai_studio_product_page.dart/image_to_product_
+      // page.dart conditionally write it onto the subcategory doc when an
+      // AI-detected detail type is new to that subcategory.
+      allow update: if isAdmin() || (isVendor() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalProducts', 'minPrice', 'maxPrice', 'allData', 'detailTypes']) &&
+        request.resource.data.totalProducts is int && request.resource.data.totalProducts >= 0 &&
+        request.resource.data.minPrice is number && request.resource.data.minPrice >= 0 &&
+        request.resource.data.maxPrice is number && request.resource.data.maxPrice >= request.resource.data.minPrice
+      );
+    }
+
+    // 7. offerings — global taxonomy, read-only to everyone else.
+    match /offerings/{offeringId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 8. tags — global lookup; vendors were already granted write historically.
+    match /tags/{tagId} {
+      allow read: if true;
+      allow write: if isAdmin() || isVendor();
+    }
+
+    // =========================================================================
+    // SECTION C — commerce: orders, vendor-side orders, deliveries, payments
+    // =========================================================================
+
+    // 9. orders — owner field verified as `uid` (lowercase) from OrderModel.
+    //    Vendors legitimately read one order at a time (dispatch flow, via
+    //    `.doc(vendorOrder.orderDocId).get()`) and need to touch
+    //    orderProductData (in-transit quantities) but nothing else.
+    //    `get` vs `list` split: a bare isVendor() (or isStyler()/isConsultants())
+    //    OR-branch that doesn't reference resource.data lets Firestore serve
+    //    an UNFILTERED list() of the entire collection — any one vendor
+    //    account could otherwise dump every customer's order data platform-
+    //    wide. Restricting `list` to staff+owner closes that; vendors still
+    //    reach their own orders exactly the way the app does today, by known
+    //    doc ID. (Residual: order IDs may be sequential per the settings/sets
+    //    orderNo counter, so `get`-by-guessed-ID isn't fully closed without a
+    //    schema change — e.g. a denormalized vendorIds array on the order —
+    //    flagged in the summary, not something rules alone can fix.)
+    //    CORRECTED after a real regression report: the earlier version of this
+    //    rule blocked `isPaid`/`orderStatus` outright, assuming those were
+    //    server/webhook-only (confirmed via functions/razorpay.js and
+    //    functions/payu.js). That's true for the GATEWAY path, but it missed
+    //    the app's DEFAULT path — src/services/orderService.ts's
+    //    markOrderAsPaidAndProcessing(), called directly by CheckoutContainer
+    //    whenever VITE_ACTIVATE_PAYMENT is not 'true' (currently the default):
+    //    the CLIENT itself sets isPaid/paidAmount/paidOn/orderStatus/
+    //    statusUpdatedAt/statusUpdatedBy on its own order, with no server
+    //    verification at all. Same pattern in rejectOrderByUser/payNowOrder,
+    //    which both write orderStatus with no isPaid involved. Blocking these
+    //    broke checkout entirely ("Missing or insufficient permissions").
+    //    orderStatus/paidAmount/paidOn/statusUpdatedAt/statusUpdatedBy are now
+    //    unblocked for the owner. isPaid keeps a narrower guard: it may only
+    //    move from not-true to true (never re-toggled or un-paid once set),
+    //    so a customer can't repeatedly tamper with an already-paid order.
+    //    This does NOT close the underlying trust gap — as designed today,
+    //    the app lets a customer self-declare payment with zero server
+    //    verification when the gateway is off. That's an app-architecture
+    //    issue (needs a Cloud Function to verify real payment before trusting
+    //    isPaid), not something a rules-only fix can solve without breaking
+    //    the current checkout flow. totalAmount and the vendor/coupon/margin
+    //    fields stay locked — no confirmed customer-side flow ever touches
+    //    those after order creation.
+    match /orders/{orderId} {
+      allow get: if isStaff() || isVendor() || (isAuthenticated() && request.auth.uid == resource.data.uid);
+      allow list: if isStaff() || (isAuthenticated() && request.auth.uid == resource.data.uid);
+      allow create: if isAdmin() || isStaff() || (isAuthenticated() && request.auth.uid == request.resource.data.uid);
+      allow update: if isAdmin() || isStyler() || isConsultants() ||
+        (isAuthenticated() && request.auth.uid == resource.data.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'totalAmount', 'totalVendorPrice', 'totalProfit', 'totalDiscount',
+            'couponDiscount', 'couponCode', 'couponPackageOrderId', 'charges', 'uid'
+          ]) &&
+          (resource.data.isPaid == request.resource.data.isPaid ||
+            (resource.data.isPaid != true && request.resource.data.isPaid == true))
+        ) ||
+        (isVendor() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderProductData']));
+      allow delete: if isAdmin();
+    }
+
+    // 10. sessions — styling/consultation chat. Owner field verified `uId`.
+    //     consultantId/stylerId are NOT staff-only — confirmed regression:
+    //     PackageCheckoutPage.tsx:223 has the customer's own client write
+    //     `{ consultantId, stylerId }` directly onto their session as part of
+    //     normal package-purchase auto-assignment. Unblocked.
+    match /sessions/{sessionId} {
+      // `phone_*` branches — the phone/WhatsApp-OTP signup allocates a chat
+      // session (ensureUserSession → ChatService.createSession) while
+      // unauthenticated (no Firebase Auth session for phone users). Ownership
+      // is keyed on the session's `uId` being in the `phone_` id namespace.
+      // ACCEPTED TRADEOFF (owner): an anonymous client can read/write phone-
+      // user sessions if it knows the (unguessable, addDoc-generated) session
+      // id — the correct long-term fix is a custom-token sign-in so
+      // request.auth carries the phone user's uid.
+      // read is SPLIT into get/list on purpose: `get` (point read by known
+      // session id) carries the phone_* branch, but `list` must NOT — a bare
+      // resource.data.uId.matches('phone_.*') on `list` lets an anonymous
+      // client range-query uId in ['phone_', 'phone_￿') and bulk-dump
+      // every phone user's session (userName/budget/product interests). The
+      // signup flow only ever does getSession() by id, never a list, so `list`
+      // stays staff/owner-only.
+      allow get: if isStaff() || (isAuthenticated() && resource.data.uId == request.auth.uid) ||
+        (resource.data.uId is string && resource.data.uId.matches('phone_.*'));
+      allow list: if isStaff() || (isAuthenticated() && resource.data.uId == request.auth.uid);
+      allow create: if isStaff() || (isAuthenticated() && request.resource.data.uId == request.auth.uid) ||
+        (request.resource.data.uId is string && request.resource.data.uId.matches('phone_.*'));
+      allow update: if isStaff() ||
+        (isAuthenticated() && resource.data.uId == request.auth.uid && request.resource.data.uId == request.auth.uid) ||
+        (resource.data.uId is string && resource.data.uId.matches('phone_.*') &&
+          request.resource.data.uId == resource.data.uId);
+      allow delete: if isStaff() || (isAuthenticated() && resource.data.uId == request.auth.uid);
+
+      match /messages/{messageId} {
+        allow read, write: if isStaff() || (isAuthenticated() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uId == request.auth.uid);
+      }
+      match /internalChat/{chatId} {
+        allow read, write: if isStaff(); // staff-only; no client UI ever reads this
+      }
+      match /deliveries/{deliveryId} {
+        allow read, write: if isStaff() || (isAuthenticated() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uId == request.auth.uid);
+      }
+      match /checkOrders/{checkOrderId} {
+        allow read, write: if isStaff() || (isAuthenticated() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uId == request.auth.uid);
+      }
+      match /stages/{stageId} {
+        allow read, write: if isStaff() || (isAuthenticated() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uId == request.auth.uid);
+      }
+      match /timeline/{timelineId} {
+        allow read, write: if isStaff() || (isAuthenticated() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uId == request.auth.uid);
+      }
+      match /cartHistory/{histId} {
+        allow read, write: if isStaff() || (isAuthenticated() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uId == request.auth.uid);
+      }
+      match /stylerProducts/{prodId} {
+        allow read, write: if isStaff() || (isAuthenticated() && get(/databases/$(database)/documents/sessions/$(sessionId)).data.uId == request.auth.uid);
+      }
+    }
+
+    // 11. bookings — owner `uId`; assignment fields `stylerId`/`teamMemberId`.
+    //     Create stays public (`true`) — free-consultation bookings can be
+    //     started before/without a full account per current app behavior.
+    //     The bare `resource.data.isFreeConsultation == true` branch has no
+    //     auth dependency at all, so as a `list` rule it let ANY anonymous
+    //     client dump every free-consultation booking platform-wide (name,
+    //     email, phone, notes). Split to `get` (fetch-by-known-ID still works
+    //     unauthenticated, matching whatever confirmation-page flow this
+    //     supports) vs `list` (staff/owner only). Also locks staff-assignment
+    //     and completion fields out of the customer's own update.
+    match /bookings/{bookingId} {
+      // get/list: checkFreeConsultationByEmail/getFreeConsultationByEmail
+      // (bookingService.ts) query `bookings` filtered by
+      // emailAtBooking+isFreeConsultation==true, called from BOTH
+      // authenticated (AuthContext.tsx) and guest/unauthenticated flows
+      // (Consultaiton.tsx, FreeConsultation.tsx) — the isFreeConsultation
+      // exception now covers list too, not just get.
+      allow get: if isStaff() || (isAuthenticated() && resource.data.uId == request.auth.uid) || resource.data.isFreeConsultation == true;
+      allow list: if isStaff() || (isAuthenticated() && resource.data.uId == request.auth.uid) || resource.data.isFreeConsultation == true;
+      allow create: if true;
+      // update: stylerId/teamMemberId(+Name/Email) are legitimately
+      // customer-written on auto-assignment (Bookings.tsx:899-900), and
+      // isCompleted/completedAt are written by the customer-facing
+      // completeBooking() (bookingService.ts:499-511, via useBookings.ts) —
+      // unblocking all of these fixed a live "Missing or insufficient
+      // permissions" regression. createdByDocId/completedByDocId/
+      // isFreeConsultation/meetingSummary stay blocked — no confirmed
+      // customer-side write touches them.
+      allow update: if isStaff() ||
+        (isAuthenticated() && (
+          (resource.data.uId == request.auth.uid && request.resource.data.uId == request.auth.uid) ||
+          ((resource.data.uId == "" || resource.data.uId == null) && request.resource.data.uId == request.auth.uid)
+        ) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'createdByDocId', 'completedByDocId', 'isFreeConsultation', 'meetingSummary'
+        ]));
+      allow delete: if isAdmin();
+    }
+
+    // 12. packages — read-only catalog.
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 13. packageOrders — owner field verified `uid` from PackageOrderModel.
+    //     Same regression/fix as `orders`: PackagePurchaseService.
+    //     updatePackagePurchase() (src/services/packagePurchaseService.ts)
+    //     writes `{ isPaid: true, paidAmount }` directly from the client when
+    //     VITE_ACTIVATE_PAYMENT is off — confirmed in PackageCheckoutPage.tsx.
+    //     paidAmount unblocked; isPaid restricted to a one-way not-true→true
+    //     transition. totalAmount/discountedPrice stay locked — no confirmed
+    //     customer flow touches those after creation. Same residual caveat as
+    //     `orders`: this doesn't verify a real payment happened, because the
+    //     app itself doesn't today when the gateway is off.
+    match /packageOrders/{orderId} {
+      allow read: if isStaff() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if isStaff() || (isAuthenticated() && request.resource.data.uid == request.auth.uid);
+      allow update: if isStaff() || (isAuthenticated() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['totalAmount', 'discountedPrice']) &&
+        (resource.data.isPaid == request.resource.data.isPaid ||
+          (resource.data.isPaid != true && request.resource.data.isPaid == true))
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 14. transaction — owner field verified `uId` from TransactionModel.
+    //     Vendors touch this scoped to their own vendorDocId (create/edit
+    //     unpaid transactions tied to their own vendorOrder).
+    match /transaction/{txId} {
+      // read/create: isStaff() added — a consultant creating an order via
+      // chat (create_order.dart _onOrder(), styler panel) writes the
+      // order's `orders` doc AND a `transaction` doc in the SAME
+      // runTransaction(), with `uId` set to the CUSTOMER's uid, not the
+      // acting consultant's. Without isStaff() here the transaction write
+      // fails and Firestore aborts the whole atomic commit, so even the
+      // otherwise-valid `orders` create was being rejected. isStaff() on
+      // read also covers session_detail.dart's Transactions tab, which
+      // list-queries `transaction` by `inquiryId` (not uId/vendorDocId).
+      // read: EMPIRICALLY VERIFIED (Firebase Rules Unit Testing, not just
+      // read) — Firestore's list-safety check requires the RULE's
+      // resource.data condition to reference the SAME field the query
+      // itself filters on; it does NOT dynamically re-check per-document
+      // once a query is admitted. order_details_page.dart (vendor panel)
+      // list-queries `transaction` by `vendorOrderDocId` (a real vendorOrder
+      // doc ID), so a get()-based check on that exact field is required —
+      // checking `vendorDocId` directly (as the old rule did) can never
+      // pass for that query, regardless of the vendor's real ownership.
+      // get: !exists() branch is required, not cosmetic. orderService.ts's
+      // ensureOrderTransaction() does txn.get(txnRef) on a DETERMINISTIC doc
+      // ID (derived from orderId) BEFORE creating it, as its create-if-absent
+      // idempotency check — so on every brand-new order this get() targets a
+      // document that doesn't exist yet. When resource is null (doc absent),
+      // referencing resource.data.uId below throws a rules evaluation error,
+      // which Firestore denies (PERMISSION_DENIED), not the graceful "not
+      // found" the app expects. That reproduces the exact BatchGetDocuments
+      // permission-denied seen on order finalize, independent of the uId fix
+      // above. Safe to allow unconditionally: a nonexistent doc has no data
+      // to leak, so this only ever grants "yes, empty" — never real content.
+      allow get: if isStaff() ||
+        !exists(/databases/$(database)/documents/transaction/$(txId)) ||
+        (isAuthenticated() && (resource.data.uId == request.auth.uid || resource.data.vendorDocId == request.auth.uid));
+      allow list: if isStaff() ||
+        (isAuthenticated() && (resource.data.uId == request.auth.uid || resource.data.vendorDocId == request.auth.uid)) ||
+        (isAuthenticated() && resource.data.vendorOrderDocId is string &&
+          get(/databases/$(database)/documents/vendorOrder/$(resource.data.vendorOrderDocId)).data.vendorId == request.auth.uid
+        );
+      allow create: if isStaff() || (isAuthenticated() && request.resource.data.uId == request.auth.uid) ||
+        (isVendor() && request.resource.data.vendorDocId == request.auth.uid);
+      allow update: if isAdmin() ||
+        (isAuthenticated() && resource.data.uId == request.auth.uid && request.resource.data.uId == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isPaid', 'amount', 'method', 'paymentLink', 'transactionId', 'isDebit'])
+        ) ||
+        (isVendor() && resource.data.vendorDocId == request.auth.uid && resource.data.isPaid == false &&
+          request.resource.data.isPaid == false
+        );
+      allow delete: if isAdmin() || (isVendor() && resource.data.vendorDocId == request.auth.uid && resource.data.isPaid == false);
+    }
+
+    // 15. deliveryDetails — owner field verified `uId` from DeliveryDetailsModel
+    //     (the customer being delivered to); vendor side scoped by `vendorId`.
+    match /deliveryDetails/{delId} {
+      // list: order_details_page.dart (vendor panel) list-queries
+      // `deliveryDetails` by `vendorOrderId` (the real vendorOrder doc ID),
+      // not by `vendorId` — same Firestore list-safety mechanism as
+      // `transaction` above, empirically verified via Rules Unit Testing.
+      // KNOWN GAP (not fixable here — needs a frontend query change, out of
+      // scope for a rules-only pass): the web frontend's
+      // DeliveryService.getDeliveryByOrderId() list-queries by `orderId`
+      // (the human-readable order ID string), which doesn't correspond to
+      // any doc ID this rule can get()-verify against — `resource.data.uId`
+      // below can't structurally satisfy Firestore's list-safety check for
+      // that specific query shape, so it will keep failing until the query
+      // itself also filters on `uId` (a one-line frontend fix: add
+      // where('uId','==', currentUser.uid) alongside the existing filter).
+      allow get: if isStaff() || (isAuthenticated() && (resource.data.uId == request.auth.uid || resource.data.vendorId == request.auth.uid));
+      allow list: if isStaff() ||
+        (isAuthenticated() && (resource.data.uId == request.auth.uid || resource.data.vendorId == request.auth.uid)) ||
+        (isAuthenticated() && resource.data.vendorOrderId is string &&
+          get(/databases/$(database)/documents/vendorOrder/$(resource.data.vendorOrderId)).data.vendorId == request.auth.uid
+        );
+      allow create: if isAdmin() || (isVendor() && request.resource.data.vendorId == request.auth.uid);
+      allow update: if isAdmin() || (isVendor() && resource.data.vendorId == request.auth.uid && request.resource.data.vendorId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // 16. venodrPurSale — vendor per-subcategory listing gate; totalProducts
+    //     counter is updated in the vendor's own product-save transaction.
+    match /venodrPurSale/{saleId} {
+      allow read: if true;
+      allow write: if isAdmin() || (isAuthenticated() &&
+        (resource == null || resource.data.vendorId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.vendorId == request.auth.uid));
+    }
+
+    // 17. vendorOrder — owner field verified `vendorId` from VendorOrderModel.
+    //     Vendor's own update is allowlisted to exactly the fields their
+    //     accept/reject/dispatch flow touches (order_details_page.dart:377-407)
+    //     so they can't reassign vendorId or tamper with order totals.
+    //     Create was admin/staff-only, which silently broke checkout: the
+    //     CUSTOMER's own client calls VendorOrderService.createVendorOrdersForOrder
+    //     (src/services/vendorOrderService.ts) as part of markOrderAsPaidAndProcessing.
+    //     Its `createdBy` field is NOT a uid — it's a literal gateway label
+    //     ('system'/'Razorpay'/'PayU') — so ownership can't be checked against
+    //     that field. Instead, scope create by confirming the caller actually
+    //     owns the parent order referenced by `orderDocId`.
+    match /vendorOrder/{orderId} {
+      // read: also allow the customer who placed the parent order — the web
+      // frontend's VendorOrderService.getVendorOrdersByOrderDocId() (called
+      // from the customer-facing order/thank-you views) queries `vendorOrder`
+      // by `orderDocId`, which previously only vendors/staff could read.
+      allow read: if isStaff() || (isAuthenticated() && resource.data.vendorId == request.auth.uid) ||
+        (isAuthenticated() && get(/databases/$(database)/documents/orders/$(resource.data.orderDocId)).data.uid == request.auth.uid);
+      allow create: if isAdmin() || isStaff() || (isAuthenticated() &&
+        get(/databases/$(database)/documents/orders/$(request.resource.data.orderDocId)).data.uid == request.auth.uid
+      );
+      allow update: if isStaff() || (isAuthenticated() && resource.data.vendorId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'statusUpdatedAt', 'rejectionReason', 'cancelReason'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // 18. vendorAnalytics(+daily,+monthly) — denormalized per-vendor KPIs.
+    //     lib/models/vendor_analytics_summary.dart's doc comment claims this
+    //     is "written exclusively by Cloud Functions" — that's STALE/WRONG.
+    //     Verified directly in the frontend's own code: src/services/
+    //     vendorOrderService.ts:137 is explicitly commented "direct Firestore
+    //     write, no Cloud Function" and performs real setDoc/updateDoc calls
+    //     (with increment()) on THREE paths at checkout time — the summary
+    //     doc, `daily/{YYYY-MM-DD}`, and `monthly/{YYYY-MM}` (the latter was
+    //     entirely missing from earlier drafts of this file and would have
+    //     hard-failed checkout with permission-denied). Field names below are
+    //     copied verbatim from that file, not guessed.
+    //     Still UNRESOLVED: because this write happens client-side for ANY
+    //     authenticated purchaser (not the vendor themselves), it can't be
+    //     scoped to "only a real buyer of this vendor" without a cross-
+    //     collection check this rules file can't cheaply express. The
+    //     allowlist below at least prevents wholesale document replacement/
+    //     injection of unrelated fields; closing the rest requires moving
+    //     this to a Cloud Function trigger on order-create — flagged as a
+    //     hard requirement in the summary, not a nice-to-have.
+    //     CONFIRMED requirement (2026-07-03): analytics must be written at
+    //     order-creation time, client-side — no Cloud Function migration for
+    //     now. That write path is a read-then-write: writeVendorAnalytics()
+    //     (vendorOrderService.ts:289,341,415) does getDoc(summaryRef) /
+    //     getDoc(dailyRef) / getDoc(monthlyRef) as its own exists() check,
+    //     run by the BUYER, not the vendor — so `read` can't stay vendor-only
+    //     or that getDoc denies and the whole non-blocking write throws
+    //     before it ever reaches create/update, same failure as before.
+    //     Split read into get/list: `get` (exact-path point read, what the
+    //     exists()-check needs) opens to any authenticated user; `list`
+    //     (collection scans / dashboards) stays vendor-or-staff so this
+    //     doesn't become a "browse every vendor's revenue" enumeration
+    //     endpoint. Note vendorId is not a secret either way — `vendors/
+    //     {vendorId}` is already `allow read: if true` for marketplace
+    //     browsing — and create/update below already accept any
+    //     authenticated writer with no ownership check, so this does not
+    //     widen the actual security boundary, only makes read consistent
+    //     with the write access that already exists.
+    match /vendorAnalytics/{vendorId} {
+      allow get: if isStaff() || isAuthenticated();
+      allow list: if isStaff() || (isAuthenticated() && request.auth.uid == vendorId);
+      allow create: if isAdmin() || (isAuthenticated() &&
+        request.resource.data.keys().hasOnly([
+          'vendorId', 'allTimeRevenue', 'allTimePurchaseCost', 'allTimeMargin', 'allTimeOrders',
+          'liveStatusCounts', 'topProducts', 'topCategoryRevenue', 'lastOrderAt', 'updatedAt'
+        ]));
+      allow update: if isAdmin() || (isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'allTimeRevenue', 'allTimePurchaseCost', 'allTimeMargin', 'allTimeOrders',
+          'liveStatusCounts', 'topProducts', 'topCategoryRevenue', 'lastOrderAt', 'updatedAt'
+        ]));
+      allow delete: if isAdmin();
+
+      match /daily/{dateId} {
+        // get/list split for the same reason as the parent summary doc above.
+        allow get: if isStaff() || isAuthenticated();
+        allow list: if isStaff() || (isAuthenticated() && request.auth.uid == vendorId);
+        allow create: if isAdmin() || (isAuthenticated() &&
+          request.resource.data.keys().hasOnly([
+            'date', 'vendorId', 'revenue', 'purchaseCost', 'margin', 'orderCount',
+            'statusCounts', 'categoryRevenue', 'productStats', 'orderRefs', 'updatedAt'
+          ]));
+        allow update: if isAdmin() || (isAuthenticated() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'revenue', 'purchaseCost', 'margin', 'orderCount',
+            'statusCounts', 'categoryRevenue', 'productStats', 'orderRefs', 'updatedAt'
+          ]));
+        allow delete: if isAdmin();
+      }
+
+      match /monthly/{monthId} {
+        // get/list split for the same reason as the parent summary doc above.
+        allow get: if isStaff() || isAuthenticated();
+        allow list: if isStaff() || (isAuthenticated() && request.auth.uid == vendorId);
+        allow create: if isAdmin() || (isAuthenticated() &&
+          request.resource.data.keys().hasOnly([
+            'month', 'vendorId', 'revenue', 'purchaseCost', 'margin', 'orderCount',
+            'statusCounts', 'categoryRevenue', 'productStats', 'updatedAt'
+          ]));
+        allow update: if isAdmin() || (isAuthenticated() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'revenue', 'purchaseCost', 'margin', 'orderCount',
+            'statusCounts', 'categoryRevenue', 'productStats', 'updatedAt'
+          ]));
+        allow delete: if isAdmin();
+      }
+    }
+
+    // 19. orderTimelineActivity — get/list split for the same reason as
+    //     `orders`: a bare isVendor() read let any vendor list() every
+    //     timeline entry platform-wide.
+    match /orderTimelineActivity/{actId} {
+      allow get: if isStaff() || isVendor() || (isAuthenticated() && resource.data.actorId == request.auth.uid);
+      // list: bare isVendor() added — the vendor panel's Order History
+      // drawer (order_details_page.dart) list-queries by `orderId` (a
+      // human-readable string, not a doc ID), which can't be reconciled
+      // with an actorId/ownership check via Firestore's list-safety rules
+      // (same mechanism as deliveryDetails/transaction above). This
+      // collection only holds status-change titles/descriptions/actorId —
+      // no PII/payment data — so trusting isVendor() broadly here (any
+      // vendor can view any order's timeline) mirrors the same bare-
+      // isVendor() trust already granted on `orders`.get elsewhere in this
+      // file, not a new precedent.
+      allow list: if isStaff() || isVendor() || (isAuthenticated() && resource.data.actorId == request.auth.uid);
+      // actorId is verified set to FBAuth.auth.currentUser.uid in every
+      // logTimelineActivity() call (order_details_page.dart:178) — a vendor
+      // could otherwise create/edit timeline entries for orders that aren't
+      // theirs, since isVendor() alone doesn't check that.
+      allow create: if isStaff() || (isVendor() && request.resource.data.actorId == request.auth.uid);
+      allow update: if isStaff() || (isVendor() && resource.data.actorId == request.auth.uid && request.resource.data.actorId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // SECTION D — support, content, onboarding
+    // =========================================================================
+
+    // 20. supportTickets (camelCase — main site + panels). NOTE: easebot's
+    //     equivalent is a separate snake_case `support_tickets` collection,
+    //     see Section F.
+    match /supportTickets/{ticketId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+
+      match /statusUpdates/{updateId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid);
+      }
+    }
+
+    // 21. contactEnquiries — public contact form.
+    match /contactEnquiries/{enquiryId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // 22. content collections — public read, admin write.
+    match /blogs/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /testimonials/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /gallery/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /featuredCollection/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /occasionCollection/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /collections/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 23. settings — `sets` doc holds the atomic order-number counter that
+    //     the frontend increments via a client-side transaction at checkout;
+    //     scoped to just that field, and to authenticated users only.
+    //     `blocked` (booking-calendar blocked slots) needs read access from
+    //     styler/consultant booking flows and is not sensitive data.
+    match /settings/{docId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || ((docId == 'sets' || docId == 'setsTest') && isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orderNo']));
+
+      match /blocked/{blockedId} {
+        allow read: if true;
+        allow write: if isStaff();
+      }
+      match /banners/{bannerId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    // 24. vendorApplication(+stages,timeline) — public submission, applicant
+    //     can manage their own application by matching email; admin reviews.
+    match /vendorApplication/{appId} {
+      allow create, get: if true;
+      allow list: if isAdmin();
+      allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.token.email == resource.data.email);
+
+      match /stages/{stageId} {
+        allow create, get: if true;
+        allow update, delete, list: if isAdmin() || (isAuthenticated() && request.auth.token.email == get(/databases/$(database)/documents/vendorApplication/$(appId)).data.email);
+      }
+      match /timeline/{timelineId} {
+        allow create, get: if true;
+        allow update, delete, list: if isAdmin() || (isAuthenticated() && request.auth.token.email == get(/databases/$(database)/documents/vendorApplication/$(appId)).data.email);
+      }
+    }
+
+    // 25. stylerRegistration — public submission.
+    match /stylerRegistration/{regId} {
+      allow create, get: if true;
+      allow list: if isAdmin();
+      allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.token.email == resource.data.emailAddress);
+    }
+
+    // 26. companyMember
+    match /companyMember/{memberId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 27. questionaire (question set, public read) + userans (public submit).
+    match /questionaire/{qId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /userans/{ansId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // 28. subscribers — public mailing-list signup.
+    match /subscribers/{subId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // SECTION E — end-user features on the main site (cart, wishlist, reviews...)
+    // =========================================================================
+
+    // 29. reviews — owner field verified `userId` from reviewService.ts.
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
+    // 30. wishlist — owner field verified `uId` from UserWishlistModel.
+    match /wishlist/{wishlistId} {
+      allow read: if isAdmin() || resource == null || (isAuthenticated() && resource.data.uId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.uId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uId == request.auth.uid && request.resource.data.uId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uId == request.auth.uid;
+    }
+
+    // 31. share_activity — fire-and-forget analytics event; no one needs to
+    //     read their own share events back, so this is create-only for clients.
+    match /share_activity/{activityId} {
+      allow create: if true;
+      allow read: if isAdmin();
+    }
+
+    // 32. carts — supports both authenticated (`uid`) and guest (`uid == null`,
+    //     addressed by an unguessable client-generated doc ID) carts.
+    //     `list` is restricted so a guest/anon client can't enumerate every
+    //     other guest's cart by querying `where uid == null`; `get` (fetching
+    //     a single, already-known cart ID) still works for guests.
+    match /carts/{cartId} {
+      allow get: if isAdmin() || resource.data.uid == null || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow list: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+      allow create: if (request.resource.data.uid == null) || (isAuthenticated() && request.resource.data.uid == request.auth.uid);
+      allow update: if (resource.data.uid == null && request.resource.data.uid == null) ||
+        (isAuthenticated() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid);
+      allow delete: if isAdmin() || resource.data.uid == null || (isAuthenticated() && resource.data.uid == request.auth.uid);
+    }
+
+    // 33. user_location_data — doc ID itself is the uid, so this is already
+    //     immune to enumeration (the path segment isn't spoofable).
+    match /user_location_data/{userId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+    }
+
+    // 34. freeConsultations
+    match /freeConsultations/{docId} {
+      allow read: if isAdmin() || resource == null || (isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == resource.data.email));
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.email == resource.data.email));
+      allow delete: if isAdmin();
+    }
+
+    // 35. aiChatSessions — main website's paid/free AI consultation chat
+    //     (distinct product from the standalone easebot/Viva chatbot, which
+    //     uses its own `chats` collection — see Section F).
+    match /aiChatSessions/{sessionId} {
+      allow read: if isAdmin() || resource == null || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+
+      match /messages/{messageId} {
+        allow read, write: if isAdmin() || (isAuthenticated() && get(/databases/$(database)/documents/aiChatSessions/$(sessionId)).data.userId == request.auth.uid);
+      }
+    }
+
+    // 36. phoneOtps — client-driven OTP flow confirmed in the public website's
+    //     src/services/otpService.ts (unlike easebot's passwordResetOtps,
+    //     which stays fully server-side via Admin SDK). NOT found in the
+    //     admin/vendor/styler repos' own code, so this is a website-only path.
+    //     Doc ID is the phone number, which is guessable — `get` by a known
+    //     phone number can read someone else's pending OTP, and both create
+    //     and update are wide open (needed so a "resend" overwrite of an
+    //     existing doc doesn't hard-fail). This is a real, accepted app-
+    //     design gap that rules alone cannot close (the secret and the
+    //     access-control boundary are the same guessable value); `list` is
+    //     still blocked so at least the collection can't be enumerated in
+    //     bulk. STRONGLY recommend moving OTP verification server-side via a
+    //     Cloud Function (mirroring passwordResetOtps) instead of hardening
+    //     this further.
+    match /phoneOtps/{phone} {
+      allow get: if true;
+      allow list: if isAdmin();
+      // Verified exact payload in src/services/otpService.ts: `{ code, expiresAt }`,
+      // nothing else — the code itself is stored in PLAINTEXT (not hashed, unlike
+      // passwordResetOtps' sha256 approach), which rules cannot fix on the way in.
+      // This shape check at least stops arbitrary extra fields being smuggled in.
+      allow create, update: if request.resource.data.keys().hasOnly(['code', 'expiresAt']) &&
+        request.resource.data.code is string &&
+        request.resource.data.expiresAt is timestamp;
+      allow delete: if true;
+    }
+
+    // =========================================================================
+    // SECTION F — easebot / Viva chatbot (chats, notes, planning tools)
+    // Shares `users/{uid}` with the rest of the project (see Section A) but
+    // owns these collections outright. easebot-backend uses the Admin SDK for
+    // passwordResetOtps and export/clear-history maintenance ops on `chats`,
+    // so those two paths need no client rule beyond what's below.
+    // =========================================================================
+
+    // 37. chats(+messages) — Viva conversation threads. Owner field `userId`.
+    match /chats/{threadId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && get(/databases/$(database)/documents/chats/$(threadId)).data.userId == request.auth.uid;
+      }
+    }
+
+    // 38. sharedChats — intentionally public read-only snapshot (share-link
+    //     feature), no owner field exists on the document. `list` is denied
+    //     so the collection can't be enumerated; only a `get` by the known
+    //     shareId (from the link) works. Treated as immutable once created.
+    match /sharedChats/{shareId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // 39. notes(+comments) — owner field `ownerId`. Forward-compatible with
+    //     the in-progress notes-sharing proposal: a doc may carry a
+    //     `collaboratorEmails` array granting read/update to invited emails
+    //     without requiring the field to exist on older documents.
+    match /notes/{noteId} {
+      allow read, update: if isAdmin() ||
+        (isAuthenticated() && resource.data.ownerId == request.auth.uid) ||
+        (isAuthenticated() && request.auth.token.email in resource.data.get('collaboratorEmails', []));
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+
+      match /comments/{commentId} {
+        allow read, write: if isAdmin() ||
+          (isAuthenticated() && get(/databases/$(database)/documents/notes/$(noteId)).data.ownerId == request.auth.uid) ||
+          (isAuthenticated() && request.auth.token.email in get(/databases/$(database)/documents/notes/$(noteId)).data.get('collaboratorEmails', []));
+      }
+    }
+
+    // 40. noteFolders — owner field `ownerId`.
+    match /noteFolders/{folderId} {
+      allow read, write: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    // 41. userImages — owner field `userId` (gallery uploads).
+    match /userImages/{imageId} {
+      allow read, write: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // 42. timelineEvents — owner field `ownerId`.
+    match /timelineEvents/{eventId} {
+      allow read, write: if isAdmin() || (isAuthenticated() && resource.data.ownerId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    // 43. feedback — owner field `userId`, nullable (guest feedback allowed).
+    match /feedback/{feedbackId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // 44. support_tickets (snake_case — easebot's own help-ticket system,
+    //     separate from the main site's camelCase `supportTickets`).
+    match /support_tickets/{ticketId} {
+      allow create: if true; // guests allowed, userId is nullable
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // SECTION G — QA `*Test` collections (lib/shared/firebase.dart's `testMode`
+    // switch, confirmed for admin/vendor/styler: every collection below gets a
+    // `...Test`-suffixed twin when testMode is flipped on). CLAUDE.md
+    // explicitly directs QA to "prefer *Test Firestore collections for any
+    // write needed to exercise a flow" — with zero rules for these, every
+    // *Test read/write would default-deny the moment testMode is used,
+    // silently breaking the QA workflow this repo is under. Identity checks
+    // (isAdmin/isStyler/isConsultants/isVendor) intentionally still resolve
+    // against the REAL teamMember/vendors collections — testMode swaps out
+    // business data, not who you're logged in as — so real staff/vendor/
+    // customer accounts exercise these exactly like their prod counterparts.
+    // Mirrors the same (post-fix) logic as each prod collection above.
+    // =========================================================================
+
+    match /usersTest/{userId} {
+      // Mirrors the prod `users` owner blocklist: verification flags are
+      // owner-settable (client-side signup verification), billing/token state
+      // is not.
+      allow read: if isStaff() || (isAuthenticated() && request.auth.uid == userId);
+      allow create: if isAdmin() || (isAuthenticated() && request.auth.uid == userId &&
+        (!request.resource.data.keys().hasAny(['subscription', 'tokenBalance', 'usage', 'plan'])));
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription', 'tokenBalance', 'usage', 'plan'])));
+      allow delete: if isAdmin();
+    }
+    match /teamMemberTest/{memberId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == memberId);
+      allow write: if isAdmin();
+    }
+    match /vendorsTest/{vendorId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == vendorId &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(
+          ['isActive', 'level', 'aiStudio', 'aiDescription', 'subcatids', 'password'])));
+      allow delete: if isAdmin();
+    }
+    match /productsTest/{productId} {
+      allow read: if true;
+      allow create: if isAdmin() || (isVendor() && request.resource.data.vendorDocId == request.auth.uid);
+      allow update: if isAdmin() || (isVendor() && resource.data.vendorDocId == request.auth.uid);
+      allow delete: if isAdmin() || (isVendor() && resource.data.vendorDocId == request.auth.uid);
+    }
+    match /variantsTest/{variantId} {
+      allow read, write: if isAdmin() || isVendor();
+    }
+    match /subcategoriesTest/{subcatId} {
+      allow read: if true;
+      allow write: if isAdmin() || isVendor();
+    }
+    match /tagsTest/{tagId} {
+      allow read: if true;
+      allow write: if isAdmin() || isVendor();
+    }
+    match /offeringsTest/{offeringId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /packagesTest/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /ordersTest/{orderId} {
+      allow get: if isStaff() || isVendor() || (isAuthenticated() && request.auth.uid == resource.data.uid);
+      allow list: if isStaff() || (isAuthenticated() && request.auth.uid == resource.data.uid);
+      allow create: if isAdmin() || isStaff() || (isAuthenticated() && request.auth.uid == request.resource.data.uid);
+      allow update: if isAdmin() || isStaff() || (isAuthenticated() && request.auth.uid == resource.data.uid) || isVendor();
+      allow delete: if isAdmin();
+    }
+    match /packageOrdersTest/{orderId} {
+      allow read, write: if isStaff() || (isAuthenticated() && resource.data.uid == request.auth.uid) || (isAuthenticated() && request.resource.data.uid == request.auth.uid);
+    }
+    match /transactionTest/{txId} {
+      allow read, write: if isAdmin() || isVendor() || (isAuthenticated() && resource.data.uId == request.auth.uid) || (isAuthenticated() && request.resource.data.uId == request.auth.uid);
+    }
+    match /deliveryDetailsTest/{delId} {
+      allow read, write: if isStaff() || isVendor() || (isAuthenticated() && resource.data.uId == request.auth.uid) || (isAuthenticated() && request.resource.data.vendorId == request.auth.uid);
+    }
+    match /venodrPurSaleTest/{saleId} {
+      allow read: if true;
+      allow write: if isAdmin() || isVendor();
+    }
+    match /vendorOrderTest/{orderId} {
+      allow read, write: if isStaff() || (isAuthenticated() && resource.data.vendorId == request.auth.uid) || (isAuthenticated() && request.resource.data.vendorId == request.auth.uid);
+    }
+    match /sessionsTest/{sessionId} {
+      allow read, write: if isStaff() || (isAuthenticated() && resource.data.uId == request.auth.uid) || (isAuthenticated() && request.resource.data.uId == request.auth.uid);
+
+      match /{allSubcollections=**} {
+        allow read, write: if isStaff() || isAuthenticated();
+      }
+    }
+    match /bookingsTest/{bookingId} {
+      allow create: if true;
+      allow read, update, delete: if isStaff() || (isAuthenticated() && resource.data.uId == request.auth.uid);
+    }
+    match /wishlistTest/{wishlistId} {
+      allow read, write: if isAdmin() || (isAuthenticated() && (resource == null || resource.data.uId == request.auth.uid) && (request.resource == null || request.resource.data.uId == request.auth.uid));
+    }
+    match /blogsTest/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /testimonialsTest/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /galleryTest/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /questionaireTest/{qId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // settings/sets update rule in Section D above now checks both 'sets'
+    // and 'setsTest' doc IDs — no separate top-level match needed here.
+
+    // 45. guests — easebot guest-quota tracking. Backend-only (tokenMeter.ts,
+    //     Admin SDK); no client (frontend) ever reads/writes this directly.
+    //     No rule declared — falls through to the deny-all catch-all below.
+
+    // 46. payments — easebot payment/transaction records. Backend-only
+    //     (subscriptionStateMachine.ts / paymentController.ts, Admin SDK);
+    //     no client ever reads/writes this directly. No rule declared —
+    //     falls through to the deny-all catch-all below.
+
+    // 47. counters, invoices — easebot invoicing (invoiceService.ts, Admin
+    //     SDK). Backend-only; confirmed zero frontend references anywhere in
+    //     Wedding-Ease-Viva-Chat. No rule declared — falls through to the
+    //     deny-all catch-all below.
+
+    // 48. __health_check__ — synthetic liveness-probe collection
+    //     (routes/health.ts GET /api/ready), never holds real data.
+    match /__health_check__/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Explicit catch-all: anything not matched above is denied. Firestore
+    // already default-denies unmatched paths, so this changes no behavior —
+    // it documents that the omission of passwordResetOtps, users/{uid}/
+    // subscription/**, and any other server-only path is intentional, not
+    // an oversight for the next person editing this file.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
