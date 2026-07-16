@@ -1,8 +1,4 @@
-/**
- * Gemini TTS Service
- * Calls Gemini 2.5 Flash TTS REST API and returns a WAV audio Buffer.
- * PCM response (24kHz, mono, 16-bit) is wrapped with a WAV header.
- */
+
 
 const GEMINI_TTS_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent'
 
