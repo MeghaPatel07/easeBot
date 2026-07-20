@@ -49,7 +49,7 @@ function searchItemToProduct(item: SearchItem): ProductResult {
     currency: 'INR',
     vendor: '',
     tags: [],
-    productUrl: `https://migration-testshiv97.web.app/product-detail/${productDocId}`,
+    productUrl: `https://weddingease.ai/product-detail/${productDocId}`,
     imageUrl: item.image_url ?? '',
     rating: 0,
   }
