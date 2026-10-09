@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Star, Loader2 } from 'lucide-react'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { api } from '@/services/apiClient'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { PRICING } from '@/config/pricing'
@@ -136,16 +135,15 @@ export default function Help() {
 
     setSubmitting(true)
     try {
-      await addDoc(collection(db, 'support_tickets'), {
-        userId: user?.uid ?? null,
-        userEmail: isLoggedIn ? profile!.email : guestEmail.trim(),
-        userName: isLoggedIn ? profile!.name : guestName.trim(),
-        category,
-        subject: subject.trim(),
-        description: description.trim(),
-        rating: category === 'feedback' ? rating : null,
-        status: 'open',
-        createdAt: serverTimestamp(),
+      await api('/support-tickets', {
+        json: {
+          userEmail: isLoggedIn ? profile!.email : guestEmail.trim(),
+          userName: isLoggedIn ? profile!.name : guestName.trim(),
+          category,
+          subject: subject.trim(),
+          description: description.trim(),
+          rating: category === 'feedback' ? rating : null,
+        },
       })
 
       toast({

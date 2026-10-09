@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Mail, Phone, CheckCircle, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react'
-import { doc, onSnapshot } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,7 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
-import { mapAuthError } from '@/services/authService'
+import { mapAuthError, isEmailVerified } from '@/services/authService'
 import PhoneInput, { toE164, isValidPhone, type PhoneInputValue } from './PhoneInput'
 import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH, type PasswordIssue } from '@/utils/passwordPolicy'
 import { track } from '@/lib/analytics'
@@ -107,6 +105,7 @@ function PasswordStrengthMeter({ password }: { password: string }) {
 export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, initialEmail }: Props) {
   const {
     signUp,
+    signIn,
     signInWithGoogle,
     signUpPhone,
     sendPhoneOtpWhatsApp,
@@ -178,13 +177,17 @@ export default function SignUpModal({ open, onOpenChange, onSwitchToSignIn, init
   // flips the Firestore flag, advance to success automatically (authflow.md §1 Step D).
   useEffect(() => {
     if (emailStep !== 'verifying' || verifyMethod !== 'email' || !signupUser) return
-    const unsub = onSnapshot(doc(db, 'users', signupUser.uid), (snap) => {
-      const data = snap.data() as { isVerified?: boolean; isValidated?: boolean } | undefined
-      if (data && (data.isVerified === true || data.isValidated === true)) {
-        setEmailStep('success')
-        setTimeout(() => { onOpenChange(false); reset() }, 1800)
-      }
-    })
+    // The emailed link is opened elsewhere; poll the server until the account flips to verified, then sign in.
+    let stopped = false
+    const timer = window.setInterval(async () => {
+      if (stopped || !(await isEmailVerified(signupUser.uid))) return
+      stopped = true
+      window.clearInterval(timer)
+      try { await signIn(signupUser.email, signupUser.password) } catch { /* the user can sign in manually */ }
+      setEmailStep('success')
+      setTimeout(() => { onOpenChange(false); reset() }, 1800)
+    }, 3000)
+    const unsub = () => { stopped = true; window.clearInterval(timer) }
     return unsub
   }, [emailStep, verifyMethod, signupUser?.uid])  // eslint-disable-line react-hooks/exhaustive-deps
 

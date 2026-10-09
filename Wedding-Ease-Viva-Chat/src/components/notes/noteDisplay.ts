@@ -2,7 +2,7 @@
 // so both the sidebar list and the notes-home gallery render categories and
 // timestamps identically. JSX-returning helpers (highlightMatch, getBodySnippet)
 // stay local to their consumers.
-import type { Timestamp } from 'firebase/firestore';
+import type { Timestamp } from '@/lib/timestamp';
 
 export const CATEGORY_COLORS: Record<string, string> = {
   venue: 'bg-tag-venue/20 text-tag-venue-fg',

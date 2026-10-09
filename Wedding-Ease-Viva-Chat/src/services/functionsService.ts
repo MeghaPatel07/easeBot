@@ -1,10 +1,8 @@
-import { httpsCallable } from 'firebase/functions'
-import { auth, functions } from '@/lib/firebase'
+import { apiUrl, authHeaders, rememberGuestId } from './apiClient'
 import type { ChatFunctionPayload, ChatFunctionResponse, CalendarEvent } from '@/types'
 import { QUOTA_EVENT, type QuotaExceededPayload } from '@/services/accountService'
 // CalendarEvent kept here transitionally — used in StreamDoneEvent below until backend drops the field.
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 export interface ChatQuotaError extends Error {
   code: 'quota_exceeded'
@@ -28,26 +26,14 @@ function makeQuotaError(payload: QuotaExceededPayload): ChatQuotaError {
 
 // ── Backend REST API ──────────────────────────────────────────────────────────
 
-async function getAuthToken(): Promise<string | null> {
-  const user = auth.currentUser
-  if (!user) return null
-  const token = await user.getIdToken()
-  // Expose on window so checklistService can read it for direct PATCH calls
-  ;(window as any).__firebaseToken = token
-  return token
-}
-
 async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
-  const token = await getAuthToken()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(apiUrl(path), {
     method: 'POST',
-    headers,
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
     signal,
   })
+  rememberGuestId(res)
 
   if (res.status === 402) {
     const payload = (await res.json().catch(() => null)) as QuotaExceededPayload | null
@@ -110,30 +96,6 @@ export async function transcribeViaBackend(
   }
 }
 
-// ── Firebase httpsCallable (available, not currently active) ──────────────────
-// To switch: change the active exports at the bottom of this file.
-
-export async function chatViaFunctions(
-  payload: ChatFunctionPayload,
-  _signal?: AbortSignal   // httpsCallable does not support AbortSignal
-): Promise<ChatFunctionResponse> {
-  const fn = httpsCallable<ChatFunctionPayload, ChatFunctionResponse>(functions, 'chat')
-  const result = await fn(payload)
-  return result.data
-}
-
-export async function transcribeViaFunctions(
-  audioBase64: string,
-  _signal?: AbortSignal
-): Promise<{ text: string; detectedLanguage: string }> {
-  const fn = httpsCallable<{ audioBase64: string }, { text: string; detectedLanguage: string }>(
-    functions,
-    'transcribeAudio'
-  )
-  const result = await fn({ audioBase64 })
-  return result.data
-}
-
 // ── Active exports — swap to switch between backends ─────────────────────────
 // Currently: backend REST API (supports AbortSignal / stop generation)
 // To switch to Firebase Functions: replace with chatViaFunctions / transcribeViaFunctions
@@ -183,19 +145,13 @@ export async function* streamChatMessage(
   payload: ChatFunctionPayload,
   signal?: AbortSignal
 ): AsyncGenerator<StreamSSEEvent> {
-  const token = await getAuthToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'Accept': 'text/event-stream',
-  }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const res = await fetch(`${API_BASE}/api/chat/stream`, {
+  const res = await fetch(apiUrl('/api/chat/stream'), {
     method: 'POST',
-    headers,
+    headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream', ...authHeaders() },
     body: JSON.stringify(payload),
     signal,
   })
+  rememberGuestId(res)
 
   if (res.status === 402) {
     const payload = (await res.json().catch(() => null)) as QuotaExceededPayload | null
@@ -244,12 +200,9 @@ export async function* streamChatMessage(
  */
 export async function cancelChatRequest(requestId: string): Promise<void> {
   try {
-    const token = await getAuthToken()
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    await fetch(`${API_BASE}/api/chat/cancel`, {
+    await fetch(apiUrl('/api/chat/cancel'), {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ requestId }),
       keepalive: true,  // allow the request to outlive the page if user navigates
     })

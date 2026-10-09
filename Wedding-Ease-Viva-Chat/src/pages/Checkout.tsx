@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import { onAuthStateChanged, type User } from 'firebase/auth'
+import type { AppUser as User } from '@/services/authService'
+import { getCurrentUser, onAuthChange } from '@/lib/authState'
+import { apiFetch } from '@/services/apiClient'
 import { useQueryClient } from '@tanstack/react-query'
-import { auth } from '@/lib/firebase'
 import {
   initiatePayment,
   autoSubmitToPayu,
@@ -90,7 +91,7 @@ export default function Checkout() {
   // would see auth.currentUser === null and redirect an actually-signed-in
   // user back to signup.
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthChange((u) => {
       setUser(u)
       setAuthReady(true)
       if (u) {
@@ -156,16 +157,9 @@ export default function Checkout() {
   }
 
   const activatePlanDirect = async (billingAddress: BillingAddressInput, firstname: string) => {
-    const user = auth.currentUser
-    if (!user) throw new Error('not_signed_in')
-    const token = await user.getIdToken()
-    const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
-    const res = await fetch(`${apiBase}/api/payment/activate-plan`, {
+    if (!getCurrentUser()) throw new Error('not_signed_in')
+    const res = await apiFetch('/payment/activate-plan', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         plan: state.plan,
         cycle: state.cycle,

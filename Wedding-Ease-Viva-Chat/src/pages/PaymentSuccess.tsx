@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { onAuthChange } from '@/lib/authState'
 import { verifyPayment } from '@/services/paymentService'
 import { track } from '@/lib/analytics'
 
@@ -47,8 +46,6 @@ export default function PaymentSuccess() {
           if (res.state === 'paid' || res.state === 'failed') break
           await new Promise((r) => setTimeout(r, 1000))
         }
-        // Force fresh token so any tier/claim change is visible.
-        if (auth.currentUser) await auth.currentUser.getIdToken(true)
         // Refetch the account query to pick up the updated plan immediately
         await queryClient.refetchQueries({ queryKey: ['account', 'me'] })
         if (!cancelled && res) setInfo(res)
@@ -61,7 +58,7 @@ export default function PaymentSuccess() {
     // auth.currentUser asynchronously from IndexedDB, so we MUST wait for the
     // auth state to hydrate before calling verify. Otherwise authFetch sees
     // currentUser === null and throws 'not_signed_in'.
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthChange((user) => {
       if (cancelled) return
       if (!user) {
         setError('You were signed out during checkout. Please sign in again to view this receipt.')

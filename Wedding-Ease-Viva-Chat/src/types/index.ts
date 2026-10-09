@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore'
+import type { Timestamp } from '@/lib/timestamp'
 
 // Disabled: 'therapist' | 'consultant' removed per EXECUTION_PLAN §0 guardrail #7
 export type Mode =

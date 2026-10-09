@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore'
+import type { Timestamp } from '@/lib/timestamp'
 
 export type NoteCategory = 'venue' | 'catering' | 'decor' | 'attire' | 'guest_list' | 'ceremony' | 'reception' | 'honeymoon' | 'budget' | 'vendor' | 'general'
 

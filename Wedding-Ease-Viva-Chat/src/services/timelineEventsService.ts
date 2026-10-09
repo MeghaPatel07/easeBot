@@ -1,29 +1,12 @@
-import {
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  where,
-  Timestamp,
-  Unsubscribe,
-} from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { apiAll, api, invalidate, liveQuery } from './apiClient'
+import type { Timestamp } from '@/lib/timestamp'
 import type { TimelineEvent } from '@/types'
 
-// Backend writes to a flat `timelineEvents` collection with `ownerId` as the
-// user field. See `easebot-backend/src/services/timelineService.ts`.
-
-function timelineEventsCol() {
-  return collection(db, 'timelineEvents')
-}
-
-function timelineEventDoc(id: string) {
-  return doc(db, 'timelineEvents', id)
-}
+type Unsubscribe = () => void
+const TOPIC = 'timeline'
 
 interface RawTimelineEvent {
-  id?: string
+  id: string
   ownerId?: string
   ownerEmail?: string | null
   title?: string
@@ -36,13 +19,11 @@ interface RawTimelineEvent {
   updatedAt?: Timestamp | null
 }
 
-function tsToDate(ts: Timestamp | null | undefined): Date | null {
-  return ts ? (ts.toDate?.() ?? null) : null
-}
+const tsToDate = (ts: Timestamp | null | undefined): Date | null => (ts ? ts.toDate() : null)
 
-function mapTimelineEvent(id: string, data: RawTimelineEvent): TimelineEvent {
+function mapTimelineEvent(data: RawTimelineEvent): TimelineEvent {
   return {
-    id,
+    id: data.id,
     ownerId: data.ownerId ?? '',
     ownerEmail: data.ownerEmail ?? null,
     title: data.title ?? '',
@@ -56,36 +37,16 @@ function mapTimelineEvent(id: string, data: RawTimelineEvent): TimelineEvent {
   }
 }
 
-/**
- * Subscribe to the current user's timeline events. Degrades gracefully on
- * Firestore permission errors (logs + emits an empty array) so the Timeline
- * tab keeps working even if rules haven't been deployed yet.
- */
-export function subscribeToTimelineEvents(
-  userId: string,
-  callback: (events: TimelineEvent[]) => void,
-): Unsubscribe {
+/** Live list of the signed-in user's (non-deleted) timeline events. */
+export function subscribeToTimelineEvents(userId: string, callback: (events: TimelineEvent[]) => void): Unsubscribe {
   if (!userId) {
     callback([])
     return () => {}
   }
-  const q = query(timelineEventsCol(), where('ownerId', '==', userId))
-  return onSnapshot(
-    q,
-    (snap) => {
-      const events = snap.docs
-        .map((d) => mapTimelineEvent(d.id, d.data() as RawTimelineEvent))
-        .filter((e) => !e.isDeleted)
-      callback(events)
-    },
-    (err) => {
-      console.error('[subscribeToTimelineEvents]', err.message)
-      // Graceful degradation: emit empty list so UI doesn't crash.
-      callback([])
-    },
-  )
+  return liveQuery(TOPIC, async () => (await apiAll<RawTimelineEvent>('/timeline-events')).map(mapTimelineEvent).filter((e) => !e.isDeleted), callback, { onError: () => callback([]) })
 }
 
 export async function deleteTimelineEvent(eventId: string): Promise<void> {
-  await deleteDoc(timelineEventDoc(eventId))
+  await api(`/timeline-events/${eventId}`, { method: 'DELETE' })
+  invalidate(TOPIC)
 }

@@ -1,12 +1,4 @@
-import { auth } from '@/lib/firebase'
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
-
-async function getAuthToken(): Promise<string | null> {
-  const user = auth.currentUser
-  if (!user) return null
-  return user.getIdToken()
-}
+import { apiFetch } from './apiClient'
 
 export interface TTSRequest {
   text: string
@@ -15,20 +7,12 @@ export interface TTSRequest {
 }
 
 /**
- * Calls the backend /api/tts endpoint and returns a blob URL
+ * Calls the backend /tts endpoint and returns a blob URL
  * pointing to the WAV audio. Caller is responsible for calling
  * URL.revokeObjectURL() when done.
  */
 export async function requestTTS(req: TTSRequest): Promise<string> {
-  const token = await getAuthToken()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers['Authorization'] = `Bearer ${token}`
-
-  const res = await fetch(`${API_BASE}/api/tts`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(req),
-  })
+  const res = await apiFetch('/tts', { method: 'POST', body: JSON.stringify(req) })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

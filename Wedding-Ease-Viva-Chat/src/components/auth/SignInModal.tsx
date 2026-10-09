@@ -13,7 +13,6 @@ import {
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { mapAuthError, linkPendingGoogleCredential } from '@/services/authService'
-import type { AuthCredential } from 'firebase/auth'
 import PhoneInput, { toE164, type PhoneInputValue } from './PhoneInput'
 import { validatePassword, describeIssue, PASSWORD_MIN_LENGTH, type PasswordIssue } from '@/utils/passwordPolicy'
 import { track } from '@/lib/analytics'
@@ -75,7 +74,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
   // Link Google to existing password account
   const [linkEmail, setLinkEmail] = useState('')
   const [linkPassword, setLinkPassword] = useState('')
-  const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null)
+  const [pendingCred, setPendingCred] = useState<unknown | null>(null)
 
   // Forgot password (email-only OTP flow per authflow.md §6)
   const [fpStep, setFpStep] = useState<ForgotStep>('email')
@@ -246,7 +245,7 @@ export default function SignInModal({ open, onOpenChange, onSwitchToSignUp }: Pr
       if (code === 'auth/popup-closed-by-user') return
       if (code === 'LINK_GOOGLE_TO_PASSWORD') {
         setLinkEmail(err.email ?? '')
-        setPendingCred((err.pendingCred as AuthCredential) ?? null)
+        setPendingCred((err.pendingCred as unknown) ?? null)
         setView('link-google')
         toast.info('Link your account', {
           description: 'Enter your password to link Google sign-in.',

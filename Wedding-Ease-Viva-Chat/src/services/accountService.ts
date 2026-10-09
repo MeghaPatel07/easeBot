@@ -6,11 +6,11 @@
 // Endpoints owned by Rohan (backend). They may return 501 while stubbed —
 // callers MUST tolerate that; useAccount.ts converts it to a soft state.
 
-import { auth } from '@/lib/firebase'
+import { apiFetch, getToken } from './apiClient'
+import { revive } from '@/lib/timestamp'
 import type { UserProfile, UserPreferences } from '@/types'
 
 // Same env var as ttsService / functionsService / notesSharingService.
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,9 +88,7 @@ function makeError(status: number, code: AccountServiceError['code'], message: s
 // ── Auth helper ──────────────────────────────────────────────────────────────
 // Mirrors functionsService.getAuthToken pattern.
 async function getAuthToken(): Promise<string | null> {
-  const user = auth.currentUser
-  if (!user) return null
-  return user.getIdToken()
+  return getToken()
 }
 
 async function request<T>(
@@ -98,27 +96,15 @@ async function request<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const token = await getAuthToken()
-  if (!token) {
+  if (!(await getAuthToken())) {
     throw makeError(401, 'unauthenticated', 'Not signed in')
   }
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-  }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
-
   let res: Response
   try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    })
+    res = await apiFetch(path.replace(/^\/api/, ''), { method, body: body === undefined ? undefined : JSON.stringify(body) })
   } catch (e) {
     throw makeError(0, 'network', (e as Error).message || 'Network error')
   }
-
   if (res.status === 401) throw makeError(401, 'unauthenticated', 'Not signed in')
   if (res.status === 501) throw makeError(501, 'not_implemented', 'Backend not yet available')
   if (res.status === 402) {
@@ -134,20 +120,15 @@ async function request<T>(
     const text = await res.text().catch(() => '')
     throw makeError(res.status, 'server', text || `Request failed (${res.status})`)
   }
-  // Allow empty bodies on 204
   if (res.status === 204) return undefined as unknown as T
-  return res.json() as Promise<T>
+  return revive(await res.json()) as T
 }
 
 async function requestBlob(path: string): Promise<Blob> {
-  const token = await getAuthToken()
-  if (!token) throw makeError(401, 'unauthenticated', 'Not signed in')
+  if (!(await getAuthToken())) throw makeError(401, 'unauthenticated', 'Not signed in')
   let res: Response
   try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    res = await apiFetch(path.replace(/^\/api/, ''), { method: 'GET' })
   } catch (e) {
     throw makeError(0, 'network', (e as Error).message || 'Network error')
   }
@@ -158,8 +139,6 @@ async function requestBlob(path: string): Promise<Blob> {
   }
   return res.blob()
 }
-
-// ── Endpoints (PRD §8) ───────────────────────────────────────────────────────
 
 export async function getAccountMe(): Promise<AccountMeResponse> {
   const res = await request<AccountMeResponse>('GET', '/api/account/me')
@@ -220,17 +199,6 @@ export interface TokenPoolSnapshot {
 
 export function getTokenPoolUsage(): Promise<TokenPoolSnapshot> {
   return request<TokenPoolSnapshot>('GET', '/api/account/usage')
-}
-
-export interface SwitchPlanResponse {
-  ok: true
-  plan: 'free' | 'pro' | 'promax'
-  planRenewsAt: string | null
-  usage: AccountUsage
-}
-
-export function switchPlan(tier: 'free' | 'pro' | 'promax'): Promise<SwitchPlanResponse> {
-  return request<SwitchPlanResponse>('POST', '/api/account/plan/switch', { tier })
 }
 
 export function exportAccountData(): Promise<Blob> {

@@ -11,7 +11,7 @@ import ExchangeRateService from '@/services/exchangeRateService'
 import { formatCurrency } from '@/utils/currencyFormat'
 import { useAccount } from '@/hooks/useAccount'
 import { cn } from '@/lib/utils'
-import { auth } from '@/lib/firebase'
+import { getCurrentUser } from '@/lib/authState'
 import { track } from '@/lib/analytics'
 import { PRICING } from '@/config/pricing'
 
@@ -303,7 +303,7 @@ export default function Pricing() {
   const handleTopup = () => {
     setCheckoutError(null)
     track('topup_clicked', { pack_id: 'topup_2m' })
-    const user = auth.currentUser
+    const user = getCurrentUser()
     if (!user) {
       navigate('/login?next=/pricing')
       return
@@ -327,7 +327,7 @@ export default function Pricing() {
       navigate('/')
       return
     }
-    const user = auth.currentUser
+    const user = getCurrentUser()
     if (!user) {
       navigate('/login?next=/pricing')
       return

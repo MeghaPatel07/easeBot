@@ -6,17 +6,9 @@
 // never a crash. Plaintext passwords never live longer than the dialog.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { auth } from '@/lib/firebase'
+import { getCurrentUser } from '@/lib/authState'
+import { api } from '@/services/apiClient'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
-import {
-  EmailAuthProvider,
-  GoogleAuthProvider,
-  linkWithPopup,
-  reauthenticateWithCredential,
-  reauthenticateWithPopup,
-  updatePassword,
-  verifyBeforeUpdateEmail,
-} from 'firebase/auth'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAccount } from '@/hooks/useAccount'
 import { useToast } from '@/hooks/use-toast'
@@ -102,7 +94,7 @@ function passwordIsStrong(s: string): boolean {
 // Reads provider IDs straight off Firebase Auth's currentUser as a fallback for
 // linkedProviders. Sprint 1 backfill may not have populated Firestore yet.
 function readFirebaseProviders(): Array<'password' | 'google.com'> {
-  const u = auth.currentUser
+  const u = getCurrentUser()
   if (!u) return []
   return u.providerData
     .map((p) => p.providerId)
@@ -126,7 +118,7 @@ export function AccountTab() {
   const isPhoneBased = useMemo(() => {
     if (profile?.authMethod === 'phone') return true
     if (profile?.authMethod === 'email') return false
-    return isDerivedPhoneEmail(auth.currentUser?.email ?? null)
+    return isDerivedPhoneEmail(getCurrentUser()?.email ?? null)
   }, [profile?.authMethod, profile?.uid])
 
   // Derive split phone fields from the combined `phone` E.164 value when the
@@ -241,7 +233,7 @@ export function AccountTab() {
       })
       return
     }
-    const currentUser = auth.currentUser
+    const currentUser = getCurrentUser()
     if (!currentUser) {
       toast({
         title: 'Not signed in',
@@ -266,31 +258,11 @@ export function AccountTab() {
         closeEmailDialog()
         return
       }
-      // Reauth based on linked provider.
-      if (hasPasswordProvider) {
-        if (!currentUser.email) throw new Error('No email on account')
-        if (!reauthPassword) {
-          toast({
-            title: 'Password required',
-            description: 'Enter your current password to confirm.',
-            variant: 'destructive',
-          })
-          setEmailSubmitting(false)
-          return
-        }
-        const cred = EmailAuthProvider.credential(currentUser.email, reauthPassword)
-        await reauthenticateWithCredential(currentUser, cred)
-      } else if (hasGoogleProvider) {
-        const provider = new GoogleAuthProvider()
-        await reauthenticateWithPopup(currentUser, provider)
-      }
-      // Firebase will send a verification email to the NEW address; the
-      // email field updates only after the user clicks the link. We must
-      // NOT write Firestore directly — Firebase handles propagation.
-      await verifyBeforeUpdateEmail(currentUser, target)
+      // Email-credential accounts: the address is the login identity, so it cannot be changed from here.
       toast({
-        title: 'Verification sent',
-        description: `Check ${target} to confirm the change.`,
+        title: 'Email can’t be changed',
+        description: 'This account signs in with its email address. Contact support to move it to a new address.',
+        variant: 'destructive',
       })
       closeEmailDialog()
     } catch (err) {
@@ -340,7 +312,7 @@ export function AccountTab() {
   // and are wiped on dialog close.
   const handleSubmitPasswordChange = async () => {
     if (!canSubmitPassword || passwordSubmitting) return
-    const currentUser = auth.currentUser
+    const currentUser = getCurrentUser()
     if (!currentUser || !currentUser.email) {
       toast({
         title: 'Not signed in',
@@ -351,14 +323,13 @@ export function AccountTab() {
     }
     setPasswordSubmitting(true)
     try {
-      const cred = EmailAuthProvider.credential(currentUser.email, currentPassword)
-      await reauthenticateWithCredential(currentUser, cred)
-      await updatePassword(currentUser, newPassword)
+      await api('/account/password', { json: { currentPassword, newPassword } })
       toast({
         title: 'Password updated',
-        description: 'Your new password is now active.',
+        description: 'Please sign in again with your new password.',
       })
       closePasswordDialog()
+      void signOut()
     } catch (err) {
       const code = (err as { code?: string })?.code ?? ''
       let message = 'Please try again.'
@@ -384,7 +355,7 @@ export function AccountTab() {
   // ── Connected accounts ────────────────────────────────────────────────────
   // Primary sign-in provider (read-only), per feedback round 2: show a single
   // clear "Signed in with X" line instead of contradictory "Not linked" rows.
-  const primaryProviderId = auth.currentUser?.providerData[0]?.providerId ?? null
+  const primaryProviderId = getCurrentUser()?.providerData[0]?.providerId ?? null
   const primaryProviderLabel = (() => {
     switch (primaryProviderId) {
       case 'google.com':
@@ -400,7 +371,7 @@ export function AccountTab() {
   const [linkingGoogle, setLinkingGoogle] = useState(false)
   const handleLinkGoogle = async () => {
     if (linkingGoogle) return
-    const currentUser = auth.currentUser
+    const currentUser = getCurrentUser()
     if (!currentUser) {
       toast({
         title: 'Not signed in',
@@ -411,12 +382,8 @@ export function AccountTab() {
     }
     setLinkingGoogle(true)
     try {
-      const provider = new GoogleAuthProvider()
-      await linkWithPopup(currentUser, provider)
-      toast({
-        title: 'Google linked',
-        description: 'You can now sign in with Google.',
-      })
+      // Google sign-in matches this account automatically when the Google email equals the account email.
+      toast({ title: 'Google sign-in', description: 'Use “Continue with Google” on the sign-in screen with the same email address — no linking step is needed.' })
     } catch (err) {
       const code = (err as { code?: string })?.code ?? ''
       let message = (err as Error)?.message ?? 'Please try again.'
@@ -441,7 +408,7 @@ export function AccountTab() {
     try {
       await apiSignOutEverywhere()
       try {
-        await auth.signOut()
+        await signOut()
       } catch {
         /* ignore */
       }

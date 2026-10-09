@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  onSnapshot,
-  serverTimestamp,
-  Timestamp,
-} from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { api, invalidate, liveQuery } from '@/services/apiClient'
+import { Timestamp } from '@/lib/timestamp'
 import {
   UserPlus,
   Users,
@@ -60,25 +52,13 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
   const [copied, setCopied] = useState(false)
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null)
 
-  const collabDocRef = doc(db, 'users', userId, 'settings', 'collaboration')
-
   useEffect(() => {
-    const unsubscribe = onSnapshot(collabDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as CollaborationSettings
-        const parsed = (data.sharedWith || []).map((c: any) => ({
-          ...c,
-          invitedAt:
-            c.invitedAt instanceof Timestamp
-              ? c.invitedAt.toDate()
-              : new Date(c.invitedAt),
-        }))
-        setCollaborators(parsed)
-      } else {
-        setCollaborators([])
-      }
+    return liveQuery('collaboration', () => api<CollaborationSettings>('/collaboration'), (data) => {
+      setCollaborators((data.sharedWith || []).map((c: any) => ({
+        ...c,
+        invitedAt: c.invitedAt instanceof Timestamp ? c.invitedAt.toDate() : new Date(c.invitedAt),
+      })))
     })
-    return () => unsubscribe()
   }, [userId])
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -113,28 +93,8 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
     setLoading(true)
 
     try {
-      const newCollaborator: Collaborator = {
-        email: trimmed,
-        name: null,
-        status: 'pending',
-        invitedAt: new Date(),
-      }
-
-      const snap = await getDoc(collabDocRef)
-
-      if (snap.exists()) {
-        const existing = snap.data() as CollaborationSettings
-        await updateDoc(collabDocRef, {
-          sharedWith: [...(existing.sharedWith || []), newCollaborator],
-          updatedAt: serverTimestamp(),
-        })
-      } else {
-        await setDoc(collabDocRef, {
-          sharedWith: [newCollaborator],
-          updatedAt: serverTimestamp(),
-        })
-      }
-
+      await api('/collaboration', { json: { email: trimmed } })
+      invalidate('collaboration')
       const inviteLink = `${window.location.origin}/invite?from=${userId}`
       setLastInviteLink(inviteLink)
       setSuccess(`Invite sent to ${trimmed}. They'll receive an email to join your plan.`)
@@ -162,10 +122,9 @@ export default function InvitePartner({ userId, userEmail, userName }: InvitePar
       const updated = collaborators.filter(
         (c) => c.email.toLowerCase() !== emailToRemove.toLowerCase()
       )
-      await updateDoc(collabDocRef, {
-        sharedWith: updated,
-        updatedAt: serverTimestamp(),
-      })
+      await api(`/collaboration/${encodeURIComponent(emailToRemove)}`, { method: 'DELETE' })
+      invalidate('collaboration')
+      void updated
     } catch (err: any) {
       setError(err.message || 'Failed to remove collaborator.')
     }

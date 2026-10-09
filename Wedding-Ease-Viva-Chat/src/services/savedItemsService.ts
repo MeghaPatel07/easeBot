@@ -1,16 +1,8 @@
-import {
-  collection,
-  doc,
-  addDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp,
-  Unsubscribe,
-  query,
-  orderBy,
-  updateDoc,
-} from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { api, apiAll, invalidate, liveQuery } from './apiClient'
+
+type Unsubscribe = () => void
+const TOPIC = 'saved'
+const touch = <T>(p: Promise<T>) => p.then((r) => { invalidate(TOPIC); return r })
 
 export interface SavedItem {
   id: string
@@ -22,66 +14,22 @@ export interface SavedItem {
   createdAt: any
 }
 
-function savedItemsCol(userId: string) {
-  return collection(db, 'users', userId, 'savedItems')
+export function subscribeToSavedItems(_userId: string, callback: (items: SavedItem[]) => void): Unsubscribe {
+  return liveQuery(TOPIC, () => apiAll<SavedItem>('/saved-items'), callback)
 }
 
-function savedItemDoc(userId: string, itemId: string) {
-  return doc(db, 'users', userId, 'savedItems', itemId)
+export async function addSavedItem(_userId: string, item: Omit<SavedItem, 'id' | 'createdAt'>): Promise<string> {
+  return (await touch(api<{ id: string }>('/saved-items', { json: item }))).id
 }
 
-// ── Real-time listener ────────────────────────────────────────────────────────
-
-export function subscribeToSavedItems(
-  userId: string,
-  callback: (items: SavedItem[]) => void
-): Unsubscribe {
-  const q = query(savedItemsCol(userId), orderBy('createdAt', 'desc'))
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const items = snapshot.docs.map(d => ({
-        ...d.data(),
-        id: d.id,
-      } as SavedItem))
-      callback(items)
-    },
-    (err) => console.error('[subscribeToSavedItems]', err.message)
-  )
+export async function updateSavedItemNote(_userId: string, itemId: string, note: string): Promise<void> {
+  await touch(api(`/saved-items/${itemId}`, { method: 'PATCH', json: { note } }))
 }
 
-// ── CRUD ─────────────────────────────────────────────────────────────────────
-
-export async function addSavedItem(
-  userId: string,
-  item: Omit<SavedItem, 'id' | 'createdAt'>
-): Promise<string> {
-  const docRef = await addDoc(savedItemsCol(userId), {
-    ...item,
-    createdAt: serverTimestamp(),
-  })
-  return docRef.id
+export async function updateSavedItemCategory(_userId: string, itemId: string, category: string): Promise<void> {
+  await touch(api(`/saved-items/${itemId}`, { method: 'PATCH', json: { category } }))
 }
 
-export async function updateSavedItemNote(
-  userId: string,
-  itemId: string,
-  note: string
-): Promise<void> {
-  await updateDoc(savedItemDoc(userId, itemId), { note })
-}
-
-export async function updateSavedItemCategory(
-  userId: string,
-  itemId: string,
-  category: string
-): Promise<void> {
-  await updateDoc(savedItemDoc(userId, itemId), { category })
-}
-
-export async function deleteSavedItem(
-  userId: string,
-  itemId: string
-): Promise<void> {
-  await deleteDoc(savedItemDoc(userId, itemId))
+export async function deleteSavedItem(_userId: string, itemId: string): Promise<void> {
+  await touch(api(`/saved-items/${itemId}`, { method: 'DELETE' }))
 }

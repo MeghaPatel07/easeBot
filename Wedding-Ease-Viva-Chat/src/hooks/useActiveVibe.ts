@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { api } from '@/services/apiClient'
+import { Timestamp } from '@/lib/timestamp'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ActiveVibe } from '@/types'
 
@@ -71,21 +71,10 @@ export function useActiveVibe(): {
     // Optimistic local update so the UI re-renders without waiting for a
     // profile refetch (AuthContext does not listen to Firestore).
     setLocalVibe(next ? { ...next, setAt: new Date() } : null)
-    const ref = doc(db, 'users', user.uid)
     try {
-      if (next === null) {
-        await updateDoc(ref, { activeVibe: null })
-        return
-      }
-      await updateDoc(ref, {
-        activeVibe: {
-          id: next.id,
-          title: next.title,
-          subtitle: next.subtitle ?? null,
-          descriptors: next.descriptors,
-          presetId: next.presetId,
-          setAt: serverTimestamp(),
-        },
+      await api('/account/vibe', {
+        method: 'PUT',
+        json: { vibe: next === null ? null : { id: next.id, title: next.title, subtitle: next.subtitle ?? null, descriptors: next.descriptors, presetId: next.presetId } },
       })
     } catch (err) {
       setLocalVibe(profileVibe)

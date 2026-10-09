@@ -10,7 +10,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
-import { auth } from '@/lib/firebase'
+import { apiFetch } from '@/services/apiClient'
+import { getCurrentUser } from '@/lib/authState'
 
 // Backend base URL mirrors the rest of the service layer.
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
@@ -62,20 +63,9 @@ const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onOpenChange }) =
 
     setSubmitting(true)
     try {
-      const currentUser = auth.currentUser
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (currentUser) {
-        try {
-          const token = await currentUser.getIdToken()
-          headers.Authorization = `Bearer ${token}`
-        } catch {
-          // Token fetch failure is non-fatal — submit as guest.
-        }
-      }
-
-      const res = await fetch(`${API_BASE}/api/feedback`, {
+      const currentUser = getCurrentUser()
+      const res = await apiFetch('/feedback', {
         method: 'POST',
-        headers,
         body: JSON.stringify({
           feedback: feedback.trim(),
           email: email.trim() || undefined,

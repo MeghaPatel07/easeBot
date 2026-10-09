@@ -7,27 +7,17 @@
  * - subscription CRUD: upgrade / downgrade / current
  */
 
-import { auth } from '@/lib/firebase'
+import { apiFetch, getToken } from './apiClient'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://backend.theweddingbot.ai'
 
 export function isPaymentEnabled(): boolean {
   return import.meta.env.VITE_ENABLE_PAYMENT !== 'false'
 }
 
 async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const user = auth.currentUser
-  if (!user) throw new Error('not_signed_in')
-  const token = await user.getIdToken()
-  const headers = new Headers(init.headers)
-  headers.set('Authorization', `Bearer ${token}`)
-  if (init.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
-  }
-  return fetch(`${API_BASE}${path}`, { ...init, headers })
+  if (!getToken()) throw new Error('not_signed_in')
+  return apiFetch(path.replace(/^\/api/, ''), init)
 }
-
-// ---- Types ----------------------------------------------------------------
 
 export type BillingCycle = 'monthly' | 'annual'
 export type Plan = 'pro' | 'promax'

@@ -1,15 +1,7 @@
-import {
-  collection,
-  doc,
-  setDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp,
-  Unsubscribe,
-  query,
-  orderBy,
-} from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { api, apiAll, invalidate, liveQuery } from './apiClient'
+
+type Unsubscribe = () => void
+const TOPIC = 'liked'
 
 export interface LikedProduct {
   id: string
@@ -22,46 +14,16 @@ export interface LikedProduct {
   likedAt: any
 }
 
-function likedProductsCol(userId: string) {
-  return collection(db, 'users', userId, 'likedProducts')
+export function subscribeToLikedProducts(_userId: string, callback: (items: LikedProduct[]) => void): Unsubscribe {
+  return liveQuery(TOPIC, () => apiAll<LikedProduct>('/liked-products'), callback)
 }
 
-function likedProductDoc(userId: string, productId: string) {
-  return doc(db, 'users', userId, 'likedProducts', productId)
+export async function addLikedProduct(_userId: string, productId: string, item: Omit<LikedProduct, 'id' | 'likedAt'>): Promise<void> {
+  await api(`/liked-products/${encodeURIComponent(productId)}`, { method: 'PUT', json: item })
+  invalidate(TOPIC)
 }
 
-export function subscribeToLikedProducts(
-  userId: string,
-  callback: (items: LikedProduct[]) => void,
-): Unsubscribe {
-  const q = query(likedProductsCol(userId), orderBy('likedAt', 'desc'))
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const items = snapshot.docs.map(d => ({
-        ...d.data(),
-        id: d.id,
-      } as LikedProduct))
-      callback(items)
-    },
-    (err) => console.error('[subscribeToLikedProducts]', err.message),
-  )
-}
-
-export async function addLikedProduct(
-  userId: string,
-  productId: string,
-  item: Omit<LikedProduct, 'id' | 'likedAt'>,
-): Promise<void> {
-  await setDoc(likedProductDoc(userId, productId), {
-    ...item,
-    likedAt: serverTimestamp(),
-  })
-}
-
-export async function removeLikedProduct(
-  userId: string,
-  productId: string,
-): Promise<void> {
-  await deleteDoc(likedProductDoc(userId, productId))
+export async function removeLikedProduct(_userId: string, productId: string): Promise<void> {
+  await api(`/liked-products/${encodeURIComponent(productId)}`, { method: 'DELETE' })
+  invalidate(TOPIC)
 }

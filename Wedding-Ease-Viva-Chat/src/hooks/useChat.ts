@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { subscribeToLikedProducts, addLikedProduct, removeLikedProduct } from '@/services/likedProductsService'
-import { collection, query, where, getDocs, getDoc, doc, DocumentSnapshot } from 'firebase/firestore'
+import type { MessageCursor } from '@/services/chatService'
 import { toast } from 'sonner'
-import { db } from '@/lib/firebase'
+import { api } from '@/services/apiClient'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   createThread,
@@ -209,7 +209,7 @@ export function useChat(): UseChatResult {
   const [chatUnavailable, setChatUnavailable] = useState(false)
   const [lastGeneratedImageUrl, setLastGeneratedImageUrl] = useState<string | null>(null)
   const [styleMemory, setStyleMemory] = useState<import('@/types').StyleMemory | null>(null)
-  const firstDocRef = useRef<DocumentSnapshot | null>(null)
+  const firstDocRef = useRef<MessageCursor | null>(null)
 
   // Keep refs so callbacks always see latest values without needing them as deps
   const messagesRef = useRef<Message[]>(messages)
@@ -235,34 +235,19 @@ export function useChat(): UseChatResult {
 
     const fetchLiked = async () => {
       try {
-        const threadsSnap = await getDocs(
-          query(collection(db, 'chats'), where('userId', '==', user.uid))
-        )
-        const results = await Promise.all(
-          threadsSnap.docs.map(async (threadDoc) => {
-            const snap = await getDocs(
-              query(
-                collection(db, 'chats', threadDoc.id, 'messages'),
-                where('liked', '==', true)
-              )
-            )
-            return snap.docs.map((d) => {
-              const data = d.data() as ChatMessage
-              return {
-                id: d.id,
-                text: data.content,
-                sender: (data.role === 'assistant' ? 'ai' : 'user') as 'user' | 'ai',
-                timestamp: data.timestamp?.toDate?.() ?? new Date(),
-                mode: data.mode,
-                liked: true,
-                imageUrl: data.imageUrl ?? null,
-                imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
-                threadId: threadDoc.id,
-              } satisfies Message
-            })
-          })
-        )
-        setAllLikedMessages(results.flat())
+        const { items } = await api<{ items: Array<ChatMessage & { conversationId: string; createdAt: { toDate?: () => Date } }> }>('/conversations/liked-messages?limit=200')
+        const results = items.map((data) => ({
+          id: (data as unknown as { id: string }).id,
+          text: data.content,
+          sender: (data.role === 'assistant' ? 'ai' : 'user') as 'user' | 'ai',
+          timestamp: data.createdAt?.toDate?.() ?? new Date(),
+          mode: data.mode,
+          liked: true,
+          imageUrl: data.imageUrl ?? null,
+          imageUrls: data.imageUrls?.length ? data.imageUrls : undefined,
+          threadId: data.conversationId,
+        } satisfies Message))
+        setAllLikedMessages(results)
       } catch (err) {
         console.error('[useChat] fetchLiked error:', err)
       }
@@ -697,9 +682,7 @@ export function useChat(): UseChatResult {
         }
         for (const clId of touchedChecklistIds) {
           try {
-            const snap = await getDoc(doc(db, 'users', user.uid, 'checklists', clId))
-            if (!snap.exists()) continue
-            const data = snap.data() as { items?: Array<{ completed?: boolean }> }
+            const data = await api<{ items?: Array<{ completed?: boolean }> }>(`/checklists/${clId}`)
             const items = data.items ?? []
             const done = items.filter(i => i.completed).length
             const newPreview = `${items.length} items · ${done} done`
