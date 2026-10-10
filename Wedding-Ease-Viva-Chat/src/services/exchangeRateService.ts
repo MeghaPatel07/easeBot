@@ -5,6 +5,8 @@
 // network/parse/sanity failure, returns 1.0 so checkout UI can still show
 // a price (checkout itself is authoritative and re-fetches server-side).
 
+import { api } from './apiClient'
+
 interface CachedRate {
   rate: number
   fetchedAt: number
@@ -15,10 +17,6 @@ const MIN_RATE = 0
 const MAX_RATE = 10_000 // LH-33 sanity — anything outside this is garbage
 
 export class ExchangeRateService {
-  private static readonly API_BASE_URL = 'https://v6.exchangerate-api.com/v6'
-  private static readonly API_KEY =
-    import.meta.env.VITE_EXCHANGE_RATE_API_KEY || ''
-
   private static cache = new Map<string, CachedRate>()
 
   /**
@@ -38,20 +36,9 @@ export class ExchangeRateService {
       return cached.rate
     }
 
-    if (!this.API_KEY) {
-      // No key configured — behave as if the service is down.
-      return 1.0
-    }
-
     try {
-      const url = `${this.API_BASE_URL}/${this.API_KEY}/pair/${f}/${t}`
-      const res = await fetch(url, { method: 'GET' })
-      if (!res.ok) throw new Error(`exchangerate-api http ${res.status}`)
-      const data = (await res.json()) as {
-        result?: string
-        conversion_rate?: number
-      }
-      const raw = data.conversion_rate
+      const data = await api<{ rate?: number }>(`/exchange-rate?from=${f}&to=${t}`)
+      const raw = data.rate
       if (typeof raw !== 'number' || !Number.isFinite(raw)) {
         throw new Error('conversion_rate missing or not a number')
       }

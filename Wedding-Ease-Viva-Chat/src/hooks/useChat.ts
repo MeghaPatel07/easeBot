@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { subscribeToLikedProducts, addLikedProduct, removeLikedProduct } from '@/services/likedProductsService'
 import type { MessageCursor } from '@/services/chatService'
 import { toast } from 'sonner'
-import { api } from '@/services/apiClient'
+import { api, invalidate } from '@/services/apiClient'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   createThread,
@@ -144,6 +144,8 @@ function toolActionsToMessageAttachments(
     out.push(att)
   }
   for (const a of actions) {
+    // Failed calls carry no real id, and deletes leave nothing to open.
+    if (a.failed || a.tool.startsWith('delete_')) continue
     switch (a.tool) {
       case 'create_checklist':
         if (a.checklistId) {
@@ -157,23 +159,27 @@ function toolActionsToMessageAttachments(
         break
       case 'edit_checklist_item':
       case 'mark_as_done':
+      case 'add_checklist_item':
         if (a.checklistId) {
           push({ kind: 'checklist', id: a.checklistId, title: a.checklistTitle || 'Checklist' })
         }
         break
       case 'create_note':
       case 'append_to_note':
+      case 'edit_note':
         if (a.noteId) {
           push({ kind: 'note', id: a.noteId, title: a.noteTitle || 'Note' })
         }
         break
       case 'create_timeline_event':
+      case 'edit_timeline_event':
         if (a.timelineEventId) {
           push({ kind: 'timeline', id: a.timelineEventId, title: a.timelineEventTitle || 'Timeline event' })
         }
         break
       case 'create_reminder':
       case 'save_reminder':
+      case 'edit_reminder':
         if (a.reminderId) {
           push({ kind: 'reminder', id: a.reminderId, title: a.reminderTitle || 'Reminder' })
         }
@@ -657,6 +663,10 @@ export function useChat(): UseChatResult {
 
       if (finalMeta.toolActions?.length) {
         setLastToolActions(finalMeta.toolActions as ToolAction[])
+        // Chat tools write server-side; refresh every artifact list now so the new
+        // chips resolve (instead of showing "Deleted …" until the next poll) and the
+        // Notes / Planner / Timeline / Reminders views reflect create, edit and delete.
+        invalidate('notes', 'notes:trash', 'checklists', 'timeline', 'reminders')
       }
 
       // If the backend created a reminder via tool, refetch the list.

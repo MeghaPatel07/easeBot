@@ -336,6 +336,10 @@ export interface TimelineEvent {
 
 export interface ToolAction {
   tool: 'create_checklist' | 'edit_checklist_item' | 'mark_as_done' | 'get_checklist_stats' | 'save_as_page' | 'save_reminder' | 'create_reminder' | 'web_search' | 'generate_image' | 'create_note' | 'append_to_note' | 'create_timeline_event'
+    | 'add_checklist_item' | 'delete_checklist_item' | 'delete_checklist' | 'edit_note' | 'delete_note'
+    | 'edit_timeline_event' | 'delete_timeline_event' | 'edit_reminder' | 'delete_reminder'
+  /** Tool call failed server-side: no artifact id, so no chip. */
+  failed?: boolean
   checklistId?: string
   itemId?: string
   searchQuery?: string

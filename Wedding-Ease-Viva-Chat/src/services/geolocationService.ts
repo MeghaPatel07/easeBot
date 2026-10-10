@@ -1,11 +1,13 @@
 // geolocationService — Sprint 2 (FE-012).
 //
 // Real implementation. Detects the user's country + currency via
-// ipgeolocation.io, caches the result in localStorage for 24h, and
+// the backend (ipgeolocation.io), caches the result in localStorage for 24h, and
 // supports a manual override (LH-35) that always beats auto-detection.
 //
 // The hook `usePricingCurrency` wraps this service; components should
 // consume the hook, not this class directly.
+
+import { api } from './apiClient'
 
 export interface GeolocationResult {
   countryCode: string
@@ -22,16 +24,11 @@ const TTL_MS = 24 * 60 * 60 * 1000 // 24h
 const FALLBACK: GeolocationResult = { countryCode: 'US', currencyCode: 'USD' }
 
 export class GeolocationService {
-  private static readonly API_BASE_URL = 'https://api.ipgeolocation.io/ipgeo'
-  private static readonly API_KEY =
-    import.meta.env.VITE_IP_GEOLOCATION_API_KEY ||
-    'f92eea25a17246a09563543976ca23d7'
-
   /**
    * Returns the user's display currency. Resolution order:
    *   1. Explicit user override in localStorage (`eb_currency_override`)
    *   2. Cached auto-detected value in localStorage (`eb_user_currency`, 24h TTL)
-   *   3. Fresh ipgeolocation.io lookup
+   *   3. Fresh server-side lookup (/api/easebot/geolocation)
    *   4. Fallback `{ US, USD }`
    */
   public static async getUserCurrency(): Promise<GeolocationResult> {
@@ -45,16 +42,10 @@ export class GeolocationService {
 
     // 3. Fresh fetch.
     try {
-      const url = `${this.API_BASE_URL}?apiKey=${this.API_KEY}`
-      const res = await fetch(url, { method: 'GET' })
-      if (!res.ok) throw new Error(`ipgeolocation http ${res.status}`)
-      const data = (await res.json()) as {
-        country_code2?: string
-        currency?: { code?: string }
-      }
+      const data = await api<Partial<GeolocationResult>>('/geolocation')
       const result: GeolocationResult = {
-        countryCode: data.country_code2 || FALLBACK.countryCode,
-        currencyCode: data.currency?.code || FALLBACK.currencyCode,
+        countryCode: data.countryCode || FALLBACK.countryCode,
+        currencyCode: data.currencyCode || FALLBACK.currencyCode,
       }
       this.writeCache(result)
       return result
